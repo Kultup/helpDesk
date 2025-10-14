@@ -1,0 +1,7 @@
+{
+  "name": "HelpdeskMobileAdmin",
+  "displayName": "HelpdeskMobileAdmin",
+  "config": {
+    "apiBaseUrl": "http://192.168.201.14:5000/api"
+  }
+}

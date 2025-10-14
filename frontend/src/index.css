@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* CSS змінні для світлої теми */
+:root {
+  --color-background: #ECF0F1;
+  --color-surface: #ECF0F1;
+  --color-text: #34495E;
+  --color-text-secondary: #7F8C8D;
+  --color-border: #E5E7EB;
+  --color-primary: #2C3E50;
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-600: #1e293b;
+  --color-primary-700: #0f172a;
+  --color-primary-800: #0c1220;
+  --color-primary-900: #020617;
+  --color-primary-hover: #1e293b;
+  --color-accent: #E74C3C;
+  --color-accent-50: #fef2f2;
+  --color-accent-100: #fee2e2;
+  --color-accent-200: #fecaca;
+  --color-accent-300: #fca5a5;
+  --color-accent-400: #f87171;
+  --color-accent-600: #dc2626;
+  --color-accent-700: #b91c1c;
+  --color-accent-800: #991b1b;
+  --color-accent-900: #7f1d1d;
+  --color-accent-hover: #dc2626;
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-error: #E74C3C;
+  --color-info: #3498DB;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* CSS змінні для темної теми */
+.dark {
+  --color-background: #1a1a1a;
+  --color-surface: #2d2d2d;
+  --color-text: #f5f5f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: #404040;
+  --color-primary: #60a5fa;
+  --color-primary-50: #1e293b;
+  --color-primary-100: #334155;
+  --color-primary-200: #475569;
+  --color-primary-300: #64748b;
+  --color-primary-400: #94a3b8;
+  --color-primary-600: #3b82f6;
+  --color-primary-700: #2563eb;
+  --color-primary-800: #1d4ed8;
+  --color-primary-900: #1e40af;
+  --color-primary-hover: #3b82f6;
+  --color-accent: #f87171;
+  --color-accent-50: #7f1d1d;
+  --color-accent-100: #991b1b;
+  --color-accent-200: #b91c1c;
+  --color-accent-300: #dc2626;
+  --color-accent-400: #ef4444;
+  --color-accent-600: #ef4444;
+  --color-accent-700: #f87171;
+  --color-accent-800: #fca5a5;
+  --color-accent-900: #fecaca;
+  --color-accent-hover: #ef4444;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    @apply font-sans;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  * {
+    border-color: var(--color-border);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+    @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+  }
+  
+  .btn-secondary {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--color-border);
+  }
+  
+  .btn-accent {
+    background-color: var(--color-accent);
+    color: white;
+    @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-accent:hover {
+    background-color: var(--color-accent-hover);
+  }
+  
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    @apply rounded-lg p-6 transition-all duration-200;
+  }
+  
+  .input-field {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    @apply w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200;
+  }
+  
+  .input-field:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+  }
+  
+  .dark .input-field:focus {
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+  }
+  
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .status-open {
+    background-color: rgba(248, 113, 113, 0.1);
+    color: var(--color-error);
+  }
+  
+  .status-progress {
+    background-color: rgba(251, 191, 36, 0.1);
+    color: var(--color-warning);
+  }
+  
+  .status-resolved {
+    background-color: rgba(74, 222, 128, 0.1);
+    color: var(--color-success);
+  }
+  
+  .status-closed {
+    background-color: rgba(161, 161, 170, 0.1);
+    color: var(--color-text-secondary);
+  }
+  }
+  
+  /* Анімації для сповіщень */
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-out {
+    animation: slideOut 0.3s ease-in;
+  }
+  
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  
+  
+  .status-resolved {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .status-closed {
+    @apply bg-gray-100 text-gray-800;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
