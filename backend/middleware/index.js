@@ -1,0 +1,28 @@
+// Імпортуємо всі middleware
+const auth = require('./auth');
+const logging = require('./logging');
+const validation = require('./validation');
+const cors = require('./cors');
+const upload = require('./upload');
+const errorHandler = require('./errorHandler');
+
+// Експортуємо все в одному об'єкті для зручності
+module.exports = {
+  // Аутентифікація та авторизація
+  ...auth,
+  
+  // Логування
+  ...logging,
+  
+  // Валідація
+  ...validation,
+  
+  // CORS
+  cors,
+  
+  // Завантаження файлів
+  ...upload,
+  
+  // Обробка помилок
+  ...errorHandler
+};
