@@ -34,7 +34,9 @@ async function handleMessage(message) {
 
   try {
     // Перевіряємо чи користувач авторизований
-    const user = await User.findOne({ telegramId: userId });
+    const user = await User.findOne({ telegramId: userId })
+      .populate('position', 'name')
+      .populate('city', 'name');
 
     if (!user && !text?.startsWith('/start')) {
       await telegramService.sendMessage(chatId, 
@@ -163,8 +165,8 @@ async function handleProfileCommand(chatId, user) {
   const profileText = 
     `👤 Ваш профіль:\n\n` +
     `📧 Email: ${user.email}\n` +
-    `💼 Посада: ${user.position || 'Не вказано'}\n` +
-    `🏙️ Місто: ${user.city || 'Не вказано'}\n` +
+    `💼 Посада: ${user.position?.name || 'Не вказано'}\n` +
+    `🏙️ Місто: ${user.city?.name || 'Не вказано'}\n` +
     `👑 Роль: ${user.role === 'admin' ? 'Адміністратор' : 'Користувач'}`;
 
   await telegramService.sendMessage(chatId, profileText);

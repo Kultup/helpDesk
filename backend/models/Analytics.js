@@ -7,7 +7,7 @@ const analyticsSchema = new mongoose.Schema({
       values: [
         'daily_summary', 'weekly_summary', 'monthly_summary',
         'ticket_metrics', 'user_activity', 'city_performance',
-        'response_time', 'resolution_time', 'satisfaction_score',
+        'response_time', 'resolution_time',
         'system_usage', 'error_tracking', 'performance_metrics',
         'export_activity', 'login_activity', 'api_usage'
       ],
@@ -142,19 +142,6 @@ const analyticsSchema = new mongoose.Schema({
       default: 0
     },
     
-    // Метрики задоволеності
-    satisfactionScore: {
-      average: { type: Number, min: 1, max: 5, default: 0 },
-      responses: { type: Number, default: 0 },
-      distribution: {
-        score1: { type: Number, default: 0 },
-        score2: { type: Number, default: 0 },
-        score3: { type: Number, default: 0 },
-        score4: { type: Number, default: 0 },
-        score5: { type: Number, default: 0 }
-      }
-    },
-    
     // Метрики продуктивності
     ticketsPerUser: {
       type: Number,
@@ -252,10 +239,6 @@ const analyticsSchema = new mongoose.Schema({
         percentage: { type: Number, default: 0 }
       },
       averageResolutionTime: {
-        absolute: { type: Number, default: 0 },
-        percentage: { type: Number, default: 0 }
-      },
-      satisfactionScore: {
         absolute: { type: Number, default: 0 },
         percentage: { type: Number, default: 0 }
       }

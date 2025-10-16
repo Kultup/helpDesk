@@ -234,9 +234,7 @@ const userSchema = new mongoose.Schema({
     ticketsAssigned: { type: Number, default: 0 },
     ticketsResolved: { type: Number, default: 0 },
     commentsPosted: { type: Number, default: 0 },
-    averageResolutionTime: { type: Number, default: 0 }, // в годинах
-    satisfactionRating: { type: Number, min: 0, max: 5, default: 0 },
-    totalRatings: { type: Number, default: 0 }
+    averageResolutionTime: { type: Number, default: 0 } // в годинах
   },
   
   // Метадані
@@ -455,7 +453,7 @@ userSchema.statics.getStatistics = function() {
 
 userSchema.statics.findTopPerformers = function(limit = 10) {
   return this.find({ isActive: true })
-    .sort({ 'statistics.ticketsResolved': -1, 'statistics.satisfactionRating': -1 })
+    .sort({ 'statistics.ticketsResolved': -1 })
     .limit(limit)
     .populate('position city');
 };

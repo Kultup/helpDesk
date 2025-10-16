@@ -18,7 +18,7 @@ const activeDirectoryRoutes = require('./activeDirectory');
 const quickTipRoutes = require('./quickTips');
 const ticketTemplateRoutes = require('./ticketTemplates');
 const categoryRoutes = require('./categories');
-const ratingRoutes = require('./ratings');
+const fileRoutes = require('./files');
 
 
 // Middleware для логування запитів
@@ -74,8 +74,8 @@ router.use('/ticket-templates', ticketTemplateRoutes);
 // Категорії
 router.use('/categories', categoryRoutes);
 
-// Рейтинги
-router.use('/ratings', ratingRoutes);
+// Файли
+router.use('/files', fileRoutes);
 
 
 
@@ -101,7 +101,6 @@ router.get('/', (req, res) => {
       quickTips: '/api/quick-tips',
       ticketTemplates: '/api/ticket-templates',
       categories: '/api/categories',
-      ratings: '/api/ratings',
       knowledgeBase: '/api/knowledge-base'
     },
     documentation: '/api/docs'

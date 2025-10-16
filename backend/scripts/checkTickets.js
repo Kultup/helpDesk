@@ -21,19 +21,6 @@ async function checkTickets() {
       });
     }
 
-    // Перевіряємо існуючі оцінки
-    const Rating = require('../models/Rating');
-    const ratings = await Rating.find().populate('ticket', 'title').populate('user', 'email').limit(5);
-    
-    console.log('\n⭐ Існуючі оцінки:');
-    if (ratings.length === 0) {
-      console.log('Оцінок не знайдено');
-    } else {
-      ratings.forEach(r => {
-        console.log(`Тікет: ${r.ticket?.title || 'N/A'}, Оцінка: ${r.rating || 'N/A'}, Користувач: ${r.user?.email || 'N/A'}`);
-      });
-    }
-
     process.exit(0);
   } catch (error) {
     console.error('❌ Помилка:', error);

@@ -42,12 +42,8 @@ export const useTickets = () => {
       const response = await apiService.getTickets(filters, pagination, sort);
       
       if (response.success && response.data) {
-        // API повертає структуру: { success: true, data: [...], pagination: {...} }
         const tickets = response.data as Ticket[];
         const paginationInfo = response.pagination;
-        
-        console.log('DEBUG tickets:', tickets);
-        console.log('DEBUG pagination:', paginationInfo);
         
         setTickets(tickets || []);
         setTotalPages(paginationInfo?.totalPages || 0);

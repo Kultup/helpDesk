@@ -74,6 +74,16 @@ export interface Ticket {
   updatedAt: string;
   resolvedAt?: string;
   comments: Comment[];
+  attachments?: Array<{
+    _id: string;
+    filename: string;
+    originalName: string;
+    mimetype: string;
+    size: number;
+    path: string;
+    uploadedBy: User;
+    uploadedAt: string;
+  }>;
 }
 
 // Типи міст
@@ -277,7 +287,6 @@ export interface ApiResponse<T> {
 
 // Спеціальний тип для відповіді оновлення тікета
 export interface UpdateTicketResponse extends ApiResponse<Ticket> {
-  showRatingModal?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -507,4 +516,175 @@ export interface NoteFilters {
   search?: string;
   limit?: number;
   skip?: number;
+}
+
+// Типи для шаблонів сповіщень (для швидких повідомлень)
+export type NotificationTemplateType = 'email' | 'telegram' | 'web' | 'sms';
+export type NotificationTemplateCategory = 'ticket' | 'user' | 'system' | 'security' | 'maintenance';
+
+export interface NotificationTemplate {
+  _id: string;
+  name: string;
+  type: NotificationTemplateType;
+  category: NotificationTemplateCategory;
+  subject?: string; // для email/web
+  content: string; // основний вміст повідомлення
+  variables?: string[]; // доступні змінні
+  createdBy?: string | User;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateNotificationTemplateForm {
+  name: string;
+  type: NotificationTemplateType;
+  category: NotificationTemplateCategory;
+  subject?: string;
+  content: string;
+  variables?: string[];
+}
+
+// Типи закладів
+export enum InstitutionType {
+  HOSPITAL = 'hospital',
+  CLINIC = 'clinic',
+  SCHOOL = 'school',
+  UNIVERSITY = 'university',
+  KINDERGARTEN = 'kindergarten',
+  LIBRARY = 'library',
+  MUSEUM = 'museum',
+  THEATER = 'theater',
+  CINEMA = 'cinema',
+  SPORTS_CENTER = 'sports_center',
+  PARK = 'park',
+  RESTAURANT = 'restaurant',
+  CAFE = 'cafe',
+  HOTEL = 'hotel',
+  BANK = 'bank',
+  POST_OFFICE = 'post_office',
+  POLICE_STATION = 'police_station',
+  FIRE_STATION = 'fire_station',
+  GOVERNMENT_OFFICE = 'government_office',
+  COURT = 'court',
+  SHOPPING_CENTER = 'shopping_center',
+  MARKET = 'market',
+  PHARMACY = 'pharmacy',
+  GAS_STATION = 'gas_station',
+  TRANSPORT_HUB = 'transport_hub',
+  OTHER = 'other'
+}
+
+export interface Institution {
+  _id: string;
+  name: string;
+  nameEn?: string;
+  type: InstitutionType;
+  typeEn?: string;
+  description?: string;
+  address: {
+    street: string;
+    city: string | City;
+    postalCode?: string;
+    district?: string;
+  };
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  contact: {
+    phone?: string;
+    email?: string;
+    website?: string;
+    fax?: string;
+  };
+  workingHours?: {
+    monday?: { open: string; close: string; isClosed: boolean };
+    tuesday?: { open: string; close: string; isClosed: boolean };
+    wednesday?: { open: string; close: string; isClosed: boolean };
+    thursday?: { open: string; close: string; isClosed: boolean };
+    friday?: { open: string; close: string; isClosed: boolean };
+    saturday?: { open: string; close: string; isClosed: boolean };
+    sunday?: { open: string; close: string; isClosed: boolean };
+  };
+  capacity?: number;
+  services?: Array<{
+    name: string;
+    description?: string;
+    price?: number;
+    currency?: 'UAH' | 'USD' | 'EUR';
+  }>;
+  rating?: {
+    average: number;
+    count: number;
+  };
+  isActive: boolean;
+  isPublic: boolean;
+  isVerified: boolean;
+  tags?: string[];
+  statistics?: {
+    totalTickets: number;
+    openTickets: number;
+    resolvedTickets: number;
+    averageResolutionTime: number;
+  };
+  createdBy?: string | User;
+  lastModifiedBy?: string | User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateInstitutionData {
+  name: string;
+  nameEn?: string;
+  type?: InstitutionType;
+  description?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    postalCode?: string;
+    district?: string;
+  };
+  coordinates?: {
+    lat?: number;
+    lng?: number;
+  };
+  contact?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+    fax?: string;
+  };
+  workingHours?: {
+    monday?: { open: string; close: string; isClosed: boolean };
+    tuesday?: { open: string; close: string; isClosed: boolean };
+    wednesday?: { open: string; close: string; isClosed: boolean };
+    thursday?: { open: string; close: string; isClosed: boolean };
+    friday?: { open: string; close: string; isClosed: boolean };
+    saturday?: { open: string; close: string; isClosed: boolean };
+    sunday?: { open: string; close: string; isClosed: boolean };
+  };
+  capacity?: number;
+  services?: Array<{
+    name: string;
+    description?: string;
+    price?: number;
+    currency?: 'UAH' | 'USD' | 'EUR';
+  }>;
+  isActive?: boolean;
+  isPublic?: boolean;
+  isVerified?: boolean;
+  tags?: string[];
+}
+
+export interface InstitutionsResponse {
+  success: boolean;
+  data: Institution[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
 }

@@ -50,18 +50,7 @@ const LanguageSelector: React.FC = () => {
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
   const handleLanguageChange = (languageCode: string) => {
-    console.log('=== LANGUAGE SELECTOR DEBUG ===');
-    console.log('Attempting to change language to:', languageCode);
-    console.log('Current language before change:', i18n.language);
-    console.log('Available languages in i18n:', Object.keys(i18n.store.data));
-    console.log('localStorage before change:', localStorage.getItem('i18nextLng'));
-    
-    i18n.changeLanguage(languageCode).then(() => {
-      console.log('Language change completed');
-      console.log('New current language:', i18n.language);
-      console.log('localStorage after change:', localStorage.getItem('i18nextLng'));
-      console.log('Current resource bundle:', i18n.getResourceBundle(languageCode, 'translation'));
-    }).catch((error: any) => {
+    i18n.changeLanguage(languageCode).catch((error: any) => {
       console.error('Language change failed:', error);
     });
     

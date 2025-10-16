@@ -23,6 +23,7 @@
     "download": "Pobierz",
     "upload": "Prześlij",
     "refresh": "Odśwież",
+    "update": "Aktualizuj",
     "back": "Wstecz",
     "next": "Dalej",
     "previous": "Poprzedni",
@@ -41,6 +42,8 @@
     "name": "Nazwa",
     "email": "Email",
     "phone": "Telefon",
+    "institution": "Instytucja",
+    "institutionPlaceholder": "Wprowadź nazwę instytucji",
     "address": "Adres",
     "city": "Miasto",
     "description": "Opis",
@@ -68,9 +71,10 @@
   "navigation": {
     "dashboard": "Panel główny",
     "tickets": "Zgłoszenia",
-    "analytics": "Analityka",
+    "analyticsMenu": "Analityka",
     "cities": "Miasta",
     "positions": "Stanowiska",
+    "institutions": "Instytucje",
     "users": "Użytkownicy",
     "categories": "Kategorie",
     "tags": "Tagi",
@@ -86,12 +90,21 @@
     "categories": "Kategorie",
     "templates": "Szablony",
     "calendar": "Kalendarz",
+    "analyticsMenu": "Analityka",
     "analytics": "Analityka",
     "activeDirectory": "Active Directory",
     "cities": "Miasta",
     "positions": "Stanowiska",
+    "institutions": "Instytucje",
     "users": "Użytkownicy",
     "pendingRegistrations": "Oczekujące rejestracje",
+    "quickNotifications": "Szybkie powiadomienia",
+    "groups": {
+      "main": "Główne",
+      "analytics": "Analityka i raporty",
+      "system": "Ustawienia systemowe",
+      "users": "Zarządzanie użytkownikami"
+    },
     "userRoles": {
       "admin": "Administrator",
       "user": "Użytkownik"
@@ -217,38 +230,43 @@
     "totalApplications": "Łącznie wniosków",
     "lastUpdated": "Ostatnia aktualizacja",
     "refresh": "Odśwież",
+    "refreshData": "Odśwież dane",
     "approveAll": "Zatwierdź wszystkie",
+    "approving": "Zatwierdzanie...",
     "approve": "Zatwierdź",
     "reject": "Odrzuć",
+    "confirm": "Potwierdź",
+    "cancel": "Anuluj",
+    "confirmRegistration": "Potwierdź rejestrację",
     "confirmApproval": "Potwierdź rejestrację",
     "confirmApprovalMessage": "Czy na pewno chcesz zatwierdzić rejestrację użytkownika {firstName} {lastName}?",
-    "confirmApprovalAll": "Zatwierdź wszystkie rejestracje",
-    "confirmApprovalAllMessage": "Czy na pewno chcesz zatwierdzić wszystkie {count} wnioski o rejestrację?",
+    "confirmAllRegistrations": "Zatwierdź wszystkie rejestracje",
+    "confirmAllRegistrationsMessage": "Czy na pewno chcesz zatwierdzić wszystkie {count} wnioski o rejestrację?",
     "bulkApprovalResult": "Rezultat masowego zatwierdzania: {{successful}} z {{total}} pomyślnie, {{failed}} błędów",
     "errorBulkApproval": "Błąd podczas masowego zatwierdzania",
     "errorLoadingCount": "Błąd podczas pobierania liczby wniosków",
     "rejectRegistration": "Odrzuć rejestrację",
-    "rejectRegistrationMessage": "Czy na pewno chcesz odrzucić rejestrację użytkownika {firstName} {lastName}?",
+    "rejectConfirmMessage": "Czy na pewno chcesz odrzucić rejestrację użytkownika {firstName} {lastName}?",
     "rejectionReason": "Powód odrzucenia",
-    "rejectionReasonPlaceholder": "Podaj powód odrzucenia wniosku...",
+    "rejectionPlaceholder": "Podaj powód odrzucenia wniosku...",
+    "charactersCount": "{current} z {max} znaków",
     "rejectionReasonRequired": "Powód odrzucenia jest wymagany",
     "noApplications": "Brak wniosków o rejestrację",
     "allProcessed": "Wszystkie wnioski zostały przetworzone",
     "noApplicationsDescription": "Wszystkie wnioski o rejestrację zostały przetworzone",
-    "loadingError": "Błąd ładowania wniosków",
-    "approvalError": "Błąd zatwierdzania rejestracji",
-    "rejectionError": "Błąd odrzucania rejestracji",
+    "submitted": "Przesłano",
+    "department": "Dział",
+    "notSpecified": "Nie określono",
+    "previous": "Poprzednia",
+    "next": "Następna",
+    "pageInfo": "Strona {current} z {total}",
+    "errorLoading": "Błąd ładowania wniosków",
+    "errorApproving": "Błąd zatwierdzania rejestracji",
+    "errorRejecting": "Błąd odrzucania rejestracji",
     "processing": "Przetwarzanie...",
     "submittedAt": "Przesłano",
     "telegramId": "Telegram ID",
-    "telegramUsername": "Telegram Username",
-    "next": "Następna",
-    "pageInfo": "Strona {{current}} z {{total}}",
-    "confirm": "Potwierdź",
-    "cancel": "Anuluj",
-    "rejectConfirmMessage": "Czy na pewno chcesz odrzucić rejestrację użytkownika {{firstName}} {{lastName}}?",
-    "rejectionPlaceholder": "Podaj powód odrzucenia...",
-    "charactersCount": "{{current}}/{{max}} znaków"
+    "telegramUsername": "Telegram Username"
   },
   "settings": {
     "title": "Ustawienia",
@@ -339,6 +357,7 @@
     "viewAll": "Zobacz wszystkie",
     "createNewTicket": "Utwórz nowe zgłoszenie",
     "analytics": "Analityka",
+    "analyticsSection": "Analityka",
     "noRecentTickets": "Brak ostatnich zgłoszeń",
     "noPriorityTickets": "Brak priorytetowych zgłoszeń",
     "created": "Utworzono",
@@ -426,8 +445,7 @@
     "userActivity": "Aktywność użytkowników",
     "performanceMetrics": "Metryki wydajności",
     "tabs": {
-      "general": "Analityka ogólna",
-      "ratings": "Oceny"
+      "general": "Analityka ogólna"
     },
     "priority": {
       "low": "Niski",
@@ -435,7 +453,7 @@
       "high": "Wysoki"
     },
     "export": {
-      "analytics": "Eksport analityki",
+      "analyticsData": "Eksport analityki",
       "csv": "CSV",
       "excel": "Excel",
       "pdf": "PDF",
@@ -545,7 +563,70 @@
     "enableNotifications": "Włącz powiadomienia",
     "notificationPermissionDenied": "Odmowa uprawnień do powiadomień"
   },
+  "quickNotifications": {
+    "title": "Szybkie powiadomienia",
+    "typeLabel": "Typ powiadomienia",
+    "types": {
+      "info": "Informacja",
+      "warning": "Ostrzeżenie",
+      "error": "Błąd",
+      "success": "Sukces"
+    },
+    "messageLabel": "Wiadomość",
+    "messagePlaceholder": "np. Planowana konserwacja serwera dziś od 20:00 do 22:00.",
+    "send": "Wyślij",
+    "sending": "Wysyłanie...",
+    "preview": "Podgląd",
+    "notificationLabel": "Powiadomienie",
+    "success": "Wysłano do {{sent}} z {{total}} użytkowników",
+    "failed": "Nie udało się dostarczyć do {{failed}} użytkowników",
+    "errorSending": "Błąd wysyłania powiadomienia",
+    "templatesTitle": "Zapisz jako szablon",
+    "selectTemplate": "Wybierz szablon",
+    "applyTemplate": "Zastosuj",
+    "loadingTemplates": "Ładowanie szablonów...",
+    "noTemplateSelected": "Nie wybrano szablonu",
+    "noTemplates": "Brak szablonów",
+    "templateName": "Nazwa szablonu",
+    "templateNamePlaceholder": "np. Konserwacja planowa",
+    "templateCategory": "Kategoria",
+    "categories": {
+      "system": "System",
+      "maintenance": "Konserwacja",
+      "user": "Użytkownik",
+      "ticket": "Zgłoszenie",
+      "security": "Bezpieczeństwo"
+    },
+    "templateContent": "Treść szablonu",
+    "templateContentPlaceholder": "Tekst do zapisania w szablonie",
+    "templateName": "Nazwa szablonu",
+    "category": "Kategoria",
+    "saveAsTemplate": "Zapisz jako szablon",
+    "savingTemplate": "Zapisywanie...",
+    "templateSaveError": "Błąd zapisywania szablonu",
+    "templateValidationError": "Uzupełnij nazwę i treść szablonu",
+    "messageRequired": "Wprowadź wiadomość",
+    "messagePlaceholderInput": "Wprowadź tekst wiadomości...",
+    "templateNamePlaceholderInput": "Wprowadź nazwę szablonu...",
+    "templateContentPlaceholderInput": "Wprowadź tekst szablonu lub zostaw puste, aby użyć bieżącej wiadomości...",
+    "deleteConfirmTitle": "Potwierdź usunięcie",
+    "deleteConfirmMessage": "Czy na pewno chcesz usunąć ten szablon? Tej akcji nie można cofnąć.",
+    "deleting": "Usuwanie...",
+    "deleteTemplate": "Usuń szablon",
+    "quickMessageTitle": "Wyślij szybką wiadomość do wszystkich użytkowników Telegram",
+    "selectTemplatePlaceholder": "Wybierz szablon...",
+    "typeLabel": "Typ wiadomości",
+    "messageLabel": "Tekst wiadomości",
+    "charactersCount": "znaków",
+    "sendMessage": "Wyślij wiadomość",
+    "previewTitle": "Podgląd",
+    "helpdeskMessage": "Wiadomość HelpDesk",
+    "previewPlaceholder": "Twoja wiadomość zostanie wyświetlona tutaj...",
+    "telegramInfo": "• Wiadomość zostanie wysłana do wszystkich użytkowników Telegram",
+    "emojiInfo": "• Emoji jest automatycznie dodawane zgodnie z typem"
+  },
   "calendar": {
+    "title": "Kalendarz",
     "today": "Dzisiaj",
     "tomorrow": "Jutro",
     "yesterday": "Wczoraj",
@@ -599,6 +680,15 @@
       "friday": "Pt",
       "saturday": "So",
       "sunday": "Nd"
+    },
+    "days": {
+      "sun": "Nd",
+      "mon": "Pn",
+      "tue": "Wt",
+      "wed": "Śr",
+      "thu": "Cz",
+      "fri": "Pt",
+      "sat": "So"
     },
     "eventTypes": {
       "meeting": "Spotkanie",
@@ -752,49 +842,97 @@
         "title": "Problemy Techniczne ze Sprzętem",
         "description": "Komputer się nie włącza, działa wolno lub zawiesza się",
         "estimatedTime": "2-4 godziny",
-        "tags": ["komputer", "sprzęt", "wydajność"]
+        "tags": ["komputer", "sprzęt", "wydajność"],
+        "quickTips": [
+          "Upewnij się, że komputer jest podłączony do zasilania",
+          "Spróbuj ponownie uruchomić komputer",
+          "Sprawdź, czy wszystkie kable są dobrze podłączone",
+          "Zwróć uwagę na pojawiające się komunikaty o błędach"
+        ]
       },
       "network": {
         "title": "Problemy z Siecią i Internetem",
         "description": "Brak połączenia z internetem lub niska prędkość",
         "estimatedTime": "1-2 godziny",
-        "tags": ["internet", "sieć", "połączenie"]
+        "tags": ["internet", "sieć", "połączenie"],
+        "quickTips": [
+          "Sprawdź, czy kabel sieciowy jest podłączony",
+          "Spróbuj zrestartować router/modem",
+          "Sprawdź, czy inne urządzenia mają dostęp do internetu",
+          "Spróbuj połączyć się z inną siecią"
+        ]
       },
       "security": {
         "title": "Problemy z Bezpieczeństwem",
         "description": "Podejrzane pliki, wirusy lub naruszenia bezpieczeństwa",
         "estimatedTime": "3-6 godzin",
-        "tags": ["bezpieczeństwo", "wirusy", "antywirus"]
+        "tags": ["bezpieczeństwo", "wirusy", "antywirus"],
+        "quickTips": [
+          "Nie otwieraj podejrzanych plików ani linków",
+          "Uruchom pełne skanowanie antywirusem",
+          "Zmień hasła, jeśli podejrzewasz naruszenie",
+          "W razie potrzeby odłącz się od internetu"
+        ]
       },
       "printer": {
         "title": "Problemy z Drukarką",
         "description": "Drukarka nie drukuje, zacięcie papieru lub problemy z jakością druku",
         "estimatedTime": "1-2 godziny",
-        "tags": ["drukarka", "drukowanie", "papier"]
+        "tags": ["drukarka", "drukowanie", "papier"],
+        "quickTips": [
+          "Upewnij się, że drukarka jest włączona i podłączona",
+          "Sprawdź papier oraz poziom tuszu/tonera",
+          "Spróbuj wydrukować stronę testową",
+          "Usuń ewentualne zacięcia papieru"
+        ]
       },
       "account": {
         "title": "Problemy z Kontem",
         "description": "Nie mogę się zalogować, zapomniałem hasła lub problemy z dostępem",
         "estimatedTime": "1-3 godziny",
-        "tags": ["logowanie", "hasło", "dostęp"]
+        "tags": ["logowanie", "hasło", "dostęp"],
+        "quickTips": [
+          "Spróbuj zresetować hasło",
+          "Sprawdź, czy Caps Lock nie jest włączony",
+          "Wyczyść pamięć podręczną i ciasteczka przeglądarki",
+          "Spróbuj użyć innej przeglądarki"
+        ]
       },
       "billing": {
         "title": "Pytania dotyczące Płatności",
         "description": "Problemy z rachunkami, płatnościami lub pytania finansowe",
         "estimatedTime": "2-4 godziny",
-        "tags": ["płatność", "rachunek", "finanse"]
+        "tags": ["płatność", "rachunek", "finanse"],
+        "quickTips": [
+          "Przygotuj numer konta",
+          "Sprawdź dane metody płatności",
+          "Przejrzyj ostatnie transakcje",
+          "W razie potrzeby skontaktuj się z bankiem"
+        ]
       },
       "general": {
         "title": "Pytania Ogólne",
         "description": "Zapytania informacyjne lub ogólne pytania dotyczące systemu",
         "estimatedTime": "1-2 godziny",
-        "tags": ["informacje", "konsultacja", "ogólne"]
+        "tags": ["informacje", "konsultacja", "ogólne"],
+        "quickTips": [
+          "Opisz pytanie możliwie konkretnie",
+          "Dodaj istotne szczegóły",
+          "Najpierw sprawdź dział FAQ",
+          "W razie potrzeby dołącz zrzuty ekranu"
+        ]
       },
       "other": {
         "title": "Inny Problem",
         "description": "Problem, który nie pasuje do innych kategorii",
         "estimatedTime": "1-4 godziny",
-        "tags": ["inne", "ogólne"]
+        "tags": ["inne", "ogólne"],
+        "quickTips": [
+          "Dokładnie opisz problem",
+          "Podaj kroki do odtworzenia",
+          "Opisz oczekiwane zachowanie",
+          "Dodaj komunikaty o błędach"
+        ]
       }
     }
   },
@@ -851,78 +989,6 @@
     "loadError": "Błąd podczas ładowania szablonów",
     "saveError": "Błąd podczas zapisywania szablonu",
     "deleteError": "Błąd podczas usuwania szablonu"
-  },
-  "ratingsAnalytics": {
-    "title": "Analityka Ocen",
-    "refresh": "Odśwież",
-    "totalRatings": "Łączna liczba ocen",
-    "averageRating": "Średnia ocena",
-    "recommendationRate": "Polecają",
-    "withComments": "Z komentarzami",
-    "ratingDistribution": "Rozkład ocen",
-    "categoryRatings": "Oceny według kategorii",
-    "noCategoryData": "Brak danych kategorii",
-    "categoryRatingsDescription": "Oceny kategorii będą dostępne po utworzeniu nowych ocen",
-    "detailedCategoryStats": "Szczegółowe statystyki kategorii",
-    "noCategoryDataDetailed": "Brak danych kategorii",
-    "categoryStatsDescription": "Istniejące oceny nie zawierają ocen kategorii. Szczegółowe statystyki będą dostępne po utworzeniu nowych ocen z ocenami kategorii.",
-    "trackedCategories": "Kategorie, które będą śledzone:",
-    "categories": {
-      "resolutionSpeed": "Szybkość rozwiązania",
-      "solutionQuality": "Jakość rozwiązania",
-      "communication": "Komunikacja",
-      "professionalism": "Profesjonalizm"
-    },
-    "recentRatings": "Ostatnie oceny",
-    "table": {
-      "ticket": "Zgłoszenie",
-      "user": "Użytkownik",
-      "rating": "Ocena",
-      "comment": "Komentarz",
-      "date": "Data"
-    },
-    "unknownUser": "Nieznany użytkownik",
-    "unknown": "Nieznany",
-    "noComment": "Bez komentarza",
-    "distribution": {
-      "1star": "1 gwiazdka",
-      "2stars": "2 gwiazdki",
-      "3stars": "3 gwiazdki",
-      "4stars": "4 gwiazdki",
-      "5stars": "5 gwiazdek"
-    },
-    "metrics": {
-      "totalRatings": "Łączna liczba ocen",
-      "averageRating": "Średnia ocena",
-      "recommend": "Polecają",
-      "withComments": "Z komentarzami"
-    },
-    "charts": {
-      "distributionTitle": "Rozkład ocen",
-      "categoriesTitle": "Oceny według kategorii",
-      "noCategoryData": "Brak danych kategorii",
-      "noCategoryDataDescription": "Oceny kategorii będą dostępne po utworzeniu nowych ocen"
-    },
-    "detailedStats": {
-      "title": "Szczegółowe statystyki kategorii",
-      "noCategoryData": "Brak danych kategorii",
-      "noCategoryDataDescription": "Istniejące oceny nie zawierają ocen kategorii. Szczegółowe statystyki będą dostępne po utworzeniu nowych ocen z ocenami kategorii.",
-      "categoriesWillBeTracked": "Kategorie, które będą śledzone:"
-    },
-    "recentRatings": {
-      "title": "Ostatnie oceny",
-      "ticket": "Zgłoszenie",
-      "user": "Użytkownik",
-      "rating": "Ocena",
-      "comment": "Komentarz",
-      "date": "Data",
-      "unknownTicket": "Nieznane zgłoszenie",
-      "unknownUser": "Nieznany użytkownik",
-      "unknown": "Nieznany",
-      "noComment": "Bez komentarza",
-      "noRatings": "Brak ocen",
-      "from": "od"
-    }
   },
   "activeDirectory": {
     "title": "Active Directory",
@@ -1138,6 +1204,7 @@
     "hideDeactivated": "Ukryj Dezaktywowanych",
     "showDeactivated": "Pokaż Dezaktywowanych ({count})",
     "search": "Szukaj użytkowników...",
+    "searchPlaceholder": "Szukaj po imieniu, nazwisku lub e-mailu...",
     "allRoles": "Wszystkie Role",
     "allUsers": "Wszyscy Użytkownicy",
     "activeUsers": "Aktywni",
@@ -1283,6 +1350,127 @@
       "fri": "Pt",
       "sat": "Sb"
     }
+  },
+  "institutions": {
+    "title": "Instytucje",
+    "createTitle": "Utwórz instytucję",
+    "editTitle": "Edytuj instytucję",
+    "create": "Utwórz instytucję",
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "bulkDelete": "Usuń zaznaczone",
+    "search": "Szukaj instytucji...",
+    "loading": "Ładowanie instytucji...",
+    "error": "Błąd podczas ładowania instytucji",
+    "noInstitutions": "Nie znaleziono instytucji",
+    "success": {
+      "created": "Instytucja została utworzona pomyślnie",
+      "updated": "Instytucja została zaktualizowana pomyślnie",
+      "deleted": "Instytucja została usunięta pomyślnie",
+      "bulkDeleted": "Zaznaczone instytucje zostały usunięte pomyślnie"
+    },
+    "fields": {
+      "name": "Nazwa",
+      "type": "Typ",
+      "address": "Adres",
+      "city": "Miasto",
+      "postalCode": "Kod pocztowy",
+      "country": "Kraj",
+      "latitude": "Szerokość geograficzna",
+      "longitude": "Długość geograficzna",
+      "phone": "Telefon",
+      "email": "Email",
+      "website": "Strona internetowa",
+      "workingHours": "Godziny pracy",
+      "capacity": "Pojemność",
+      "services": "Usługi",
+      "rating": "Ocena",
+      "tags": "Tagi",
+      "description": "Opis",
+      "isActive": "Aktywna",
+      "isPublic": "Publiczna",
+      "hasParking": "Parking",
+      "hasWifi": "WiFi",
+      "isAccessible": "Dostępna dla niepełnosprawnych"
+    },
+    "types": {
+      "hospital": "Szpital",
+      "clinic": "Klinika",
+      "pharmacy": "Apteka",
+      "school": "Szkoła",
+      "university": "Uniwersytet",
+      "library": "Biblioteka",
+      "museum": "Muzeum",
+      "theater": "Teatr",
+      "cinema": "Kino",
+      "restaurant": "Restauracja",
+      "cafe": "Kawiarnia",
+      "hotel": "Hotel",
+      "bank": "Bank",
+      "post_office": "Poczta",
+      "police_station": "Komisariat policji",
+      "fire_station": "Straż pożarna",
+      "government": "Urząd",
+      "court": "Sąd",
+      "embassy": "Ambasada",
+      "church": "Kościół",
+      "mosque": "Meczet",
+      "synagogue": "Synagoga",
+      "temple": "Świątynia",
+      "gym": "Siłownia",
+      "stadium": "Stadion",
+      "park": "Park",
+      "zoo": "Zoo",
+      "shopping_mall": "Centrum handlowe",
+      "supermarket": "Supermarket",
+      "gas_station": "Stacja benzynowa",
+      "airport": "Lotnisko",
+      "train_station": "Dworzec kolejowy",
+      "bus_station": "Dworzec autobusowy",
+      "other": "Inne"
+    },
+    "modal": {
+      "createTitle": "Utwórz nową instytucję",
+      "editTitle": "Edytuj instytucję"
+    },
+    "errors": {
+      "fetchFailed": "Błąd ładowania instytucji",
+      "createFailed": "Błąd tworzenia instytucji",
+      "updateFailed": "Błąd aktualizacji instytucji",
+      "deleteFailed": "Błąd usuwania instytucji",
+      "bulkDeleteFailed": "Błąd usuwania wybranych instytucji",
+      "networkError": "Błąd sieci",
+      "serverError": "Błąd serwera",
+      "validationError": "Błąd walidacji danych"
+    },
+    "add": "Dodaj instytucję",
+    "noInstitutions": "Nie znaleziono instytucji",
+    "noInstitutionsDescription": "Brak instytucji do wyświetlenia. Utwórz nową instytucję, aby rozpocząć.",
+    "basicInfo": "Podstawowe informacje",
+    "address": "Adres",
+    "coordinates": "Współrzędne",
+    "contact": "Informacje kontaktowe",
+    "name": "Nazwa",
+    "nameEn": "Nazwa w języku angielskim",
+    "type": "Typ instytucji",
+    "description": "Opis",
+    "street": "Ulica",
+    "city": "Miasto",
+    "postalCode": "Kod pocztowy",
+    "district": "Dzielnica",
+    "latitude": "Szerokość geograficzna",
+    "phone": "Telefon",
+    "institution": "Instytucja",
+    "institutionPlaceholder": "Wprowadź nazwę instytucji",
+    "longitude": "Długość geograficzna",
+    "email": "Email",
+    "website": "Strona internetowa",
+    "deleteConfirm": "Czy na pewno chcesz usunąć tę instytucję?",
+    "deleteSelected": "Usuń zaznaczone",
+    "deleteSelectedConfirm": "Czy na pewno chcesz usunąć zaznaczone instytucje?",
+    "selectAll": "Zaznacz wszystkie",
+    "deselectAll": "Odznacz wszystkie",
+    "noResults": "Nie znaleziono instytucji"
   },
   "header": {
     "administrator": "Administrator",

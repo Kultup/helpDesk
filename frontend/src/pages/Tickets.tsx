@@ -189,7 +189,7 @@ const Tickets: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'all')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border border-border bg-surface text-foreground"
             >
               <option value="all">{t('tickets.filters.allStatuses')}</option>
               <option value={TicketStatus.OPEN}>{t('common.statuses.open')}</option>
@@ -201,7 +201,7 @@ const Tickets: React.FC = () => {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | 'all')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border border-border bg-surface text-foreground"
             >
               <option value="all">{t('tickets.filters.allPriorities')}</option>
               <option value={TicketPriority.LOW}>{t('common.priorities.low')}</option>
@@ -216,7 +216,7 @@ const Tickets: React.FC = () => {
                 setSortBy(field as 'createdAt' | 'title' | 'status');
                 setSortOrder(order as 'asc' | 'desc');
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border border-border bg-surface text-foreground"
             >
               <option value="createdAt-desc">{t('tickets.filters.newestFirst')}</option>
               <option value="createdAt-asc">{t('tickets.filters.oldestFirst')}</option>

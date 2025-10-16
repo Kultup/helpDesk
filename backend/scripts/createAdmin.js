@@ -62,7 +62,6 @@ async function createAdmin() {
         ticketsCreated: 0,
         ticketsResolved: 0,
         averageResolutionTime: 0,
-        satisfactionRating: 5,
         totalRatings: 0
       },
       preferences: {

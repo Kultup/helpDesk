@@ -819,11 +819,8 @@ exports.getWorkloadByDayOfWeek = async (req, res) => {
         resolvedTickets: dayData ? dayData.resolvedTickets : 0
       };
       
-      console.log(`Day ${jsDay} (MongoDB ${mongoDay}):`, dayEntry);
       workloadData.push(dayEntry);
     }
-
-    console.log('Final workload data:', workloadData);
 
     res.json({
       success: true,

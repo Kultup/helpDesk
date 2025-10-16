@@ -1,0 +1,29 @@
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+module.exports = function(app) {
+  console.log('[PROXY SETUP] Налаштовую проксі для /api');
+  
+  app.use(
+    '/api',
+    createProxyMiddleware({
+      target: 'http://localhost:5000',
+      changeOrigin: true,
+      secure: false,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req, res) => {
+        console.log(`[PROXY REQ] ${req.method} ${req.url} -> ${proxyReq.protocol}//${proxyReq.host}${proxyReq.path}`);
+        console.log(`[PROXY REQ] Headers:`, req.headers);
+      },
+      onProxyRes: (proxyRes, req, res) => {
+        console.log(`[PROXY RES] ${proxyRes.statusCode} for ${req.method} ${req.url}`);
+        console.log(`[PROXY RES] Headers:`, proxyRes.headers);
+      },
+      onError: (err, req, res) => {
+        console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
+        console.error(`[PROXY ERROR] Stack:`, err.stack);
+      }
+    })
+  );
+  
+  console.log('[PROXY SETUP] Проксі налаштовано успішно');
+};

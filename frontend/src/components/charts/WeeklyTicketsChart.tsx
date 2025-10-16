@@ -52,24 +52,14 @@ const WeeklyTicketsChart: React.FC = () => {
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
-        console.log('Weekly tickets data loaded:', response.data.data);
-        
         // Обробляємо та виправляємо дані
         const processedData = response.data.data.map((item: any, index: number) => {
-          console.log(`Item ${index}:`, {
-            date: item.date,
-            dayNumber: item.dayNumber,
-            count: item.count,
-            dayNumberType: typeof item.dayNumber
-          });
-          
           // Якщо dayNumber відсутній, обчислюємо його з дати
           let dayNumber = item.dayNumber;
           if (dayNumber === undefined || dayNumber === null || isNaN(dayNumber)) {
             console.warn(`Invalid dayNumber for item ${index}, calculating from date:`, item.date);
             const date = new Date(item.date);
             dayNumber = date.getDay();
-            console.log(`Calculated dayNumber: ${dayNumber}`);
           }
           
           return {
@@ -79,7 +69,6 @@ const WeeklyTicketsChart: React.FC = () => {
           };
         });
         
-        console.log('Processed data:', processedData);
         setData(processedData);
       } else {
         console.error('Invalid data format or unsuccessful response');

@@ -7,7 +7,6 @@ import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
-import RatingModal from '../components/RatingModal';
 
 import { formatDate } from '../utils';
 
@@ -20,7 +19,6 @@ const TicketDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
   const [editingPriority, setEditingPriority] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
   const { user } = useAuth();
   const isAdmin = user?.role === UserRole.ADMIN;
   const basePath = isAdmin ? '/admin' : '';
@@ -58,11 +56,6 @@ const TicketDetails: React.FC = () => {
       if (response.success && response.data) {
         setTicket(response.data);
         setEditingStatus(false);
-        
-        // Перевіряємо, чи потрібно показати форму рейтингу
-        if (response.showRatingModal) {
-          setShowRatingModal(true);
-        }
         
         // Оновлюємо історію після зміни статусу
         if (ticketHistoryRef.current) {
@@ -195,6 +188,72 @@ const TicketDetails: React.FC = () => {
               <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
             </div>
           </Card>
+
+          {/* Прикріплені файли */}
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <Card>
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Прикріплені файли ({ticket.attachments.length})</h2>
+                <div className="space-y-3">
+                  {ticket.attachments.map((attachment) => (
+                    <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          {attachment.mimetype.startsWith('image/') ? (
+                            <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          ) : attachment.mimetype === 'application/pdf' ? (
+                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {attachment.originalName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(attachment.size / 1024 / 1024).toFixed(2)} MB • 
+                            Завантажено {attachment.uploadedBy.firstName} {attachment.uploadedBy.lastName} • 
+                            {new Date(attachment.uploadedAt).toLocaleDateString('uk-UA')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {attachment.mimetype.startsWith('image/') && (
+                          <button
+                            onClick={() => navigate(`/photo/${attachment.filename}`)}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Переглянути
+                          </button>
+                        )}
+                        <a
+                          href={`/api/files/${attachment.filename}`}
+                          download={attachment.originalName}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Завантажити
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
           
           {/* Історія змін */}
           <TicketHistory ref={ticketHistoryRef} ticketId={ticket._id} />
@@ -330,18 +389,6 @@ const TicketDetails: React.FC = () => {
         </div>
       </div>
 
-      {/* Модальне вікно рейтингу */}
-      {ticket && (
-        <RatingModal
-          show={showRatingModal}
-          onHide={() => setShowRatingModal(false)}
-          ticketId={ticket._id}
-          onRatingSubmitted={() => {
-            setShowRatingModal(false);
-            // Можна додати повідомлення про успішне відправлення рейтингу
-          }}
-        />
-      )}
     </div>
   );
 };

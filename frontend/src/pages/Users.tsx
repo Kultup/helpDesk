@@ -114,9 +114,7 @@ const Users: React.FC = () => {
       cancelText: 'Скасувати',
       onConfirm: async () => {
         try {
-          console.log(`Спроба ${action}ції користувача:`, { userId, userEmail, isActive });
           const response = await apiService.toggleUserActive(userId);
-          console.log('Відповідь API:', response);
           await refetchUsers(activeFilter);
           hideConfirmation();
           alert(`Користувача "${userEmail}" успішно ${actionPast}!`);
@@ -124,6 +122,30 @@ const Users: React.FC = () => {
           console.error(`Помилка ${action}ції користувача:`, error);
           const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
           alert(`Помилка ${action}ції користувача: ${errorMessage}`);
+          hideConfirmation();
+        }
+      },
+      onCancel: hideConfirmation
+    });
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    showConfirmation({
+      title: 'Видалити користувача',
+      message: `Ви впевнені, що хочете видалити користувача "${userEmail}"?`,
+      type: 'danger',
+      confirmText: 'Видалити',
+      cancelText: 'Скасувати',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.deleteUser(userId);
+          await refetchUsers(activeFilter);
+          hideConfirmation();
+          alert(`Користувача "${userEmail}" успішно видалено!`);
+        } catch (error: any) {
+          console.error('Помилка видалення користувача:', error);
+          const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
+          alert(`Помилка видалення користувача: ${errorMessage}`);
           hideConfirmation();
         }
       },
@@ -146,19 +168,17 @@ const Users: React.FC = () => {
       confirmText: 'ТАК, ВИДАЛИТИ НАЗАВЖДИ',
       cancelText: 'Скасувати',
       onConfirm: async () => {
-        try {
-          console.log('Спроба повного видалення користувача:', { userId, userEmail });
-          const response = await forceDeleteUser(userId);
-          console.log('Відповідь API:', response);
-          hideConfirmation();
-          alert(`Користувача "${userEmail}" повністю видалено з системи!`);
-        } catch (error: any) {
-          console.error('Помилка повного видалення користувача:', error);
-          const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
-          alert(`Помилка повного видалення користувача: ${errorMessage}`);
-          hideConfirmation();
-        }
-      },
+         try {
+           const response = await forceDeleteUser(userId);
+           hideConfirmation();
+           alert(`Користувача "${userEmail}" повністю видалено з системи!`);
+         } catch (error: any) {
+           console.error('Помилка повного видалення користувача:', error);
+           const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
+           alert(`Помилка повного видалення користувача: ${errorMessage}`);
+           hideConfirmation();
+         }
+       },
       onCancel: hideConfirmation
     });
   };
@@ -254,7 +274,6 @@ const Users: React.FC = () => {
           hideConfirmation();
           alert(actionPastText);
         } catch (error: any) {
-          console.error(`${action === 'activate' ? t('users.errorBulkActivation') : t('users.errorBulkDeactivation')}`, error);
           const errorMessage = error?.response?.data?.message || error?.message || t('users.unknownError');
           alert(`${action === 'activate' ? t('users.errorBulkActivation') : t('users.errorBulkDeactivation')} ${errorMessage}`);
           hideConfirmation();
@@ -360,7 +379,7 @@ const Users: React.FC = () => {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="all">{t('users.allRoles')}</option>
               <option value={UserRole.ADMIN}>{t('users.administrator')}</option>
@@ -370,7 +389,7 @@ const Users: React.FC = () => {
             <select
               value={activeFilter === undefined ? 'all' : activeFilter ? 'active' : 'inactive'}
               onChange={(e) => handleActiveFilterChange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             >
               <option value="all">{t('users.allUsers')}</option>
               <option value="active">{t('users.active')}</option>

@@ -66,29 +66,19 @@ export const useDashboardStats = (): UseDashboardStatsReturn => {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Завантаження статистики дашборду...');
-
       // Отримуємо дані з аналітики
       const [overviewResponse, dashboardResponse] = await Promise.all([
         apiService.getAnalytics(),
         apiService.getDashboardStats()
       ]);
 
-      console.log('📊 Відповідь getAnalytics:', overviewResponse);
-      console.log('📈 Відповідь getDashboardStats:', dashboardResponse);
-
       // Обробляємо дані з overview (приводимо до any для обходу типів)
       const overviewData = (overviewResponse as any).data?.overview || {};
       const ticketsByStatus = (overviewResponse as any).data?.ticketsByStatus || [];
       const avgResolutionTime = (overviewResponse as any).data?.avgResolutionTime || 0;
       
-      console.log('🎯 Overview data:', overviewData);
-      console.log('📋 Tickets by status:', ticketsByStatus);
-      console.log('⏱️ Avg resolution time:', avgResolutionTime);
-      
       // Обробляємо дані з dashboard
       const dashboardData = (dashboardResponse as any).data || {};
-      console.log('📊 Dashboard data:', dashboardData);
 
       // Підраховуємо статистику по статусах
       const statusCounts = ticketsByStatus.reduce((acc: any, item: any) => {
@@ -143,7 +133,6 @@ export const useDashboardStats = (): UseDashboardStatsReturn => {
         }
       };
 
-      console.log('✅ Фінальна статистика дашборду:', dashboardStats);
       setStats(dashboardStats);
     } catch (err: any) {
       console.error('Помилка при отриманні статистики дашборду:', err);

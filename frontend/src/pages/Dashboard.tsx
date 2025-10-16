@@ -234,14 +234,6 @@ const Dashboard: React.FC = () => {
   const recentTickets = tickets ? tickets.slice(0, 5) : [];
   const priorityTickets = tickets ? tickets.filter(ticket => ticket.priority === TicketPriority.HIGH).slice(0, 3) : [];
 
-  console.log('🎯 Dashboard Data:', {
-    tickets: tickets?.length || 0,
-    recentTickets: recentTickets.length,
-    priorityTickets: priorityTickets.length,
-    dashboardStats: typedDashboardStats,
-    isLoading
-  });
-
   // Обробка статистики з перевіркою на null/undefined
   const stats = typedDashboardStats ? {
     total: typedDashboardStats.totalTickets,
@@ -272,8 +264,6 @@ const Dashboard: React.FC = () => {
       closed: 0
     }
   };
-
-  console.log('📊 Dashboard Final Stats:', stats);
 
   // Створення масиву статистики для StatCard компонентів
   const statsArray = [
@@ -483,6 +473,10 @@ const Dashboard: React.FC = () => {
                     <Button
                       onClick={() => navigate('/tickets/new')}
                       className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      style={{
+                        background: 'linear-gradient(to right, var(--color-primary), var(--color-accent))',
+                        color: 'white'
+                      }}
                     >
                       <Plus className="h-5 w-5 mr-3" />
                         {t('dashboard.createNewTicket')}
@@ -491,7 +485,12 @@ const Dashboard: React.FC = () => {
                     <Button
                       onClick={() => navigate('/analytics')}
                       variant="outline"
-                      className="w-full border-border text-foreground hover:bg-surface hover:border-primary py-4 rounded-xl font-bold transition-all duration-300"
+                      className="w-full py-4 rounded-xl font-bold transition-all duration-300"
+                      style={{
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)',
+                        backgroundColor: 'var(--color-surface)'
+                      }}
                     >
                       <BarChart3 className="h-5 w-5 mr-2" />
                       {t('dashboard.analytics')}

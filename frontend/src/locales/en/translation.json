@@ -23,6 +23,7 @@
     "download": "Download",
     "upload": "Upload",
     "refresh": "Refresh",
+    "update": "Update",
     "back": "Back",
     "next": "Next",
     "previous": "Previous",
@@ -41,6 +42,8 @@
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
+    "institution": "Institution",
+    "institutionPlaceholder": "Enter institution name",
     "address": "Address",
     "city": "City",
     "description": "Description",
@@ -71,6 +74,7 @@
     "analytics": "Analytics",
     "cities": "Cities",
     "positions": "Positions",
+    "institutions": "Institutions",
     "users": "Users",
     "categories": "Categories",
     "tags": "Tags",
@@ -86,12 +90,21 @@
     "categories": "Categories",
     "templates": "Templates",
     "calendar": "Calendar",
+    "analyticsMenu": "Analytics",
     "analytics": "Analytics",
     "activeDirectory": "Active Directory",
     "cities": "Cities",
     "positions": "Positions",
+    "institutions": "Institutions",
     "users": "Users",
     "pendingRegistrations": "Pending Registrations",
+    "quickNotifications": "Quick Notifications",
+    "groups": {
+      "main": "Main",
+      "analytics": "Analytics & Reports",
+      "system": "System Settings",
+      "users": "User Management"
+    },
     "userRoles": {
       "admin": "Administrator",
       "user": "User"
@@ -217,24 +230,37 @@
     "totalApplications": "Total applications",
     "lastUpdated": "Last updated",
     "refresh": "Refresh",
+    "refreshData": "Refresh data",
     "approveAll": "Approve All",
+    "approving": "Approving...",
     "approve": "Approve",
     "reject": "Reject",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "confirmRegistration": "Confirm Registration",
     "confirmApproval": "Confirm Registration",
     "confirmApprovalMessage": "Are you sure you want to approve the registration of user {firstName} {lastName}?",
-    "confirmApprovalAll": "Approve All Registrations",
-    "confirmApprovalAllMessage": "Are you sure you want to approve all {count} registration applications?",
+    "confirmAllRegistrations": "Approve All Registrations",
+    "confirmAllRegistrationsMessage": "Are you sure you want to approve all {count} registration applications?",
     "rejectRegistration": "Reject Registration",
-    "rejectRegistrationMessage": "Are you sure you want to reject the registration of user {firstName} {lastName}?",
+    "rejectConfirmMessage": "Are you sure you want to reject the registration of user {firstName} {lastName}?",
     "rejectionReason": "Rejection Reason",
-    "rejectionReasonPlaceholder": "Please specify the reason for rejecting the application...",
+    "rejectionPlaceholder": "Please specify the reason for rejecting the application...",
+    "charactersCount": "{current} of {max} characters",
     "rejectionReasonRequired": "Rejection reason is required",
     "noApplications": "No registration applications",
     "allProcessed": "All applications have been processed",
     "noApplicationsDescription": "All registration applications have been processed",
-    "loadingError": "Error loading applications",
-    "approvalError": "Error approving registration",
-    "rejectionError": "Error rejecting registration",
+    "submitted": "Submitted",
+    "department": "Department",
+    "notSpecified": "Not specified",
+    "previous": "Previous",
+    "next": "Next",
+    "pageInfo": "Page {current} of {total}",
+    "errorLoading": "Error loading applications",
+    "errorApproving": "Error approving registration",
+    "errorRejecting": "Error rejecting registration",
+    "errorBulkApproval": "Error with bulk approval",
     "processing": "Processing...",
     "submittedAt": "Submitted",
     "telegramId": "Telegram ID",
@@ -329,6 +355,7 @@
     "viewAll": "View all",
     "createNewTicket": "Create new ticket",
     "analytics": "Analytics",
+    "analyticsSection": "Analytics",
     "noRecentTickets": "No recent tickets",
     "noPriorityTickets": "No priority tickets",
     "created": "Created",
@@ -388,7 +415,7 @@
     "title": "Analytics",
     "overview": "Overview",
     "reports": "Reports",
-    "charts": "Charts",
+    "chartsTab": "Charts",
     "statistics": "Statistics",
     "period": "Period",
     "periodStats": "Period: {{start}} — {{end}}",
@@ -416,8 +443,7 @@
     "userActivity": "User Activity",
     "performanceMetrics": "Performance Metrics",
     "tabs": {
-      "general": "General Analytics",
-      "ratings": "Ratings"
+      "general": "General Analytics"
     },
     "priority": {
       "low": "Low",
@@ -425,7 +451,7 @@
       "high": "High"
     },
     "export": {
-      "analytics": "Export Analytics",
+      "analyticsData": "Export Analytics",
       "csv": "CSV",
       "excel": "Excel",
       "pdf": "PDF",
@@ -535,6 +561,68 @@
     "markAsRead": "Mark as read",
     "enableNotifications": "Enable notifications",
     "notificationPermissionDenied": "Notification permission denied"
+  },
+  "quickNotifications": {
+    "title": "Quick Notifications",
+    "typeLabel": "Notification type",
+    "types": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error",
+      "success": "Success"
+    },
+    "messageLabel": "Message",
+    "messagePlaceholder": "e.g. Planned server maintenance today from 20:00 to 22:00.",
+    "send": "Send",
+    "sending": "Sending...",
+    "preview": "Preview",
+    "notificationLabel": "Notification",
+    "success": "Sent {{sent}} of {{total}} users",
+    "failed": "Failed to deliver to {{failed}} users",
+    "errorSending": "Error sending notification",
+    "templatesTitle": "Save as template",
+    "selectTemplate": "Select template",
+    "applyTemplate": "Apply",
+    "loadingTemplates": "Loading templates...",
+    "noTemplateSelected": "No template selected",
+    "noTemplates": "No templates",
+    "templateName": "Template name",
+    "templateNamePlaceholder": "e.g. Planned maintenance",
+    "templateCategory": "Category",
+    "categories": {
+      "system": "System",
+      "maintenance": "Maintenance",
+      "user": "User",
+      "ticket": "Ticket",
+      "security": "Security"
+    },
+    "templateContent": "Template content",
+    "templateContentPlaceholder": "Text to save in template",
+    "templateName": "Template name",
+    "category": "Category",
+    "saveAsTemplate": "Save as template",
+    "savingTemplate": "Saving...",
+    "templateSaveError": "Error saving template",
+    "templateValidationError": "Fill in template name and text",
+    "messageRequired": "Enter message",
+    "messagePlaceholderInput": "Enter message text...",
+    "templateNamePlaceholderInput": "Enter template name...",
+    "templateContentPlaceholderInput": "Enter template text or leave empty to use current message...",
+    "deleteConfirmTitle": "Confirm deletion",
+    "deleteConfirmMessage": "Are you sure you want to delete this template? This action cannot be undone.",
+    "deleting": "Deleting...",
+    "deleteTemplate": "Delete template",
+    "quickMessageTitle": "Send a quick message to all Telegram users",
+    "selectTemplatePlaceholder": "Select template...",
+    "typeLabel": "Message type",
+    "messageLabel": "Message text",
+    "charactersCount": "characters",
+    "sendMessage": "Send message",
+    "previewTitle": "Preview",
+    "helpdeskMessage": "HelpDesk Message",
+    "previewPlaceholder": "Your message will be displayed here...",
+    "telegramInfo": "• Message will be sent to all Telegram users",
+    "emojiInfo": "• Emoji is automatically added according to the type"
   },
   "calendar": {
     "today": "Today",
@@ -774,49 +862,97 @@
         "title": "Technical Hardware Issues",
         "description": "Computer won't start, runs slowly, or freezes",
         "estimatedTime": "2-4 hours",
-        "tags": ["computer", "hardware", "performance"]
+        "tags": ["computer", "hardware", "performance"],
+        "quickTips": [
+          "Check if the computer is properly connected to power",
+          "Try restarting the computer",
+          "Check if all cables are securely connected",
+          "Note any error messages that appear"
+        ]
       },
       "network": {
         "title": "Network and Internet Issues",
         "description": "No internet connection or slow speed",
         "estimatedTime": "1-2 hours",
-        "tags": ["internet", "network", "connection"]
+        "tags": ["internet", "network", "connection"],
+        "quickTips": [
+          "Check if the network cable is connected",
+          "Try restarting the router/modem",
+          "Check if other devices have internet access",
+          "Try connecting to a different network"
+        ]
       },
       "security": {
         "title": "Security Issues",
         "description": "Suspicious files, viruses, or security breaches",
         "estimatedTime": "3-6 hours",
-        "tags": ["security", "viruses", "antivirus"]
+        "tags": ["security", "viruses", "antivirus"],
+        "quickTips": [
+          "Do not open suspicious files or links",
+          "Run a full antivirus scan",
+          "Change passwords if you suspect a breach",
+          "Disconnect from the internet if necessary"
+        ]
       },
       "printer": {
         "title": "Printer Issues",
         "description": "Printer won't print, paper jam, or print quality issues",
         "estimatedTime": "1-2 hours",
-        "tags": ["printer", "printing", "paper"]
+        "tags": ["printer", "printing", "paper"],
+        "quickTips": [
+          "Check if the printer is turned on and connected",
+          "Check paper and ink/toner levels",
+          "Try printing a test page",
+          "Clear any paper jams"
+        ]
       },
       "account": {
         "title": "Account Issues",
         "description": "Can't log in, forgot password, or access issues",
         "estimatedTime": "1-3 hours",
-        "tags": ["login", "password", "access"]
+        "tags": ["login", "password", "access"],
+        "quickTips": [
+          "Try resetting your password",
+          "Check if Caps Lock is on",
+          "Clear browser cache and cookies",
+          "Try using a different browser"
+        ]
       },
       "billing": {
         "title": "Billing Questions",
         "description": "Issues with bills, payments, or financial questions",
         "estimatedTime": "2-4 hours",
-        "tags": ["payment", "bill", "finance"]
+        "tags": ["payment", "bill", "finance"],
+        "quickTips": [
+          "Have your account number ready",
+          "Check your payment method details",
+          "Review recent transactions",
+          "Contact your bank if needed"
+        ]
       },
       "general": {
         "title": "General Questions",
         "description": "Information requests or general system questions",
         "estimatedTime": "1-2 hours",
-        "tags": ["information", "consultation", "general"]
+        "tags": ["information", "consultation", "general"],
+        "quickTips": [
+          "Be as specific as possible in your question",
+          "Include relevant details",
+          "Check the FAQ first",
+          "Provide screenshots if helpful"
+        ]
       },
       "other": {
         "title": "Other Issue",
         "description": "Problem that doesn't fit other categories",
         "estimatedTime": "1-4 hours",
-        "tags": ["other", "general"]
+        "tags": ["other", "general"],
+        "quickTips": [
+          "Describe the problem clearly",
+          "Include steps to reproduce",
+          "Mention what you expected to happen",
+          "Add any error messages"
+        ]
       }
     },
     "createTemplate": {
@@ -950,115 +1086,6 @@
       "createFailed": "Failed to create template",
       "updateFailed": "Failed to update template",
       "loadFailed": "Failed to load template data"
-    }
-  },
-  "ratingsAnalytics": {
-    "title": "Rating Analytics",
-    "refresh": "Refresh",
-    "totalRatings": "Total Ratings",
-    "averageRating": "Average Rating",
-    "recommendationRate": "Recommend",
-    "withComments": "With Comments",
-    "ratingDistribution": "Rating Distribution",
-    "categoryRatings": "Category Ratings",
-    "noCategoryData": "No category data",
-    "categoryRatingsDescription": "Category ratings will be available after creating new ratings",
-    "detailedCategoryStats": "Detailed Category Statistics",
-    "noCategoryDataDetailed": "No category data",
-    "categoryStatsDescription": "Existing ratings do not contain category ratings. Detailed statistics will be available after creating new ratings with category ratings.",
-    "trackedCategories": "Categories to be tracked:",
-    "categories": {
-      "resolutionSpeed": "Resolution Speed",
-      "solutionQuality": "Solution Quality",
-      "communication": "Communication",
-      "professionalism": "Professionalism"
-    },
-    "recentRatings": "Recent Ratings",
-    "table": {
-      "ticket": "Ticket",
-      "user": "User",
-      "rating": "Rating",
-      "comment": "Comment",
-      "date": "Date"
-    },
-    "unknownUser": "Unknown User",
-    "unknown": "Unknown",
-    "noComment": "No comment",
-    "distribution": {
-      "1star": "1 star",
-      "2stars": "2 stars",
-      "3stars": "3 stars",
-      "4stars": "4 stars",
-      "5stars": "5 stars"
-    },
-    "metrics": {
-      "totalRatings": "Total Ratings",
-      "averageRating": "Average Rating",
-      "recommend": "Recommend",
-      "withComments": "With Comments"
-    },
-    "charts": {
-      "distributionTitle": "Rating Distribution",
-      "categoriesTitle": "Category Ratings",
-      "noCategoryData": "No category data",
-      "noCategoryDataDescription": "Category ratings will be available after creating new ratings"
-    },
-    "detailedStats": {
-      "title": "Detailed Category Statistics",
-      "noCategoryData": "No category data",
-      "noCategoryDataDescription": "Existing ratings do not contain category ratings. Detailed statistics will be available after creating new ratings with category ratings.",
-      "categoriesWillBeTracked": "Categories to be tracked:"
-    },
-    "recentRatings": {
-      "title": "Recent Ratings",
-      "ticket": "Ticket",
-      "user": "User",
-      "rating": "Rating",
-      "comment": "Comment",
-      "date": "Date",
-      "unknownTicket": "Unknown Ticket",
-      "unknownUser": "Unknown User",
-      "unknown": "Unknown",
-      "noComment": "No comment",
-      "noRatings": "No ratings yet",
-      "from": "from"
-    }
-  },
-  "telegramReviews": {
-    "title": "Telegram Bot Reviews",
-    "refresh": "Refresh",
-    "metrics": {
-      "totalReviews": "Total Reviews",
-      "averageRating": "Average Rating",
-      "recommend": "Recommend",
-      "withComments": "With Comments"
-    },
-    "distribution": {
-      "1star": "1 star",
-      "2stars": "2 stars",
-      "3stars": "3 stars",
-      "4stars": "4 stars",
-      "5stars": "5 stars"
-    },
-    "charts": {
-      "distributionTitle": "Telegram Rating Distribution"
-    },
-    "recentReviews": {
-      "title": "Recent Telegram Reviews",
-      "ticket": "Ticket",
-      "user": "User",
-      "rating": "Rating",
-      "comment": "Comment",
-      "date": "Date",
-      "unknownTicket": "Unknown Ticket",
-      "unknown": "Unknown",
-      "noComment": "No comment",
-      "fromTelegram": "from Telegram"
-    },
-    "noReviews": {
-      "title": "No Telegram reviews yet",
-      "description": "Reviews will appear here after users start rating tickets through the Telegram bot.",
-      "instructions": "Users can leave reviews through the Telegram bot after ticket closure."
     }
   },
   "activeDirectory": {
@@ -1275,6 +1302,7 @@
     "hideDeactivated": "Hide Deactivated",
     "showDeactivated": "Show Deactivated ({count})",
     "search": "Search users...",
+    "searchPlaceholder": "Search by first name, last name or email...",
     "allRoles": "All Roles",
     "allUsers": "All Users",
     "activeUsers": "Active",
@@ -1391,7 +1419,9 @@
   },
   "calendar": {
     "title": "Calendar",
+    "eventCalendar": "Event calendar",
     "today": "Today",
+    "addEvent": "Add event",
     "newEvent": "New event on",
     "eventTitle": "Event title",
     "location": "Location",
@@ -1420,6 +1450,149 @@
       "fri": "Fri",
       "sat": "Sat"
     }
+  },
+  "institutions": {
+    "title": "Institutions",
+    "create": "Create Institution",
+    "edit": "Edit Institution",
+    "delete": "Delete Institution",
+    "deleteConfirm": "Are you sure you want to delete this institution?",
+    "deleteSelected": "Delete Selected",
+    "deleteSelectedConfirm": "Are you sure you want to delete the selected institutions?",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "search": "Search institutions...",
+    "noResults": "No institutions found",
+    "loading": "Loading...",
+    "error": "Error loading institutions",
+    "success": {
+      "created": "Institution created successfully",
+      "updated": "Institution updated successfully",
+      "deleted": "Institution deleted successfully",
+      "bulkDeleted": "Selected institutions deleted successfully"
+    },
+    "fields": {
+      "name": "Name",
+      "nameEn": "Name (English)",
+      "type": "Institution Type",
+      "description": "Description",
+      "descriptionEn": "Description (English)",
+      "address": "Address",
+      "street": "Street",
+      "city": "City",
+      "postalCode": "Postal Code",
+      "district": "District",
+      "coordinates": "Coordinates",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "website": "Website",
+      "fax": "Fax",
+      "workingHours": "Working Hours",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday",
+      "from": "from",
+      "to": "to",
+      "closed": "Closed",
+      "capacity": "Capacity",
+      "services": "Services",
+      "rating": "Rating",
+      "tags": "Tags",
+      "isActive": "Active",
+      "isPublic": "Public",
+      "isVerified": "Verified"
+    },
+    "types": {
+      "hospital": "Hospital",
+      "clinic": "Clinic",
+      "pharmacy": "Pharmacy",
+      "school": "School",
+      "university": "University",
+      "kindergarten": "Kindergarten",
+      "library": "Library",
+      "museum": "Museum",
+      "theater": "Theater",
+      "cinema": "Cinema",
+      "restaurant": "Restaurant",
+      "cafe": "Cafe",
+      "hotel": "Hotel",
+      "bank": "Bank",
+      "post_office": "Post Office",
+      "police_station": "Police Station",
+      "fire_station": "Fire Station",
+      "government": "Government Office",
+      "court": "Court",
+      "embassy": "Embassy",
+      "church": "Church",
+      "mosque": "Mosque",
+      "synagogue": "Synagogue",
+      "gym": "Gym",
+      "stadium": "Stadium",
+      "park": "Park",
+      "zoo": "Zoo",
+      "shopping_mall": "Shopping Mall",
+      "supermarket": "Supermarket",
+      "gas_station": "Gas Station",
+      "car_repair": "Car Repair",
+      "beauty_salon": "Beauty Salon",
+      "veterinary": "Veterinary Clinic",
+      "dental_clinic": "Dental Clinic",
+      "laboratory": "Laboratory",
+      "other": "Other"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "public": "Public",
+      "private": "Private",
+      "verified": "Verified",
+      "unverified": "Unverified"
+    },
+    "modal": {
+      "createTitle": "Create New Institution",
+      "editTitle": "Edit Institution",
+      "basicInfo": "Basic Information",
+      "addressInfo": "Address",
+      "contactInfo": "Contact Information",
+      "additionalInfo": "Additional Information",
+      "statusInfo": "Status"
+    },
+    "errors": {
+      "fetchFailed": "Failed to load institutions",
+      "createFailed": "Failed to create institution",
+      "updateFailed": "Failed to update institution",
+      "deleteFailed": "Failed to delete institution",
+      "bulkDeleteFailed": "Failed to delete selected institutions",
+      "networkError": "Network error",
+      "serverError": "Server error",
+      "validationError": "Validation error"
+    },
+    "add": "Add Institution",
+    "noInstitutions": "No institutions found",
+    "noInstitutionsDescription": "No institutions to display. Create a new institution to get started.",
+    "basicInfo": "Basic Information",
+    "address": "Address",
+    "coordinates": "Coordinates",
+    "contact": "Contact Information",
+    "name": "Name",
+    "nameEn": "Name in English",
+    "type": "Institution Type",
+    "description": "Description",
+    "street": "Street",
+    "city": "City",
+    "postalCode": "Postal Code",
+    "district": "District",
+    "latitude": "Latitude",
+    "phone": "Phone",
+    "institution": "Institution",
+    "institutionPlaceholder": "Enter institution name"
   },
   "header": {
     "administrator": "Administrator",

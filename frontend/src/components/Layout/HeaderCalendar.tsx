@@ -10,7 +10,7 @@ interface HeaderCalendarProps {
 }
 
 const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   // Кольори для типів подій
   const EVENT_COLORS = {
@@ -41,9 +41,7 @@ const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
 
   // Завантаження подій
   useEffect(() => {
-    console.log('HeaderCalendar: useEffect викликано', { isOpen, currentDate: currentDate.toDateString() });
     if (isOpen) {
-      console.log('HeaderCalendar: Календар відкрито, завантажуємо події...');
       loadEvents();
       loadCustomCategories();
     }
@@ -55,32 +53,12 @@ const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
-      console.log('HeaderCalendar: Завантаження подій...');
-      console.log('HeaderCalendar: Поточна дата:', currentDate.toDateString());
-      console.log('HeaderCalendar: Період:', {
-        dateFrom: formatDateForAPI(startDate),
-        dateTo: formatDateForAPI(endDate),
-        startDate: startDate.toDateString(),
-        endDate: endDate.toDateString()
-      });
-      
       const response = await apiService.getEvents({
         dateFrom: formatDateForAPI(startDate),
         dateTo: formatDateForAPI(endDate)
       });
       
-      console.log('HeaderCalendar: Відповідь API:', response);
-      console.log('HeaderCalendar: Статус відповіді:', response.success);
-      console.log('HeaderCalendar: Дані відповіді:', response.data);
-      
       if (response.success && response.data) {
-        console.log('HeaderCalendar: Завантажено подій:', response.data.length);
-        console.log('HeaderCalendar: Список подій:', response.data.map(event => ({
-          id: event._id,
-          title: event.title,
-          date: event.date,
-          type: event.type
-        })));
         setEvents(response.data);
       } else {
         console.error('HeaderCalendar: Помилка завантаження подій:', response.message || 'Невідома помилка');
@@ -150,28 +128,11 @@ const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
 
   // Отримання подій для конкретної дати
   const getEventsForDate = (date: Date) => {
-    console.log('HeaderCalendar: Пошук подій для дати:', date.toDateString());
-    console.log('HeaderCalendar: Всього подій в масиві:', events.length);
-    
     const dateEvents = events.filter(event => {
       const eventDate = parseDateFromAPI(event.date);
       const matches = eventDate.toDateString() === date.toDateString();
-      console.log('HeaderCalendar: Порівняння дат:', {
-        eventDate: eventDate.toDateString(),
-        targetDate: date.toDateString(),
-        eventDateRaw: event.date,
-        matches: matches
-      });
-      if (matches) {
-        console.log('HeaderCalendar: Знайдена подія для дати', date.toDateString(), ':', event);
-      }
       return matches;
     });
-    
-    console.log('HeaderCalendar: Знайдено подій для дати', date.toDateString(), ':', dateEvents.length);
-    if (dateEvents.length > 0) {
-      console.log('HeaderCalendar: Події для дати', date.toDateString(), ':', dateEvents);
-    }
     
     return dateEvents;
   };
@@ -272,9 +233,22 @@ const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
     setFormData(prev => ({ ...prev, customCategory: '' }));
   };
 
+  // Визначення локалі для форматування дат відповідно до поточної мови
+  const getLocale = (lang: string) => {
+    switch (lang) {
+      case 'pl':
+        return 'pl-PL';
+      case 'uk':
+        return 'uk-UA';
+      case 'en':
+      default:
+        return 'en-US';
+    }
+  };
+
   // Форматування дати
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('uk-UA', { 
+    return date.toLocaleDateString(getLocale(i18n.language), { 
       month: 'long', 
       year: 'numeric' 
     });
@@ -314,7 +288,7 @@ const HeaderCalendar: React.FC<HeaderCalendarProps> = ({ isOpen, onClose }) => {
       {showCreateForm && selectedDate && (
         <div className="p-4 border-b border-gray-200 bg-gray-50">
           <h4 className="text-md font-medium text-gray-900 mb-3">
-{t('calendar.newEvent')} {selectedDate.toLocaleDateString('uk-UA')}
+            {t('calendar.newEvent')} {selectedDate.toLocaleDateString(getLocale(i18n.language))}
           </h4>
           
           <div className="space-y-3">

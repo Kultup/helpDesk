@@ -39,7 +39,6 @@ import { formatDate, formatDateWithLocale } from '../utils';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import ExportTicketsModal from '../components/ExportTicketsModal';
-import RatingsAnalytics from '../components/RatingsAnalytics';
 
 ChartJS.register(
   CategoryScale,
@@ -78,27 +77,9 @@ const Analytics: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'ratings'>('general');
+  const [activeTab, setActiveTab] = useState<'general'>('general');
 
-  // ТИМЧАСОВО ВІДКЛЮЧЕНО: Автооновлення даних для виправлення 429 помилок
-  // useEffect(() => {
-  //   let interval: NodeJS.Timeout;
-    
-  //   if (autoRefresh) {
-  //     interval = setInterval(async () => {
-  //       try {
-  //         await Promise.all([refetchAnalytics(), refetchUserStats()]);
-  //         setLastUpdated(new Date());
-  //       } catch (error) {
-  //         console.error('Помилка оновлення даних:', error);
-  //       }
-  //     }, 300000); // Збільшуємо інтервал до 5 хвилин (300000 мс) замість 4 годин
-  //   }
-    
-  //   return () => {
-  //     if (interval) clearInterval(interval);
-  //   };
-  // }, [autoRefresh, refetchAnalytics, refetchUserStats]);
+
 
 
 
@@ -306,15 +287,6 @@ const Analytics: React.FC = () => {
   };
 
   const exportData = (format: 'csv' | 'excel' | 'pdf') => {
-    console.log('🚀 Export started with format:', format);
-    
-    // Логуємо всі доступні дані
-    console.log('📊 Available data:');
-    console.log('- dashboardData:', dashboardData);
-    console.log('- analyticsData:', analyticsData);
-    console.log('- cityStats:', cityStats);
-    console.log('- exportTickets:', exportTickets);
-    
     if (!analyticsData || !dashboardData) {
       console.error('❌ Missing data for export');
       alert('Дані для експорту недоступні');
@@ -322,7 +294,6 @@ const Analytics: React.FC = () => {
     }
 
     const fileName = `tickets_export_${new Date().toISOString().split('T')[0]}`;
-    console.log('📁 File name:', fileName);
 
     // Підготовка даних для експорту
     const analyticsExportData = cityStats.map((item: any) => ({
@@ -330,32 +301,19 @@ const Analytics: React.FC = () => {
       'Всього тикетів': item.count,
       'Вирішених': item.resolved
     }));
-    
-    console.log('📊 Analytics export data prepared:', analyticsExportData);
-    console.log('📊 Analytics export data length:', analyticsExportData.length);
 
     if (format === 'csv') {
-      console.log('📄 Starting CSV export');
       const csv = Papa.unparse(analyticsExportData);
-      console.log('📄 CSV data length:', csv.length);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      console.log('📄 CSV blob size:', blob.size);
       downloadFile(blob, `${fileName}.csv`);
-      console.log('📄 CSV export completed');
     } else if (format === 'excel') {
-      console.log('📊 Starting Excel export');
-      
       // Створюємо робочу книгу
       const workbook = XLSX.utils.book_new();
-      console.log('📊 Workbook created');
       
       // Створюємо основний аркуш з аналітикою
       const worksheet = XLSX.utils.json_to_sheet(analyticsExportData);
-      console.log('📊 Main worksheet created');
-      console.log('📊 Worksheet data:', worksheet);
       
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Аналітика');
-      console.log('📊 Main worksheet appended');
 
       // Додаємо аркуш зі статистикою (беремо з analyticsData/dashboardData)
       const statsData = [
@@ -367,27 +325,17 @@ const Analytics: React.FC = () => {
         { 'Показник': 'Активних користувачів', 'Значення': analyticsData?.overview?.activeUsers || 0 }
       ];
       
-      console.log('📊 Stats data created:', statsData);
       const statsWorksheet = XLSX.utils.json_to_sheet(statsData);
-      console.log('📊 Stats worksheet created');
-      console.log('📊 Stats worksheet data:', statsWorksheet);
       
       XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Статистика');
-      console.log('📊 Stats worksheet appended');
       
-      console.log('📊 Final workbook:', workbook);
-      console.log('📊 Workbook sheets:', Object.keys(workbook.Sheets));
-      
-      console.log('📊 Writing file:', `${fileName}.xlsx`);
       // Створюємо blob для завантаження
       try {
         const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        console.log('📊 Excel buffer created, size:', excelBuffer.length);
         
         const blob = new Blob([excelBuffer], { 
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
         });
-        console.log('📊 Excel blob created, size:', blob.size);
         
         if (blob.size === 0) {
           console.error('❌ Excel blob is empty!');
@@ -396,7 +344,6 @@ const Analytics: React.FC = () => {
         }
         
         downloadFile(blob, `${fileName}.xlsx`);
-        console.log('📊 Excel file download initiated successfully!');
       } catch (error) {
         console.error('❌ Error creating Excel file:', error);
         alert('Помилка при створенні Excel файлу: ' + (error instanceof Error ? error.message : String(error)));
@@ -553,7 +500,7 @@ const Analytics: React.FC = () => {
 
       {/* Вкладки */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="flex space-x-8" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('general')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -563,16 +510,6 @@ const Analytics: React.FC = () => {
             }`}
           >
             {t('analytics.tabs.general')}
-          </button>
-          <button
-            onClick={() => setActiveTab('ratings')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'ratings'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            {t('analytics.tabs.ratings')}
           </button>
         </nav>
       </div>
@@ -584,21 +521,21 @@ const Analytics: React.FC = () => {
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">{t('analytics.period')}:</span>
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{t('analytics.period')}:</span>
             </div>
             <input
               type="date"
               value={dateRange.start}
               onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             />
-            <span className="text-gray-500">—</span>
+            <span className="text-muted-foreground">—</span>
             <input
               type="date"
               value={dateRange.end}
               onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
         </CardContent>
@@ -1178,11 +1115,7 @@ const Analytics: React.FC = () => {
         cities={cities}
         users={users}
       />
-        </>
-      )}
-
-      {activeTab === 'ratings' && (
-        <RatingsAnalytics />
+      </>
       )}
     </div>
   );

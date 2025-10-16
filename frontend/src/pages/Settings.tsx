@@ -90,7 +90,6 @@ const Settings: React.FC = () => {
   };
 
   const handlePreferenceChange = (field: keyof UserPreferences, value: any) => {
-    console.log('Settings: Preference change:', field, value);
     setPreferences(prev => ({ ...prev, [field]: value }));
     
     if (field === 'language') {
@@ -98,7 +97,6 @@ const Settings: React.FC = () => {
     }
     
     if (field === 'theme') {
-      console.log('Settings: Calling setTheme with:', value);
       setTheme(value);
     }
   };

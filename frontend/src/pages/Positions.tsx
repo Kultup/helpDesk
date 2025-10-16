@@ -50,7 +50,6 @@ const Positions: React.FC = () => {
     setFormLoading(true);
 
     try {
-      console.log(t('positions.saveError'), formData);
       if (editingPosition) {
         await updatePosition(editingPosition._id, formData);
       } else {

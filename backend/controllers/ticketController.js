@@ -428,18 +428,6 @@ exports.updateTicket = async (req, res) => {
         
         // Відправка сповіщення користувачеві про зміну статусу
         await telegramService.sendTicketNotification(ticket, 'updated');
-        
-        // Якщо тікет закрито, відправляємо запит на оцінку
-        if (status === 'closed') {
-          logger.info(`🌟 Тікет закрито, відправляю запит на оцінку...`);
-          const ticketCreator = await User.findById(ticket.createdBy);
-          if (ticketCreator && ticketCreator.telegramId) {
-            await telegramService.sendRatingRequest(ticket, ticketCreator);
-            logger.info(`✅ Запит на оцінку відправлено користувачу ${ticketCreator.email}`);
-          } else {
-            logger.warn(`❌ Не вдалося відправити запит на оцінку: користувач не знайдений або немає telegramId`);
-          }
-        }
       } catch (error) {
         logger.error('Помилка відправки Telegram сповіщення:', error);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
@@ -892,10 +880,6 @@ exports.exportTickets = async (req, res) => {
         'Кількість повторних відкриттів': calculatedMetrics.reopenCount,
         'Рівень ескалації': calculatedMetrics.escalationLevel,
         'Остання активність': calculatedMetrics.lastActivity ? formatDateTime(calculatedMetrics.lastActivity) : 'Немає',
-        
-        // Оцінка задоволеності
-        'Оцінка задоволеності': ticket.metrics?.satisfactionScore || ticket.satisfaction?.rating || 'Не оцінено',
-        'Коментар до оцінки': ticket.metrics?.satisfactionComment || ticket.satisfaction?.feedback || 'Немає',
         
         // Додаткова інформація
         'Теги': ticket.tags ? ticket.tags.map(tag => tag.name).join(', ') : 'Немає',

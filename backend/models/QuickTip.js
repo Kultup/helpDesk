@@ -70,16 +70,6 @@ quickTipSchema.virtual('helpfulnessRatio').get(function() {
   return (this.helpfulCount / total) * 100;
 });
 
-// Метод для оновлення рейтингу
-quickTipSchema.methods.updateRating = function(isHelpful) {
-  if (isHelpful) {
-    this.helpfulCount += 1;
-  } else {
-    this.notHelpfulCount += 1;
-  }
-  return this.save();
-};
-
 // Статичний метод для отримання порад по категорії
 quickTipSchema.statics.getByCategoryId = function(categoryId, limit = 5) {
   return this.find({ 

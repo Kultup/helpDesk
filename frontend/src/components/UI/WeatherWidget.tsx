@@ -29,7 +29,6 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
     try {
       setLoading(true);
       setError(null);
-      console.log('WeatherWidget: Starting to load weather...', forceRefresh ? '(forced refresh)' : '');
       
       // Clear any cached weather data if forcing refresh
       if (forceRefresh) {
@@ -37,7 +36,6 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({
       }
       
       const weatherData = await weatherService.getUserLocationWeather();
-      console.log('WeatherWidget: Weather data loaded:', weatherData);
       setWeather(weatherData);
     } catch (err) {
       const errorMessage = err instanceof WeatherError 

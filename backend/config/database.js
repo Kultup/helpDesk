@@ -18,8 +18,7 @@ class Database {
         minPoolSize: process.env.NODE_ENV === 'production' ? 5 : 2,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
-        bufferMaxEntries: 0,
-        bufferCommands: false,
+        
         maxIdleTimeMS: 30000,
         connectTimeoutMS: 10000,
         heartbeatFrequencyMS: 10000,
@@ -33,7 +32,7 @@ class Database {
       this.connection = await mongoose.connect(mongoUri, options);
       this.isConnected = true;
 
-      logger.database('MongoDB connected successfully', {
+      logger.db('MongoDB connected successfully', {
         host: this.connection.connection.host,
         port: this.connection.connection.port,
         database: this.connection.connection.name

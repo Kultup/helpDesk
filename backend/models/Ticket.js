@@ -36,12 +36,9 @@ const ticketSchema = new mongoose.Schema({
     default: 'medium'
   },
   category: {
-    type: String,
-    required: [true, 'Category is required'],
-    enum: {
-      values: ['technical', 'account', 'billing', 'general'],
-      message: 'Category must be one of: technical, account, billing, general'
-    }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: [true, 'Category is required']
   },
   subcategory: {
     type: String,
@@ -128,9 +125,7 @@ const ticketSchema = new mongoose.Schema({
     responseTime: { type: Number, default: 0 }, // години
     resolutionTime: { type: Number, default: 0 }, // години
     reopenCount: { type: Number, default: 0 },
-    escalationCount: { type: Number, default: 0 },
-    satisfactionScore: { type: Number, min: 1, max: 5 },
-    satisfactionComment: { type: String, trim: true }
+    escalationCount: { type: Number, default: 0 }
   },
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -245,21 +240,27 @@ const ticketSchema = new mongoose.Schema({
     deviceInfo: { type: String },
     browserInfo: { type: String }
   },
-  satisfaction: {
-    rating: {
-      type: Number,
-      min: 1,
+  
+  // Рейтинг якості
+  qualityRating: {
+    hasRating: { type: Boolean, default: false },
+    ratingRequested: { type: Boolean, default: false },
+    requestedAt: { type: Date },
+    rating: { 
+      type: Number, 
+      min: 1, 
       max: 5,
-      default: null
+      default: null 
     },
-    feedback: {
-      type: String,
+    feedback: { 
+      type: String, 
       trim: true,
-      default: null
+      maxlength: [500, 'Відгук не може перевищувати 500 символів']
     },
-    submittedAt: {
-      type: Date,
-      default: null
+    ratedAt: { type: Date },
+    ratedBy: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User' 
     }
   },
   
@@ -599,12 +600,6 @@ ticketSchema.methods.removeTag = function(tag) {
 
 ticketSchema.methods.setDueDate = function(dueDate) {
   this.dueDate = dueDate;
-  return this.save();
-};
-
-ticketSchema.methods.setSatisfaction = function(score, comment = '') {
-  this.metrics.satisfactionScore = score;
-  this.metrics.satisfactionComment = comment;
   return this.save();
 };
 

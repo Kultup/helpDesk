@@ -82,7 +82,12 @@ const rateQuickTip = async (req, res) => {
       });
     }
 
-    await quickTip.updateRating(isHelpful);
+    if (isHelpful) {
+      quickTip.helpfulCount += 1;
+    } else {
+      quickTip.notHelpfulCount += 1;
+    }
+    await quickTip.save();
 
     res.json({
       success: true,

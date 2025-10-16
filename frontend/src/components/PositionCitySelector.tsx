@@ -55,9 +55,6 @@ const PositionCitySelector: React.FC = () => {
     const selectedPositionData = positions.find(p => p.id === selectedPosition);
     const selectedCityData = cities.find(c => c.id === selectedCity);
     
-    console.log('Вибрана посада:', selectedPositionData);
-    console.log('Вибране місто:', selectedCityData);
-    
     alert(`Вибрано:\nПосада: ${selectedPositionData?.title} (${selectedPositionData?.department})\nМісто: ${selectedCityData?.name} (${selectedCityData?.region})`);
   };
 

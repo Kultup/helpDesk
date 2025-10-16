@@ -357,38 +357,30 @@ router.put('/:id',
       logger.info(`   - wasTicketOpen: ${wasTicketOpen}`);
       logger.info(`   - Умова виконується: ${isTicketClosed && wasTicketOpen}`);
       
-      let shouldShowRating = false;
+      // Відправка запиту на оцінку якості при закритті тікету
       if (isTicketClosed && wasTicketOpen) {
-        // Отримуємо автора тікета
-        await ticket.populate('createdBy');
-        const ticketAuthor = ticket.createdBy;
-        
-        if (ticketAuthor) {
-          // Перевіряємо, чи вже існує рейтинг для цього тікета
-          const Rating = require('../models/Rating');
-          const existingRating = await Rating.findOne({ ticket: ticket._id });
+        try {
+          logger.info(`📊 Відправка запиту на оцінку якості для тікету ${req.params.id}`);
+          logger.info(`🔍 Статус qualityRating: ratingRequested=${ticket.qualityRating.ratingRequested}, hasRating=${ticket.qualityRating.hasRating}`);
           
-          if (!existingRating) {
-            logger.info(`🌟 Тікет закрито, відправляємо запит на оцінку через Telegram автору ${ticketAuthor.email}`);
+          // Перевіряємо, чи не було вже відправлено запит на оцінку
+          if (!ticket.qualityRating.ratingRequested) {
+            await telegramService.sendQualityRatingRequest(ticket);
             
-            try {
-              // Відправляємо запит на оцінку через Telegram
-              await telegramService.sendRatingRequest(ticket, ticketAuthor);
-              logger.info(`✅ Запит на оцінку відправлено через Telegram`);
-            } catch (error) {
-              logger.error('❌ Помилка відправки запиту на оцінку через Telegram:', error);
-              // Якщо Telegram не працює, показуємо модальне вікно як fallback
-              shouldShowRating = true;
-              logger.info(`🔄 Fallback: показуємо модальне вікно рейтингу`);
-            }
+            // Позначаємо, що запит на оцінку відправлено
+            ticket.qualityRating.ratingRequested = true;
+            ticket.qualityRating.requestedAt = new Date();
+            await ticket.save();
+            
+            logger.info(`✅ Запит на оцінку якості відправлено успішно`);
           } else {
-            logger.info(`🌟 Рейтинг для тікета вже існує, запит не відправляється`);
+            logger.info(`ℹ️ Запит на оцінку вже було відправлено раніше (requestedAt: ${ticket.qualityRating.requestedAt})`);
           }
-        } else {
-          logger.warn(`⚠️ Не вдалося знайти автора тікета для відправки запиту на оцінку`);
+        } catch (error) {
+          logger.error('❌ Помилка відправки запиту на оцінку якості:', error);
+          // Не зупиняємо виконання, якщо запит на оцінку не вдалося відправити
         }
       }
-
       // Заповнення полів для відповіді
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email' },
@@ -399,8 +391,7 @@ router.put('/:id',
       res.json({
         success: true,
         message: 'Тикет успішно оновлено',
-        data: ticket,
-        showRatingModal: shouldShowRating
+        data: ticket
       });
 
     } catch (error) {

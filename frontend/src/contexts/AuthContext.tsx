@@ -90,53 +90,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Перевірка токену при завантаженні додатку
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('AuthContext: Початок ініціалізації аутентифікації');
-      
       const token = localStorage.getItem('token');
-      console.log('AuthContext: Токен в localStorage:', token ? 'присутній' : 'відсутній');
       
       if (token) {
         try {
-          console.log('AuthContext: Викликаємо getCurrentUser');
           const response = await apiService.getCurrentUser();
-          console.log('AuthContext: Отримано відповідь від getCurrentUser:', response);
           
           if (response.success && response.data) {
-            console.log('AuthContext: Успішна відповідь, зберігаємо користувача');
             localStorage.setItem('user', JSON.stringify(response.data));
             sessionStorage.setItem('userRole', response.data.role);
             dispatch({ type: 'SET_USER', payload: response.data });
           } else {
-            console.log('AuthContext: Невдала відповідь, очищаємо дані');
             clearAuthData();
           }
         } catch (error: any) {
-          console.log('AuthContext: Помилка при getCurrentUser:', error);
-          
           // Перевіряємо, чи це помилка 401 (недійсний токен або користувач не знайдений)
           if (error.response?.status === 401) {
-            console.log('AuthContext: Токен недійсний або користувач не знайдений (401), повністю очищаємо дані');
             clearAuthData();
           } else if (error.response?.status === 404) {
-            console.log('AuthContext: Користувач не знайдений (404), повністю очищаємо дані');
             clearAuthData();
           } else {
-            console.log('AuthContext: Інша помилка (мережа/сервер), очищаємо дані для безпеки');
             // При інших помилках також очищаємо дані для безпеки
             clearAuthData();
           }
         }
       } else {
-        console.log('AuthContext: Немає токену, очищаємо всі дані');
         clearAuthData();
       }
       
       dispatch({ type: 'SET_LOADING', payload: false });
-      console.log('AuthContext: Ініціалізація завершена, isLoading = false');
     };
   
     const clearAuthData = () => {
-      console.log('AuthContext: Очищаємо всі дані аутентифікації');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       sessionStorage.removeItem('userRole');

@@ -135,12 +135,13 @@ app.use('/api/ticket-history', require('./routes/ticketHistory')); // Істор
 app.use('/api/users', require('./routes/users'));
 app.use('/api/cities', require('./routes/cities'));
 app.use('/api/positions', require('./routes/positions'));
+app.use('/api/institutions', require('./routes/institutions'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
-// Рейтинги
-app.use('/api/ratings', require('./routes/ratings'));
+// Сповіщення
+app.use('/api/notifications', require('./routes/notifications'));
 
 app.use('/api/ticket-templates', require('./routes/ticketTemplates'));
 app.use('/api/events', require('./routes/events')); // Календар подій
@@ -148,6 +149,9 @@ app.use('/api/admin-notes', require('./routes/adminNotes')); // Особисті
 
 // Telegram webhook
 app.use('/api/telegram', require('./routes/telegram'));
+
+// Файли
+app.use('/api/files', require('./routes/files'));
 
 // Базовий маршрут
 app.get('/', (req, res) => {

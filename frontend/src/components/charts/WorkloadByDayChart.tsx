@@ -51,17 +51,13 @@ const WorkloadByDayChart: React.FC = () => {
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
-        console.log('Raw workload data from API:', response.data.data);
-        
         // Сортуємо дані за dayNumber для забезпечення правильного порядку
         const sortedData = response.data.data.sort((a: WorkloadData, b: WorkloadData) => a.dayNumber - b.dayNumber);
-        console.log('Sorted workload data:', sortedData);
         
         // Перевіряємо на дублікати
         const uniqueData = sortedData.filter((item: WorkloadData, index: number, arr: WorkloadData[]) => 
           arr.findIndex((t: WorkloadData) => t.dayNumber === item.dayNumber) === index
         );
-        console.log('Unique workload data:', uniqueData);
         
         setData(uniqueData);
       } else {

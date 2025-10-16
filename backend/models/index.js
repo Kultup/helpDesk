@@ -10,10 +10,10 @@ const Category = require('./Category');
 const TimeEntry = require('./TimeEntry');
 // const KnowledgeBase = require('./KnowledgeBase'); // Модуль не існує
 const TicketTemplate = require('./TicketTemplate');
+const NotificationTemplate = require('./NotificationTemplate');
 const QuickTip = require('./QuickTip');
 const Event = require('./Event');
 const AdminNote = require('./AdminNote');
-const Rating = require('./Rating');
 
 module.exports = {
   User,
@@ -25,8 +25,8 @@ module.exports = {
   TimeEntry,
   // KnowledgeBase, // Модуль не існує
   TicketTemplate,
+  NotificationTemplate,
   QuickTip,
   Event,
-  AdminNote,
-  Rating
+  AdminNote
 };

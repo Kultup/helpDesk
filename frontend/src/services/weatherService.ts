@@ -84,14 +84,12 @@ class WeatherService {
   async getUserLocationWeather(): Promise<WeatherData> {
     // If there's already a request in progress, return it
     if (this.currentLocationRequest) {
-      console.log('Geolocation request already in progress, returning existing promise');
       return this.currentLocationRequest;
     }
 
     // Create a new request
     this.currentLocationRequest = new Promise((resolve, reject) => {
       const currentRequestId = ++this.requestId;
-      console.log(`Starting geolocation request #${currentRequestId}`);
 
       if (!navigator.geolocation) {
         console.warn('Geolocation is not supported, using default city');
@@ -103,15 +101,12 @@ class WeatherService {
           });
         return;
       }
-
-      console.log('Requesting geolocation permission...');
       
       let resolved = false;
       
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           if (resolved) {
-            console.log(`Request #${currentRequestId}: Already resolved, ignoring success callback`);
             return;
           }
           resolved = true;
@@ -119,16 +114,11 @@ class WeatherService {
           try {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            console.log(`Request #${currentRequestId}: Geolocation success! Coordinates: ${lat}, ${lon}`);
-            console.log(`Accuracy: ${position.coords.accuracy} meters`);
             
             const weather = await this.getCurrentWeatherByCoords(lat, lon);
-            console.log(`Weather data received for: ${weather.city}, ${weather.country}`);
-            console.log('Full weather object:', weather);
             resolve(weather);
           } catch (error) {
             console.error('Error getting weather by coordinates:', error);
-            console.log('Falling back to default city (Хмельницький)');
             this.getCurrentWeather('Хмельницький')
               .then(resolve)
               .catch(reject);
@@ -138,12 +128,11 @@ class WeatherService {
         },
         (error) => {
           if (resolved) {
-            console.log(`Request #${currentRequestId}: Already resolved, ignoring error callback`);
             return;
           }
           resolved = true;
           
-          console.error(`Request #${currentRequestId}: Geolocation error:`, {
+          console.error(`Geolocation error:`, {
             code: error.code,
             message: error.message
           });
@@ -153,26 +142,21 @@ class WeatherService {
           switch(error.code) {
             case error.PERMISSION_DENIED:
               errorDescription = 'User denied geolocation permission';
-              console.log('User denied geolocation permission');
               break;
             case error.POSITION_UNAVAILABLE:
               errorDescription = 'Location information is unavailable - network service failed';
-              console.log('Location information is unavailable - this often happens when network-based location services fail');
               break;
             case error.TIMEOUT:
               errorDescription = 'Geolocation request timed out';
-              console.log('Geolocation request timed out');
               break;
             default:
               errorDescription = 'Unknown geolocation error';
-              console.log('Unknown geolocation error');
               break;
           }
           
           // Log the specific error for user feedback
           console.warn(`Geolocation error: {code: ${error.code}, message: ${errorDescription}}`);
           
-          console.log('Using default city (Хмельницький) due to geolocation error');
           this.getCurrentWeather('Хмельницький')
             .then(resolve)
             .catch(reject)

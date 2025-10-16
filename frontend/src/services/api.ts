@@ -27,7 +27,13 @@ import {
   AdminNote,
   CreateNoteForm,
   UpdateNoteForm,
-  NoteFilters
+  NoteFilters,
+  NotificationTemplate,
+  CreateNotificationTemplateForm,
+  Institution,
+  CreateInstitutionData,
+  InstitutionsResponse,
+  InstitutionType
 } from '../types';
 
 // Базова конфігурація API
@@ -49,12 +55,9 @@ class ApiService {
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
-        console.log('API: Перевірка токену в localStorage:', token ? 'Токен знайдено' : 'Токен відсутній');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log('API: Додано Authorization header');
         }
-        console.log('API: Запит до:', config.url, 'з методом:', config.method);
         return config;
       },
       (error) => Promise.reject(error)
@@ -63,7 +66,6 @@ class ApiService {
     // Інтерцептор для обробки відповідей
     this.api.interceptors.response.use(
       (response) => {
-        console.log('API: Успішна відповідь від:', response.config.url, 'статус:', response.status);
         return response;
       },
       (error) => {
@@ -74,7 +76,6 @@ class ApiService {
         // Дозволяємо AuthContext обробити 401 помилки
         if (error.response?.status === 401) {
           // Тільки логуємо помилку, не перенаправляємо автоматично
-          console.log('API: Отримано 401 статус, токен може бути недійсним');
         }
         return Promise.reject(error);
       }
@@ -759,6 +760,13 @@ class ApiService {
     return response.data;
   }
 
+  // Масові критичні сповіщення через Telegram
+  async sendTelegramNotification(payload: { message: string; type?: 'info' | 'warning' | 'error' | 'success'; userIds?: string[] }): Promise<ApiResponse<{ results: { total: number; sent: number; failed: number; details: any[] } }>> {
+    const response: AxiosResponse<ApiResponse<{ results: { total: number; sent: number; failed: number; details: any[] } }>> =
+      await this.api.post('/telegram/send-notification', payload);
+    return response.data;
+  }
+
 
 
   // Методи для шаблонів тікетів
@@ -850,6 +858,26 @@ class ApiService {
     return response.data;
   }
 
+  // ===== Notifications Templates (Quick messages) =====
+  async getNotificationTemplates(params?: { type?: 'email' | 'telegram' | 'web' | 'sms'; category?: 'ticket' | 'user' | 'system' | 'security' | 'maintenance' }): Promise<ApiResponse<NotificationTemplate[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.type) queryParams.append('type', params.type);
+    if (params?.category) queryParams.append('category', params.category);
+    const url = `/notifications/templates/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response: AxiosResponse<ApiResponse<NotificationTemplate[]>> = await this.api.get(url);
+    return response.data;
+  }
+
+  async createNotificationTemplate(data: CreateNotificationTemplateForm): Promise<ApiResponse<NotificationTemplate>> {
+    const response: AxiosResponse<ApiResponse<NotificationTemplate>> = await this.api.post('/notifications/templates', data);
+    return response.data;
+  }
+
+  async deleteNotificationTemplate(id: string): Promise<ApiResponse<null>> {
+    const response: AxiosResponse<ApiResponse<null>> = await this.api.delete(`/notifications/templates/${id}`);
+    return response.data;
+  }
+
   async addTagToNote(id: string, tag: string): Promise<ApiResponse<AdminNote>> {
     const response = await this.api.post(`/admin-notes/${id}/tags`, { tag });
     return response.data;
@@ -865,6 +893,166 @@ class ApiService {
     return response.data;
   }
 
+  // Методи для роботи з закладами
+  async getInstitutions(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    type?: InstitutionType;
+    city?: string;
+    isActive?: boolean;
+    isPublic?: boolean;
+    isVerified?: boolean;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    lat?: number;
+    lng?: number;
+    radius?: number;
+  }): Promise<InstitutionsResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    // Використовуємо автентифікований endpoint для отримання закладів (показує всі активні, не лише публічні)
+    return this.get<InstitutionsResponse>(`/institutions${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getInstitutionById(id: string): Promise<ApiResponse<Institution>> {
+    return this.get(`/institutions/${id}`);
+  }
+
+  async createInstitution(institution: CreateInstitutionData): Promise<ApiResponse<Institution>> {
+    return this.post('/institutions', institution);
+  }
+
+  async updateInstitution(id: string, updates: Partial<Institution>): Promise<ApiResponse<Institution>> {
+    return this.put(`/institutions/${id}`, updates);
+  }
+
+  async deleteInstitution(id: string): Promise<ApiResponse<null>> {
+    return this.delete(`/institutions/${id}`);
+  }
+
+  async bulkDeleteInstitutions(institutionIds: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
+    return this.post('/institutions/bulk-delete', { institutionIds });
+  }
+
+  async toggleInstitutionActive(id: string): Promise<ApiResponse<Institution>> {
+    return this.patch(`/institutions/${id}/toggle-active`);
+  }
+
+  async getInstitutionTypes(): Promise<ApiResponse<Array<{ value: InstitutionType; label: string; labelEn: string }>>> {
+    return this.get('/institutions/types');
+  }
+
+  async searchInstitutions(params: {
+    query: string;
+    type?: InstitutionType;
+    city?: string;
+    limit?: number;
+  }): Promise<ApiResponse<Institution[]>> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    return this.get(`/institutions/search?${queryParams.toString()}`);
+  }
+
+  async getNearbyInstitutions(params: {
+    lat: number;
+    lng: number;
+    radius?: number;
+    type?: InstitutionType;
+    limit?: number;
+  }): Promise<ApiResponse<Institution[]>> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    return this.get(`/institutions/nearby?${queryParams.toString()}`);
+  }
+
+  async getInstitutionStatistics(params?: {
+    type?: 'general' | 'by-type' | 'by-city' | 'by-period';
+    startDate?: string;
+    endDate?: string;
+    city?: string;
+    institutionType?: InstitutionType;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    return this.get(`/institutions/statistics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async addInstitutionService(id: string, service: {
+    name: string;
+    nameEn?: string;
+    description?: string;
+    descriptionEn?: string;
+    price?: number;
+    currency?: string;
+  }): Promise<ApiResponse<Institution>> {
+    return this.post(`/institutions/${id}/services`, service);
+  }
+
+  async removeInstitutionService(id: string, serviceId: string): Promise<ApiResponse<Institution>> {
+    return this.delete(`/institutions/${id}/services/${serviceId}`);
+  }
+
+  async exportInstitutions(
+    format: 'csv' | 'excel',
+    filters?: {
+      type?: InstitutionType;
+      city?: string;
+      isActive?: boolean;
+      isPublic?: boolean;
+      isVerified?: boolean;
+    }
+  ): Promise<Blob> {
+    const queryParams = new URLSearchParams({ format });
+    
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await this.api.get(`/institutions/export?${queryParams.toString()}`, {
+      responseType: 'blob',
+    });
+
+    return response.data;
+  }
+
+  async getSimpleInstitutions(): Promise<ApiResponse<Array<{ id: string; name: string; type: InstitutionType; city: string }>>> {
+    return this.get('/institutions/simple');
+  }
 
 }
 

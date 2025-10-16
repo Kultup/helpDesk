@@ -147,24 +147,16 @@ const PendingRegistrations: React.FC = () => {
 
   const approveRegistration = async (userId: string) => {
     try {
-      console.log('🔄 Початок підтвердження реєстрації для користувача:', userId);
-      console.log('📊 Поточна кількість pending користувачів:', pendingUsers.length);
-      
       setProcessingUserId(userId);
       
       const response = await apiService.patch(`/users/${userId}/approve-registration`);
-      console.log('📡 Відповідь від сервера:', response);
       
       if (response.success) {
-        console.log('✅ Успішна відповідь від сервера');
-        
         // Видаляємо користувача зі списку pending
         const userToRemove = pendingUsers.find(user => user._id === userId);
-        console.log('👤 Користувач для видалення:', userToRemove?.email);
         
         setPendingUsers(prev => {
           const filtered = prev.filter(user => user._id !== userId);
-          console.log('📊 Кількість користувачів після фільтрації:', filtered.length);
           return filtered;
         });
         
@@ -173,11 +165,8 @@ const PendingRegistrations: React.FC = () => {
             ...prev,
             totalItems: prev.totalItems - 1
           };
-          console.log('📄 Оновлена пагінація:', updated);
           return updated;
         });
-        
-        console.log('✅ Стан успішно оновлено');
       } else {
         console.error('❌ Помилка від сервера:', response.message);
         setError(response.message || t('pendingRegistrations.errorApproving'));
@@ -201,26 +190,18 @@ const PendingRegistrations: React.FC = () => {
     if (!userToReject) return;
 
     try {
-      console.log('🔄 Початок відхилення реєстрації для користувача:', userToReject._id);
-      console.log('📊 Поточна кількість pending користувачів:', pendingUsers.length);
-      
       setProcessingUserId(userToReject._id);
       
       const response = await apiService.patch(`/users/${userToReject._id}/reject-registration`, {
         reason: rejectionReason.trim() || 'Не вказано'
       });
-      console.log('📡 Відповідь від сервера (reject):', response);
       
       if (response.success) {
-        console.log('✅ Успішна відповідь від сервера (reject)');
-        
         // Видаляємо користувача зі списку pending
         const userToRemove = pendingUsers.find(user => user._id === userToReject._id);
-        console.log('👤 Користувач для видалення (reject):', userToRemove?.email);
         
         setPendingUsers(prev => {
           const filtered = prev.filter(user => user._id !== userToReject._id);
-          console.log('📊 Кількість користувачів після фільтрації (reject):', filtered.length);
           return filtered;
         });
         
@@ -229,14 +210,12 @@ const PendingRegistrations: React.FC = () => {
             ...prev,
             totalItems: prev.totalItems - 1
           };
-          console.log('📄 Оновлена пагінація (reject):', updated);
           return updated;
         });
         
         setShowRejectModal(false);
         setUserToReject(null);
         setRejectionReason('');
-        console.log('✅ Стан успішно оновлено (reject)');
       } else {
         console.error('❌ Помилка від сервера (reject):', response.message);
         setError(response.message || t('pendingRegistrations.errorRejecting'));
@@ -262,9 +241,6 @@ const PendingRegistrations: React.FC = () => {
 
   const approveAllRegistrations = async () => {
     try {
-      console.log('🔄 Початок масового підтвердження реєстрацій');
-      console.log('📊 Кількість користувачів для підтвердження:', pendingUsers.length);
-      
       setIsApprovingAll(true);
       
       // Підтверджуємо всіх користувачів послідовно
@@ -281,9 +257,6 @@ const PendingRegistrations: React.FC = () => {
       
       const failed = results.length - successful;
       
-      console.log('✅ Успішно підтверджено:', successful);
-      console.log('❌ Помилок:', failed);
-      
       if (successful > 0) {
         // Очищаємо список pending користувачів
         setPendingUsers([]);
@@ -295,8 +268,6 @@ const PendingRegistrations: React.FC = () => {
           hasNextPage: false,
           hasPrevPage: false
         }));
-        
-        console.log('✅ Список успішно очищено');
       }
       
       if (failed > 0) {

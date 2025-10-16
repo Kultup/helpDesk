@@ -16,18 +16,19 @@ import TicketDetails from './pages/TicketDetails';
 import CreateTicket from './pages/CreateTicket';
 import Cities from './pages/Cities';
 import Positions from './pages/Positions';
+import Institutions from './pages/Institutions';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
 import Categories from './pages/Categories';
 import Templates from './pages/Templates';
 import CreateTemplate from './pages/CreateTemplate';
+import QuickNotifications from './pages/QuickNotifications';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
-import AdminCalendar from './components/AdminCalendar';
 import Settings from './pages/Settings';
-import TelegramReviews from './components/TelegramReviews';
+import PhotoViewer from './components/PhotoViewer';
 
 
 // Компонент для розумного перенаправлення
@@ -76,6 +77,7 @@ const App: React.FC = () => {
           {/* Публічні маршрути */}
           <Route path="/login" element={<Login />} />
           <Route path="/telegram-test" element={<TelegramTest />} />
+          <Route path="/photo/:filename" element={<PhotoViewer />} />
           
           {/* Кореневий маршрут */}
           <Route path="/" element={<SmartRedirect />} />
@@ -142,6 +144,11 @@ const App: React.FC = () => {
                 <Positions />
               </ProtectedRoute>
             } />
+            <Route path="admin/institutions" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <Institutions />
+              </ProtectedRoute>
+            } />
             <Route path="admin/categories" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Categories />
@@ -157,25 +164,20 @@ const App: React.FC = () => {
                 <CreateTemplate />
               </ProtectedRoute>
             } />
+            <Route path="admin/quick-notifications" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <QuickNotifications />
+              </ProtectedRoute>
+            } />
             <Route path="admin/analytics" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Analytics />
               </ProtectedRoute>
             } />
-            <Route path="admin/telegram-reviews" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <TelegramReviews />
-              </ProtectedRoute>
-            } />
+
             <Route path="admin/active-directory" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActiveDirectoryPage />
-              </ProtectedRoute>
-            } />
-
-            <Route path="admin/calendar" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AdminCalendar />
               </ProtectedRoute>
             } />
           </Route>

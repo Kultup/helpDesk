@@ -22,6 +22,20 @@ router.post('/webhook', async (req, res) => {
         messageId: update.message.message_id,
         text: update.message.text?.substring(0, 100)
       });
+
+      // Передаємо повідомлення до telegramService для обробки
+      await telegramService.handleMessage(update.message);
+    }
+
+    if (update.callback_query) {
+      // Логування callback query
+      logger.telegram('Отримано callback query від Telegram', {
+        chatId: update.callback_query.message.chat.id,
+        data: update.callback_query.data
+      });
+
+      // Передаємо callback query до telegramService для обробки
+      await telegramService.handleCallbackQuery(update.callback_query);
     }
 
     res.status(200).json({ success: true });

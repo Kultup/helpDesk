@@ -57,29 +57,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Зберігаємо тему в localStorage та застосовуємо до DOM
   useEffect(() => {
-    console.log('ThemeProvider: Applying theme:', state.theme);
     localStorage.setItem('theme', state.theme);
     
     // Визначаємо фактичну тему (light або dark)
     let actualTheme: 'light' | 'dark';
     if (state.theme === 'auto') {
       actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      console.log('ThemeProvider: Auto theme detected as:', actualTheme);
     } else {
       actualTheme = state.theme;
     }
     
-    console.log('ThemeProvider: Applying actual theme to DOM:', actualTheme);
-    
     if (actualTheme === 'dark') {
       document.documentElement.classList.add('dark');
-      console.log('ThemeProvider: Added dark class to documentElement');
     } else {
       document.documentElement.classList.remove('dark');
-      console.log('ThemeProvider: Removed dark class from documentElement');
     }
-    
-    console.log('ThemeProvider: Current documentElement classes:', document.documentElement.className);
   }, [state.theme]);
 
   // Слухач для зміни системної теми
