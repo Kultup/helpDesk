@@ -19,7 +19,8 @@ import {
   Zap,
   Sparkles,
   Plus,
-  StickyNote
+  StickyNote,
+  Monitor
 } from 'lucide-react';
 
 // Utils
@@ -42,6 +43,7 @@ import AdminNotes from '../components/AdminNotes';
 import { useTickets } from '../hooks';
 import { useDashboardStats, DashboardStats } from '../hooks/useDashboardStats';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
 
 // Types and Utils
 import { TicketStatus, TicketPriority, UserRole } from '../types';
@@ -137,6 +139,41 @@ const Dashboard: React.FC = () => {
   const { tickets, isLoading: ticketsLoading, refetch: refetchTickets } = useTickets();
   const { stats: dashboardStats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
   const typedDashboardStats = dashboardStats as DashboardStats | null;
+
+  // Active Directory stats for Dashboard shortcut block
+  const [adUsersTotal, setAdUsersTotal] = useState<number | null>(null);
+  const [adComputersTotal, setAdComputersTotal] = useState<number | null>(null);
+  const [adStatsLoading, setAdStatsLoading] = useState<boolean>(false);
+  const [adStatsError, setAdStatsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAdStats = async () => {
+      if (!isAdmin) return;
+      setAdStatsLoading(true);
+      setAdStatsError(null);
+      try {
+        const response = await apiService.getADStatistics();
+        if (response?.success && response.data) {
+          const usersTotal = response.data?.users?.total ?? null;
+          const computersTotal = response.data?.computers?.total ?? null;
+          if (isMounted) {
+            setAdUsersTotal(usersTotal);
+            setAdComputersTotal(computersTotal);
+          }
+        } else {
+          if (isMounted) setAdStatsError('Не вдалося отримати статистику AD');
+        }
+      } catch (error: any) {
+        if (isMounted) setAdStatsError(error?.message || 'Помилка завантаження статистики AD');
+      } finally {
+        if (isMounted) setAdStatsLoading(false);
+      }
+    };
+
+    fetchAdStats();
+    return () => { isMounted = false; };
+  }, [isAdmin]);
 
   // Local state
   const [showMessage, setShowMessage] = useState(false);
@@ -543,7 +580,7 @@ const Dashboard: React.FC = () => {
                 <BarChart3 className="h-6 w-6 mr-3 text-primary" />
                 {t('dashboard.analyticsAndReports')}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
                   <WeeklyTicketsChart />
                 </div>
@@ -552,6 +589,58 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
                   <WorkloadByDayChart />
+                </div>
+                {/* Analytics & Reports Shortcut Block replaced with AD counters */}
+                <div className="p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-warning" />
+                      {t('dashboard.analyticsAndReports')}
+                    </h3>
+                    <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm">
+                      Відкрити
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30">
+                      <div className="p-3 rounded-xl bg-warning text-white mr-4">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                          {t('activeDirectory.statistics.totalUsers')}
+                        </p>
+                        {adStatsLoading ? (
+                          <span className="text-sm text-text-secondary">Завантаження...</span>
+                        ) : adStatsError ? (
+                          <span className="text-sm text-rose-600">{adStatsError}</span>
+                        ) : (
+                          <p className="text-2xl font-black text-foreground">
+                            {(adUsersTotal ?? 0).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30">
+                      <div className="p-3 rounded-xl bg-warning text-white mr-4">
+                        <Monitor className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                          {t('activeDirectory.statistics.totalComputers')}
+                        </p>
+                        {adStatsLoading ? (
+                          <span className="text-sm text-text-secondary">Завантаження...</span>
+                        ) : adStatsError ? (
+                          <span className="text-sm text-rose-600">{adStatsError}</span>
+                        ) : (
+                          <p className="text-2xl font-black text-foreground">
+                            {(adComputersTotal ?? 0).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
