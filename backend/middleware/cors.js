@@ -1,14 +1,10 @@
 const cors = require('cors');
 const logger = require('../utils/logger');
 
-// Список дозволених доменів
+// Список дозволених доменів (керується змінними середовища)
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001',
-  // Додайте продакшн домени тут
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN
 ].filter(Boolean);
 
 // Налаштування CORS
@@ -43,9 +39,15 @@ const corsOptions = {
   maxAge: 86400 // 24 години
 };
 
-// Middleware для розробки (більш м'який CORS)
+// Middleware для розробки: використовує allowedOrigins якщо вони задані, інакше дозволяє будь-яке походження
 const developmentCors = cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    logger.warn(`🚫 [DEV] CORS заблокував запит з домену: ${origin}`);
+    callback(new Error('Заборонено CORS політикою'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: '*'

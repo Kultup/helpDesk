@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute, useAuth } from './contexts/AuthContext';
 import { PendingRegistrationsProvider } from './contexts/PendingRegistrationsContext';
@@ -7,6 +7,7 @@ import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { Layout } from './components/Layout';
 import { UserRole } from './types';
 import './i18n'; // Ініціалізація i18n
+import logService from './services/logService'; // Ініціалізація логів
 
 // Імпорт компонентів
 import Login from './pages/Login';
@@ -24,6 +25,7 @@ import Categories from './pages/Categories';
 import Templates from './pages/Templates';
 import CreateTemplate from './pages/CreateTemplate';
 import QuickNotifications from './pages/QuickNotifications';
+import Logs from './pages/Logs';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
@@ -67,6 +69,16 @@ const NotFound: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    // Ініціалізуємо логи при запуску додатку
+    logService.initialize();
+    
+    // Очищення при розмонтуванні
+    return () => {
+      logService.disconnect();
+    };
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -178,6 +190,11 @@ const App: React.FC = () => {
             <Route path="admin/active-directory" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActiveDirectoryPage />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/logs" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <Logs />
               </ProtectedRoute>
             } />
           </Route>

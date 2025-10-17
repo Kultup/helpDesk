@@ -16,6 +16,7 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
 import Pagination from '../components/UI/Pagination';
+import { TicketRating } from '../components/UI';
 import CreateTicketModal from '../components/CreateTicketModal';
 import ExportTicketsModal from '../components/ExportTicketsModal';
 import { useTickets, useCities, useUsers } from '../hooks';
@@ -261,6 +262,9 @@ const Tickets: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('tickets.table.dateStatus')}
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Оцінка
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {t('tickets.table.actions')}
                     </th>
@@ -320,6 +324,17 @@ const Tickets: React.FC = () => {
                             />
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating ? (
+                          <TicketRating 
+                            rating={ticket.qualityRating.rating}
+                            ratedAt={ticket.qualityRating.ratedAt}
+                            size="sm"
+                          />
+                        ) : (
+                          <span className="text-gray-400 text-sm">Не оцінено</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">

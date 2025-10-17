@@ -45,7 +45,7 @@ const WorkloadByDayChart: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const baseURL = process.env.REACT_APP_API_URL as string;
       const response = await axios.get(`${baseURL}/analytics/charts/workload-by-day`, {
         headers: { Authorization: `Bearer ${token}` }
       });

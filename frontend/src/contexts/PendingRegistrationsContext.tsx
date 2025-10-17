@@ -46,6 +46,44 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
     // і тільки якщо користувач автентифікований та має роль admin
     if (!isLoading && isAuthenticated && user?.role === 'admin') {
       fetchCount();
+
+      // Підключення до WebSocket для отримання оновлень кількості реєстрацій
+      let socket: any = null;
+      
+      const connectWebSocket = async () => {
+        try {
+          const { io } = await import('socket.io-client');
+          const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || '') as string;
+          const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+          socket = io(socketUrl);
+          
+          socket.on('connect', () => {
+            console.log('Connected to WebSocket for registration count updates');
+            socket.emit('join-admin-room');
+          });
+
+          socket.on('registration-count-update', (data: { count: number }) => {
+            console.log('Received registration count update:', data);
+            setCount(data.count);
+          });
+
+          socket.on('disconnect', () => {
+            console.log('Disconnected from WebSocket');
+          });
+
+        } catch (error) {
+          console.error('Error connecting to WebSocket:', error);
+        }
+      };
+
+      connectWebSocket();
+
+      // Cleanup function
+      return () => {
+        if (socket) {
+          socket.disconnect();
+        }
+      };
     } else {
       // Якщо користувач не авторизований або не admin — не запитуємо і скидаємо стан
       setCount(0);

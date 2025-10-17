@@ -462,6 +462,7 @@ export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Ticket[]>([]);
   const { isLoading, startLoading, stopLoading } = useLoading();
   const [error, setError] = useState<string | null>(null);
+  const [socket, setSocket] = useState<any>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -491,7 +492,97 @@ export const useNotifications = () => {
     }
   }, [startLoading, stopLoading]);
 
-  // Автоматичне оновлення кожні 4 години
+  // WebSocket підключення для тікетів
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+
+    // Імпортуємо socket.io-client динамічно
+    import('socket.io-client').then(({ io }) => {
+      const socketBase = (
+        process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || ''
+      ).replace(/\/api\/?$/, '');
+
+      if (!socketBase) {
+        console.warn('Socket URL is not configured via REACT_APP_SOCKET_URL or REACT_APP_API_URL');
+        return;
+      }
+
+      const socketInstance = io(socketBase, {
+        auth: {
+          token: token
+        },
+        transports: ['websocket', 'polling']
+      });
+
+      socketInstance.on('connect', () => {
+        console.log('🔌 WebSocket підключено для тікетів');
+        // Приєднуємося до кімнати адміністраторів
+        socketInstance.emit('join-admin-room');
+      });
+
+      socketInstance.on('disconnect', () => {
+        console.log('🔌 WebSocket відключено для тікетів');
+      });
+
+      // Слухаємо сповіщення про тікети
+      socketInstance.on('ticket-notification', (notification: any) => {
+        console.log('📢 Отримано WebSocket сповіщення про тікет:', notification);
+        
+        if (notification.type === 'new_ticket') {
+          // Додаємо новий тікет до списку сповіщень
+          setNotifications(prev => {
+            const newNotifications = [notification.data, ...prev];
+            console.log('🔔 useNotifications: Adding new ticket, total notifications:', newNotifications.length);
+            return newNotifications;
+          });
+        } else if (notification.type === 'ticket_status_change') {
+          // Оновлюємо статус існуючого тікету або видаляємо його
+          const ticketData = notification.data;
+          if (ticketData.status === 'closed' || ticketData.status === 'resolved') {
+            // Видаляємо закриті/вирішені тікети зі списку сповіщень
+            setNotifications(prev => {
+              const filtered = prev.filter(ticket => ticket._id !== ticketData._id);
+              console.log('🔔 useNotifications: Removing closed ticket, total notifications:', filtered.length);
+              return filtered;
+            });
+          } else {
+            // Оновлюємо існуючий тікет
+            setNotifications(prev => {
+              const updated = prev.map(ticket => 
+                ticket._id === ticketData._id ? { ...ticket, ...ticketData } : ticket
+              );
+              console.log('🔔 useNotifications: Updating ticket status, total notifications:', updated.length);
+              return updated;
+            });
+          }
+        } else if (notification.type === 'ticket_assignment') {
+          // Оновлюємо призначення тікету
+          const ticketData = notification.data;
+          setNotifications(prev => 
+            prev.map(ticket => 
+              ticket._id === ticketData._id ? { ...ticket, ...ticketData } : ticket
+            )
+          );
+        }
+      });
+
+      // Слухаємо оновлення кількості тікетів
+      socketInstance.on('ticket-count-update', (data: any) => {
+        console.log('📊 Отримано оновлення кількості тікетів:', data);
+        // Можна використовувати для синхронізації лічильника
+      });
+
+      setSocket(socketInstance);
+
+      return () => {
+        socketInstance.disconnect();
+      };
+    });
+  }, []);
+
+  // Автоматичне оновлення кожні 4 години та резервне оновлення
   useEffect(() => {
     fetchNotifications();
     
@@ -550,10 +641,20 @@ export const useRegistrationNotifications = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
+    
 
     // Імпортуємо socket.io-client динамічно
     import('socket.io-client').then(({ io }) => {
-      const socketInstance = io('http://localhost:5000', {
+      const socketBase = (
+        process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || ''
+      ).replace(/\/api\/?$/, '');
+
+      if (!socketBase) {
+        console.warn('Socket URL is not configured via REACT_APP_SOCKET_URL or REACT_APP_API_URL');
+        return;
+      }
+
+      const socketInstance = io(socketBase, {
         auth: {
           token: token
         },
@@ -576,12 +677,24 @@ export const useRegistrationNotifications = () => {
         
         if (notification.type === 'new_registration_request') {
           // Додаємо нову реєстрацію до списку
-          setRegistrations(prev => [notification.data, ...prev]);
-          setNewRegistrationCount(prev => prev + 1);
+          setRegistrations(prev => {
+            const newRegistrations = [notification.data, ...prev];
+            console.log('👤 useRegistrationNotifications: Adding new registration, total:', newRegistrations.length);
+            return newRegistrations;
+          });
+          setNewRegistrationCount(prev => {
+            const newCount = prev + 1;
+            console.log('👤 useRegistrationNotifications: Incrementing newRegistrationCount to:', newCount);
+            return newCount;
+          });
         } else if (notification.type === 'registration_status_change') {
           // Оновлюємо статус існуючої реєстрації або видаляємо її
           if (notification.data.status === 'approved' || notification.data.status === 'rejected') {
-            setRegistrations(prev => prev.filter(reg => reg._id !== notification.data.userId));
+            setRegistrations(prev => {
+              const filtered = prev.filter(reg => reg._id !== notification.data.userId);
+              console.log('👤 useRegistrationNotifications: Removing registration, total:', filtered.length);
+              return filtered;
+            });
           }
         }
       });

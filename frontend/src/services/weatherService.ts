@@ -1,5 +1,5 @@
-const WEATHER_API_KEY = '01685fec97ff2f24c1478377dd92be3f';
-const WEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5';
+const WEATHER_API_KEY = process.env.REACT_APP_WEATHER_API_KEY as string;
+const WEATHER_BASE_URL = (process.env.REACT_APP_WEATHER_BASE_URL || 'https://api.openweathermap.org/data/2.5') as string;
 
 export interface WeatherData {
   temperature: number;
@@ -44,6 +44,9 @@ class WeatherService {
   }
 
   async getCurrentWeather(city: string): Promise<WeatherData> {
+    if (!WEATHER_API_KEY) {
+      throw new WeatherError({ message: 'Weather API key is not configured' });
+    }
     const url = `${WEATHER_BASE_URL}/weather?q=${encodeURIComponent(city)}&appid=${WEATHER_API_KEY}&units=metric&lang=uk`;
     
     const data = await this.fetchWeatherData(url);
@@ -61,6 +64,9 @@ class WeatherService {
   }
 
   async getCurrentWeatherByCoords(lat: number, lon: number): Promise<WeatherData> {
+    if (!WEATHER_API_KEY) {
+      throw new WeatherError({ message: 'Weather API key is not configured' });
+    }
     const url = `${WEATHER_BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric&lang=uk`;
     
     const data = await this.fetchWeatherData(url);

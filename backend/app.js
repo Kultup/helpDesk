@@ -25,9 +25,20 @@ const app = express();
 const server = createServer(app);
 
 // Socket.IO конфігурація
+const allowedSocketOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedSocketOrigins.length === 0) return callback(null, true);
+      if (allowedSocketOrigins.includes(origin)) return callback(null, true);
+      logger.warn(`🚫 [Socket.IO] CORS заблокував запит з домену: ${origin}`);
+      callback(new Error('Заборонено CORS політикою'));
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -66,6 +77,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   registrationWebSocketService.initialize(io);
   logger.info('✅ WebSocket сервіс для реєстрації ініціалізовано');
   
+  // Ініціалізуємо WebSocket сервіс для логів
+  const logWebSocketService = require('./services/logWebSocketService');
+  logWebSocketService.initialize(io);
+  logger.info('✅ WebSocket сервіс для логів ініціалізовано');
+  
+  // Ініціалізуємо WebSocket сервіс для тікетів
+  const ticketWebSocketService = require('./services/ticketWebSocketService');
+  ticketWebSocketService.initialize(io);
+  logger.info('✅ WebSocket сервіс для тікетів ініціалізовано');
+  
   // WebSocket обробка підключень
   io.on('connection', (socket) => {
     logger.info('👤 Користувач підключився:', socket.id);
@@ -74,6 +95,17 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     socket.on('join-admin-room', () => {
       socket.join('admin-room');
       logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
+    });
+
+    // Відправка історії логів новому клієнту
+    socket.on('request-log-history', () => {
+      const logHistory = logWebSocketService.getLogHistory();
+      socket.emit('log-history', logHistory);
+    });
+
+    // Обробка логів від фронтенду
+    socket.on('frontend-log', (data) => {
+      logWebSocketService.broadcastFrontendLog(data.level, data.message, data.details);
     });
     
     socket.on('disconnect', () => {
@@ -142,6 +174,10 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 // Сповіщення
 app.use('/api/notifications', require('./routes/notifications'));
+
+// Теги та швидкі поради
+app.use('/api/tags', require('./routes/tags'));
+app.use('/api/quick-tips', require('./routes/quickTips'));
 
 app.use('/api/ticket-templates', require('./routes/ticketTemplates'));
 app.use('/api/events', require('./routes/events')); // Календар подій
@@ -230,8 +266,13 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   logger.info(`🚀 Сервер запущено на порту ${PORT}`);
   logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`🌐 API доступне за адресою: http://localhost:${PORT}`);
-  logger.info(`🔌 WebSocket доступний за адресою: ws://localhost:${PORT}`);
+  const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
+  logger.info(`🌐 API базова адреса: ${apiBase}`);
+  logger.info(
+    `🔌 Дозволені CORS origins для WebSocket: ${
+      allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
+    }`
+  );
 });
 
 // Graceful shutdown

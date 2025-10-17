@@ -14,8 +14,8 @@ import {
   Tag,
   FileText,
   UserCheck,
-  Calendar,
-  AlertTriangle
+  AlertTriangle,
+  FileSearch
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
@@ -63,6 +63,7 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
+      { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },
       { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
       { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
       { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },

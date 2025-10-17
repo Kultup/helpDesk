@@ -6,6 +6,7 @@ import { apiService } from '../services/api';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 
 import { formatDate } from '../utils';
@@ -372,6 +373,20 @@ const TicketDetails: React.FC = () => {
                   <div>
                     <span className="text-sm font-medium text-gray-500 block mb-1">Дата вирішення</span>
                     <p className="text-gray-900">{formatDate(ticket.resolvedAt)}</p>
+                  </div>
+                )}
+
+                {/* Оцінка якості */}
+                {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-500 block mb-2">Оцінка якості</span>
+                    <TicketRating 
+                      rating={ticket.qualityRating.rating}
+                      feedback={ticket.qualityRating.feedback}
+                      ratedAt={ticket.qualityRating.ratedAt}
+                      showFeedback={true}
+                      size="md"
+                    />
                   </div>
                 )}
               </div>

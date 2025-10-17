@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useClickOutside, useNotifications, useRegistrationNotifications } from '../../hooks';
+import { usePendingRegistrationsContext } from '../../contexts/PendingRegistrationsContext';
 import Button from '../UI/Button';
 import NotificationDropdown from '../UI/NotificationDropdown';
 import RegistrationDropdown from './RegistrationDropdown';
@@ -35,17 +36,22 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
   const calendarMenuRef = useClickOutside(() => setCalendarMenuOpen(false));
   const { notifications } = useNotifications();
   const { registrations, newRegistrationCount, resetNewRegistrationCount } = useRegistrationNotifications();
+  const { count: contextRegistrationCount } = usePendingRegistrationsContext();
   const previousNotificationCountRef = useRef<number>(0);
   const previousRegistrationCountRef = useRef<number>(0);
 
-  // Відстеження нових тікетів для анімації дзвіночка
+  // Відстеження нових сповіщень для анімації іконки
   useEffect(() => {
-    if (notifications && Array.isArray(notifications)) {
+    console.log('🔔 Header: notifications changed:', notifications);
+    if (Array.isArray(notifications)) {
       const currentCount = notifications.length;
       const previousCount = previousNotificationCountRef.current;
       
-      // Якщо з'явився новий тікет (збільшилась кількість)
-      if (previousCount > 0 && currentCount > previousCount) {
+      console.log('🔔 Header: currentCount:', currentCount, 'previousCount:', previousCount);
+      
+      // Якщо з'явилось нове сповіщення (збільшилась кількість)
+      if (currentCount > previousCount) {
+        console.log('🔔 Header: Starting bell animation');
         setBellAnimation(true);
         
         // Зупиняємо анімацію через 2 секунди
@@ -58,21 +64,29 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
       previousNotificationCountRef.current = currentCount;
       
       // Встановлюємо кількість непрочитаних (всі сповіщення - це активні тікети)
-      setUnreadCount(notifications.length);
+      setUnreadCount(currentCount);
+      console.log('🔔 Header: unreadCount set to:', currentCount);
+    } else {
+      // Якщо notifications undefined або не масив, встановлюємо 0
+      console.log('🔔 Header: notifications is not array, setting unreadCount to 0');
+      setUnreadCount(0);
     }
   }, [notifications]);
 
   // Відстеження нових запитів на реєстрацію для анімації іконки
   useEffect(() => {
-    if (registrations && Array.isArray(registrations)) {
-      // Встановлюємо кількість запитів на реєстрацію
-      setRegistrationCount(registrations.length);
-    }
-  }, [registrations]);
-
-  // Анімація при отриманні нових реєстрацій через WebSocket
-  useEffect(() => {
-    if (newRegistrationCount > 0) {
+    // Комбінуємо кількість з контексту та нові реєстрації з WebSocket
+    const currentRegistrationCount = contextRegistrationCount + newRegistrationCount;
+    const previousRegistrationCount = previousRegistrationCountRef.current;
+    
+    console.log('👤 Header: Registration counts - context:', contextRegistrationCount, 'new:', newRegistrationCount, 'total:', currentRegistrationCount, 'previous:', previousRegistrationCount);
+    
+    // Оновлюємо кількість реєстрацій
+    setRegistrationCount(currentRegistrationCount);
+    
+    // Якщо з'явилась нова реєстрація (збільшилась кількість)
+    if (currentRegistrationCount > previousRegistrationCount) {
+      console.log('👤 Header: Starting registration animation');
       setRegistrationAnimation(true);
       
       // Зупиняємо анімацію через 2 секунди
@@ -80,7 +94,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
         setRegistrationAnimation(false);
       }, 2000);
     }
-  }, [newRegistrationCount]);
+    
+    // Оновлюємо попередню кількість
+    previousRegistrationCountRef.current = currentRegistrationCount;
+  }, [contextRegistrationCount, newRegistrationCount]);
 
   const handleLogout = async () => {
     try {

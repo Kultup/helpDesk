@@ -46,7 +46,11 @@ export const useTicketExport = () => {
         throw new Error('Токен авторизації не знайдено');
       }
 
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const API_BASE_URL = process.env.REACT_APP_API_URL;
+      if (!API_BASE_URL) {
+        console.warn('REACT_APP_API_URL не налаштовано у середовищі');
+        throw new Error('Базовий URL API не налаштовано. Встановіть REACT_APP_API_URL');
+      }
       const apiUrl = `${API_BASE_URL}/tickets/export?${params.toString()}`;
 
       // Виконуємо запит

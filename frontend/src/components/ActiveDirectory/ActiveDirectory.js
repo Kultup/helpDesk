@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaNetworkWired, FaUsers, FaDesktop, FaChartPie, FaExclamationTriangle } from 'react-icons/fa';
 import ADUsers from './ADUsers';
@@ -11,10 +12,20 @@ const ActiveDirectory = () => {
   const [activeTab, setActiveTab] = useState('statistics');
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     testConnection();
   }, []);
+
+  // Синхронізація активної вкладки з параметром URL `view`
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const view = params.get('view');
+    if (view && ['statistics', 'users', 'computers'].includes(view)) {
+      setActiveTab(view);
+    }
+  }, [location.search]);
 
   const testConnection = async () => {
     try {

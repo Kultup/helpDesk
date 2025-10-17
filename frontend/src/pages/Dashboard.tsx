@@ -146,33 +146,30 @@ const Dashboard: React.FC = () => {
   const [adStatsLoading, setAdStatsLoading] = useState<boolean>(false);
   const [adStatsError, setAdStatsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchAdStats = async () => {
+  const loadAdStats = async () => {
+    setAdStatsLoading(true);
+    setAdStatsError(null);
+    try {
       if (!isAdmin) return;
-      setAdStatsLoading(true);
-      setAdStatsError(null);
-      try {
-        const response = await apiService.getADStatistics();
-        if (response?.success && response.data) {
-          const usersTotal = response.data?.users?.total ?? null;
-          const computersTotal = response.data?.computers?.total ?? null;
-          if (isMounted) {
-            setAdUsersTotal(usersTotal);
-            setAdComputersTotal(computersTotal);
-          }
-        } else {
-          if (isMounted) setAdStatsError('Не вдалося отримати статистику AD');
-        }
-      } catch (error: any) {
-        if (isMounted) setAdStatsError(error?.message || 'Помилка завантаження статистики AD');
-      } finally {
-        if (isMounted) setAdStatsLoading(false);
+      const response = await apiService.getADStatistics();
+      if (response?.success && response.data) {
+        const usersTotal = response.data?.users?.total ?? null;
+        const computersTotal = response.data?.computers?.total ?? null;
+        setAdUsersTotal(usersTotal);
+        setAdComputersTotal(computersTotal);
+      } else {
+        setAdStatsError('Не вдалося отримати статистику AD');
       }
-    };
+    } catch (error: any) {
+      setAdStatsError(error?.message || 'Помилка завантаження статистики AD');
+    } finally {
+      setAdStatsLoading(false);
+    }
+  };
 
-    fetchAdStats();
-    return () => { isMounted = false; };
+  useEffect(() => {
+    loadAdStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   // Local state
@@ -597,12 +594,18 @@ const Dashboard: React.FC = () => {
                       <FileText className="h-5 w-5 mr-2 text-warning" />
                       {t('dashboard.analyticsAndReports')}
                     </h3>
-                    <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm">
-                      Відкрити
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={() => loadAdStats()} variant="ghost" size="sm">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm">
+                        Відкрити
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30">
+                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                         onClick={() => navigate('/admin/active-directory?view=users')}>
                       <div className="p-3 rounded-xl bg-warning text-white mr-4">
                         <Users className="h-5 w-5" />
                       </div>
@@ -621,7 +624,8 @@ const Dashboard: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30">
+                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                         onClick={() => navigate('/admin/active-directory?view=computers')}>
                       <div className="p-3 rounded-xl bg-warning text-white mr-4">
                         <Monitor className="h-5 w-5" />
                       </div>

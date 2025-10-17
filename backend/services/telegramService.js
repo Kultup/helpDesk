@@ -12,6 +12,7 @@ const https = require('https');
 const Category = require('../models/Category');
 const BotSettings = require('../models/BotSettings');
 const { formatFileSize } = require('../utils/helpers');
+const ticketWebSocketService = require('./ticketWebSocketService');
 
 class TelegramService {
   constructor() {
@@ -994,6 +995,20 @@ class TelegramService {
 
        const ticket = new Ticket(ticketData);
        await ticket.save();
+
+       // Заповнюємо дані для WebSocket сповіщення
+       await ticket.populate([
+         { path: 'createdBy', select: 'firstName lastName email' },
+         { path: 'city', select: 'name region' }
+       ]);
+
+       // Відправляємо WebSocket сповіщення про новий тікет
+       try {
+         ticketWebSocketService.notifyNewTicket(ticket);
+         logger.info('✅ WebSocket сповіщення про новий тікет відправлено (Telegram)');
+       } catch (wsError) {
+         logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram):', wsError);
+       }
 
        // Очищуємо сесію
        this.userSessions.delete(chatId);

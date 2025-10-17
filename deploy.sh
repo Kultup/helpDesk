@@ -184,10 +184,15 @@ health_check() {
     sleep 10
     
     # Check health endpoint
-    HEALTH_URL="http://localhost:5000/health"
+    if [ -n "$API_BASE_URL" ]; then
+        HEALTH_URL="${API_BASE_URL%/api}/health"
+    else
+        warning "API_BASE_URL не задано. Пропускаю надійну перевірку /health."
+        HEALTH_URL=""
+    fi
     
     for i in {1..5}; do
-        if curl -f -s "$HEALTH_URL" > /dev/null; then
+        if [ -n "$HEALTH_URL" ] && curl -f -s "$HEALTH_URL" > /dev/null; then
             success "Health check passed"
             return 0
         fi
@@ -247,9 +252,13 @@ main() {
     
     success "Deployment completed successfully!"
     log "Application is running at:"
-    log "  - Frontend: http://localhost:3000 (development) or configured domain"
-    log "  - Backend API: http://localhost:5000/api"
-    log "  - Health Check: http://localhost:5000/health"
+    log "  - Frontend: ${FRONTEND_URL:-'(налаштуйте FRONTEND_URL)'}"
+    log "  - Backend API: ${API_BASE_URL:-'(налаштуйте API_BASE_URL)'}"
+    if [ -n "$HEALTH_URL" ]; then
+        log "  - Health Check: $HEALTH_URL"
+    else
+        log "  - Health Check: (налаштуйте API_BASE_URL, щоб перевірити /health)"
+    fi
     log ""
     log "PM2 Commands:"
     log "  - Status: pm2 status"

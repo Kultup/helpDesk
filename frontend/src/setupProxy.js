@@ -1,12 +1,18 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  console.log('[PROXY SETUP] Налаштовую проксі для /api');
+  const target = process.env.PROXY_TARGET || (process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '');
+  if (!target) {
+    console.warn('[PROXY SETUP] PROXY_TARGET/REACT_APP_API_URL не задані. Проксі для /api не буде налаштовано.');
+    return;
+  }
+
+  console.log(`[PROXY SETUP] Налаштовую проксі для /api -> ${target}`);
   
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://localhost:5000',
+      target,
       changeOrigin: true,
       secure: false,
       logLevel: 'debug',

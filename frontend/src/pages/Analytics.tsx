@@ -10,7 +10,10 @@ import {
   Clock,
   Users,
   Activity,
-  RefreshCw
+  RefreshCw,
+  BookmarkPlus,
+  Bookmark,
+  Trash2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -59,7 +62,6 @@ const Analytics: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { cities, isLoading: citiesLoading } = useCities();
   const { users, isLoading: usersLoading } = useUsers();
-  const { analyticsData, dashboardData, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics();
   const { userStats, loading: userStatsLoading, refetch: refetchUserStats } = useUserRegistrationStats();
   const { exportTickets } = useTicketExport();
   
@@ -67,6 +69,9 @@ const Analytics: React.FC = () => {
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
+
+  // Завантаження аналітики залежить від вибраного діапазону дат
+  const { analyticsData, dashboardData, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(dateRange.start, dateRange.end);
 
   const [selectedFilters, setSelectedFilters] = useState({
     status: [] as TicketStatus[],
@@ -78,6 +83,63 @@ const Analytics: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'general'>('general');
+
+  // Presets state
+  type FilterPreset = {
+    id: string;
+    name: string;
+    dateRange: { start: string; end: string };
+    selectedFilters: { status: TicketStatus[]; priority: TicketPriority[]; city: string[] };
+    createdAt: string;
+  };
+
+  const PRESETS_STORAGE_KEY = 'analyticsFilterPresets';
+  const [presets, setPresets] = useState<FilterPreset[]>(() => {
+    try {
+      const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [presetName, setPresetName] = useState('');
+
+  const savePresetsToStorage = (items: FilterPreset[]) => {
+    try {
+      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(items));
+    } catch (e) {
+      console.error('Failed to save presets', e);
+    }
+  };
+
+  const savePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const newPreset: FilterPreset = {
+      id: `${Date.now()}`,
+      name,
+      dateRange: { ...dateRange },
+      selectedFilters: { ...selectedFilters },
+      createdAt: new Date().toISOString()
+    };
+    const next = [newPreset, ...presets].slice(0, 20); // ліміт 20 пресетів
+    setPresets(next);
+    savePresetsToStorage(next);
+    setPresetName('');
+  };
+
+  const applyPreset = (preset: FilterPreset) => {
+    setDateRange({ ...preset.dateRange });
+    setSelectedFilters({ ...preset.selectedFilters });
+    // перезавантаження даних аналітики під новий діапазон дат
+    refetchAnalytics();
+  };
+
+  const deletePreset = (id: string) => {
+    const next = presets.filter(p => p.id !== id);
+    setPresets(next);
+    savePresetsToStorage(next);
+  };
 
 
 
@@ -538,6 +600,56 @@ const Analytics: React.FC = () => {
               className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Filter Presets */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Bookmark className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{t('analytics.presets.title') || 'Пресети фільтрів'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder={t('analytics.presets.namePlaceholder') || 'Назва пресету'}
+                className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary w-48"
+              />
+              <Button variant="primary" size="sm" onClick={savePreset} className="flex items-center gap-2">
+                <BookmarkPlus className="h-4 w-4" />
+                {t('analytics.presets.save') || 'Зберегти'}
+              </Button>
+            </div>
+          </div>
+
+          {presets.length === 0 ? (
+            <div className="text-sm text-muted-foreground">{t('analytics.presets.noPresets') || 'Ще немає пресетів.'}</div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {presets.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-surface text-foreground text-sm cursor-pointer hover:bg-muted"
+                  onClick={() => applyPreset(p)}
+                  title={`${t('analytics.presets.apply') || 'Застосувати'}: ${p.name}`}
+                >
+                  <Bookmark className="h-3 w-3 text-primary" />
+                  <span>{p.name}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deletePreset(p.id); }}
+                    className="ml-1 text-muted-foreground hover:text-rose-600"
+                    title={t('analytics.presets.delete') || 'Видалити'}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

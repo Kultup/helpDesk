@@ -8,6 +8,7 @@ async function startNgrok() {
     const authtoken = process.env.NGROK_AUTHTOKEN;
     const region = process.env.NGROK_REGION || 'us';
     const port = process.env.PORT || 5000;
+    const frontendPort = process.env.FRONTEND_PORT || 3000;
 
     if (!botToken) {
       throw new Error('TELEGRAM_BOT_TOKEN не знайдено в .env файлі');
@@ -56,6 +57,20 @@ async function startNgrok() {
     }
 
     console.log('🎯 Ngrok тунель для бота активний. Натисніть Ctrl+C для зупинки.');
+
+    // Додатково запускаємо фронтенд тунель
+    try {
+      console.log(`🚀 Запускаю ngrok тунель для фронтенду на порт ${frontendPort}...`);
+      const frontendRawUrl = await ngrok.connect({
+        addr: frontendPort,
+        region: region,
+        authtoken: authtoken
+      });
+      const frontendPublicUrl = frontendRawUrl.startsWith('http') ? frontendRawUrl : `https://${frontendRawUrl}`;
+      console.log(`🌐 Ngrok FRONTEND tunnel запущено: ${frontendPublicUrl}`);
+    } catch (feError) {
+      console.error('⚠️ Не вдалося запустити ngrok для фронтенду:', feError.message);
+    }
 
     const infoResponse = await axios.get(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
     if (infoResponse && infoResponse.data && infoResponse.data.result) {

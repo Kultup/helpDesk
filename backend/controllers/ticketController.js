@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
 const telegramService = require('../services/telegramServiceInstance');
+const ticketWebSocketService = require('../services/ticketWebSocketService');
 const logger = require('../utils/logger');
 logger.info('📱 telegramService імпортовано:', typeof telegramService);
 
@@ -245,13 +246,21 @@ exports.createTicket = async (req, res) => {
       // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
     }
 
-    // Заповнити дані для відповіді
-    await ticket.populate([
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'assignedTo', select: 'firstName lastName email' },
-      { path: 'city', select: 'name region' }
-    ]);
+    // Відправка WebSocket сповіщення про новий тікет
+    try {
+      await ticket.populate([
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'city', select: 'name region' }
+      ]);
+      
+      ticketWebSocketService.notifyNewTicket(ticket);
+      logger.info('✅ WebSocket сповіщення про новий тікет відправлено');
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет:', error);
+    }
 
+    // Заповнити дані для відповіді (вже заповнено вище для WebSocket)
     res.status(201).json({
       success: true,
       message: 'Тикет успішно створено',

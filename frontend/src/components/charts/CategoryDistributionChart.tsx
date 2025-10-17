@@ -8,6 +8,7 @@ import {
   Legend
 } from 'chart.js';
 import axios from 'axios';
+import { apiService } from '../../services/api';
 
 // Реєструємо компоненти Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -23,16 +24,18 @@ const CategoryDistributionChart: React.FC = () => {
   const [data, setData] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categoryNameById, setCategoryNameById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchCategoryData();
+    loadCategoryNames();
   }, []);
 
   const fetchCategoryData = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const baseURL = process.env.REACT_APP_API_URL as string;
       const response = await axios.get(`${baseURL}/analytics/charts/category-distribution`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -50,6 +53,30 @@ const CategoryDistributionChart: React.FC = () => {
     }
   };
 
+  const loadCategoryNames = async () => {
+    try {
+      const response = await apiService.getCategories(true);
+      const categories = response.data || [];
+      const map: Record<string, string> = {};
+      categories.forEach((cat: any) => {
+        if (cat?._id && cat?.name) {
+          map[String(cat._id)] = String(cat.name);
+        }
+      });
+      setCategoryNameById(map);
+    } catch (e) {
+      // Якщо не вдалося завантажити категорії, просто продовжуємо з наявними даними
+      console.warn('Не вдалося завантажити назви категорій для мапінгу ID → назва');
+    }
+  };
+
+  const isObjectId = (val: string) => /^[a-f\d]{24}$/i.test(val);
+  const resolveCategoryName = (raw: string): string => {
+    if (!raw) return raw;
+    if (isObjectId(raw) && categoryNameById[raw]) return categoryNameById[raw];
+    return raw;
+  };
+
   // Кольори для діаграми
   const colors = [
     '#3B82F6', // blue-500
@@ -65,7 +92,7 @@ const CategoryDistributionChart: React.FC = () => {
   ];
 
   const chartData = {
-    labels: data.map(item => item.category),
+    labels: data.map(item => resolveCategoryName(item.category)),
     datasets: [
       {
         data: data.map(item => item.count),
@@ -96,7 +123,8 @@ const CategoryDistributionChart: React.FC = () => {
             
             labels.forEach((label: any, index: number) => {
               if (data[index]) {
-                label.text = `${data[index].category} (${data[index].percentage}%)`;
+                const name = resolveCategoryName(data[index].category);
+                label.text = `${name} (${data[index].percentage}%)`;
               }
             });
             
@@ -113,7 +141,8 @@ const CategoryDistributionChart: React.FC = () => {
         callbacks: {
           label: (context: any) => {
             const item = data[context.dataIndex];
-            return `${item.category}: ${item.count} тикетів (${item.percentage}%)`;
+            const name = resolveCategoryName(item.category);
+            return `${name}: ${item.count} тикетів (${item.percentage}%)`;
           }
         }
       }
@@ -199,7 +228,7 @@ const CategoryDistributionChart: React.FC = () => {
       <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div className="text-center">
           <p className="text-gray-500">{t('dashboard.charts.mostPopular')}</p>
-          <p className="font-semibold text-gray-900">{data[0]?.category}</p>
+          <p className="font-semibold text-gray-900">{resolveCategoryName(data[0]?.category || '')}</p>
         </div>
         <div className="text-center">
           <p className="text-gray-500">{t('dashboard.charts.totalCategories')}</p>

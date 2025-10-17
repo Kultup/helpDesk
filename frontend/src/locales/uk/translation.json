@@ -104,6 +104,7 @@
     "analyticsMenu": "Аналітика",
     "analytics": "Аналітика",
     "activeDirectory": "Active Directory",
+    "logs": "Системні логи",
     "cities": "Міста",
     "positions": "Посади",
     "institutions": "Заклади",
@@ -1516,5 +1517,31 @@
     "feelsLike": "Відчувається як",
     "humidity": "Вологість",
     "wind": "Вітер"
+  },
+  "logs": {
+    "title": "Системні логи",
+    "description": "Перегляд логів бекенду та фронтенду в реальному часі",
+    "levels": {
+      "info": "Інформація",
+      "warn": "Попередження",
+      "error": "Помилка",
+      "debug": "Налагодження"
+    },
+    "sources": {
+      "backend": "Бекенд",
+      "frontend": "Фронтенд"
+    },
+    "actions": {
+      "clear": "Очистити",
+      "pause": "Пауза",
+      "resume": "Продовжити",
+      "export": "Експорт",
+      "search": "Пошук..."
+    },
+    "status": {
+      "connected": "Підключено",
+      "disconnected": "Відключено",
+      "paused": "На паузі"
+    }
   }
 }

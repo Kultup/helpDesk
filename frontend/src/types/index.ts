@@ -84,6 +84,13 @@ export interface Ticket {
     uploadedBy: User;
     uploadedAt: string;
   }>;
+  qualityRating?: {
+    hasRating: boolean;
+    rating?: number;
+    feedback?: string;
+    ratedAt?: string;
+    ratedBy?: User;
+  };
 }
 
 // Типи міст

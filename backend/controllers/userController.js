@@ -1195,6 +1195,10 @@ exports.approveRegistration = async (req, res) => {
          lastName: user.lastName,
          email: user.email
        }, 'pending', 'approved');
+
+       // Отримати оновлену кількість запитів на реєстрацію
+       const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
+       registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
      } catch (wsError) {
        logger.error('Помилка відправки WebSocket сповіщення:', wsError);
      }
@@ -1261,6 +1265,10 @@ exports.rejectRegistration = async (req, res) => {
     // Відправити WebSocket сповіщення перед видаленням
      try {
        registrationWebSocketService.notifyRegistrationStatusChange(userDataForNotification, 'pending', 'rejected');
+
+       // Отримати оновлену кількість запитів на реєстрацію (після видалення)
+       const pendingCount = await User.countDocuments({ registrationStatus: 'pending' }) - 1; // -1 бо користувач ще не видалений
+       registrationWebSocketService.notifyRegistrationCountUpdate(Math.max(0, pendingCount));
      } catch (wsError) {
        logger.error('Помилка відправки WebSocket сповіщення:', wsError);
      }

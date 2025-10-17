@@ -158,6 +158,7 @@ install_system_packages() {
             nginx \
             certbot \
             python3-certbot-nginx
+        
         log_success "Системні пакети встановлено (CentOS/RHEL)"
     else
         log_warning "Не вдалося визначити дистрибутив Linux. Встановіть пакети вручну."
