@@ -4,6 +4,22 @@ export enum UserRole {
   USER = 'user'
 }
 
+export interface MobileDevice {
+  deviceId: string;
+  platform: 'android' | 'ios' | 'unknown';
+  manufacturer?: string;
+  model?: string;
+  osVersion?: string;
+  sdkInt?: number;
+  appVersion?: string;
+  pushToken?: string;
+  label?: string;
+  firstLoginAt?: string;
+  lastLoginAt?: string;
+  lastIp?: string;
+  isActive?: boolean;
+}
+
 export interface User {
   _id: string;
   email: string;
@@ -19,6 +35,7 @@ export interface User {
   deletedBy?: string;
   createdAt: string;
   updatedAt: string;
+  devices?: MobileDevice[];
   preferences?: {
     theme: 'light' | 'dark' | 'auto';
     language: 'uk' | 'en' | 'pl';

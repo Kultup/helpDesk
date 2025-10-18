@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX } from 'lucide-react';
+import { X, User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
@@ -185,6 +185,71 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Мобільні пристрої */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-lg font-medium text-gray-900 mb-4">{t('users.mobileDevices')}</h4>
+          {!user.devices || user.devices.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('users.noDevices')}</p>
+          ) : (
+            <div className="space-y-3">
+              {user.devices.map((device, idx) => (
+                <div key={device.deviceId || idx} className="bg-white rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Smartphone className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {device.label || [device.manufacturer, device.model].filter(Boolean).join(' ') || device.platform}
+                        </p>
+                        <div className="flex items-center text-xs text-gray-500 gap-1">
+                          <Hash className="h-3 w-3" />
+                          <span>{t('users.deviceId')}: {device.deviceId || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                    <div className="flex items-center gap-3">
+                      <Cpu className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{t('users.platform')}</p>
+                        <p className="text-sm text-gray-900">{device.platform || '—'}{device.osVersion ? ` • ${t('users.osVersion')}: ${device.osVersion}` : ''}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Hash className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{t('users.appVersion')}</p>
+                        <p className="text-sm text-gray-900">{device.appVersion || '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{t('users.firstLogin')}</p>
+                        <p className="text-sm text-gray-900">{device.firstLoginAt ? formatDate(device.firstLoginAt) : '—'}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Globe className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{t('users.ipAddress')}</p>
+                        <p className="text-sm text-gray-900">{device.lastIp || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Додаткова інформація про позицію */}

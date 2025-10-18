@@ -79,9 +79,19 @@ const Users: React.FC = () => {
       // Закриваємо форму
       setShowForm(false);
       setEditingUser(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Помилка збереження користувача:', error);
-      alert('Помилка збереження користувача. Спробуйте ще раз.');
+      
+      // Отримуємо конкретне повідомлення про помилку з API
+      let errorMessage = 'Помилка збереження користувача. Спробуйте ще раз.';
+      
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
     } finally {
       setFormLoading(false);
     }
@@ -92,9 +102,19 @@ const Users: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleViewDetails = (user: UserType) => {
-    setSelectedUserForDetails(user);
-    setShowUserDetails(true);
+  const handleViewDetails = async (user: UserType) => {
+    try {
+      // Відкриваємо модал одразу з наявними даними для швидкої відповіді UI
+      setSelectedUserForDetails(user);
+      setShowUserDetails(true);
+      // Підвантажуємо повні дані користувача (включаючи devices)
+      const res = await apiService.getUserById(user._id);
+      if (res?.data) {
+        setSelectedUserForDetails(res.data);
+      }
+    } catch (e) {
+      console.error('Помилка завантаження деталей користувача:', e);
+    }
   };
 
   const handleCloseDetails = () => {

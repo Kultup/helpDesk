@@ -82,6 +82,12 @@ const UserForm: React.FC<UserFormProps> = ({
   const validatePassword = (password?: string): string | undefined => {
     if (!user && !password) return t('users.passwordRequired');
     if (password && password.length < 6) return t('users.passwordMinLength');
+    
+    // Перевірка на наявність великої літери, малої літери та цифри
+    if (password && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return 'Пароль повинен містити принаймні одну велику літеру, одну малу літеру та одну цифру';
+    }
+    
     return undefined;
   };
 
@@ -157,6 +163,8 @@ const UserForm: React.FC<UserFormProps> = ({
 
     if (!formData.department.trim()) {
       newErrors.department = t('users.departmentRequired');
+    } else if (formData.department.trim().length < 2 || formData.department.trim().length > 100) {
+      newErrors.department = 'Відділ повинен містити від 2 до 100 символів';
     }
 
     if (!formData.city) {
@@ -196,6 +204,15 @@ const UserForm: React.FC<UserFormProps> = ({
       case 'position':
         fieldError = validateRequired(value, 'Посада');
         break;
+      case 'department': {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          fieldError = t('users.departmentRequired');
+        } else if (trimmed.length < 2 || trimmed.length > 100) {
+          fieldError = 'Відділ повинен містити від 2 до 100 символів';
+        }
+        break;
+      }
       case 'city':
         fieldError = validateRequired(value, t('users.city'));
         break;

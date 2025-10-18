@@ -310,7 +310,8 @@ exports.createUser = async (req, res) => {
       position,
       city,
       telegramUsername,
-      phone
+      phone,
+      isActive
     } = req.body;
     
     logger.info('🏢 Department value:', department);
@@ -357,7 +358,9 @@ exports.createUser = async (req, res) => {
       city,
       telegramUsername,
       phone,
-      emailVerified: true, // Адмін створює підтверджених користувачів
+      isActive: typeof isActive === 'boolean' ? isActive : true,
+      isEmailVerified: true, // Адмін створює підтверджених користувачів
+      registrationStatus: 'approved',
       createdBy: req.user._id
     });
 

@@ -237,6 +237,25 @@ const userSchema = new mongoose.Schema({
     averageResolutionTime: { type: Number, default: 0 } // в годинах
   },
   
+  // Інформація про пристрої мобільного застосунку
+  devices: [
+    {
+      deviceId: { type: String, required: true },
+      platform: { type: String, enum: ['android', 'ios', 'web', 'other'], default: 'android' },
+      manufacturer: { type: String, default: null },
+      model: { type: String, default: null },
+      osVersion: { type: String, default: null },
+      sdkInt: { type: Number, default: null },
+      appVersion: { type: String, default: null },
+      pushToken: { type: String, default: null },
+      firstLoginAt: { type: Date, default: Date.now },
+      lastLoginAt: { type: Date, default: Date.now },
+      lastIp: { type: String, default: null },
+      label: { type: String, default: null },
+      isActive: { type: Boolean, default: true }
+    }
+  ],
+  
   // Метадані
   metadata: {
     registrationSource: {
@@ -317,6 +336,7 @@ userSchema.index({ city: 1, department: 1 });
 userSchema.index({ position: 1 });
 userSchema.index({ lastActivity: -1 });
 userSchema.index({ 'statistics.ticketsResolved': -1 });
+userSchema.index({ 'devices.deviceId': 1 });
 
 // Middleware для хешування пароля
 userSchema.pre('save', async function(next) {

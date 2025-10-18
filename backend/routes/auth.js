@@ -50,7 +50,18 @@ const loginSchema = Joi.object({
   }),
   password: Joi.string().required().messages({
     'any.required': 'Пароль є обов\'язковим'
-  })
+  }),
+  device: Joi.object({
+    deviceId: Joi.string().min(3).max(200).required(),
+    platform: Joi.string().valid('android','ios','web','other').optional(),
+    manufacturer: Joi.string().allow(null, '').optional(),
+    model: Joi.string().allow(null, '').optional(),
+    osVersion: Joi.string().allow(null, '').optional(),
+    sdkInt: Joi.number().integer().allow(null).optional(),
+    appVersion: Joi.string().allow(null, '').optional(),
+    pushToken: Joi.string().allow(null, '').optional(),
+    label: Joi.string().allow(null, '').optional()
+  }).optional()
 });
 
 // Функція для генерації JWT токена
@@ -185,7 +196,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const { email, password } = value;
+    const { email, password, device } = value;
 
     // Пошук користувача
     const user = await User.findOne({ email })
@@ -208,8 +219,6 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Перевірка статусу rejected видалена, оскільки відхилені користувачі видаляються з БД
-
     // Перевірка активності акаунта
     if (!user.isActive) {
       return res.status(401).json({
@@ -231,6 +240,52 @@ router.post('/login', async (req, res) => {
 
     // Оновлення часу останнього входу
     user.lastLogin = new Date();
+
+    // Якщо передали інформацію про пристрій — оновлюємо/додаємо її
+    try {
+      if (device && device.deviceId) {
+        if (!Array.isArray(user.devices)) user.devices = [];
+        const now = new Date();
+        const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
+
+        const idx = user.devices.findIndex(d => d.deviceId === device.deviceId);
+        if (idx >= 0) {
+          user.devices[idx] = {
+            ...user.devices[idx].toObject?.() || user.devices[idx],
+            platform: device.platform || user.devices[idx].platform,
+            manufacturer: device.manufacturer ?? user.devices[idx].manufacturer,
+            model: device.model ?? user.devices[idx].model,
+            osVersion: device.osVersion ?? user.devices[idx].osVersion,
+            sdkInt: device.sdkInt ?? user.devices[idx].sdkInt,
+            appVersion: device.appVersion ?? user.devices[idx].appVersion,
+            pushToken: device.pushToken ?? user.devices[idx].pushToken,
+            label: device.label ?? user.devices[idx].label,
+            lastLoginAt: now,
+            lastIp: clientIp,
+            isActive: true
+          };
+        } else {
+          user.devices.push({
+            deviceId: device.deviceId,
+            platform: device.platform || 'android',
+            manufacturer: device.manufacturer ?? null,
+            model: device.model ?? null,
+            osVersion: device.osVersion ?? null,
+            sdkInt: device.sdkInt ?? null,
+            appVersion: device.appVersion ?? null,
+            pushToken: device.pushToken ?? null,
+            label: device.label ?? null,
+            firstLoginAt: now,
+            lastLoginAt: now,
+            lastIp: clientIp,
+            isActive: true
+          });
+        }
+      }
+    } catch (devErr) {
+      logger.error('Помилка оновлення інформації про пристрій під час входу:', devErr);
+    }
+
     await user.save();
 
     // Генерація токена

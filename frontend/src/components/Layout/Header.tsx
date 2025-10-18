@@ -10,7 +10,7 @@ import Button from '../UI/Button';
 import NotificationDropdown from '../UI/NotificationDropdown';
 import RegistrationDropdown from './RegistrationDropdown';
 import HeaderCalendar from './HeaderCalendar';
-import { WeatherWidget } from '../UI';
+
 import LanguageSelector from '../UI/LanguageSelector';
 
 interface HeaderProps {
@@ -191,8 +191,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           {/* Language Selector */}
           <LanguageSelector />
           
-          {/* Weather Widget */}
-          <WeatherWidget />
+
           
           {/* Theme Toggle */}
           <Button
