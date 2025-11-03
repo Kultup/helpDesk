@@ -42,9 +42,24 @@ const corsOptions = {
 // Middleware для розробки: використовує allowedOrigins якщо вони задані, інакше дозволяє будь-яке походження
 const developmentCors = cors({
   origin: (origin, callback) => {
+    // Дозволяємо запити без origin (наприклад, мобільні додатки, Postman)
     if (!origin) return callback(null, true);
+    
+    // У development режимі дозволяємо localhost з будь-яким портом
+    if (process.env.NODE_ENV === 'development') {
+      const isLocalhost = origin.startsWith('http://localhost:') || 
+                         origin.startsWith('http://127.0.0.1:') ||
+                         origin.includes('localhost');
+      
+      if (isLocalhost) {
+        return callback(null, true);
+      }
+    }
+    
+    // Перевіряємо дозволені origins
     if (allowedOrigins.length === 0) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    
     logger.warn(`🚫 [DEV] CORS заблокував запит з домену: ${origin}`);
     callback(new Error('Заборонено CORS політикою'));
   },

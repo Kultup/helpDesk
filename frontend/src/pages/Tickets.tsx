@@ -140,7 +140,7 @@ const Tickets: React.FC = () => {
           await deleteTicket(ticketId);
           hideConfirmation();
         } catch (error) {
-          console.error('Помилка видалення тикету:', error);
+          console.error(t('tickets.errors.deleteError'), error);
         }
       },
       onCancel: hideConfirmation
@@ -156,8 +156,8 @@ const Tickets: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('tickets.title')}</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">{t('tickets.title')}</h1>
+          <p className="text-text-secondary mt-1">
             {t('tickets.foundTickets', { count: total })}
           </p>
         </div>
@@ -234,51 +234,51 @@ const Tickets: React.FC = () => {
         <CardContent className="p-0">
           {displayTickets.length === 0 ? (
             <div className="text-center py-12">
-              <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <Filter className="h-12 w-12 text-text-secondary mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 {t('tickets.noTicketsFound')}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-text-secondary">
                 {t('tickets.noTicketsFoundDescription')}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-surface border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.ticket')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.status')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.priority')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.createdDate')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.dateStatus')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       Оцінка
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.actions')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-surface divide-y divide-border">
                   {displayTickets.map((ticket) => (
-                    <tr key={ticket._id} className="hover:bg-gray-50">
+                    <tr key={ticket._id} className="hover:bg-surface/50">
                       <td className="px-6 py-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-foreground">
                             {ticket.title}
                           </div>
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                          <div className="text-sm text-text-secondary truncate max-w-xs">
                             {ticket.description}
                           </div>
                         </div>
@@ -303,10 +303,10 @@ const Tickets: React.FC = () => {
                           {ticket.priority}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-text-secondary">
                         <div className="space-y-1">
                           <div>{formatDate(ticket.createdAt)}</div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-text-secondary/70">
                             {formatDaysAgo(ticket.createdAt)}
                           </div>
                         </div>

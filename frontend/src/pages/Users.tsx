@@ -80,10 +80,10 @@ const Users: React.FC = () => {
       setShowForm(false);
       setEditingUser(null);
     } catch (error: any) {
-      console.error('Помилка збереження користувача:', error);
+      console.error(t('users.errors.saveError'), error);
       
       // Отримуємо конкретне повідомлення про помилку з API
-      let errorMessage = 'Помилка збереження користувача. Спробуйте ще раз.';
+      let errorMessage = t('users.errors.saveErrorMessage');
       
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -113,7 +113,7 @@ const Users: React.FC = () => {
         setSelectedUserForDetails(res.data);
       }
     } catch (e) {
-      console.error('Помилка завантаження деталей користувача:', e);
+      console.error(t('users.errors.loadDetailsError'), e);
     }
   };
 
@@ -123,25 +123,22 @@ const Users: React.FC = () => {
   };
 
   const handleToggleActive = async (userId: string, userEmail: string, isActive: boolean) => {
-    const action = isActive ? 'деактивувати' : 'активувати';
-    const actionPast = isActive ? 'деактивований' : 'активований';
-    
     showConfirmation({
-      title: `${action.charAt(0).toUpperCase() + action.slice(1)} користувача`,
-      message: `Ви впевнені, що хочете ${action} користувача "${userEmail}"?`,
+      title: isActive ? t('users.deactivateUserTitle') : t('users.activateUserTitle'),
+      message: isActive ? t('users.deactivateUserConfirmation', { email: userEmail }) : t('users.activateUserConfirmation', { email: userEmail }),
       type: isActive ? 'danger' : 'warning',
-      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
-      cancelText: 'Скасувати',
+      confirmText: isActive ? t('users.deactivate') : t('users.activate'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           const response = await apiService.toggleUserActive(userId);
           await refetchUsers(activeFilter);
           hideConfirmation();
-          alert(`Користувача "${userEmail}" успішно ${actionPast}!`);
+          alert(isActive ? t('users.deactivateUserSuccess', { email: userEmail }) : t('users.activateUserSuccess', { email: userEmail }));
         } catch (error: any) {
-          console.error(`Помилка ${action}ції користувача:`, error);
-          const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
-          alert(`Помилка ${action}ції користувача: ${errorMessage}`);
+          console.error(`Помилка ${isActive ? 'деактивації' : 'активації'} користувача:`, error);
+          const errorMessage = error?.response?.data?.message || error?.message || t('users.unknownError');
+          alert(`${isActive ? t('users.deactivateUserError') : t('users.activateUserError')}: ${errorMessage}`);
           hideConfirmation();
         }
       },
@@ -151,21 +148,21 @@ const Users: React.FC = () => {
 
   const handleDeleteUser = async (userId: string, userEmail: string) => {
     showConfirmation({
-      title: 'Видалити користувача',
-      message: `Ви впевнені, що хочете видалити користувача "${userEmail}"?`,
+      title: t('users.deleteUser'),
+      message: t('users.deleteConfirmation', { email: userEmail }),
       type: 'danger',
-      confirmText: 'Видалити',
-      cancelText: 'Скасувати',
+      confirmText: t('users.delete'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           const response = await apiService.deleteUser(userId);
           await refetchUsers(activeFilter);
           hideConfirmation();
-          alert(`Користувача "${userEmail}" успішно видалено!`);
+          alert(t('users.deleteSuccess', { email: userEmail }));
         } catch (error: any) {
           console.error('Помилка видалення користувача:', error);
-          const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
-          alert(`Помилка видалення користувача: ${errorMessage}`);
+          const errorMessage = error?.response?.data?.message || error?.message || t('users.unknownError');
+          alert(`${t('users.deleteError')}: ${errorMessage}`);
           hideConfirmation();
         }
       },
@@ -175,27 +172,20 @@ const Users: React.FC = () => {
 
   const handleForceDelete = async (userId: string, userEmail: string) => {
     showConfirmation({
-      title: 'ПОВНЕ ВИДАЛЕННЯ КОРИСТУВАЧА',
-      message: `⚠️ УВАГА! Ви збираєтеся ПОВНІСТЮ ВИДАЛИТИ користувача "${userEmail}" з системи.
-
-Це дія:
-• Видалить користувача назавжди
-• Видалить всі пов'язані дані
-• НЕ МОЖЕ БУТИ СКАСОВАНА
-
-Ви впевнені, що хочете продовжити?`,
+      title: t('users.forceDeleteTitle'),
+      message: t('users.forceDeleteMessage', { email: userEmail }).replace(/\\n/g, '\n'),
       type: 'danger',
-      confirmText: 'ТАК, ВИДАЛИТИ НАЗАВЖДИ',
-      cancelText: 'Скасувати',
+      confirmText: t('users.forceDeleteConfirm'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
          try {
            const response = await forceDeleteUser(userId);
            hideConfirmation();
-           alert(`Користувача "${userEmail}" повністю видалено з системи!`);
+           alert(t('users.forceDeleteSuccess', { email: userEmail }));
          } catch (error: any) {
            console.error('Помилка повного видалення користувача:', error);
-           const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
-           alert(`Помилка повного видалення користувача: ${errorMessage}`);
+           const errorMessage = error?.response?.data?.message || error?.message || t('users.unknownError');
+           alert(`${t('users.forceDeleteError')}: ${errorMessage}`);
            hideConfirmation();
          }
        },
@@ -210,21 +200,21 @@ const Users: React.FC = () => {
 
   const handleActivateUser = async (userId: string, userEmail: string) => {
     showConfirmation({
-      title: 'Активувати користувача',
-      message: `Ви впевнені, що хочете активувати користувача "${userEmail}"?`,
+      title: t('users.activateUserTitle'),
+      message: t('users.activateUserConfirmation', { email: userEmail }),
       type: 'warning',
-      confirmText: 'Активувати',
-      cancelText: 'Скасувати',
+      confirmText: t('users.activate'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         try {
           await activateUser(userId);
           await refetchUsers(activeFilter); // Оновлюємо основний список
           hideConfirmation();
-          alert(`Користувача "${userEmail}" успішно активовано!`);
+          alert(t('users.activateUserSuccess', { email: userEmail }));
         } catch (error: any) {
-          console.error('Помилка активації користувача:', error);
-          const errorMessage = error?.response?.data?.message || error?.message || 'Невідома помилка';
-          alert(`Помилка активації користувача: ${errorMessage}`);
+          console.error(t('users.activateUserError'), error);
+          const errorMessage = error?.response?.data?.message || error?.message || t('users.unknownError');
+          alert(`${t('users.activateUserError')}: ${errorMessage}`);
           hideConfirmation();
         }
       },

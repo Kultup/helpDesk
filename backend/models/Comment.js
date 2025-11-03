@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const commentSchema = new mongoose.Schema({
   content: {
@@ -308,5 +309,8 @@ commentSchema.methods.getReactionSummary = function() {
   });
   return summary;
 };
+
+// Додаємо плагін для пагінації
+commentSchema.plugin(mongoosePaginate);
 
 module.exports = mongoose.model('Comment', commentSchema);

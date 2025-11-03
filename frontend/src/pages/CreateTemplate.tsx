@@ -60,7 +60,7 @@ const CreateTemplate: React.FC = () => {
       const response = await apiService.getCategories(true); // Завантажуємо всі категорії, включно з неактивними
       setCategories(response.data || []);
     } catch (error) {
-      console.error('Помилка завантаження категорій:', error);
+      console.error(t('templates.errors.loadCategoriesError'), error);
     }
   };
 
@@ -131,7 +131,7 @@ const CreateTemplate: React.FC = () => {
       await apiService.createTicketTemplate(formData);
       navigate('/templates');
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Помилка створення шаблону');
+      setError(error.response?.data?.message || t('templates.errors.createFailed'));
     } finally {
       setLoading(false);
     }

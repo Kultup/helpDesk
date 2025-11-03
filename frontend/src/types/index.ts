@@ -119,6 +119,8 @@ export interface City {
     lat: number;
     lng: number;
   };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Типи категорій

@@ -202,6 +202,22 @@
       "message": "Ви впевнені, що хочете видалити заявку \"{{title}}\"? Цю дію неможливо скасувати.",
       "confirm": "Видалити",
       "cancel": "Скасувати"
+    },
+    "backToTickets": "Повернутися до тікетів",
+    "notFound": "Тікет не знайдено",
+    "details": "Деталі тікету",
+    "notSpecified": "Не вказано",
+    "notAssigned": "Не призначено",
+    "unknown": "Невідомо",
+    "uploadedBy": "Завантажено {{firstName}} {{lastName}}",
+    "resolvedAt": "Дата вирішення",
+    "qualityRating": "Оцінка якості",
+    "updating": "Оновлення тікету...",
+    "errors": {
+      "loadError": "Помилка завантаження тікету",
+      "updateStatusError": "Помилка оновлення статусу",
+      "updatePriorityError": "Помилка оновлення пріоритету",
+      "deleteError": "Помилка видалення тикету"
     }
   },
   "categories": {
@@ -410,6 +426,9 @@
     "priorityTickets": "Пріоритетні заявки",
     "quickActions": "Швидкі дії",
     "adminTools": "Інструменти адміністратора",
+    "errors": {
+      "updateError": "Помилка оновлення даних"
+    },
     "analyticsReports": "Аналітика та звіти",
     "analyticsAndReports": "Аналітика та звіти",
     "viewAll": "Переглянути всі",
@@ -502,7 +521,33 @@
       "excel": "Excel",
       "pdf": "PDF",
       "tickets": "Заявки",
-      "exportTickets": "Експорт заявок"
+      "exportTickets": "Експорт заявок",
+      "dataUnavailable": "Дані для експорту недоступні",
+      "emptyFileError": "Помилка: створений файл порожній",
+      "excelError": "Помилка при створенні Excel файлу",
+      "reportTitle": "Звіт аналітики Help Desk",
+      "createdDate": "Дата створення",
+      "period": "Період",
+      "generalStats": "Загальна статистика",
+      "sheets": {
+        "analytics": "Аналітика",
+        "statistics": "Статистика"
+      },
+      "columns": {
+        "city": "Місто",
+        "totalTickets": "Всього тикетів",
+        "resolved": "Вирішених",
+        "indicator": "Показник",
+        "value": "Значення"
+      },
+      "indicators": {
+        "totalTickets": "Всього тикетів",
+        "openTickets": "Відкритих тикетів",
+        "inProgressTickets": "В роботі",
+        "resolvedTickets": "Вирішених тикетів",
+        "closedTickets": "Закритих тикетів",
+        "activeUsers": "Активних користувачів"
+      }
     },
     "metrics": {
       "totalTickets": "Всього заявок",
@@ -527,6 +572,14 @@
       "priorities": "Пріоритети",
       "cities": "Міста",
       "clear": "Очистити"
+    },
+    "presets": {
+      "title": "Пресети фільтрів",
+      "namePlaceholder": "Назва пресету",
+      "save": "Зберегти",
+      "apply": "Застосувати",
+      "delete": "Видалити",
+      "noPresets": "Ще немає пресетів."
     },
     "charts": {
       "priorityDistribution": "Розподіл за пріоритетами",
@@ -672,6 +725,9 @@
     "deleteConfirmMessage": "Ви впевнені, що хочете видалити цей шаблон? Цю дію неможливо скасувати.",
     "deleting": "Видалення...",
     "deleteTemplate": "Видалити шаблон",
+    "templates": {
+      "deleteError": "Помилка при видаленні шаблону"
+    },
     "quickMessageTitle": "Надішліть швидке повідомлення всім користувачам Telegram",
     "selectTemplatePlaceholder": "Оберіть шаблон...",
     "typeLabel": "Тип повідомлення",
@@ -933,6 +989,65 @@
       }
     }
   },
+  "createTicketPage": {
+    "title": "Створити новий тікет",
+    "editTitle": "Редагувати тикет",
+    "subtitle": "Заповніть форму нижче для створення нового запиту підтримки",
+    "editSubtitle": "Внесіть зміни до тикету",
+    "backToTickets": "Повернутися до тікетів",
+    "form": {
+      "titleLabel": "Заголовок тикету *",
+      "titlePlaceholder": "Коротко опишіть проблему",
+      "titleCounter": "{{count}}/200 символів",
+      "priorityLabel": "Пріоритет",
+      "priorityHint": "Оберіть пріоритет відповідно до терміновості проблеми",
+      "categoryLabel": "Категорія",
+      "categoryHint": "Оберіть категорію, що найкраще описує тип проблеми",
+      "cityLabel": "Місто *",
+      "cityPlaceholder": "Оберіть місто",
+      "statusLabel": "Статус",
+      "descriptionLabel": "Детальний опис *",
+      "descriptionPlaceholder": "Детально опишіть проблему, кроки для відтворення, очікуваний результат...",
+      "descriptionCounter": "{{count}}/2000 символів"
+    },
+    "buttons": {
+      "create": "Створити тикет",
+      "save": "Зберегти зміни",
+      "creating": "Створення...",
+      "updating": "Оновлення...",
+      "cancel": "Скасувати"
+    },
+    "messages": {
+      "created": "Тикет успішно створено!",
+      "updated": "Тикет успішно оновлено!",
+      "loadCitiesError": "Не вдалося завантажити список міст",
+      "loadTicketError": "Не вдалося завантажити дані тикету",
+      "loadDataError": "Помилка завантаження даних",
+      "titleRequired": "Заголовок є обов'язковим",
+      "descriptionRequired": "Опис є обов'язковим",
+      "cityRequired": "Оберіть місто",
+      "updateError": "Помилка при оновленні тикету",
+      "createError": "Помилка при створенні тикету",
+      "requestError": "Помилка при обробці запиту"
+    },
+    "statuses": {
+      "open": "Відкритий",
+      "inProgress": "В роботі",
+      "resolved": "Вирішений",
+      "closed": "Закритий"
+    },
+    "priorities": {
+      "low": "Низький",
+      "medium": "Середній",
+      "high": "Високий"
+    },
+    "categories": {
+      "technical": "Технічна",
+      "account": "Обліковий запис",
+      "billing": "Оплата",
+      "general": "Загальне"
+    }
+  },
   "templates": {
     "title": "Шаблони заявок",
     "subtitle": "Оберіть готовий шаблон для швидкого створення заявки з попередньо заповненими даними",
@@ -959,6 +1074,10 @@
     "pagination": {
       "previous": "Попередня",
       "next": "Наступна"
+    },
+    "errors": {
+      "loadCategoriesError": "Помилка завантаження категорій",
+      "createFailed": "Помилка створення шаблону"
     },
     "deleteModal": {
       "title": "Видалити шаблон",
@@ -1033,6 +1152,7 @@
     "statistics": {
       "title": "Статистика Active Directory",
       "totalUsers": "Всього користувачів",
+      "errorLoading": "Не вдалося отримати статистику AD",
       "activeUsers": "Активні користувачі",
       "totalComputers": "Всього комп'ютерів",
       "onlineComputers": "Комп'ютери онлайн",
@@ -1258,6 +1378,28 @@
     "errorBulkActivation": "Помилка масової активації:",
     "errorBulkDeactivation": "Помилка масової деактивації:",
     "unknownError": "Невідома помилка",
+    "deleteUser": "Видалити користувача",
+    "deleteConfirmation": "Ви впевнені, що хочете видалити користувача \"{{email}}\"?",
+    "deleteSuccess": "Користувача \"{{email}}\" успішно видалено!",
+    "deleteError": "Помилка видалення користувача",
+    "activateUserTitle": "Активувати користувача",
+    "activateUserConfirmation": "Ви впевнені, що хочете активувати користувача \"{{email}}\"?",
+    "activateUserSuccess": "Користувача \"{{email}}\" успішно активовано!",
+    "activateUserError": "Помилка активації користувача",
+    "deactivateUserTitle": "Деактивувати користувача",
+    "deactivateUserConfirmation": "Ви впевнені, що хочете деактивувати користувача \"{{email}}\"?",
+    "deactivateUserSuccess": "Користувача \"{{email}}\" успішно деактивовано!",
+    "deactivateUserError": "Помилка деактивації користувача",
+    "forceDeleteTitle": "ПОВНЕ ВИДАЛЕННЯ КОРИСТУВАЧА",
+    "forceDeleteMessage": "⚠️ УВАГА! Ви збираєтеся ПОВНІСТЮ ВИДАЛИТИ користувача \"{{email}}\" з системи.\n\nЦе дія:\n• Видалить користувача назавжди\n• Видалить всі пов'язані дані\n• НЕ МОЖЕ БУТИ СКАСОВАНА\n\nВи впевнені, що хочете продовжити?",
+    "forceDeleteConfirm": "ТАК, ВИДАЛИТИ НАЗАВЖДИ",
+    "forceDeleteSuccess": "Користувача \"{{email}}\" повністю видалено з системи!",
+    "forceDeleteError": "Помилка повного видалення користувача",
+    "errors": {
+      "saveError": "Помилка збереження користувача",
+      "saveErrorMessage": "Помилка збереження користувача. Спробуйте ще раз.",
+      "loadDetailsError": "Помилка завантаження деталей користувача"
+    },
     "deactivatedUsers": "Деактивовані користувачі",
     "errorLoadingDeactivated": "Помилка завантаження деактивованих користувачів",
     "noDeactivatedUsers": "Немає деактивованих користувачів",
@@ -1484,7 +1626,8 @@
       "bulkDeleteFailed": "Помилка видалення вибраних закладів",
       "networkError": "Помилка мережі",
       "serverError": "Помилка сервера",
-      "validationError": "Помилка валідації даних"
+      "validationError": "Помилка валідації даних",
+      "nameRequired": "Назва закладу є обов'язковою"
     },
     "add": "Додати заклад",
     "noInstitutions": "Заклади не знайдено",
@@ -1505,6 +1648,17 @@
     "phone": "Телефон"
   },
   
+  "auth": {
+    "login": "Увійти",
+    "logout": "Вийти",
+    "loginTitle": "Увійдіть до системи",
+    "password": "Пароль",
+    "loginError": "Помилка входу в систему",
+    "contactAdmin": "Зв'яжіться з адміністратором для створення облікового запису",
+    "testData": "Тестові дані",
+    "testAdmin": "Admin: admin@test.com / admin123",
+    "testUser": "User: user@test.com / user123"
+  },
   "header": {
     "administrator": "Адміністратор",
     "user": "Користувач",

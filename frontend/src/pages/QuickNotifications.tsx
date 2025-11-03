@@ -152,10 +152,10 @@ const QuickNotifications: React.FC = () => {
         await loadTemplates();
         setResult(null);
       } else {
-        setError(res.message || 'Помилка при видаленні шаблону');
+        setError(res.message || t('quickNotifications.templates.deleteError'));
       }
     } catch (e: any) {
-      setError(e.message || 'Помилка при видаленні шаблону');
+      setError(e.message || t('quickNotifications.templates.deleteError'));
     } finally {
       setIsDeleting(false);
       setDeletingTemplateId(null);

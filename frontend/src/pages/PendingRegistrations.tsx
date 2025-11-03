@@ -193,7 +193,7 @@ const PendingRegistrations: React.FC = () => {
       setProcessingUserId(userToReject._id);
       
       const response = await apiService.patch(`/users/${userToReject._id}/reject-registration`, {
-        reason: rejectionReason.trim() || 'Не вказано'
+        reason: rejectionReason.trim() || t('common.notSpecified')
       });
       
       if (response.success) {

@@ -158,10 +158,10 @@ const Dashboard: React.FC = () => {
         setAdUsersTotal(usersTotal);
         setAdComputersTotal(computersTotal);
       } else {
-        setAdStatsError('Не вдалося отримати статистику AD');
+        setAdStatsError(t('activeDirectory.statistics.errorLoading'));
       }
     } catch (error: any) {
-      setAdStatsError(error?.message || 'Помилка завантаження статистики AD');
+      setAdStatsError(error?.message || t('activeDirectory.statistics.errorLoading'));
     } finally {
       setAdStatsLoading(false);
     }
@@ -207,7 +207,7 @@ const Dashboard: React.FC = () => {
       setLastUpdated(new Date());
       restoreScrollPosition();
     } catch (error) {
-      console.error('Помилка оновлення даних:', error);
+      console.error(t('dashboard.errors.updateError'), error);
     }
   }, [refetchTickets, refetchStats, saveScrollPosition, restoreScrollPosition]);
 

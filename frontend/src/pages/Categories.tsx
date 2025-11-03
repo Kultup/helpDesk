@@ -327,44 +327,95 @@ const Categories: React.FC = () => {
       )}
 
       {/* Список категорій */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredCategories.map((category) => {
-          const stats = getCategoryStats(category._id);
-          const isEditing = editingCategory === category._id;
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="divide-y divide-gray-200">
+          {filteredCategories.map((category) => {
+            const stats = getCategoryStats(category._id);
+            const isEditing = editingCategory === category._id;
 
-          return (
-            <Card key={category._id} className={`hover:shadow-lg transition-shadow ${!category.isActive ? 'opacity-60' : ''}`}>
-              <CardHeader className="pb-4">
+            return (
+              <div 
+                key={category._id} 
+                className={`p-4 hover:bg-gray-50 transition-colors ${!category.isActive ? 'opacity-60' : ''}`}
+              >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-4 flex-1 min-w-0">
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg flex-shrink-0"
                       style={{ backgroundColor: category.color }}
                     >
                       {category.icon}
                     </div>
-                    <div>
+                    
+                    <div className="flex-1 min-w-0">
                       {isEditing ? (
-                        <Input
-                          value={editForm.name}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                          className="font-semibold"
-                        />
+                        <div className="space-y-3">
+                          <Input
+                            value={editForm.name}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="font-semibold"
+                            placeholder={t('categories.form.namePlaceholder')}
+                          />
+                          <Input
+                            value={editForm.description}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder={t('categories.form.descriptionPlaceholder')}
+                          />
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                {t('categories.form.color')}
+                              </label>
+                              <input
+                                type="color"
+                                value={editForm.color}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, color: e.target.value }))}
+                                className="w-full h-8 border border-gray-300 rounded-md"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                {t('categories.form.icon')}
+                              </label>
+                              <Input
+                                value={editForm.icon}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
+                                placeholder={t('categories.form.iconPlaceholder')}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       ) : (
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                          {!category.isActive && (
-                            <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
-                              {t('categories.status.inactive')}
-                            </span>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-base font-semibold text-gray-900">{category.name}</h3>
+                            {!category.isActive && (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                                {t('categories.status.inactive')}
+                              </span>
+                            )}
+                          </div>
+                          {category.description && (
+                            <p className="text-sm text-gray-600 mt-1">{category.description}</p>
                           )}
+                          <div className="flex items-center space-x-4 mt-2 text-sm">
+                            <span className="text-gray-500">
+                              {t('categories.stats.totalTickets')}: <span className="font-medium text-blue-600">{stats.totalTickets}</span>
+                            </span>
+                            <span className="text-gray-500">
+                              {t('categories.stats.openTickets')}: <span className="font-medium text-orange-600">{stats.openTickets}</span>
+                            </span>
+                            <span className="text-gray-500">
+                              {t('categories.stats.resolvedTickets')}: <span className="font-medium text-green-600">{stats.resolvedTickets}</span>
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
                   
                   {user?.role === 'admin' && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
                       {isEditing ? (
                         <>
                           <Button
@@ -390,6 +441,7 @@ const Categories: React.FC = () => {
                             variant="outline"
                             onClick={() => handleEdit(category)}
                             className="p-2"
+                            title={t('categories.edit')}
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -398,6 +450,7 @@ const Categories: React.FC = () => {
                             variant="outline"
                             onClick={() => handleToggleActive(category._id, category.isActive)}
                             className="p-2"
+                            title={category.isActive ? t('categories.deactivate') : t('categories.activate')}
                           >
                             {category.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
@@ -406,6 +459,7 @@ const Categories: React.FC = () => {
                             variant="outline"
                             onClick={() => handleDelete(category._id)}
                             className="p-2 text-red-600 hover:text-red-700"
+                            title={t('categories.delete')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -414,63 +468,10 @@ const Categories: React.FC = () => {
                     </div>
                   )}
                 </div>
-              </CardHeader>
-
-              <CardContent className="pt-0">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('categories.form.description')}
-                      </label>
-                      <Input
-                        value={editForm.description}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder={t('categories.form.descriptionPlaceholder')}
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('categories.form.color')}
-                        </label>
-                        <input
-                          type="color"
-                          value={editForm.color}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, color: e.target.value }))}
-                          className="w-full h-10 border border-gray-300 rounded-md"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('categories.form.icon')}
-                        </label>
-                        <Input
-                          value={editForm.icon}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
-                          placeholder={t('categories.form.iconPlaceholder')}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {category.description && (
-                      <p className="text-gray-600 text-sm">{category.description}</p>
-                    )}
-                    
-                    {/* Компактна статистика */}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">{t('categories.stats.totalTickets')}: <span className="font-medium text-blue-600">{stats.totalTickets}</span></span>
-                <span className="text-gray-500">{t('categories.stats.openTickets')}: <span className="font-medium text-orange-600">{stats.openTickets}</span></span>
-                <span className="text-gray-500">{t('categories.stats.resolvedTickets')}: <span className="font-medium text-green-600">{stats.resolvedTickets}</span></span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

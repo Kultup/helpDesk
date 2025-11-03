@@ -4,6 +4,7 @@ const router = express.Router();
 const categoryController = require('../controllers/categoryController');
 const { authenticateToken } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+const { cacheMiddleware, invalidateCache, cacheKeyGenerators } = require('../middleware/cache');
 
 // Валідація для створення/оновлення категорії
 const categoryValidation = [
@@ -43,27 +44,76 @@ const categoryValidation = [
 ];
 
 // Отримати всі категорії (доступно всім авторизованим користувачам)
-router.get('/', authenticateToken, categoryController.getCategories);
+// Кешуємо на 5 хвилин (300 секунд)
+router.get('/', 
+  authenticateToken, 
+  cacheMiddleware(300, cacheKeyGenerators.categories),
+  categoryController.getCategories
+);
 
 // Отримати статистику категорій (доступно всім авторизованим користувачам)
-router.get('/stats/usage', authenticateToken, categoryController.getCategoryStats);
+// Кешуємо на 10 хвилин (600 секунд)
+router.get('/stats/usage', 
+  authenticateToken, 
+  cacheMiddleware(600, cacheKeyGenerators.stats),
+  categoryController.getCategoryStats
+);
 
 // Отримати категорію за ID (доступно всім авторизованим користувачам)
-router.get('/:id', authenticateToken, categoryController.getCategoryById);
+// Кешуємо на 5 хвилин
+router.get('/:id', 
+  authenticateToken, 
+  cacheMiddleware(300, cacheKeyGenerators.category),
+  categoryController.getCategoryById
+);
 
 // Створити нову категорію (тільки адміністратори)
-router.post('/', authenticateToken, adminAuth, categoryValidation, categoryController.createCategory);
+// Інвалідуємо кеш категорій після створення
+router.post('/', 
+  authenticateToken, 
+  adminAuth, 
+  categoryValidation, 
+  invalidateCache('cache:categories:*'),
+  categoryController.createCategory
+);
 
 // Оновити категорію (тільки адміністратори)
-router.put('/:id', authenticateToken, adminAuth, categoryValidation, categoryController.updateCategory);
+// Інвалідуємо кеш конкретної категорії та списку
+router.put('/:id', 
+  authenticateToken, 
+  adminAuth, 
+  categoryValidation, 
+  invalidateCache((req) => `cache:category:${req.params.id}`),
+  invalidateCache('cache:categories:*'),
+  categoryController.updateCategory
+);
 
 // Видалити категорію (тільки адміністратори)
-router.delete('/:id', authenticateToken, adminAuth, categoryController.deleteCategory);
+// Інвалідуємо кеш після видалення
+router.delete('/:id', 
+  authenticateToken, 
+  adminAuth, 
+  invalidateCache((req) => `cache:category:${req.params.id}`),
+  invalidateCache('cache:categories:*'),
+  categoryController.deleteCategory
+);
 
 // Деактивувати категорію (тільки адміністратори)
-router.patch('/:id/deactivate', authenticateToken, adminAuth, categoryController.deactivateCategory);
+router.patch('/:id/deactivate', 
+  authenticateToken, 
+  adminAuth, 
+  invalidateCache((req) => `cache:category:${req.params.id}`),
+  invalidateCache('cache:categories:*'),
+  categoryController.deactivateCategory
+);
 
 // Активувати категорію (тільки адміністратори)
-router.patch('/:id/activate', authenticateToken, adminAuth, categoryController.activateCategory);
+router.patch('/:id/activate', 
+  authenticateToken, 
+  adminAuth, 
+  invalidateCache((req) => `cache:category:${req.params.id}`),
+  invalidateCache('cache:categories:*'),
+  categoryController.activateCategory
+);
 
 module.exports = router;

@@ -14,9 +14,9 @@ const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantClasses = {
-    default: 'bg-white border border-gray-200',
-    outlined: 'bg-white border-2 border-gray-300',
-    elevated: 'bg-white shadow-lg border border-gray-100'
+    default: 'bg-surface border border-border dark:bg-surface dark:border-border',
+    outlined: 'bg-surface border-2 border-border dark:bg-surface dark:border-border',
+    elevated: 'bg-surface shadow-lg border border-border dark:bg-surface dark:border-border'
   };
 
   const paddingClasses = {
@@ -59,17 +59,17 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   return (
     <div
       className={cn(
-        'flex items-center justify-between pb-3 border-b border-gray-200',
+        'flex items-center justify-between pb-3 border-b border-border dark:border-border',
         className
       )}
       {...props}
     >
       <div>
         {title && (
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-lg font-semibold text-foreground dark:text-foreground">{title}</h3>
         )}
         {subtitle && (
-          <p className="text-sm text-gray-600">{subtitle}</p>
+          <p className="text-sm text-text-secondary dark:text-text-secondary">{subtitle}</p>
         )}
         {children}
       </div>
@@ -102,7 +102,7 @@ export const CardFooter: React.FC<CardFooterProps> = ({
   return (
     <div
       className={cn(
-        'pt-3 border-t border-gray-200 flex items-center justify-end space-x-2',
+        'pt-3 border-t border-border dark:border-border flex items-center justify-end space-x-2',
         className
       )}
       {...props}
@@ -121,7 +121,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({
 }) => {
   return (
     <h3
-      className={cn('text-lg font-semibold text-gray-900', className)}
+      className={cn('text-lg font-semibold text-foreground dark:text-foreground', className)}
       {...props}
     >
       {children}

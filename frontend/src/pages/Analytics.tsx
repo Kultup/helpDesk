@@ -351,7 +351,7 @@ const Analytics: React.FC = () => {
   const exportData = (format: 'csv' | 'excel' | 'pdf') => {
     if (!analyticsData || !dashboardData) {
       console.error('❌ Missing data for export');
-      alert('Дані для експорту недоступні');
+      alert(t('analytics.export.dataUnavailable'));
       return;
     }
 
@@ -359,9 +359,9 @@ const Analytics: React.FC = () => {
 
     // Підготовка даних для експорту
     const analyticsExportData = cityStats.map((item: any) => ({
-      'Місто': item.name,
-      'Всього тикетів': item.count,
-      'Вирішених': item.resolved
+      [t('analytics.export.columns.city')]: item.name,
+      [t('analytics.export.columns.totalTickets')]: item.count,
+      [t('analytics.export.columns.resolved')]: item.resolved
     }));
 
     if (format === 'csv') {
@@ -375,21 +375,21 @@ const Analytics: React.FC = () => {
       // Створюємо основний аркуш з аналітикою
       const worksheet = XLSX.utils.json_to_sheet(analyticsExportData);
       
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Аналітика');
+      XLSX.utils.book_append_sheet(workbook, worksheet, t('analytics.export.sheets.analytics'));
 
       // Додаємо аркуш зі статистикою (беремо з analyticsData/dashboardData)
       const statsData = [
-        { 'Показник': 'Всього тикетів', 'Значення': analyticsData?.overview?.totalTickets || 0 },
-        { 'Показник': 'Відкритих тикетів', 'Значення': getStatusCount('open') },
-        { 'Показник': 'В роботі', 'Значення': getStatusCount('in_progress') },
-        { 'Показник': 'Вирішених тикетів', 'Значення': getStatusCount('resolved') },
-        { 'Показник': 'Закритих тикетів', 'Значення': getStatusCount('closed') },
-        { 'Показник': 'Активних користувачів', 'Значення': analyticsData?.overview?.activeUsers || 0 }
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.totalTickets'), [t('analytics.export.columns.value')]: analyticsData?.overview?.totalTickets || 0 },
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.openTickets'), [t('analytics.export.columns.value')]: getStatusCount('open') },
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.inProgressTickets'), [t('analytics.export.columns.value')]: getStatusCount('in_progress') },
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.resolvedTickets'), [t('analytics.export.columns.value')]: getStatusCount('resolved') },
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.closedTickets'), [t('analytics.export.columns.value')]: getStatusCount('closed') },
+        { [t('analytics.export.columns.indicator')]: t('analytics.export.indicators.activeUsers'), [t('analytics.export.columns.value')]: analyticsData?.overview?.activeUsers || 0 }
       ];
       
       const statsWorksheet = XLSX.utils.json_to_sheet(statsData);
       
-      XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Статистика');
+      XLSX.utils.book_append_sheet(workbook, statsWorksheet, t('analytics.export.sheets.statistics'));
       
       // Створюємо blob для завантаження
       try {
@@ -401,14 +401,14 @@ const Analytics: React.FC = () => {
         
         if (blob.size === 0) {
           console.error('❌ Excel blob is empty!');
-          alert('Помилка: створений файл порожній');
+          alert(t('analytics.export.emptyFileError'));
           return;
         }
         
         downloadFile(blob, `${fileName}.xlsx`);
       } catch (error) {
         console.error('❌ Error creating Excel file:', error);
-        alert('Помилка при створенні Excel файлу: ' + (error instanceof Error ? error.message : String(error)));
+        alert(t('analytics.export.excelError') + ': ' + (error instanceof Error ? error.message : String(error)));
       }
     } else if (format === 'pdf') {
       // Створюємо PDF звіт
@@ -419,20 +419,20 @@ const Analytics: React.FC = () => {
       
       // Заголовок
       doc.setFontSize(16);
-      doc.text('Звіт аналітики Help Desk', 20, 20);
+      doc.text(t('analytics.export.reportTitle'), 20, 20);
       doc.setFontSize(12);
-      doc.text(`Дата створення: ${new Date().toLocaleDateString('uk-UA')}`, 20, 30);
-      doc.text(`Період: ${dateRange.start} - ${dateRange.end}`, 20, 40);
+      doc.text(`${t('analytics.export.createdDate')}: ${new Date().toLocaleDateString('uk-UA')}`, 20, 30);
+      doc.text(`${t('analytics.export.period')}: ${dateRange.start} - ${dateRange.end}`, 20, 40);
       
       // Статистика
-      doc.text('Загальна статистика:', 20, 55);
+      doc.text(t('analytics.export.generalStats') + ':', 20, 55);
       const statsTable = [
-        ['Показник', 'Значення'],
-        ['Всього тикетів', (analyticsData?.overview?.totalTickets || 0).toString()],
-        ['Відкритих тикетів', getStatusCount('open').toString()],
-        ['В роботі', getStatusCount('in_progress').toString()],
-        ['Вирішених тикетів', getStatusCount('resolved').toString()],
-        ['Закритих тикетів', getStatusCount('closed').toString()]
+        [t('analytics.export.columns.indicator'), t('analytics.export.columns.value')],
+        [t('analytics.export.indicators.totalTickets'), (analyticsData?.overview?.totalTickets || 0).toString()],
+        [t('analytics.export.indicators.openTickets'), getStatusCount('open').toString()],
+        [t('analytics.export.indicators.inProgressTickets'), getStatusCount('in_progress').toString()],
+        [t('analytics.export.indicators.resolvedTickets'), getStatusCount('resolved').toString()],
+        [t('analytics.export.indicators.closedTickets'), getStatusCount('closed').toString()]
       ];
       
       doc.autoTable({
@@ -450,7 +450,7 @@ const Analytics: React.FC = () => {
       ]);
       
       doc.autoTable({
-        head: [['Місто', 'Всього тикетів', 'Вирішених']],
+        head: [[t('analytics.export.columns.city'), t('analytics.export.columns.totalTickets'), t('analytics.export.columns.resolved')]],
         body: analyticsTable,
         startY: doc.lastAutoTable.finalY + 20,
         theme: 'grid',
@@ -609,25 +609,25 @@ const Analytics: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Bookmark className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{t('analytics.presets.title') || 'Пресети фільтрів'}</span>
+              <span className="text-sm font-medium text-foreground">{t('analytics.presets.title')}</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
-                placeholder={t('analytics.presets.namePlaceholder') || 'Назва пресету'}
+                placeholder={t('analytics.presets.namePlaceholder')}
                 className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary w-48"
               />
               <Button variant="primary" size="sm" onClick={savePreset} className="flex items-center gap-2">
                 <BookmarkPlus className="h-4 w-4" />
-                {t('analytics.presets.save') || 'Зберегти'}
+                {t('analytics.presets.save')}
               </Button>
             </div>
           </div>
 
           {presets.length === 0 ? (
-            <div className="text-sm text-muted-foreground">{t('analytics.presets.noPresets') || 'Ще немає пресетів.'}</div>
+            <div className="text-sm text-muted-foreground">{t('analytics.presets.noPresets')}</div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {presets.map((p) => (
@@ -635,14 +635,14 @@ const Analytics: React.FC = () => {
                   key={p.id}
                   className="flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-surface text-foreground text-sm cursor-pointer hover:bg-muted"
                   onClick={() => applyPreset(p)}
-                  title={`${t('analytics.presets.apply') || 'Застосувати'}: ${p.name}`}
+                  title={`${t('analytics.presets.apply')}: ${p.name}`}
                 >
                   <Bookmark className="h-3 w-3 text-primary" />
                   <span>{p.name}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); deletePreset(p.id); }}
                     className="ml-1 text-muted-foreground hover:text-rose-600"
-                    title={t('analytics.presets.delete') || 'Видалити'}
+                    title={t('analytics.presets.delete')}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>

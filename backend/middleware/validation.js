@@ -238,30 +238,64 @@ const rateLimits = {
   analytics: createRateLimit(60 * 1000, 500, 'Забагато запитів до аналітики за хвилину')
 };
 
+/**
+ * Рекурсивна санітизація HTML в об'єктах
+ * Використовує xss-clean для очищення від XSS атак
+ */
+const xss = require('xss-clean');
+const sanitizeObject = (obj, allowedFields = []) => {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeObject(item, allowedFields));
+  }
+
+  const sanitized = {};
+  for (const key in obj) {
+    if (!obj.hasOwnProperty(key)) continue;
+
+    // Пропускаємо поля, які дозволено залишити HTML (наприклад, content для rich text editors)
+    if (allowedFields.includes(key) && typeof obj[key] === 'string') {
+      sanitized[key] = obj[key];
+      continue;
+    }
+
+    if (typeof obj[key] === 'string') {
+      // Використовуємо xss-clean для очищення
+      sanitized[key] = xss(obj[key]).trim();
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      sanitized[key] = sanitizeObject(obj[key], allowedFields);
+    } else {
+      sanitized[key] = obj[key];
+    }
+  }
+  return sanitized;
+};
+
 // Middleware для санітизації даних
 const sanitizeData = [
   mongoSanitize(), // Захист від NoSQL ін'єкцій
+  xss(), // Захист від XSS атак
   (req, res, next) => {
-    // Додаткова санітизація HTML
-    const sanitizeHtml = (obj) => {
-      for (let key in obj) {
-        if (typeof obj[key] === 'string') {
-          obj[key] = obj[key]
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-            .replace(/<[^>]*>/g, '')
-            .trim();
-        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-          sanitizeHtml(obj[key]);
-        }
-      }
-    };
-    
-    if (req.body) sanitizeHtml(req.body);
-    if (req.query) sanitizeHtml(req.query);
-    if (req.params) sanitizeHtml(req.params);
-    
+    // Список полів, які дозволяють HTML (наприклад, rich text контент)
+    // Це повинно бути налаштовано для конкретних випадків використання
+    const allowedHtmlFields = ['description', 'content', 'htmlContent'];
+
+    // Додаткова санітизація об'єктів (xss() працює тільки на рядках)
+    if (req.body) {
+      req.body = sanitizeObject(req.body, allowedHtmlFields);
+    }
+    if (req.query) {
+      req.query = sanitizeObject(req.query, []);
+    }
+    if (req.params) {
+      req.params = sanitizeObject(req.params, []);
+    }
+
     next();
-  }
+  },
 ];
 
 // Middleware для безпеки заголовків

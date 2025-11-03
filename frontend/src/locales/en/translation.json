@@ -350,6 +350,9 @@
     "priorityTickets": "Priority tickets",
     "quickActions": "Quick actions",
     "adminTools": "Admin tools",
+    "errors": {
+      "updateError": "Error updating data"
+    },
     "analyticsReports": "Analytics and reports",
     "analyticsAndReports": "Analytics and reports",
     "viewAll": "View all",
@@ -431,6 +434,14 @@
       "cities": "Cities",
       "clear": "Clear"
     },
+    "presets": {
+      "title": "Filter Presets",
+      "namePlaceholder": "Preset name",
+      "save": "Save",
+      "apply": "Apply",
+      "delete": "Delete",
+      "noPresets": "No presets yet."
+    },
     "totalTickets": "Total Tickets",
     "openTickets": "Open Tickets",
     "closedTickets": "Closed Tickets",
@@ -456,7 +467,33 @@
       "excel": "Excel",
       "pdf": "PDF",
       "tickets": "Tickets",
-      "exportTickets": "Export Tickets"
+      "exportTickets": "Export Tickets",
+      "dataUnavailable": "Export data unavailable",
+      "emptyFileError": "Error: created file is empty",
+      "excelError": "Error creating Excel file",
+      "reportTitle": "Help Desk Analytics Report",
+      "createdDate": "Created Date",
+      "period": "Period",
+      "generalStats": "General Statistics",
+      "sheets": {
+        "analytics": "Analytics",
+        "statistics": "Statistics"
+      },
+      "columns": {
+        "city": "City",
+        "totalTickets": "Total Tickets",
+        "resolved": "Resolved",
+        "indicator": "Indicator",
+        "value": "Value"
+      },
+      "indicators": {
+        "totalTickets": "Total Tickets",
+        "openTickets": "Open Tickets",
+        "inProgressTickets": "In Progress",
+        "resolvedTickets": "Resolved Tickets",
+        "closedTickets": "Closed Tickets",
+        "activeUsers": "Active Users"
+      }
     },
     "metrics": {
       "totalTickets": "Total Tickets",
@@ -612,6 +649,9 @@
     "deleteConfirmMessage": "Are you sure you want to delete this template? This action cannot be undone.",
     "deleting": "Deleting...",
     "deleteTemplate": "Delete template",
+    "templates": {
+      "deleteError": "Error deleting template"
+    },
     "quickMessageTitle": "Send a quick message to all Telegram users",
     "selectTemplatePlaceholder": "Select template...",
     "typeLabel": "Message type",
@@ -770,6 +810,22 @@
       "message": "Are you sure you want to delete ticket \"{{title}}\"? This action cannot be undone.",
       "confirm": "Delete",
       "cancel": "Cancel"
+    },
+    "backToTickets": "Back to Tickets",
+    "notFound": "Ticket not found",
+    "details": "Ticket Details",
+    "notSpecified": "Not specified",
+    "notAssigned": "Not assigned",
+    "unknown": "Unknown",
+    "uploadedBy": "Uploaded by {{firstName}} {{lastName}}",
+    "resolvedAt": "Resolved Date",
+    "qualityRating": "Quality Rating",
+    "updating": "Updating ticket...",
+    "errors": {
+      "loadError": "Error loading ticket",
+      "updateStatusError": "Error updating status",
+      "updatePriorityError": "Error updating priority",
+      "deleteError": "Error deleting ticket"
     }
   },
   "createTicketModal": {
@@ -1012,8 +1068,68 @@
       "errors": {
         "createFailed": "Failed to create template",
         "updateFailed": "Failed to update template",
-        "loadFailed": "Failed to load template data"
+        "loadFailed": "Failed to load template data",
+        "loadCategoriesError": "Error loading categories"
       }
+    }
+  },
+  "createTicketPage": {
+    "title": "Create New Ticket",
+    "editTitle": "Edit Ticket",
+    "subtitle": "Fill out the form below to create a new support request",
+    "editSubtitle": "Make changes to the ticket",
+    "backToTickets": "Back to Tickets",
+    "form": {
+      "titleLabel": "Ticket Title *",
+      "titlePlaceholder": "Briefly describe the problem",
+      "titleCounter": "{{count}}/200 characters",
+      "priorityLabel": "Priority",
+      "priorityHint": "Select priority according to the urgency of the problem",
+      "categoryLabel": "Category",
+      "categoryHint": "Select the category that best describes the type of problem",
+      "cityLabel": "City *",
+      "cityPlaceholder": "Select city",
+      "statusLabel": "Status",
+      "descriptionLabel": "Detailed Description *",
+      "descriptionPlaceholder": "Describe the problem in detail, steps to reproduce, expected result...",
+      "descriptionCounter": "{{count}}/2000 characters"
+    },
+    "buttons": {
+      "create": "Create Ticket",
+      "save": "Save Changes",
+      "creating": "Creating...",
+      "updating": "Updating...",
+      "cancel": "Cancel"
+    },
+    "messages": {
+      "created": "Ticket created successfully!",
+      "updated": "Ticket updated successfully!",
+      "loadCitiesError": "Failed to load cities list",
+      "loadTicketError": "Failed to load ticket data",
+      "loadDataError": "Data loading error",
+      "titleRequired": "Title is required",
+      "descriptionRequired": "Description is required",
+      "cityRequired": "Select city",
+      "updateError": "Error updating ticket",
+      "createError": "Error creating ticket",
+      "requestError": "Request processing error"
+    },
+    "statuses": {
+      "open": "Open",
+      "inProgress": "In Progress",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "categories": {
+      "technical": "Technical",
+      "account": "Account",
+      "billing": "Billing",
+      "general": "General"
     }
   },
   "templates": {
@@ -1330,6 +1446,28 @@
     "errorBulkActivation": "Error bulk activation:",
     "errorBulkDeactivation": "Error bulk deactivation:",
     "unknownError": "Unknown error",
+    "deleteUser": "Delete User",
+    "deleteConfirmation": "Are you sure you want to delete user \"{{email}}\"?",
+    "deleteSuccess": "User \"{{email}}\" successfully deleted!",
+    "deleteError": "Error deleting user",
+    "activateUserTitle": "Activate User",
+    "activateUserConfirmation": "Are you sure you want to activate user \"{{email}}\"?",
+    "activateUserSuccess": "User \"{{email}}\" successfully activated!",
+    "activateUserError": "Error activating user",
+    "deactivateUserTitle": "Deactivate User",
+    "deactivateUserConfirmation": "Are you sure you want to deactivate user \"{{email}}\"?",
+    "deactivateUserSuccess": "User \"{{email}}\" successfully deactivated!",
+    "deactivateUserError": "Error deactivating user",
+    "forceDeleteTitle": "PERMANENT USER DELETION",
+    "forceDeleteMessage": "⚠️ WARNING! You are about to PERMANENTLY DELETE user \"{{email}}\" from the system.\n\nThis action will:\n• Delete the user forever\n• Delete all associated data\n• CANNOT BE UNDONE\n\nAre you sure you want to proceed?",
+    "forceDeleteConfirm": "YES, DELETE FOREVER",
+    "forceDeleteSuccess": "User \"{{email}}\" has been permanently deleted from the system!",
+    "forceDeleteError": "Error permanently deleting user",
+    "errors": {
+      "saveError": "Error saving user",
+      "saveErrorMessage": "Error saving user. Please try again.",
+      "loadDetailsError": "Error loading user details"
+    },
     "deactivatedUsers": "Deactivated Users",
     "errorLoadingDeactivated": "Error loading deactivated users",
     "noDeactivatedUsers": "No deactivated users",
@@ -1580,7 +1718,8 @@
       "bulkDeleteFailed": "Failed to delete selected institutions",
       "networkError": "Network error",
       "serverError": "Server error",
-      "validationError": "Validation error"
+      "validationError": "Validation error",
+      "nameRequired": "Institution name is required"
     },
     "add": "Add Institution",
     "noInstitutions": "No institutions found",
@@ -1601,6 +1740,17 @@
     "phone": "Phone",
     "institution": "Institution",
     "institutionPlaceholder": "Enter institution name"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "loginTitle": "Sign in to the system",
+    "password": "Password",
+    "loginError": "Login error",
+    "contactAdmin": "Contact administrator to create an account",
+    "testData": "Test data",
+    "testAdmin": "Admin: admin@test.com / admin123",
+    "testUser": "User: user@test.com / user123"
   },
   "header": {
     "administrator": "Administrator",

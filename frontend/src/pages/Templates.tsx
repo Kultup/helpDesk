@@ -153,10 +153,10 @@ const Templates: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-green-600 bg-green-50 border-green-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'high': return 'text-red-600 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/20 dark:border-red-800';
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-800';
+      case 'low': return 'text-green-600 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-900/20 dark:border-green-800';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-700';
     }
   };
 
@@ -175,12 +175,20 @@ const Templates: React.FC = () => {
 
   const getCategoryIcon = (categoryName: string) => {
     const name = categoryName.toLowerCase();
-    if (name.includes('технічн') || name.includes('апарат')) return <Monitor className="w-5 h-5" />;
-    if (name.includes('мереж') || name.includes('інтернет')) return <Wifi className="w-5 h-5" />;
-    if (name.includes('безпек') || name.includes('віру')) return <Shield className="w-5 h-5" />;
-    if (name.includes('принтер') || name.includes('друк')) return <Printer className="w-5 h-5" />;
-    if (name.includes('пошт') || name.includes('email')) return <Mail className="w-5 h-5" />;
-    if (name.includes('база') || name.includes('дані')) return <Database className="w-5 h-5" />;
+    // Check for various translations of category types
+    const technical = ['технічн', 'апарат', 'technical', 'techniczne', 'urządzenie'];
+    const network = ['мереж', 'інтернет', 'network', 'sieć', 'internet'];
+    const security = ['безпек', 'віру', 'security', 'bezpieczeństwo', 'wirus'];
+    const printer = ['принтер', 'друк', 'printer', 'drukarka', 'print'];
+    const email = ['пошт', 'email', 'mail', 'poczta'];
+    const database = ['база', 'дані', 'database', 'baza', 'dane', 'danych'];
+    
+    if (technical.some(term => name.includes(term))) return <Monitor className="w-5 h-5" />;
+    if (network.some(term => name.includes(term))) return <Wifi className="w-5 h-5" />;
+    if (security.some(term => name.includes(term))) return <Shield className="w-5 h-5" />;
+    if (printer.some(term => name.includes(term))) return <Printer className="w-5 h-5" />;
+    if (email.some(term => name.includes(term))) return <Mail className="w-5 h-5" />;
+    if (database.some(term => name.includes(term))) return <Database className="w-5 h-5" />;
     return <Settings className="w-5 h-5" />;
   };
 
@@ -188,10 +196,10 @@ const Templates: React.FC = () => {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+          <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -204,8 +212,8 @@ const Templates: React.FC = () => {
       <div className="mb-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('templates.title')}</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl font-bold text-foreground mb-2">{t('templates.title')}</h1>
+            <p className="text-text-secondary">
               {t('templates.subtitle')}
             </p>
           </div>
@@ -224,7 +232,7 @@ const Templates: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-4 mb-6">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary w-4 h-4" />
               <Input
                 type="text"
                 placeholder={t('templates.searchPlaceholder')}
@@ -274,9 +282,9 @@ const Templates: React.FC = () => {
       {templates.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('templates.noTemplatesFound')}</h3>
-            <p className="text-gray-500 mb-4">
+            <FileText className="w-12 h-12 text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">{t('templates.noTemplatesFound')}</h3>
+            <p className="text-text-secondary mb-4">
               {searchTerm || selectedCategory 
                 ? t('templates.noTemplatesDescription')
                 : t('templates.noTemplatesAvailable')
@@ -290,114 +298,118 @@ const Templates: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {templates.map((template) => (
-            <Card key={template._id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="p-2 rounded-lg"
-                      style={{ 
-                        backgroundColor: `${template.category.color}20`,
-                        color: template.category.color 
-                      }}
-                    >
-                      {getCategoryIcon(template.category.name)}
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-lg leading-tight">
-                        {template.title}
-                      </CardTitle>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge 
-                          variant="secondary" 
-                          size="sm"
-                          style={{ 
-                            backgroundColor: `${template.category.color}20`,
-                            color: template.category.color 
-                          }}
-                        >
-                          {template.category.name}
-                        </Badge>
-                        <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs border ${getPriorityColor(template.priority)}`}>
-                          {getPriorityIcon(template.priority)}
-                          <span>{getPriorityLabel(template.priority)}</span>
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {templates.map((template) => (
+                <div 
+                  key={template._id} 
+                  className="p-6 hover:bg-surface/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Основна інформація */}
+                    <div className="flex items-start space-x-4 flex-1 min-w-0">
+                      <div 
+                        className="p-3 rounded-lg flex-shrink-0"
+                        style={{ 
+                          backgroundColor: `${template.category.color}20`,
+                          color: template.category.color 
+                        }}
+                      >
+                        {getCategoryIcon(template.category.name)}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-foreground leading-tight">
+                            {template.title}
+                          </h3>
+                        </div>
+                        
+                        <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                          {template.description}
+                        </p>
+                        
+                        <div className="flex items-center flex-wrap gap-2 mb-3">
+                          <Badge 
+                            variant="secondary" 
+                            size="sm"
+                            style={{ 
+                              backgroundColor: `${template.category.color}20`,
+                              color: template.category.color 
+                            }}
+                          >
+                            {template.category.name}
+                          </Badge>
+                          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs border ${getPriorityColor(template.priority)}`}>
+                            {getPriorityIcon(template.priority)}
+                            <span>{getPriorityLabel(template.priority)}</span>
+                          </div>
+                          {template.tags.length > 0 && (
+                            <>
+                              {template.tags.slice(0, 3).map((tag, index) => (
+                                <Badge key={`${template._id}-tag-${index}`} variant="secondary" size="sm">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {template.tags.length > 3 && (
+                                <Badge variant="secondary" size="sm">
+                                  +{template.tags.length - 3}
+                                </Badge>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-text-secondary">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-4 h-4" />
+                            <span>~{template.estimatedResolutionTime} {t('templates.estimatedTime')}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Eye className="w-4 h-4" />
+                            <span>{template.usageCount} {t('templates.usageCount')}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  {isAdmin && (
-                    <div className="flex space-x-1">
+                    
+                    {/* Дії */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <Button
-                        variant="ghost"
+                        onClick={() => handleUseTemplate(template)}
                         size="sm"
-                        onClick={() => navigate(`/templates/${template._id}/edit`)}
-                        className="p-1 h-8 w-8"
                       >
-                        <Edit className="w-4 h-4" />
+                        {t('templates.useTemplate')}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDeleteModal({ isOpen: true, template })}
-                        className="p-1 h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/templates/${template._id}/edit`)}
+                            className="p-2"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteModal({ isOpen: true, template })}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="pt-0">
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {template.description}
-                </p>
-
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <div className="flex items-center space-x-1">
-                    <Clock className="w-4 h-4" />
-                    <span>~{template.estimatedResolutionTime} {t('templates.estimatedTime')}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Eye className="w-4 h-4" />
-                    <span>{template.usageCount} {t('templates.usageCount')}</span>
                   </div>
                 </div>
-
-                {template.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {template.tags.slice(0, 3).map((tag, index) => (
-                      <Badge key={`${template._id}-tag-${index}`} variant="secondary" size="sm">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {template.tags.length > 3 && (
-                      <Badge variant="secondary" size="sm">
-                        +{template.tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-
-
-
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={() => handleUseTemplate(template)}
-                    className="flex-1"
-                    size="sm"
-                  >
-                    {t('templates.useTemplate')}
-                  </Button>
-
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Пагінація */}

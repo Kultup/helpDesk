@@ -8,12 +8,12 @@ const Position = require('./Position');
 const Comment = require('./Comment');
 const Category = require('./Category');
 const TimeEntry = require('./TimeEntry');
-// const KnowledgeBase = require('./KnowledgeBase'); // Модуль не існує
 const TicketTemplate = require('./TicketTemplate');
 const NotificationTemplate = require('./NotificationTemplate');
 const QuickTip = require('./QuickTip');
 const Event = require('./Event');
 const AdminNote = require('./AdminNote');
+const Tag = require('./Tag');
 
 module.exports = {
   User,
@@ -23,10 +23,10 @@ module.exports = {
   Comment,
   Category,
   TimeEntry,
-  // KnowledgeBase, // Модуль не існує
   TicketTemplate,
   NotificationTemplate,
   QuickTip,
   Event,
-  AdminNote
+  AdminNote,
+  Tag
 };

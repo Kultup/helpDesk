@@ -228,6 +228,30 @@ const userSchema = new mongoose.Schema({
     select: false
   },
   
+  // Refresh токени для JWT
+  refreshTokens: [{
+    token: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    expiresAt: {
+      type: Date,
+      required: true
+    },
+    userAgent: {
+      type: String,
+      default: null
+    },
+    ip: {
+      type: String,
+      default: null
+    }
+  }],
+  
   // Статистика користувача
   statistics: {
     ticketsCreated: { type: Number, default: 0 },

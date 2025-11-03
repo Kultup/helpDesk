@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole, Ticket, TicketStatus, TicketPriority } from '../types';
 import { apiService } from '../services/api';
@@ -12,6 +13,7 @@ import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import { formatDate } from '../utils';
 
 const TicketDetails: React.FC = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -33,10 +35,10 @@ const TicketDetails: React.FC = () => {
       if (response.success && response.data) {
         setTicket(response.data);
       } else {
-        setError(response.message || 'Помилка завантаження тікету');
+        setError(response.message || t('tickets.errors.loadError'));
       }
     } catch (err: any) {
-      setError(err.message || 'Помилка завантаження тікету');
+      setError(err.message || t('tickets.errors.loadError'));
     } finally {
       setIsLoading(false);
     }
@@ -63,10 +65,10 @@ const TicketDetails: React.FC = () => {
           await ticketHistoryRef.current.refreshHistory();
         }
       } else {
-        setError(response.message || 'Помилка оновлення статусу');
+        setError(response.message || t('tickets.errors.updateStatusError'));
       }
     } catch (err: any) {
-      setError(err.message || 'Помилка оновлення статусу');
+      setError(err.message || t('tickets.errors.updateStatusError'));
     } finally {
       setIsUpdating(false);
     }
@@ -86,10 +88,10 @@ const TicketDetails: React.FC = () => {
           await ticketHistoryRef.current.refreshHistory();
         }
       } else {
-        setError(response.message || 'Помилка оновлення пріоритету');
+        setError(response.message || t('tickets.errors.updatePriorityError'));
       }
     } catch (err: any) {
-      setError(err.message || 'Помилка оновлення пріоритету');
+      setError(err.message || t('tickets.errors.updatePriorityError'));
     } finally {
       setIsUpdating(false);
     }
@@ -99,38 +101,38 @@ const TicketDetails: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'text-red-600 bg-red-100';
-      case 'in_progress': return 'text-yellow-600 bg-yellow-100';
-      case 'resolved': return 'text-green-600 bg-green-100';
-      case 'closed': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'open': return 'text-red-600 bg-red-100 dark:text-red-300 dark:bg-red-900/20';
+      case 'in_progress': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/20';
+      case 'resolved': return 'text-green-600 bg-green-100 dark:text-green-300 dark:bg-green-900/20';
+      case 'closed': return 'text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-800';
+      default: return 'text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'low': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'high': return 'text-red-600 bg-red-100 dark:text-red-300 dark:bg-red-900/20';
+      case 'medium': return 'text-yellow-600 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/20';
+      case 'low': return 'text-green-600 bg-green-100 dark:text-green-300 dark:bg-green-900/20';
+      default: return 'text-gray-600 bg-gray-100 dark:text-gray-300 dark:bg-gray-800';
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'open': return 'Відкритий';
-      case 'in_progress': return 'В роботі';
-      case 'resolved': return 'Вирішений';
-      case 'closed': return 'Закритий';
+      case 'open': return t('common.statuses.open');
+      case 'in_progress': return t('common.statuses.inProgress');
+      case 'resolved': return t('common.statuses.resolved');
+      case 'closed': return t('common.statuses.closed');
       default: return status;
     }
   };
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'high': return 'Високий';
-      case 'medium': return 'Середній';
-      case 'low': return 'Низький';
+      case 'high': return t('common.priorities.high');
+      case 'medium': return t('common.priorities.medium');
+      case 'low': return t('common.priorities.low');
       default: return priority;
     }
   };
@@ -149,7 +151,7 @@ const TicketDetails: React.FC = () => {
         <div className="text-red-600 text-center">
           <p className="mb-4">{error}</p>
           <Button onClick={() => navigate(`${basePath}/tickets`)}>
-            Повернутися до тікетів
+            {t('tickets.backToTickets')}
           </Button>
         </div>
       </div>
@@ -160,9 +162,9 @@ const TicketDetails: React.FC = () => {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-gray-600 text-center">
-          <p className="mb-4">Тікет не знайдено</p>
+          <p className="mb-4">{t('tickets.notFound')}</p>
           <Button onClick={() => navigate(`${basePath}/tickets`)}>
-            Повернутися до тікетів
+            {t('tickets.backToTickets')}
           </Button>
         </div>
       </div>
@@ -176,7 +178,7 @@ const TicketDetails: React.FC = () => {
           to={`${basePath}/tickets`}
           className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
         >
-          ← Повернутися до тікетів
+          ← {t('tickets.backToTickets')}
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">{ticket.title}</h1>
       </div>
@@ -185,7 +187,7 @@ const TicketDetails: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Опис</h2>
+              <h2 className="text-xl font-semibold mb-4">{t('common.description')}</h2>
               <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
             </div>
           </Card>
@@ -194,7 +196,7 @@ const TicketDetails: React.FC = () => {
           {ticket.attachments && ticket.attachments.length > 0 && (
             <Card>
               <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Прикріплені файли ({ticket.attachments.length})</h2>
+                <h2 className="text-xl font-semibold mb-4">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
                 <div className="space-y-3">
                   {ticket.attachments.map((attachment) => (
                     <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
@@ -220,7 +222,7 @@ const TicketDetails: React.FC = () => {
                           </p>
                           <p className="text-xs text-gray-500">
                             {(attachment.size / 1024 / 1024).toFixed(2)} MB • 
-                            Завантажено {attachment.uploadedBy.firstName} {attachment.uploadedBy.lastName} • 
+                            {t('tickets.uploadedBy', { firstName: attachment.uploadedBy.firstName, lastName: attachment.uploadedBy.lastName })} • 
                             {new Date(attachment.uploadedAt).toLocaleDateString('uk-UA')}
                           </p>
                         </div>
@@ -235,7 +237,7 @@ const TicketDetails: React.FC = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            Переглянути
+                            {t('common.view')}
                           </button>
                         )}
                         <a
@@ -246,7 +248,7 @@ const TicketDetails: React.FC = () => {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          Завантажити
+                          {t('common.download')}
                         </a>
                       </div>
                     </div>
@@ -264,11 +266,11 @@ const TicketDetails: React.FC = () => {
         <div className="space-y-6">
           <Card>
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Деталі тікету</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('tickets.details')}</h3>
               <div className="space-y-4">
                 {/* Status */}
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Статус</span>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.status')}</span>
                   {editingStatus && canEdit ? (
                     <div className="space-y-2">
                       <select
@@ -277,10 +279,10 @@ const TicketDetails: React.FC = () => {
                         className="w-full p-2 border border-gray-300 rounded-md"
                         disabled={isUpdating}
                       >
-                        <option value="open">Відкритий</option>
-                        <option value="in_progress">В роботі</option>
-                        <option value="resolved">Вирішений</option>
-                        <option value="closed">Закритий</option>
+                        <option value="open">{t('common.statuses.open')}</option>
+                        <option value="in_progress">{t('common.statuses.inProgress')}</option>
+                        <option value="resolved">{t('common.statuses.resolved')}</option>
+                        <option value="closed">{t('common.statuses.closed')}</option>
                       </select>
                       <div className="flex space-x-2">
                         <Button
@@ -288,7 +290,7 @@ const TicketDetails: React.FC = () => {
                           onClick={() => setEditingStatus(false)}
                           disabled={isUpdating}
                         >
-                          Скасувати
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     </div>
@@ -303,7 +305,7 @@ const TicketDetails: React.FC = () => {
                           className="text-blue-600 hover:text-blue-800 text-sm"
                           disabled={isUpdating}
                         >
-                          Змінити
+                          {t('common.edit')}
                         </button>
                       )}
                     </div>
@@ -312,7 +314,7 @@ const TicketDetails: React.FC = () => {
 
                 {/* Priority */}
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Пріоритет</span>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.priority')}</span>
                   {editingPriority && canEdit ? (
                     <div className="space-y-2">
                       <select
@@ -321,9 +323,9 @@ const TicketDetails: React.FC = () => {
                         className="w-full p-2 border border-gray-300 rounded-md"
                         disabled={isUpdating}
                       >
-                        <option value="low">Низький</option>
-                        <option value="medium">Середній</option>
-                        <option value="high">Високий</option>
+                        <option value="low">{t('common.priorities.low')}</option>
+                        <option value="medium">{t('common.priorities.medium')}</option>
+                        <option value="high">{t('common.priorities.high')}</option>
                       </select>
                       <div className="flex space-x-2">
                         <Button
@@ -331,7 +333,7 @@ const TicketDetails: React.FC = () => {
                           onClick={() => setEditingPriority(false)}
                           disabled={isUpdating}
                         >
-                          Скасувати
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     </div>
@@ -346,7 +348,7 @@ const TicketDetails: React.FC = () => {
                           className="text-blue-600 hover:text-blue-800 text-sm"
                           disabled={isUpdating}
                         >
-                          Змінити
+                          {t('common.edit')}
                         </button>
                       )}
                     </div>
@@ -354,24 +356,24 @@ const TicketDetails: React.FC = () => {
                 </div>
 
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Місто</span>
-                  <p className="text-gray-900">{ticket.city?.name || 'Не вказано'}</p>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.city')}</span>
+                  <p className="text-gray-900">{ticket.city?.name || t('tickets.notSpecified')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Призначено</span>
-                  <p className="text-gray-900">{ticket.assignedTo?.email || 'Не призначено'}</p>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.assignedTo')}</span>
+                  <p className="text-gray-900">{ticket.assignedTo?.email || t('tickets.notAssigned')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Створено</span>
-                  <p className="text-gray-900">{ticket.createdBy?.email || 'Невідомо'}</p>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdBy')}</span>
+                  <p className="text-gray-900">{ticket.createdBy?.email || t('tickets.unknown')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">Дата створення</span>
+                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdAt')}</span>
                   <p className="text-gray-900">{formatDate(ticket.createdAt)}</p>
                 </div>
                 {ticket.resolvedAt && (
                   <div>
-                    <span className="text-sm font-medium text-gray-500 block mb-1">Дата вирішення</span>
+                    <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.resolvedAt')}</span>
                     <p className="text-gray-900">{formatDate(ticket.resolvedAt)}</p>
                   </div>
                 )}
@@ -379,7 +381,7 @@ const TicketDetails: React.FC = () => {
                 {/* Оцінка якості */}
                 {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating && (
                   <div>
-                    <span className="text-sm font-medium text-gray-500 block mb-2">Оцінка якості</span>
+                    <span className="text-sm font-medium text-gray-500 block mb-2">{t('tickets.qualityRating')}</span>
                     <TicketRating 
                       rating={ticket.qualityRating.rating}
                       feedback={ticket.qualityRating.feedback}
@@ -397,7 +399,7 @@ const TicketDetails: React.FC = () => {
             <Card>
               <div className="p-6 text-center">
                 <LoadingSpinner />
-                <p className="mt-2 text-sm text-gray-600">Оновлення тікету...</p>
+                <p className="mt-2 text-sm text-gray-600">{t('tickets.updating')}</p>
               </div>
             </Card>
           )}

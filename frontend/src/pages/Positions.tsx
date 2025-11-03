@@ -194,8 +194,8 @@ const Positions: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('positions.title')}</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">{t('positions.title')}</h1>
+          <p className="text-text-secondary mt-1">
             {t('positions.description')} ({positions?.length || 0} {t('positions.positionsCount')})
           </p>
         </div>
@@ -219,7 +219,7 @@ const Positions: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded">
           {error}
         </div>
       )}
@@ -228,7 +228,7 @@ const Positions: React.FC = () => {
       <Card>
         <div className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary h-4 w-4" />
             <Input
               type="text"
               placeholder={t('positions.search')}
@@ -241,7 +241,7 @@ const Positions: React.FC = () => {
             <div className="mt-4 flex items-center gap-2">
               <button
                 onClick={handleSelectAll}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+                className="flex items-center gap-2 text-sm text-text-secondary hover:text-foreground"
               >
                 {selectedPositions.length === filteredPositions.length ? (
                   <CheckSquare className="w-4 h-4" />
@@ -251,7 +251,7 @@ const Positions: React.FC = () => {
                 {selectedPositions.length === filteredPositions.length ? t('positions.deselectAll') : t('positions.selectAll')}
               </button>
               {selectedPositions.length > 0 && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-text-secondary">
                   {t('positions.selected', { count: selectedPositions.length, total: filteredPositions.length })}
                 </span>
               )}
@@ -261,118 +261,136 @@ const Positions: React.FC = () => {
       </Card>
 
       {/* Positions List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPositions.map((position) => (
-            <Card key={position._id}>
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center">
-                    <button
-                      onClick={() => handleSelectPosition(position._id)}
-                      className="mr-3 text-gray-400 hover:text-gray-600"
-                    >
-                      {selectedPositions.includes(position._id) ? (
-                        <CheckSquare className="h-5 w-5 text-blue-600" />
-                      ) : (
-                        <Square className="h-5 w-5" />
+      {filteredPositions.length === 0 && !loading ? null : (
+        <Card>
+          <div className="divide-y divide-border">
+            {filteredPositions.map((position) => (
+              <div 
+                key={position._id}
+                className="p-6 hover:bg-surface/50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  {/* Основна інформація */}
+                  <div className="flex items-start space-x-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button
+                        onClick={() => handleSelectPosition(position._id)}
+                        className="text-text-secondary hover:text-foreground transition-colors"
+                      >
+                        {selectedPositions.includes(position._id) ? (
+                          <CheckSquare className="h-5 w-5 text-primary-600" />
+                        ) : (
+                          <Square className="h-5 w-5" />
+                        )}
+                      </button>
+                      <div className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                        <Users className="h-5 w-5" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground leading-tight">
+                          {String(position.title || t('positions.noTitle'))}
+                        </h3>
+                      </div>
+                      
+                      <div className="flex items-center text-sm text-text-secondary mb-2">
+                        <Building className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span>{String(position.department || t('positions.notSpecified'))}</span>
+                      </div>
+                      
+                      {position.description && (
+                        <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                          {String(position.description).length > 150 
+                            ? `${String(position.description).substring(0, 150)}...` 
+                            : String(position.description)
+                          }
+                        </p>
                       )}
-                    </button>
-                  <Users className="h-5 w-5 text-blue-500 mr-2" />
-                  <h3 className="font-semibold text-gray-900">{String(position.title || t('positions.noTitle'))}</h3>
-                </div>
-                <div className="flex space-x-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(position)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(position._id, position.title)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Building className="h-4 w-4 mr-2" />
-                  <span>{String(position.department || t('positions.notSpecified'))}</span>
-                </div>
-                {position.description && (
-                  <p className="text-sm text-gray-600 mt-2">
-                    {String(position.description).length > 100 
-                      ? `${String(position.description).substring(0, 100)}...` 
-                      : String(position.description)
-                    }
-                  </p>
-                )}
-                
-                {/* Skills Display */}
-                {position.skills && position.skills.length > 0 && (
-                  <div className="mt-3">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">{t('positions.skillsLabel')}</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {position.skills.slice(0, 3).map((skill, index) => (
-                        <span
-                          key={`${position._id}-skill-${index}`}
-                          className={`inline-block px-2 py-1 rounded-full text-xs ${
-                            skill.level === 'expert' ? 'bg-purple-100 text-purple-800' :
-                            skill.level === 'advanced' ? 'bg-blue-100 text-blue-800' :
-                            skill.level === 'intermediate' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          } ${skill.required ? 'ring-2 ring-red-200' : ''}`}
-                          title={`${String(skill.name || t('positions.skillName'))} (${
-                            skill.level === 'expert' ? t('positions.expert') :
-                            skill.level === 'advanced' ? t('positions.advanced') :
-                            skill.level === 'intermediate' ? t('positions.intermediate') :
-                            t('positions.basic')
-                          })${skill.required ? ` - ${t('positions.required')}` : ''}`}
-                        >
-                          {String(skill.name || t('positions.skillName'))}
-                          {skill.required && <span className="ml-1 text-red-500">*</span>}
-                        </span>
-                      ))}
-                      {position.skills.length > 3 && (
-                        <span className="inline-block px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-                          +{position.skills.length - 3} {t('positions.moreSkills')}
-                        </span>
+                      
+                      {/* Skills Display */}
+                      {position.skills && position.skills.length > 0 && (
+                        <div className="mb-3">
+                          <div className="flex flex-wrap gap-1">
+                            {position.skills.slice(0, 5).map((skill, index) => (
+                              <span
+                                key={`${position._id}-skill-${index}`}
+                                className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                  skill.level === 'expert' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300' :
+                                  skill.level === 'advanced' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
+                                  skill.level === 'intermediate' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                } ${skill.required ? 'ring-2 ring-red-200 dark:ring-red-800' : ''}`}
+                                title={`${String(skill.name || t('positions.skillName'))} (${
+                                  skill.level === 'expert' ? t('positions.expert') :
+                                  skill.level === 'advanced' ? t('positions.advanced') :
+                                  skill.level === 'intermediate' ? t('positions.intermediate') :
+                                  t('positions.basic')
+                                })${skill.required ? ` - ${t('positions.required')}` : ''}`}
+                              >
+                                {String(skill.name || t('positions.skillName'))}
+                                {skill.required && <span className="ml-1 text-red-500">*</span>}
+                              </span>
+                            ))}
+                            {position.skills.length > 5 && (
+                              <span className="inline-block px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                                +{position.skills.length - 5} {t('positions.moreSkills')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
+                      
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {position.isActive && (
+                          <span className="inline-block bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-2 py-1 rounded-full text-xs">
+                            {t('positions.active')}
+                          </span>
+                        )}
+                        {position.isPublic && (
+                          <span className="inline-block bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
+                            {t('positions.public')}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-                
-                <div className="flex space-x-2 mt-2">
-                  {position.isActive && (
-                    <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                      {t('positions.active')}
-                    </span>
-                  )}
-                  {position.isPublic && (
-                    <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                      {t('positions.public')}
-                    </span>
-                  )}
+                  
+                  {/* Дії */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(position)}
+                      className="p-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(position._id, position.title)}
+                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-              </div>
-            </Card>
-         ))}
-      </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {filteredPositions.length === 0 && !loading && (
         <Card>
           <div className="text-center py-8">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <Users className="h-12 w-12 text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {searchTerm ? t('positions.noPositionsFound') : t('positions.noPositions')}
             </h3>
-            <p className="text-gray-600">
+            <p className="text-text-secondary">
               {searchTerm 
                 ? t('positions.changeSearchQuery')
                 : t('positions.addFirstPosition')

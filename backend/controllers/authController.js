@@ -117,6 +117,12 @@ class AuthController {
 
       // Оновлення інформації про останній вхід
       user.lastLogin = new Date();
+      
+      // Ініціалізуємо refreshTokens якщо не існує
+      if (!user.refreshTokens) {
+        user.refreshTokens = [];
+      }
+      
       user.refreshTokens.push({
         token: refreshToken,
         createdAt: new Date(),
@@ -130,7 +136,16 @@ class AuthController {
         user.refreshTokens = user.refreshTokens.slice(-5);
       }
 
-      await user.save();
+      // Використовуємо updateOne замість save для уникнення проблем з версіонуванням
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            lastLogin: user.lastLogin,
+            refreshTokens: user.refreshTokens
+          }
+        }
+      );
 
       // Логування успішного входу
       logger.info(`Користувач увійшов в систему: ${email}`, {
@@ -150,9 +165,9 @@ class AuthController {
         position: user.position,
         city: user.city,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
+        isEmailVerified: user.isEmailVerified || false,
         telegramId: user.telegramId,
-        profile: user.profile,
+        profile: user.profile || {},
         lastLogin: user.lastLogin,
         createdAt: user.createdAt
       };

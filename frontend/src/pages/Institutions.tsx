@@ -19,6 +19,8 @@ import {
 import { Institution, InstitutionType, City } from '../types';
 import { institutionService } from '../services/institutionService';
 import { cityService } from '../services/cityService';
+import Card, { CardContent } from '../components/UI/Card';
+import Button from '../components/UI/Button';
 
 const Institutions: React.FC = () => {
   const { t } = useTranslation();
@@ -71,7 +73,7 @@ const Institutions: React.FC = () => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      setError('Назва закладу є обов\'язковою');
+      setError(t('institutions.errors.nameRequired'));
       return;
     }
 
@@ -94,7 +96,7 @@ const Institutions: React.FC = () => {
       resetForm();
       setShowAddForm(false);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Помилка при створенні закладу');
+      setError(error.response?.data?.message || t('institutions.errors.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -182,45 +184,47 @@ const Institutions: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
-          <Building2 className="h-8 w-8 text-blue-600 mr-3" />
-          <h1 className="text-3xl font-bold text-gray-900">{t('institutions.title')}</h1>
+          <Building2 className="h-8 w-8 text-primary-600 mr-3" />
+          <h1 className="text-3xl font-bold text-foreground">{t('institutions.title')}</h1>
         </div>
         <div className="flex space-x-3">
           {selectedInstitutions.length > 0 && (
-            <button
+            <Button
               onClick={handleBulkDelete}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"
+              variant="danger"
+              className="flex items-center"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               {t('institutions.bulkDelete')} ({selectedInstitutions.length})
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+            className="flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             {t('institutions.add')}
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
       {/* Add Institution Form */}
       {showAddForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow-md border">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {editingInstitution ? t('institutions.edit') : t('institutions.add')}
-          </h3>
+        <Card className="mb-6">
+          <CardContent>
+            <h3 className="text-lg font-medium text-foreground mb-4">
+              {editingInstitution ? t('institutions.edit') : t('institutions.add')}
+            </h3>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 {t('institutions.institution')} *
               </label>
               <input
@@ -228,225 +232,259 @@ const Institutions: React.FC = () => {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-[var(--color-text)] bg-surface"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-foreground bg-surface"
                 placeholder={t('institutions.institutionPlaceholder')}
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <button
+            <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => {
                   setShowAddForm(false);
                   resetForm();
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 {t('common.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                isLoading={loading}
               >
                 {loading ? t('common.saving') : (editingInstitution ? t('common.update') : t('common.save'))}
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="mb-6 flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder={t('institutions.search')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[var(--color-text)] bg-surface"
-          />
-        </div>
-        
-        {filteredInstitutions.length > 0 && (
-          <button
-            onClick={handleSelectAll}
-            className="ml-4 text-blue-600 hover:text-blue-800 font-medium"
-          >
-            {selectedInstitutions.length === filteredInstitutions.length
-              ? t('institutions.deselectAll')
-              : t('institutions.selectAll')
-            }
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredInstitutions.map((institution) => (
-          <div
-            key={institution._id}
-            className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-              selectedInstitutions.includes(institution._id)
-                ? 'border-l-blue-500 bg-blue-50'
-                : 'border-l-gray-300'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedInstitutions.includes(institution._id)}
-                  onChange={() => handleSelectInstitution(institution._id)}
-                  className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{institution.name}</h3>
-                  <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                    {getTypeLabel(institution.type)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEdit(institution)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingInstitution(institution);
-                    setShowDeleteModal(true);
-                  }}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
-                <span>{institution.address?.street || '—'}, {getCityName(institution.address?.city)}</span>
-              </div>
-              
-              {institution.contact?.phone && (
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 mr-2" />
-                  <span>{institution.contact?.phone}</span>
-                </div>
-              )}
-              
-              {institution.contact?.email && (
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-2" />
-                  <span>{institution.contact?.email}</span>
-                </div>
-              )}
-              
-              {institution.contact?.website && (
-                <div className="flex items-center">
-                  <Globe className="h-4 w-4 mr-2" />
-                  <a href={institution.contact?.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    {t('institutions.website')}
-                  </a>
-                </div>
-              )}
-              
-              {institution.capacity && (
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  <span>{t('institutions.capacity')}: {institution.capacity}</span>
-                </div>
-              )}
-            </div>
-
-            {institution.description && (
-              <p className="mt-3 text-sm text-gray-700 line-clamp-2">{institution.description}</p>
-            )}
-
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex space-x-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                  institution.isActive 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {institution.isActive ? (
-                    <>
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      {t('institutions.active')}
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="h-3 w-3 mr-1" />
-                      {t('institutions.inactive')}
-                    </>
-                  )}
-                </span>
-                
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                  institution.isPublic 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {institution.isPublic ? (
-                    <>
-                      <Eye className="h-3 w-3 mr-1" />
-                      {t('institutions.public')}
-                    </>
-                  ) : (
-                    <>
-                      <EyeOff className="h-3 w-3 mr-1" />
-                      {t('institutions.private')}
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
+      <Card className="mb-6">
+        <CardContent className="flex items-center justify-between">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary h-4 w-4" />
+            <input
+              type="text"
+              placeholder={t('institutions.search')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-border rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-transparent text-foreground bg-surface"
+            />
           </div>
-        ))}
-      </div>
+          
+          {filteredInstitutions.length > 0 && (
+            <button
+              onClick={handleSelectAll}
+              className="ml-4 text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+            >
+              {selectedInstitutions.length === filteredInstitutions.length
+                ? t('institutions.deselectAll')
+                : t('institutions.selectAll')
+              }
+            </button>
+          )}
+        </CardContent>
+      </Card>
 
-      {filteredInstitutions.length === 0 && (
-        <div className="text-center py-12">
-          <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">{t('institutions.noInstitutions')}</h3>
-          <p className="mt-1 text-sm text-gray-500">{t('institutions.noInstitutionsDescription')}</p>
-        </div>
+      {filteredInstitutions.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <Building2 className="mx-auto h-12 w-12 text-text-secondary" />
+            <h3 className="mt-2 text-sm font-medium text-foreground">{t('institutions.noInstitutions')}</h3>
+            <p className="mt-1 text-sm text-text-secondary">{t('institutions.noInstitutionsDescription')}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {filteredInstitutions.map((institution) => (
+                <div
+                  key={institution._id}
+                  className={`p-6 hover:bg-surface/50 transition-colors ${
+                    selectedInstitutions.includes(institution._id)
+                      ? 'bg-primary-50/50 dark:bg-primary-900/10'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Основна інформація */}
+                    <div className="flex items-start space-x-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedInstitutions.includes(institution._id)}
+                          onChange={() => handleSelectInstitution(institution._id)}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-border rounded"
+                        />
+                        <div className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                          <Building2 className="h-5 w-5" />
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground leading-tight">
+                              {institution.name}
+                            </h3>
+                            <span className="inline-block bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full mt-1">
+                              {getTypeLabel(institution.type)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm text-text-secondary mb-3">
+                          <div className="flex items-center">
+                            <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span>{institution.address?.street || '—'}, {getCityName(institution.address?.city)}</span>
+                          </div>
+                          
+                          {institution.contact?.phone && (
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span>{institution.contact?.phone}</span>
+                            </div>
+                          )}
+                          
+                          {institution.contact?.email && (
+                            <div className="flex items-center">
+                              <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span>{institution.contact?.email}</span>
+                            </div>
+                          )}
+                          
+                          {institution.contact?.website && (
+                            <div className="flex items-center">
+                              <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <a 
+                                href={institution.contact?.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-primary-600 dark:text-primary-400 hover:underline"
+                              >
+                                {t('institutions.website')}
+                              </a>
+                            </div>
+                          )}
+                          
+                          {institution.capacity && (
+                            <div className="flex items-center">
+                              <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <span>{t('institutions.capacity')}: {institution.capacity}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {institution.description && (
+                          <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                            {institution.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                            institution.isActive 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' 
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                          }`}>
+                            {institution.isActive ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {t('institutions.active')}
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                {t('institutions.inactive')}
+                              </>
+                            )}
+                          </span>
+                          
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                            institution.isPublic 
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' 
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                          }`}>
+                            {institution.isPublic ? (
+                              <>
+                                <Eye className="h-3 w-3 mr-1" />
+                                {t('institutions.public')}
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="h-3 w-3 mr-1" />
+                                {t('institutions.private')}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Дії */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(institution)}
+                        className="p-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingInstitution(institution);
+                          setShowDeleteModal(true);
+                        }}
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
+
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && editingInstitution && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3 text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                <Trash2 className="h-6 w-6 text-red-600" />
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <Card className="w-96">
+            <CardContent className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mt-2">
+              <h3 className="text-lg font-medium text-foreground mt-2">
                 {t('institutions.confirmDelete')}
               </h3>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-text-secondary mt-2">
                 {t('institutions.confirmDeleteMessage', { name: editingInstitution.name })}
               </p>
               <div className="flex justify-center space-x-3 mt-4">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   {t('common.cancel')}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="danger"
                   onClick={() => handleDelete(editingInstitution._id)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
                   {t('common.delete')}
-                </button>
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

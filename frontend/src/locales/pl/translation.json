@@ -145,7 +145,23 @@
     "history": "Historia",
     "notes": "Notatki",
     "tags": "Tagi",
-    "relatedTickets": "Powiązane zgłoszenia"
+    "relatedTickets": "Powiązane zgłoszenia",
+    "backToTickets": "Wróć do zgłoszeń",
+    "notFound": "Zgłoszenie nie znalezione",
+    "details": "Szczegóły zgłoszenia",
+    "notSpecified": "Nie określono",
+    "notAssigned": "Nie przypisano",
+    "unknown": "Nieznane",
+    "uploadedBy": "Przesłane przez {{firstName}} {{lastName}}",
+    "resolvedAt": "Data rozwiązania",
+    "qualityRating": "Ocena jakości",
+    "updating": "Aktualizowanie zgłoszenia...",
+    "errors": {
+      "loadError": "Błąd ładowania zgłoszenia",
+      "updateStatusError": "Błąd aktualizacji statusu",
+      "updatePriorityError": "Błąd aktualizacji priorytetu",
+      "deleteError": "Błąd usuwania zgłoszenia"
+    }
   },
   "categories": {
     "title": "Kategorie zgłoszeń",
@@ -352,6 +368,9 @@
     "priorityTickets": "Priorytetowe zgłoszenia",
     "quickActions": "Szybkie akcje",
     "adminTools": "Narzędzia administratora",
+    "errors": {
+      "updateError": "Błąd aktualizacji danych"
+    },
     "analyticsReports": "Analityka i raporty",
     "analyticsAndReports": "Analityka i raporty",
     "viewAll": "Zobacz wszystkie",
@@ -433,6 +452,14 @@
       "cities": "Miasta",
       "clear": "Wyczyść"
     },
+    "presets": {
+      "title": "Presety filtrów",
+      "namePlaceholder": "Nazwa presetu",
+      "save": "Zapisz",
+      "apply": "Zastosuj",
+      "delete": "Usuń",
+      "noPresets": "Jeszcze brak presetów."
+    },
     "totalTickets": "Wszystkie zgłoszenia",
     "openTickets": "Otwarte zgłoszenia",
     "closedTickets": "Zamknięte zgłoszenia",
@@ -458,7 +485,33 @@
       "excel": "Excel",
       "pdf": "PDF",
       "tickets": "Zgłoszenia",
-      "exportTickets": "Eksport zgłoszeń"
+      "exportTickets": "Eksport zgłoszeń",
+      "dataUnavailable": "Dane do eksportu niedostępne",
+      "emptyFileError": "Błąd: utworzony plik jest pusty",
+      "excelError": "Błąd podczas tworzenia pliku Excel",
+      "reportTitle": "Raport analityki Help Desk",
+      "createdDate": "Data utworzenia",
+      "period": "Okres",
+      "generalStats": "Ogólna statystyka",
+      "sheets": {
+        "analytics": "Analityka",
+        "statistics": "Statystyka"
+      },
+      "columns": {
+        "city": "Miasto",
+        "totalTickets": "Wszystkie zgłoszenia",
+        "resolved": "Rozwiązane",
+        "indicator": "Wskaźnik",
+        "value": "Wartość"
+      },
+      "indicators": {
+        "totalTickets": "Wszystkie zgłoszenia",
+        "openTickets": "Otwarte zgłoszenia",
+        "inProgressTickets": "W trakcie",
+        "resolvedTickets": "Rozwiązane zgłoszenia",
+        "closedTickets": "Zamknięte zgłoszenia",
+        "activeUsers": "Aktywni użytkownicy"
+      }
     },
     "metrics": {
       "totalTickets": "Wszystkie zgłoszenia",
@@ -613,6 +666,9 @@
     "deleteConfirmMessage": "Czy na pewno chcesz usunąć ten szablon? Tej akcji nie można cofnąć.",
     "deleting": "Usuwanie...",
     "deleteTemplate": "Usuń szablon",
+    "templates": {
+      "deleteError": "Błąd podczas usuwania szablonu"
+    },
     "quickMessageTitle": "Wyślij szybką wiadomość do wszystkich użytkowników Telegram",
     "selectTemplatePlaceholder": "Wybierz szablon...",
     "typeLabel": "Typ wiadomości",
@@ -936,6 +992,65 @@
       }
     }
   },
+  "createTicketPage": {
+    "title": "Utwórz nowe zgłoszenie",
+    "editTitle": "Edytuj zgłoszenie",
+    "subtitle": "Wypełnij formularz poniżej, aby utworzyć nowe zgłoszenie wsparcia",
+    "editSubtitle": "Wprowadź zmiany do zgłoszenia",
+    "backToTickets": "Wróć do zgłoszeń",
+    "form": {
+      "titleLabel": "Tytuł zgłoszenia *",
+      "titlePlaceholder": "Krótko opisz problem",
+      "titleCounter": "{{count}}/200 znaków",
+      "priorityLabel": "Priorytet",
+      "priorityHint": "Wybierz priorytet zgodnie z pilnością problemu",
+      "categoryLabel": "Kategoria",
+      "categoryHint": "Wybierz kategorię, która najlepiej opisuje typ problemu",
+      "cityLabel": "Miasto *",
+      "cityPlaceholder": "Wybierz miasto",
+      "statusLabel": "Status",
+      "descriptionLabel": "Szczegółowy opis *",
+      "descriptionPlaceholder": "Szczegółowo opisz problem, kroki do odtworzenia, oczekiwany wynik...",
+      "descriptionCounter": "{{count}}/2000 znaków"
+    },
+    "buttons": {
+      "create": "Utwórz zgłoszenie",
+      "save": "Zapisz zmiany",
+      "creating": "Tworzenie...",
+      "updating": "Aktualizowanie...",
+      "cancel": "Anuluj"
+    },
+    "messages": {
+      "created": "Zgłoszenie zostało utworzone pomyślnie!",
+      "updated": "Zgłoszenie zostało zaktualizowane pomyślnie!",
+      "loadCitiesError": "Nie udało się załadować listy miast",
+      "loadTicketError": "Nie udało się załadować danych zgłoszenia",
+      "loadDataError": "Błąd ładowania danych",
+      "titleRequired": "Tytuł jest wymagany",
+      "descriptionRequired": "Opis jest wymagany",
+      "cityRequired": "Wybierz miasto",
+      "updateError": "Błąd podczas aktualizacji zgłoszenia",
+      "createError": "Błąd podczas tworzenia zgłoszenia",
+      "requestError": "Błąd przetwarzania żądania"
+    },
+    "statuses": {
+      "open": "Otwarte",
+      "inProgress": "W trakcie",
+      "resolved": "Rozwiązane",
+      "closed": "Zamknięte"
+    },
+    "priorities": {
+      "low": "Niski",
+      "medium": "Średni",
+      "high": "Wysoki"
+    },
+    "categories": {
+      "technical": "Techniczne",
+      "account": "Konto",
+      "billing": "Płatności",
+      "general": "Ogólne"
+    }
+  },
   "templates": {
     "title": "Szablony",
     "subtitle": "Zarządzaj szablonami zgłoszeń",
@@ -988,7 +1103,13 @@
     "updateSuccess": "Szablon został pomyślnie zaktualizowany",
     "loadError": "Błąd podczas ładowania szablonów",
     "saveError": "Błąd podczas zapisywania szablonu",
-    "deleteError": "Błąd podczas usuwania szablonu"
+    "deleteError": "Błąd podczas usuwania szablonu",
+    "errors": {
+      "loadCategoriesError": "Błąd podczas ładowania kategorii",
+      "createFailed": "Nie udało się utworzyć szablonu",
+      "updateFailed": "Nie udało się zaktualizować szablonu",
+      "loadFailed": "Nie udało się załadować danych szablonu"
+    }
   },
   "activeDirectory": {
     "title": "Active Directory",
@@ -1232,6 +1353,28 @@
     "errorBulkActivation": "Błąd masowej aktywacji:",
     "errorBulkDeactivation": "Błąd masowej dezaktywacji:",
     "unknownError": "Nieznany błąd",
+    "deleteUser": "Usuń użytkownika",
+    "deleteConfirmation": "Czy na pewno chcesz usunąć użytkownika \"{{email}}\"?",
+    "deleteSuccess": "Użytkownik \"{{email}}\" został pomyślnie usunięty!",
+    "deleteError": "Błąd usuwania użytkownika",
+    "activateUserTitle": "Aktywuj użytkownika",
+    "activateUserConfirmation": "Czy na pewno chcesz aktywować użytkownika \"{{email}}\"?",
+    "activateUserSuccess": "Użytkownik \"{{email}}\" został pomyślnie aktywowany!",
+    "activateUserError": "Błąd aktywacji użytkownika",
+    "deactivateUserTitle": "Dezaktywuj użytkownika",
+    "deactivateUserConfirmation": "Czy na pewno chcesz dezaktywować użytkownika \"{{email}}\"?",
+    "deactivateUserSuccess": "Użytkownik \"{{email}}\" został pomyślnie dezaktywowany!",
+    "deactivateUserError": "Błąd dezaktywacji użytkownika",
+    "forceDeleteTitle": "TRWAŁE USUNIĘCIE UŻYTKOWNIKA",
+    "forceDeleteMessage": "⚠️ UWAGA! Zamierzasz TRWALE USUNĄĆ użytkownika \"{{email}}\" z systemu.\n\nTa akcja:\n• Usunie użytkownika na zawsze\n• Usunie wszystkie powiązane dane\n• NIE MOŻE BYĆ COFNIĘTA\n\nCzy na pewno chcesz kontynuować?",
+    "forceDeleteConfirm": "TAK, USUŃ NA ZAWSZE",
+    "forceDeleteSuccess": "Użytkownik \"{{email}}\" został trwale usunięty z systemu!",
+    "forceDeleteError": "Błąd trwałego usuwania użytkownika",
+    "errors": {
+      "saveError": "Błąd zapisywania użytkownika",
+      "saveErrorMessage": "Błąd zapisywania użytkownika. Spróbuj ponownie.",
+      "loadDetailsError": "Błąd ładowania szczegółów użytkownika"
+    },
     "deactivatedUsers": "Dezaktywowani Użytkownicy",
     "errorLoadingDeactivated": "Błąd ładowania dezaktywowanych użytkowników",
     "noDeactivatedUsers": "Brak dezaktywowanych użytkowników",
@@ -1449,7 +1592,8 @@
       "bulkDeleteFailed": "Błąd usuwania wybranych instytucji",
       "networkError": "Błąd sieci",
       "serverError": "Błąd serwera",
-      "validationError": "Błąd walidacji danych"
+      "validationError": "Błąd walidacji danych",
+      "nameRequired": "Nazwa instytucji jest wymagana"
     },
     "add": "Dodaj instytucję",
     "noInstitutions": "Nie znaleziono instytucji",
@@ -1479,6 +1623,17 @@
     "selectAll": "Zaznacz wszystkie",
     "deselectAll": "Odznacz wszystkie",
     "noResults": "Nie znaleziono instytucji"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "logout": "Wyloguj",
+    "loginTitle": "Zaloguj się do systemu",
+    "password": "Hasło",
+    "loginError": "Błąd logowania",
+    "contactAdmin": "Skontaktuj się z administratorem, aby utworzyć konto",
+    "testData": "Dane testowe",
+    "testAdmin": "Admin: admin@test.com / admin123",
+    "testUser": "User: user@test.com / user123"
   },
   "header": {
     "administrator": "Administrator",

@@ -7,7 +7,11 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "lint": "npm run lint --prefix frontend && npm run lint --prefix backend",
+    "lint:fix": "npm run lint:fix --prefix frontend && npm run lint:fix --prefix backend",
+    "format": "npm run format --prefix frontend && npm run format --prefix backend",
+    "prepare": "husky install"
   },
   "keywords": [
     "helpdesk",
@@ -18,6 +22,8 @@
   "author": "Help Desk Team",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^7.6.0"
+    "concurrently": "^7.6.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0"
   }
 }

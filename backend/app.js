@@ -8,6 +8,15 @@ const { Server } = require('socket.io');
 const logger = require('./utils/logger');
 require('dotenv').config();
 
+// Валідація environment variables
+const { validateEnv } = require('./config/env');
+try {
+  validateEnv();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
 // Імпортуємо middleware
 const {
   cors,
@@ -56,11 +65,15 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
+.then(async () => {
   console.log('✅ Підключено до MongoDB');
   // Ініціалізуємо всі моделі
   require('./models');
   console.log('✅ Моделі ініціалізовано');
+  
+  // Ініціалізуємо Redis кеш
+  const cacheService = require('./services/cacheService');
+  await cacheService.initialize();
   
   // Ініціалізуємо Telegram бота
   const telegramService = require('./services/telegramServiceInstance');

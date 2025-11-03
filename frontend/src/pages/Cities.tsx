@@ -207,40 +207,40 @@ const Cities: React.FC = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-surface border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('cities.name')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('cities.region')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('cities.createdDate')}
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('cities.actions')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-surface divide-y divide-border">
                   {filteredCities.map((city) => (
-                    <tr key={city._id} className="hover:bg-gray-50">
+                    <tr key={city._id} className="hover:bg-surface/50">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                          <MapPin className="h-5 w-5 text-text-secondary mr-3" />
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-foreground">
                               {city.name}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-text-secondary">
                         {city.region}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                         {new Date().toLocaleDateString('uk-UA')}
+                      <td className="px-6 py-4 text-sm text-text-secondary">
+                         {city.createdAt ? new Date(city.createdAt).toLocaleDateString() : '-'}
                        </td>
                       <td className="px-6 py-4 text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">

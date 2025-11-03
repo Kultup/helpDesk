@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LogIn, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouteHistory } from '../hooks';
@@ -10,6 +11,7 @@ import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import ContactModal from '../components/ContactModal';
 
 const Login: React.FC = () => {
+  const { t } = useTranslation();
   const { user, login } = useAuth();
   const { clearLastRoute } = useRouteHistory();
   const [formData, setFormData] = useState({
@@ -39,7 +41,7 @@ const Login: React.FC = () => {
       // Очищаємо збережений маршрут після успішного входу
       clearLastRoute();
     } catch (err: any) {
-      setError(err.message || 'Помилка входу в систему');
+      setError(err.message || t('auth.loginError'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +63,7 @@ const Login: React.FC = () => {
               <LogIn className="h-10 w-10 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Help Desk</h1>
-            <p className="text-gray-600 mt-2">Увійдіть до системи</p>
+            <p className="text-gray-600 mt-2">{t('auth.loginTitle')}</p>
           </CardHeader>
 
           <CardContent>
@@ -86,7 +88,7 @@ const Login: React.FC = () => {
               <Input
                 type="password"
                 name="password"
-                placeholder="Пароль"
+                placeholder={t('auth.password')}
                 value={formData.password}
                 onChange={handleChange}
                 leftIcon={<Lock className="w-4 h-4" />}
@@ -100,7 +102,7 @@ const Login: React.FC = () => {
                 isLoading={loading}
                 disabled={loading}
               >
-                Увійти
+                {t('auth.login')}
               </Button>
             </form>
 
@@ -109,15 +111,15 @@ const Login: React.FC = () => {
                 onClick={() => setIsContactModalOpen(true)}
                 className="text-blue-600 hover:text-blue-800 text-sm underline bg-transparent border-none cursor-pointer"
               >
-                Зв'яжіться з адміністратором для створення облікового запису
+                {t('auth.contactAdmin')}
               </button>
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-xs text-gray-500 text-center">
-                Тестові дані:<br />
-                Admin: admin@test.com / admin123<br />
-                User: user@test.com / user123
+                {t('auth.testData')}:<br />
+                {t('auth.testAdmin')}<br />
+                {t('auth.testUser')}
               </p>
             </div>
           </CardContent>

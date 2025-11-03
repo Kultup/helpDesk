@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CreateTicketForm, TicketPriority, TicketCategory, City, ApiResponse, UserRole, TicketStatus, Ticket } from '../types';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +10,7 @@ import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const CreateTicket: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { id } = useParams<{ id?: string }>();
@@ -37,7 +39,7 @@ const CreateTicket: React.FC = () => {
         }
       } catch (error) {
         console.error('Помилка завантаження міст:', error);
-        setError('Не вдалося завантажити список міст');
+        setError(t('createTicketPage.messages.loadCitiesError'));
       } finally {
         setLoadingCities(false);
       }
@@ -64,11 +66,11 @@ const CreateTicket: React.FC = () => {
               status: ticket.status
             });
           } else {
-            setError('Не вдалося завантажити дані тикету');
+            setError(t('createTicketPage.messages.loadTicketError'));
           }
         } catch (error) {
           console.error('Помилка завантаження тикету:', error);
-          setError('Помилка завантаження даних');
+          setError(t('createTicketPage.messages.loadDataError'));
         } finally {
           setIsLoading(false);
         }
@@ -92,15 +94,15 @@ const CreateTicket: React.FC = () => {
     
     // Валідація
     if (!formData.title.trim()) {
-      setError('Заголовок є обов\'язковим');
+      setError(t('createTicketPage.messages.titleRequired'));
       return;
     }
     if (!formData.description.trim()) {
-      setError('Опис є обов\'язковим');
+      setError(t('createTicketPage.messages.descriptionRequired'));
       return;
     }
     if (!formData.cityId) {
-      setError('Оберіть місто');
+      setError(t('createTicketPage.messages.cityRequired'));
       return;
     }
 
@@ -120,16 +122,16 @@ const CreateTicket: React.FC = () => {
         const basePath = user?.role === UserRole.ADMIN ? '/admin' : '';
         navigate(`${basePath}/tickets`, { 
           state: { 
-            message: isEditMode ? 'Тикет успішно оновлено!' : 'Тикет успішно створено!',
+            message: isEditMode ? t('createTicketPage.messages.updated') : t('createTicketPage.messages.created'),
             type: 'success'
           }
         });
       } else {
-        setError(response.message || (isEditMode ? 'Помилка при оновленні тикету' : 'Помилка при створенні тикету'));
+        setError(response.message || (isEditMode ? t('createTicketPage.messages.updateError') : t('createTicketPage.messages.createError')));
       }
     } catch (error: any) {
       console.error('Помилка:', error);
-      setError(error.response?.data?.message || 'Помилка при обробці запиту');
+      setError(error.response?.data?.message || t('createTicketPage.messages.requestError'));
     } finally {
       setIsLoading(false);
     }
@@ -154,10 +156,10 @@ const CreateTicket: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isEditMode ? 'Редагувати тикет' : 'Створити новий тікет'}
+            {isEditMode ? t('createTicketPage.editTitle') : t('createTicketPage.title')}
           </h1>
           <p className="text-gray-600 mt-1">
-            {isEditMode ? 'Внесіть зміни до тикету' : 'Заповніть форму нижче для створення нового запиту підтримки'}
+            {isEditMode ? t('createTicketPage.editSubtitle') : t('createTicketPage.subtitle')}
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
@@ -166,7 +168,7 @@ const CreateTicket: React.FC = () => {
             onClick={handleCancel}
             disabled={isLoading}
           >
-            Повернутися до тікетів
+            {t('createTicketPage.backToTickets')}
           </Button>
         </div>
       </div>
@@ -188,7 +190,7 @@ const CreateTicket: React.FC = () => {
                 {/* Заголовок */}
                 <div>
                   <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                    Заголовок тикету *
+                    {t('createTicketPage.form.titleLabel')}
                   </label>
                   <Input
                     id="title"
@@ -196,20 +198,20 @@ const CreateTicket: React.FC = () => {
                     type="text"
                     value={formData.title}
                     onChange={handleInputChange}
-                    placeholder="Коротко опишіть проблему"
+                    placeholder={t('createTicketPage.form.titlePlaceholder')}
                     required
                     maxLength={200}
                     className="w-full"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.title.length}/200 символів
+                    {t('createTicketPage.form.titleCounter', { count: formData.title.length })}
                   </p>
                 </div>
 
                 {/* Пріоритет */}
                 <div>
                   <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">
-                    Пріоритет
+                    {t('createTicketPage.form.priorityLabel')}
                   </label>
                   <select
                     id="priority"
@@ -218,19 +220,19 @@ const CreateTicket: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
-                    <option value={TicketPriority.LOW}>Низький</option>
-                    <option value={TicketPriority.MEDIUM}>Середній</option>
-                    <option value={TicketPriority.HIGH}>Високий</option>
+                    <option value={TicketPriority.LOW}>{t('createTicketPage.priorities.low')}</option>
+                    <option value={TicketPriority.MEDIUM}>{t('createTicketPage.priorities.medium')}</option>
+                    <option value={TicketPriority.HIGH}>{t('createTicketPage.priorities.high')}</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Оберіть пріоритет відповідно до терміновості проблеми
+                    {t('createTicketPage.form.priorityHint')}
                   </p>
                 </div>
 
                 {/* Категорія */}
                 <div>
                   <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                    Категорія
+                    {t('createTicketPage.form.categoryLabel')}
                   </label>
                   <select
                     id="category"
@@ -239,20 +241,20 @@ const CreateTicket: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
-                    <option value={TicketCategory.TECHNICAL}>Технічна</option>
-                    <option value={TicketCategory.ACCOUNT}>Обліковий запис</option>
-                    <option value={TicketCategory.BILLING}>Оплата</option>
-                    <option value={TicketCategory.GENERAL}>Загальне</option>
+                    <option value={TicketCategory.TECHNICAL}>{t('createTicketPage.categories.technical')}</option>
+                    <option value={TicketCategory.ACCOUNT}>{t('createTicketPage.categories.account')}</option>
+                    <option value={TicketCategory.BILLING}>{t('createTicketPage.categories.billing')}</option>
+                    <option value={TicketCategory.GENERAL}>{t('createTicketPage.categories.general')}</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Оберіть категорію, що найкраще описує тип проблеми
+                    {t('createTicketPage.form.categoryHint')}
                   </p>
                 </div>
 
                 {/* Місто */}
                 <div>
                   <label htmlFor="cityId" className="block text-sm font-medium text-gray-700 mb-2">
-                    Місто *
+                    {t('createTicketPage.form.cityLabel')}
                   </label>
                   <select
                     id="cityId"
@@ -262,7 +264,7 @@ const CreateTicket: React.FC = () => {
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
-                    <option value="">Оберіть місто</option>
+                    <option value="">{t('createTicketPage.form.cityPlaceholder')}</option>
                     {cities.map((city) => (
                       <option key={city._id} value={city._id}>
                         {city.name} ({city.region})
@@ -275,7 +277,7 @@ const CreateTicket: React.FC = () => {
                 {isEditMode && (
                   <div>
                     <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-                      Статус
+                      {t('createTicketPage.form.statusLabel')}
                     </label>
                     <select
                       id="status"
@@ -284,10 +286,10 @@ const CreateTicket: React.FC = () => {
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
-                      <option value={TicketStatus.OPEN}>Відкритий</option>
-                      <option value={TicketStatus.IN_PROGRESS}>В роботі</option>
-                      <option value={TicketStatus.RESOLVED}>Вирішений</option>
-                      <option value={TicketStatus.CLOSED}>Закритий</option>
+                      <option value={TicketStatus.OPEN}>{t('createTicketPage.statuses.open')}</option>
+                      <option value={TicketStatus.IN_PROGRESS}>{t('createTicketPage.statuses.inProgress')}</option>
+                      <option value={TicketStatus.RESOLVED}>{t('createTicketPage.statuses.resolved')}</option>
+                      <option value={TicketStatus.CLOSED}>{t('createTicketPage.statuses.closed')}</option>
                     </select>
                   </div>
                 )}
@@ -298,21 +300,21 @@ const CreateTicket: React.FC = () => {
                 {/* Опис */}
                 <div>
                   <label htmlFor="description" className="block text-sm font-medium text mb-2">
-                    Детальний опис *
+                    {t('createTicketPage.form.descriptionLabel')}
                   </label>
                   <textarea
                     id="description"
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="Детально опишіть проблему, кроки для відтворення, очікуваний результат..."
+                    placeholder={t('createTicketPage.form.descriptionPlaceholder')}
                     required
                     rows={12}
                     maxLength={2000}
                     className="w-full px-3 py-2 border border-border rounded-lg shadow-sm bg-surface text placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-vertical"
                   />
                   <p className="text-xs text-text-secondary mt-1">
-                    {formData.description.length}/2000 символів
+                    {t('createTicketPage.form.descriptionCounter', { count: formData.description.length })}
                   </p>
                 </div>
               </div>
@@ -328,10 +330,10 @@ const CreateTicket: React.FC = () => {
                 {isLoading ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    {isEditMode ? 'Оновлення...' : 'Створення...'}
+                    {isEditMode ? t('createTicketPage.buttons.updating') : t('createTicketPage.buttons.creating')}
                   </>
                 ) : (
-                  isEditMode ? 'Зберегти зміни' : 'Створити тикет'
+                  isEditMode ? t('createTicketPage.buttons.save') : t('createTicketPage.buttons.create')
                 )}
               </Button>
               
@@ -342,7 +344,7 @@ const CreateTicket: React.FC = () => {
                 disabled={isLoading}
                 className="flex-1 sm:flex-none sm:px-8"
               >
-                Скасувати
+                {t('createTicketPage.buttons.cancel')}
               </Button>
             </div>
           </form>

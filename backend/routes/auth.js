@@ -198,8 +198,8 @@ router.post('/login', async (req, res) => {
 
     const { email, password, device } = value;
 
-    // Пошук користувача
-    const user = await User.findOne({ email })
+    // Пошук користувача (email завжди в нижньому регістрі)
+    const user = await User.findOne({ email: email.toLowerCase() })
       .select('+password')
       .populate('position')
       .populate('city');
@@ -286,7 +286,16 @@ router.post('/login', async (req, res) => {
       logger.error('Помилка оновлення інформації про пристрій під час входу:', devErr);
     }
 
-    await user.save();
+    // Використовуємо updateOne замість save для уникнення проблем з populate
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          lastLogin: user.lastLogin,
+          devices: user.devices || []
+        }
+      }
+    );
 
     // Генерація токена
     const token = generateToken(user._id);
@@ -315,7 +324,9 @@ router.post('/login', async (req, res) => {
     logger.error('Помилка авторизації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при авторизації'
+      message: 'Помилка сервера при авторизації',
+      error: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? error.message : undefined,
+      stack: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? error.stack : undefined
     });
   }
 });

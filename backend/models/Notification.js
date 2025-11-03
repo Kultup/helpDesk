@@ -130,6 +130,18 @@ const notificationSchema = new mongoose.Schema({
       return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
   },
+  // Поле userId для сумісності з контролером (alias для recipient)
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false // Не обов'язкове, синхронізується з recipient
+  },
+  // Поле read для сумісності з контролером (alias для isRead)
+  read: {
+    type: Boolean,
+    default: false,
+    required: false // Не обов'язкове, синхронізується з isRead
+  },
   scheduledFor: {
     type: Date,
     default: null
@@ -196,10 +208,12 @@ notificationSchema.virtual('channelStatus').get(function() {
 
 // Індекси для оптимізації запитів
 notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, createdAt: -1 }); // Додатковий індекс для userId
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ priority: 1 });
 notificationSchema.index({ category: 1 });
 notificationSchema.index({ isRead: 1 });
+notificationSchema.index({ read: 1 }); // Додатковий індекс для read
 notificationSchema.index({ expiresAt: 1 });
 notificationSchema.index({ scheduledFor: 1 });
 notificationSchema.index({ relatedTicket: 1 });
@@ -209,10 +223,26 @@ notificationSchema.index({ 'metadata.batchId': 1 });
 // TTL індекс для автоматичного видалення застарілих сповіщень
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// Middleware для обробки читання
+// Middleware для синхронізації userId та recipient
 notificationSchema.pre('save', function(next) {
+  // Якщо встановлено userId, але не recipient - синхронізуємо
+  if (this.userId && !this.recipient) {
+    this.recipient = this.userId;
+  }
+  // Якщо встановлено recipient, але не userId - синхронізуємо
+  if (this.recipient && !this.userId) {
+    this.userId = this.recipient;
+  }
+  // Обробка читання
   if (this.isModified('isRead') && this.isRead && !this.readAt) {
     this.readAt = new Date();
+  }
+  // Синхронізація read та isRead
+  if (this.isModified('read') && this.read !== undefined) {
+    this.isRead = this.read;
+  }
+  if (this.isModified('isRead') && this.isRead !== undefined) {
+    this.read = this.isRead;
   }
   next();
 });
