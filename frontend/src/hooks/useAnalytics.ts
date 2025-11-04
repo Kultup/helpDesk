@@ -91,12 +91,17 @@ export const useAnalytics = (startDate?: string, endDate?: string) => {
       const dashboardResponse = await apiService.getDashboardStats();
 
       if (analyticsResponse.success && analyticsResponse.data) {
+        console.log('📊 Analytics data loaded:', analyticsResponse.data);
+        console.log('📊 Tickets by day:', analyticsResponse.data.ticketsByDay);
+        console.log('📊 Resolved tickets by day:', analyticsResponse.data.resolvedTicketsByDay);
         setAnalyticsData(analyticsResponse.data);
       } else {
         throw new Error(analyticsResponse.message || 'Помилка завантаження аналітики');
       }
 
       if (dashboardResponse.success && dashboardResponse.data) {
+        console.log('📊 Dashboard data loaded:', dashboardResponse.data);
+        console.log('📊 Top cities:', dashboardResponse.data.topCities);
         setDashboardData(dashboardResponse.data);
       } else {
         throw new Error(dashboardResponse.message || 'Помилка завантаження даних дашборду');

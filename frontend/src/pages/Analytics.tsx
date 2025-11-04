@@ -271,10 +271,15 @@ const Analytics: React.FC = () => {
     resolved: cityData.resolved || 0 // Реальні дані вирішених тикетів
   })).sort((a, b) => b.count - a.count);
 
-  // Часовий тренд (останні 14 днів)
-  const last14Days = Array.from({ length: 14 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (13 - i));
+  // Часовий тренд - використовуємо вибраний діапазон дат або останні 14 днів
+  const startDate = new Date(dateRange.start);
+  const endDate = new Date(dateRange.end);
+  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysToShow = Math.min(Math.max(daysDiff + 1, 7), 30); // Мінімум 7 днів, максимум 30
+  
+  const last14Days = Array.from({ length: daysToShow }, (_, i) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + i);
     return date.toISOString().split('T')[0];
   });
 

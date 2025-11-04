@@ -131,15 +131,21 @@ exports.getOverview = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Щоденна статистика тикетів за останні 14 днів (для тренду часу)
+    // Щоденна статистика тикетів (для тренду часу)
+    // Використовуємо dateRange або останні 14 днів за замовчуванням
     const now = new Date();
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const defaultStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const trendStartDate = startDate ? new Date(startDate) : defaultStartDate;
+    const trendEndDate = endDate ? new Date(endDate) : now;
     
     // Створені тикети за день
     const ticketsByDay = await Ticket.aggregate([
       {
         $match: {
-          createdAt: { $gte: fourteenDaysAgo }
+          createdAt: { 
+            $gte: trendStartDate,
+            $lte: trendEndDate
+          }
         }
       },
       {
@@ -157,7 +163,11 @@ exports.getOverview = async (req, res) => {
     const resolvedTicketsByDay = await Ticket.aggregate([
       {
         $match: {
-          resolvedAt: { $exists: true, $gte: fourteenDaysAgo },
+          resolvedAt: { 
+            $exists: true, 
+            $gte: trendStartDate,
+            $lte: trendEndDate
+          },
           status: 'resolved'
         }
       },
