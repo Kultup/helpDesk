@@ -10,7 +10,21 @@ const logger = require('../utils/logger');
  * @desc    Webhook для отримання повідомлень від Telegram
  * @access  Public
  */
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', (req, res, next) => {
+  // Логуємо всі запити до webhook
+  logger.info('📥 Webhook запит отримано', {
+    method: req.method,
+    url: req.url,
+    headers: {
+      'user-agent': req.get('user-agent'),
+      'content-type': req.get('content-type'),
+      'x-forwarded-for': req.get('x-forwarded-for'),
+      'x-real-ip': req.get('x-real-ip')
+    },
+    body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'empty'
+  });
+  next();
+}, async (req, res) => {
   try {
     // Обробка webhook від Telegram
     const update = req.body;
