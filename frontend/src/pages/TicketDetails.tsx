@@ -9,6 +9,7 @@ import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
+import TicketComments from '../components/TicketComments';
 
 import { formatDate } from '../utils';
 
@@ -258,6 +259,9 @@ const TicketDetails: React.FC = () => {
             </Card>
           )}
           
+          {/* Коментарі */}
+          <TicketComments ticketId={ticket._id} />
+
           {/* Історія змін */}
           <TicketHistory ref={ticketHistoryRef} ticketId={ticket._id} />
 

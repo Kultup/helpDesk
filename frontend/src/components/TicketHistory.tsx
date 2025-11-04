@@ -226,8 +226,8 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                        <div className="mt-2 text-sm text-gray-700 dark:text-white">
                          <details>
-                           <summary className="cursor-pointer hover:text-gray-900 dark:hover:text-white font-medium">• Додаткова інформація</summary>
-                           <pre className="mt-1 bg-gray-100 dark:bg-gray-800/90 p-2 rounded text-xs overflow-x-auto text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600">
+                           <summary className="cursor-pointer hover:text-gray-900 dark:hover:text-white dark:text-white font-medium text-gray-900 dark:text-white">• Додаткова інформація</summary>
+                           <pre className="mt-1 bg-gray-100 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 whitespace-pre-wrap break-words">
                              {JSON.stringify(entry.metadata, null, 2)}
                            </pre>
                          </details>
