@@ -604,7 +604,7 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="flex items-center p-3 sm:p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                    <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
                          onClick={() => navigate('/admin/active-directory?view=users')}>
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -624,7 +624,7 @@ const Dashboard: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center p-3 sm:p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                    <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
                          onClick={() => navigate('/admin/active-directory?view=computers')}>
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />

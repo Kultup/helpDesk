@@ -54,64 +54,25 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(themeReducer, { theme: getInitialTheme() });
-
-  // Зберігаємо тему в localStorage та застосовуємо до DOM
+  // Завжди використовуємо світлу тему
   useEffect(() => {
-    localStorage.setItem('theme', state.theme);
-    
-    // Визначаємо фактичну тему (light або dark)
-    let actualTheme: 'light' | 'dark';
-    if (state.theme === 'auto') {
-      actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } else {
-      actualTheme = state.theme;
-    }
-    
-    if (actualTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [state.theme]);
+    // Видаляємо клас 'dark' з DOM, якщо він є
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+  }, []);
 
-  // Слухач для зміни системної теми
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      // Оновлюємо тему тільки якщо встановлено режим 'auto'
-      if (state.theme === 'auto') {
-        // Перезастосовуємо тему при зміні системних налаштувань
-        const root = document.documentElement;
-        if (e.matches) {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
-        }
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-    };
-  }, [state.theme]);
-
-  // Функція для переключення теми
+  // Функції для сумісності (не роблять нічого)
   const toggleTheme = () => {
-    dispatch({ type: 'TOGGLE_THEME' });
+    // Пуста функція - тема завжди світла
   };
 
-  // Функція для встановлення конкретної теми
   const setTheme = (theme: Theme) => {
-    dispatch({ type: 'SET_THEME', payload: theme });
+    // Пуста функція - тема завжди світла
   };
 
   // Значення контексту
   const contextValue: ThemeContextType = {
-    theme: state.theme,
+    theme: 'light',
     toggleTheme,
     setTheme,
   };

@@ -223,7 +223,7 @@ const Positions: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2 sm:py-3 rounded text-sm sm:text-base">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded text-sm sm:text-base">
           {error}
         </div>
       )}
@@ -287,7 +287,7 @@ const Positions: React.FC = () => {
                           <Square className="h-4 w-4 sm:h-5 sm:w-5" />
                         )}
                       </button>
-                      <div className="p-1.5 sm:p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-primary-50 text-primary-600">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
                     </div>
@@ -321,11 +321,11 @@ const Positions: React.FC = () => {
                               <span
                                 key={`${position._id}-skill-${index}`}
                                 className={`inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
-                                  skill.level === 'expert' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300' :
-                                  skill.level === 'advanced' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
-                                  skill.level === 'intermediate' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                                } ${skill.required ? 'ring-2 ring-red-200 dark:ring-red-800' : ''}`}
+                                  skill.level === 'expert' ? 'bg-purple-100 text-purple-800 :
+                                  skill.level === 'advanced' ? 'bg-blue-100 text-blue-800 :
+                                  skill.level === 'intermediate' ? 'bg-green-100 text-green-800 :
+                                  'bg-gray-100 text-gray-800
+                                } ${skill.required ? 'ring-2 ring-red-200 : ''}`}
                                 title={`${String(skill.name || t('positions.skillName'))} (${
                                   skill.level === 'expert' ? t('positions.expert') :
                                   skill.level === 'advanced' ? t('positions.advanced') :
@@ -338,7 +338,7 @@ const Positions: React.FC = () => {
                               </span>
                             ))}
                             {position.skills.length > (isMobile ? 3 : 5) && (
-                              <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs bg-gray-100 text-gray-600">
                                 +{position.skills.length - (isMobile ? 3 : 5)} {t('positions.moreSkills')}
                               </span>
                             )}
@@ -348,12 +348,12 @@ const Positions: React.FC = () => {
                       
                       <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                         {position.isActive && (
-                          <span className="inline-block bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
+                          <span className="inline-block bg-green-100 text-green-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
                             {t('positions.active')}
                           </span>
                         )}
                         {position.isPublic && (
-                          <span className="inline-block bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
+                          <span className="inline-block bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs">
                             {t('positions.public')}
                           </span>
                         )}
@@ -375,7 +375,7 @@ const Positions: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(position._id, position.title)}
-                      className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>

@@ -153,10 +153,10 @@ const Templates: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-900/20 dark:border-red-800';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-800';
-      case 'low': return 'text-green-600 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-900/20 dark:border-green-800';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-300 dark:bg-gray-800 dark:border-gray-700';
+      case 'high': return 'text-red-600 bg-red-50 border-red-200
+      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200
+      case 'low': return 'text-green-600 bg-green-50 border-green-200
+      default: return 'text-gray-600 bg-gray-50 border-gray-200
     }
   };
 
@@ -196,10 +196,10 @@ const Templates: React.FC = () => {
     return (
       <div className="p-2 sm:p-4 lg:p-6">
         <div className="animate-pulse">
-          <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 sm:w-1/4 mb-4"></div>
+          <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 sm:w-1/4 mb-4"></div>
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-20 sm:h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              <div key={i} className="h-20 sm:h-24 bg-gray-200 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -404,7 +404,7 @@ const Templates: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteModal({ isOpen: true, template })}
-                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                             title={t('templates.delete')}
                           >
                             <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />

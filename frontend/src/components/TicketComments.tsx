@@ -81,7 +81,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   return (
     <Card>
       <div className={`p-3 sm:p-4 lg:p-6`}>
-        <h3 className={`text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-white`}>
+        <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">
           {t('common.comments')} ({comments.length})
         </h3>
 
@@ -92,7 +92,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder={t('common.writeComment')}
-              className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-gray-900 placeholder-gray-500"
               rows={isMobile ? 3 : 4}
               disabled={isSubmitting}
             />
@@ -115,7 +115,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           </div>
         ) : comments.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+            <p className="text-gray-500 text-sm sm:text-base">
               {t('common.noComments')}
             </p>
           </div>
@@ -124,21 +124,21 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
             {comments.map((comment) => (
               <div
                 key={comment._id}
-                className="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-white"
+                className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-900"
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-1">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-300" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                        <span className="text-sm sm:text-base font-semibold text-gray-900">
                           {comment.author?.email || t('common.unknownUser')}
                         </span>
-                        <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-xs sm:text-sm text-gray-500">
                           {formatDate(comment.createdAt)}
                         </span>
                       </div>
@@ -147,13 +147,13 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDelete(comment._id)}
-                          className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          className="text-red-600 hover:bg-red-50"
                         >
                           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                       )}
                     </div>
-                    <p className="text-sm sm:text-base text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">
+                    <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap break-words">
                       {comment.content}
                     </p>
                   </div>

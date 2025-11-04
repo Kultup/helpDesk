@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Bell, User, LogOut, Settings, UserPlus, Calendar, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Settings, UserPlus, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+// Theme context is no longer used
 import { useClickOutside, useNotifications, useRegistrationNotifications } from '../../hooks';
 import { usePendingRegistrationsContext } from '../../contexts/PendingRegistrationsContext';
 import Button from '../UI/Button';
@@ -21,7 +21,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  // Theme context is no longer used, but kept for compatibility
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [registrationMenuOpen, setRegistrationMenuOpen] = useState(false);
@@ -192,23 +192,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
         <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
           {/* Language Selector */}
           <LanguageSelector />
-          
-
-          
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleTheme}
-            className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
-            title={theme === 'dark' ? t('header.lightMode') : t('header.darkMode')}
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
-            ) : (
-              <Moon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-            )}
-          </Button>
           
           {/* Notifications */}
           <div className="relative" ref={notificationMenuRef}>

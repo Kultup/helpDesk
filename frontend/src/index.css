@@ -42,43 +42,7 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-/* CSS змінні для темної теми */
-.dark {
-  --color-background: #1a1a1a;
-  --color-surface: #2d2d2d;
-  --color-text: #f5f5f5;
-  --color-text-secondary: #a1a1aa;
-  --color-border: #404040;
-  --color-primary: #60a5fa;
-  --color-primary-50: #1e293b;
-  --color-primary-100: #334155;
-  --color-primary-200: #475569;
-  --color-primary-300: #64748b;
-  --color-primary-400: #94a3b8;
-  --color-primary-600: #3b82f6;
-  --color-primary-700: #2563eb;
-  --color-primary-800: #1d4ed8;
-  --color-primary-900: #1e40af;
-  --color-primary-hover: #3b82f6;
-  --color-accent: #f87171;
-  --color-accent-50: #7f1d1d;
-  --color-accent-100: #991b1b;
-  --color-accent-200: #b91c1c;
-  --color-accent-300: #dc2626;
-  --color-accent-400: #ef4444;
-  --color-accent-600: #ef4444;
-  --color-accent-700: #f87171;
-  --color-accent-800: #fca5a5;
-  --color-accent-900: #fecaca;
-  --color-accent-hover: #ef4444;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-error: #f87171;
-  --color-info: #60a5fa;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-}
+/* Темна тема видалена - використовується тільки світла тема */
 
 @layer base {
   body {
@@ -145,10 +109,6 @@
   .input-field:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
-  }
-  
-  .dark .input-field:focus {
-    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
   }
   
   .status-badge {

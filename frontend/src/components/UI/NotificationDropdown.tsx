@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Clock, AlertCircle, CheckCircle, User, X } from 'lucide-react';
 import { Ticket, UserRole } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+// Theme context is no longer used
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from '../../hooks';
 
@@ -20,7 +20,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { theme } = useTheme();
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
@@ -114,7 +113,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Backdrop для мобільних */}
       {isMobile && (
         <div 
-          className="fixed inset-0 bg-black/30 dark:bg-black/50 z-40 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -124,23 +123,23 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={t('notifications.title')}
-        className={`${isMobile ? 'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2' : 'absolute right-0 mt-2'} ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-50 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
+        className={`${isMobile ? 'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2' : 'absolute right-0 mt-2'} ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-white text-gray-900 rounded-lg shadow-xl border border-gray-200 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
       >
       {/* Header */}
-      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-50 flex-1">{t('notifications.title')}</h3>
+          <h3 className="text-sm sm:text-base font-semibold text-gray-900 flex-1">{t('notifications.title')}</h3>
           {isMobile && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+              className="p-1.5 rounded-md hover:bg-gray-200 transition-colors touch-manipulation"
               aria-label={t('common.close')}
               title={t('common.close')}
             >
-              <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+              <X className="h-4 w-4 text-gray-600" />
             </button>
           )}
-          <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+          <span className="text-sm text-gray-600 whitespace-nowrap">
             {notificationTickets.length} {t('notifications.active')}
           </span>
         </div>
@@ -149,9 +148,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Notifications list */}
       <div className={`${isMobile ? 'max-h-[calc(100vh-11rem)]' : 'max-h-80'} overflow-y-auto overscroll-contain touch-pan-y`}>
         {notificationTickets.length === 0 ? (
-          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-600 dark:text-gray-300">
-            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400 dark:text-gray-400" />
-            <p className="text-sm text-gray-600 dark:text-gray-300">{t('notifications.noActive')}</p>
+          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-600">
+            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400" />
+            <p className="text-sm text-gray-600">{t('notifications.noActive')}</p>
           </div>
         ) : (
           notificationTickets.map((ticket) => (
@@ -159,7 +158,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               key={ticket._id}
               to={`${basePath}/tickets/${ticket._id}`}
               onClick={onClose}
-              className={`block px-3 sm:px-4 py-3.5 sm:py-4 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 dark:hover:bg-gray-700/70 active:bg-gray-100 dark:active:bg-gray-700 transition-colors touch-manipulation min-h-[70px] sm:min-h-0 bg-white dark:bg-gray-800`}
+              className={`block px-3 sm:px-4 py-3.5 sm:py-4 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[70px] sm:min-h-0 bg-white
             >
               <div className="flex items-start space-x-2 sm:space-x-3">
                 <div className="flex-shrink-0 mt-0.5 sm:mt-1">
@@ -168,15 +167,15 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1.5">
-                    <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-gray-50 truncate">
+                    <p className="text-sm sm:text-base font-medium text-gray-900 truncate">
                       {ticket.title}
                     </p>
-                    <span className="text-sm text-gray-600 dark:text-gray-300 flex-shrink-0">
+                    <span className="text-sm text-gray-600 flex-shrink-0">
                       {formatDate(ticket.createdAt)}
                     </span>
                   </div>
                   
-                  <p className="text-sm text-gray-700 dark:text-gray-200 mb-2.5 line-clamp-2 break-words">
+                  <p className="text-sm text-gray-700 mb-2.5 line-clamp-2 break-words">
                     {ticket.description}
                   </p>
                   
@@ -184,18 +183,18 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
                       <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-sm font-medium ${
                         ticket.status === 'open' 
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200'
+                          ? 'bg-red-100 text-red-800
+                          : 'bg-yellow-100 text-yellow-800
                       }`}>
                         {getStatusText(ticket.status)}
                       </span>
                       
                       <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-sm font-medium ${
                         ticket.priority === 'high'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200'
+                          ? 'bg-red-100 text-red-800
                           : ticket.priority === 'medium'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
+                          ? 'bg-yellow-100 text-yellow-800
+                          : 'bg-green-100 text-green-800
                       }`}>
                         {ticket.priority === 'high' ? t('notifications.priority.high') : 
                          ticket.priority === 'medium' ? t('notifications.priority.medium') : t('notifications.priority.low')}
@@ -203,9 +202,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     </div>
                     
                     {ticket.assignedTo && (
-                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                        <User className="h-4 w-4 mr-1.5 flex-shrink-0 text-gray-600 dark:text-gray-300" />
-                        <span className="truncate max-w-[120px] sm:max-w-20 text-gray-600 dark:text-gray-300">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <User className="h-4 w-4 mr-1.5 flex-shrink-0 text-gray-600" />
+                        <span className="truncate max-w-[120px] sm:max-w-20 text-gray-600">
                           {typeof ticket.assignedTo === 'object' 
                             ? ticket.assignedTo.email 
                             : ticket.assignedTo}
@@ -222,11 +221,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
       {/* Footer */}
       {notificationTickets.length > 0 && (
-        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-gray-200 bg-gray-50">
           <Link
             to={`${basePath}/tickets`}
             onClick={onClose}
-            className="block text-sm text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 active:text-blue-900 dark:active:text-blue-100 font-medium py-1.5 touch-manipulation transition-colors"
+            className="block text-sm text-blue-600 hover:text-blue-800 active:text-blue-900 font-medium py-1.5 touch-manipulation transition-colors"
           >
             {t('notifications.viewAll')} →
           </Link>

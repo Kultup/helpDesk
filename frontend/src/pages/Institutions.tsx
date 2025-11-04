@@ -214,7 +214,7 @@ const Institutions: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2 sm:py-3 rounded mb-3 sm:mb-4 text-sm sm:text-base">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-3 sm:mb-4 text-sm sm:text-base">
           {error}
         </div>
       )}
@@ -286,7 +286,7 @@ const Institutions: React.FC = () => {
           {filteredInstitutions.length > 0 && (
             <button
               onClick={handleSelectAll}
-              className="text-xs sm:text-sm text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300 sm:ml-4"
+              className="text-xs sm:text-sm text-primary-600 hover:text-primary-800 font-medium sm:ml-4"
             >
               {selectedInstitutions.length === filteredInstitutions.length
                 ? t('institutions.deselectAll')
@@ -314,7 +314,7 @@ const Institutions: React.FC = () => {
                   key={institution._id}
                   className={`p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors ${
                     selectedInstitutions.includes(institution._id)
-                      ? 'bg-primary-50/50 dark:bg-primary-900/10'
+                      ? 'bg-primary-50/50
                       : ''
                   }`}
                 >
@@ -328,7 +328,7 @@ const Institutions: React.FC = () => {
                           onChange={() => handleSelectInstitution(institution._id)}
                           className="h-3 w-3 sm:h-4 sm:w-4 text-primary-600 focus:ring-primary-500 border-border rounded"
                         />
-                        <div className="p-1.5 sm:p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-primary-50 text-primary-600">
                           <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
                       </div>
@@ -339,7 +339,7 @@ const Institutions: React.FC = () => {
                             <h3 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
                               {institution.name}
                             </h3>
-                            <span className="inline-block bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full mt-1">
+                            <span className="inline-block bg-blue-100 text-blue-800 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full mt-1">
                               {getTypeLabel(institution.type)}
                             </span>
                           </div>
@@ -372,7 +372,7 @@ const Institutions: React.FC = () => {
                                 href={institution.contact?.website} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="text-primary-600 dark:text-primary-400 hover:underline break-words"
+                                className="text-primary-600 hover:underline break-words"
                               >
                                 {t('institutions.website')}
                               </a>
@@ -396,8 +396,8 @@ const Institutions: React.FC = () => {
                         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                           <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isActive 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' 
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                              ? 'bg-green-100 text-green-800 
+                              : 'bg-red-100 text-red-800
                           }`}>
                             {institution.isActive ? (
                               <>
@@ -414,8 +414,8 @@ const Institutions: React.FC = () => {
                           
                           <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isPublic 
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' 
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                              ? 'bg-blue-100 text-blue-800 
+                              : 'bg-gray-100 text-gray-800
                           }`}>
                             {institution.isPublic ? (
                               <>
@@ -450,7 +450,7 @@ const Institutions: React.FC = () => {
                           setEditingInstitution(institution);
                           setShowDeleteModal(true);
                         }}
-                        className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
@@ -469,8 +469,8 @@ const Institutions: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-3 sm:p-4">
           <Card className="w-full sm:w-96">
             <CardContent className="text-center p-4 sm:p-6">
-              <div className="mx-auto flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-3 sm:mb-4">
-                <Trash2 className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
+              <div className="mx-auto flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 mb-3 sm:mb-4">
+                <Trash2 className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
               </div>
               <h3 className="text-base sm:text-lg font-medium text-foreground mt-2">
                 {t('institutions.confirmDelete')}
