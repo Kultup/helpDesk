@@ -50,7 +50,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
       setIsSubmitting(true);
       const response = await apiService.addComment(ticketId, newComment.trim());
       if (response.success && response.data) {
-        setComments(prev => [response.data!, ...prev]);
+        const newCommentData: Comment = response.data;
+        setComments(prev => [newCommentData, ...prev]);
         setNewComment('');
       }
     } catch (error) {
