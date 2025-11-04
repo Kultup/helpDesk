@@ -14,6 +14,10 @@ const QuickTip = require('./QuickTip');
 const Event = require('./Event');
 const AdminNote = require('./AdminNote');
 const Tag = require('./Tag');
+const SLAPolicy = require('./SLAPolicy');
+const KnowledgeBase = require('./KnowledgeBase');
+const EmailThread = require('./EmailThread');
+const EmailSettings = require('./EmailSettings');
 
 module.exports = {
   User,
@@ -28,5 +32,9 @@ module.exports = {
   QuickTip,
   Event,
   AdminNote,
-  Tag
+  Tag,
+  SLAPolicy,
+  KnowledgeBase,
+  EmailThread,
+  EmailSettings
 };

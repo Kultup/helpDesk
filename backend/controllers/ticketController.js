@@ -232,6 +232,16 @@ exports.createTicket = async (req, res) => {
     await ticket.save();
     logger.info('✅ Тікет збережено в базі даних:', ticket._id);
 
+    // Розраховуємо та оновлюємо SLA для тикету
+    try {
+      const slaService = require('../services/slaService');
+      await slaService.updateTicketSLA(ticket);
+      logger.info('✅ SLA розраховано для тикету:', ticket._id);
+    } catch (slaError) {
+      logger.error('❌ Помилка розрахунку SLA:', slaError);
+      // Не зупиняємо виконання, якщо SLA не вдалося розрахувати
+    }
+
     // Відправка сповіщення в Telegram групу про новий тікет
     logger.info('🎯 Викликаю функцію відправки сповіщення для тікету:', ticket._id);
     logger.info('📱 telegramService тип:', typeof telegramService);
@@ -379,6 +389,33 @@ exports.updateTicket = async (req, res) => {
     }
 
     await ticket.save();
+
+    // Оновлюємо SLA для тикету, якщо змінився пріоритет або категорія
+    if (priority !== undefined || category !== undefined) {
+      try {
+        const slaService = require('../services/slaService');
+        await slaService.updateTicketSLA(ticket);
+        logger.info('✅ SLA оновлено для тикету:', ticket._id);
+      } catch (slaError) {
+        logger.error('❌ Помилка оновлення SLA:', slaError);
+      }
+    }
+
+    // Оновлюємо метрики SLA при зміні статусу
+    if (status !== undefined && status !== previousState.status) {
+      try {
+        const slaService = require('../services/slaService');
+        await slaService.updateSLAMetrics(ticket);
+        
+        // Якщо це перша відповідь, встановлюємо firstResponseAt
+        if (status === 'in_progress' && !ticket.firstResponseAt) {
+          ticket.firstResponseAt = new Date();
+          await ticket.save();
+        }
+      } catch (slaError) {
+        logger.error('❌ Помилка оновлення метрик SLA:', slaError);
+      }
+    }
 
     // Створення системних коментарів для важливих змін
     const systemComments = [];

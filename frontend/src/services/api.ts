@@ -1053,6 +1053,244 @@ class ApiService {
     return this.get('/institutions/simple');
   }
 
+  // SLA API methods
+  async getSLAPolicies(params?: {
+    category?: string;
+    active?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/sla/policies${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getSLAPolicy(id: string): Promise<ApiResponse<any>> {
+    return this.get(`/sla/policies/${id}`);
+  }
+
+  async createSLAPolicy(data: any): Promise<ApiResponse<any>> {
+    return this.post('/sla/policies', data);
+  }
+
+  async updateSLAPolicy(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/sla/policies/${id}`, data);
+  }
+
+  async deleteSLAPolicy(id: string): Promise<ApiResponse<null>> {
+    return this.delete(`/sla/policies/${id}`);
+  }
+
+  async getTicketSLAStatus(ticketId: string): Promise<ApiResponse<any>> {
+    return this.get(`/sla/tickets/${ticketId}/status`);
+  }
+
+  async getSLABreaches(params?: {
+    status?: string;
+    priority?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/sla/breaches${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getSLAStatistics(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/sla/statistics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Knowledge Base API methods
+  async getKBArticles(params?: {
+    q?: string;
+    category?: string;
+    status?: string;
+    tags?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+  }): Promise<ApiResponse<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/kb/articles${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getKBArticle(id: string): Promise<ApiResponse<any>> {
+    return this.get(`/kb/articles/${id}`);
+  }
+
+  async createKBArticle(data: any): Promise<ApiResponse<any>> {
+    return this.post('/kb/articles', data);
+  }
+
+  async updateKBArticle(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/kb/articles/${id}`, data);
+  }
+
+  async deleteKBArticle(id: string): Promise<ApiResponse<null>> {
+    return this.delete(`/kb/articles/${id}`);
+  }
+
+  async searchKBArticles(params?: {
+    q?: string;
+    category?: string;
+    status?: string;
+    tags?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+  }): Promise<ApiResponse<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/kb/search${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async markKBArticleHelpful(id: string): Promise<ApiResponse<any>> {
+    return this.post(`/kb/articles/${id}/helpful`);
+  }
+
+  async markKBArticleNotHelpful(id: string): Promise<ApiResponse<any>> {
+    return this.post(`/kb/articles/${id}/not-helpful`);
+  }
+
+  async getKBCategories(): Promise<ApiResponse<any[]>> {
+    return this.get('/kb/categories');
+  }
+
+  async generateKBArticleFromTicket(ticketId: string): Promise<ApiResponse<any>> {
+    return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
+  }
+
+  // Email API methods
+  async sendEmail(data: {
+    to: string;
+    subject: string;
+    html?: string;
+    text?: string;
+    cc?: string;
+    bcc?: string;
+    attachments?: any[];
+    replyTo?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.post('/email/send', data);
+  }
+
+  async getEmailThreads(params?: {
+    ticketId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    data: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/email/threads${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getEmailThread(id: string): Promise<ApiResponse<any>> {
+    return this.get(`/email/threads/${id}`);
+  }
+
+  async getEmailSettings(): Promise<ApiResponse<any>> {
+    return this.get('/email/settings');
+  }
+
+  async updateEmailSettings(data: any): Promise<ApiResponse<any>> {
+    return this.post('/email/settings', data);
+  }
+
+  async testEmail(to: string): Promise<ApiResponse<any>> {
+    return this.post('/email/test', { to });
+  }
+
+  async testEmailConnection(): Promise<ApiResponse<any>> {
+    return this.post('/email/test-connection');
+  }
+
 }
 
 // Експорт єдиного екземпляру

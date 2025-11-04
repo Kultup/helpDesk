@@ -115,12 +115,56 @@ const ticketSchema = new mongoose.Schema({
     default: null
   },
   
+  // SLA політика
+  slaPolicy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SLAPolicy',
+    default: null
+  },
+  
   // SLA та метрики
   sla: {
     responseTime: { type: Number, default: 24 }, // години
     resolutionTime: { type: Number, default: 72 }, // години
     priority: { type: String, default: 'medium' }
   },
+  // SLA порушення та попередження
+  slaBreachAt: {
+    type: Date,
+    default: null
+  },
+  slaWarningSent: {
+    type: Boolean,
+    default: false
+  },
+  slaWarningsSent: [{
+    percentage: { type: Number, required: true },
+    sentAt: { type: Date, default: Date.now },
+    notifiedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }]
+  }],
+  // Історія ескалацій
+  escalationHistory: [{
+    level: { type: Number, required: true },
+    escalatedAt: { type: Date, default: Date.now },
+    escalatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    escalatedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reason: { type: String, trim: true },
+    percentage: { type: Number },
+    slaBreachType: {
+      type: String,
+      enum: ['response', 'resolution', 'manual'],
+      default: 'manual'
+    }
+  }],
   metrics: {
     responseTime: { type: Number, default: 0 }, // години
     resolutionTime: { type: Number, default: 0 }, // години
@@ -130,6 +174,11 @@ const ticketSchema = new mongoose.Schema({
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tag'
+  }],
+  // Пов'язані статті KB
+  relatedArticles: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'KnowledgeBase'
   }],
   attachments: [{
     filename: {
@@ -228,6 +277,21 @@ const ticketSchema = new mongoose.Schema({
     isEscalated: { type: Boolean, default: false }
   },
   
+  // Email інтеграція
+  emailThread: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'EmailThread',
+    default: null
+  },
+  createdFromEmail: {
+    type: Boolean,
+    default: false
+  },
+  emailAddress: {
+    type: String,
+    trim: true,
+    default: null
+  },
   // Метадані
   metadata: {
     source: {

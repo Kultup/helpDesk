@@ -1,0 +1,240 @@
+const KnowledgeBase = require('../models/KnowledgeBase');
+const logger = require('../utils/logger');
+
+class KBSearchService {
+  /**
+   * Пошук статей KB
+   * @param {String} query - Пошуковий запит
+   * @param {Object} filters - Фільтри (category, status, tags)
+   * @param {Object} options - Опції (page, limit, sortBy)
+   * @returns {Object} - Результати пошуку
+   */
+  async searchArticles(query = '', filters = {}, options = {}) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        sortBy = 'relevance' // relevance, popularity, date, helpful
+      } = options;
+
+      let searchQuery = { isDeleted: false };
+
+      // Фільтри
+      if (filters.category) {
+        searchQuery.category = filters.category;
+      }
+
+      if (filters.status) {
+        searchQuery.status = filters.status;
+      } else {
+        // За замовчуванням тільки published
+        searchQuery.status = 'published';
+      }
+
+      if (filters.isPublic !== undefined) {
+        searchQuery.isPublic = filters.isPublic;
+      }
+
+      if (filters.tags && filters.tags.length > 0) {
+        searchQuery.tags = { $in: filters.tags };
+      }
+
+      // Full-text пошук
+      if (query && query.trim()) {
+        searchQuery.$text = { $search: query.trim() };
+      }
+
+      // Сортування
+      let sort = {};
+      switch (sortBy) {
+        case 'relevance':
+          if (query && query.trim()) {
+            sort = { score: { $meta: 'textScore' } };
+          } else {
+            sort = { createdAt: -1 };
+          }
+          break;
+        case 'popularity':
+          sort = { views: -1, helpfulCount: -1 };
+          break;
+        case 'date':
+          sort = { createdAt: -1 };
+          break;
+        case 'helpful':
+          sort = { helpfulCount: -1, helpfulRate: -1 };
+          break;
+        default:
+          sort = { createdAt: -1 };
+      }
+
+      // Виконуємо пошук
+      let articles;
+      if (query && query.trim() && sortBy === 'relevance') {
+        articles = await KnowledgeBase.find(searchQuery, {
+          score: { $meta: 'textScore' }
+        })
+          .populate('category', 'name color')
+          .populate('author', 'email position')
+          .populate('lastUpdatedBy', 'email position')
+          .sort(sort)
+          .limit(parseInt(limit))
+          .skip((parseInt(page) - 1) * parseInt(limit));
+      } else {
+        articles = await KnowledgeBase.find(searchQuery)
+          .populate('category', 'name color')
+          .populate('author', 'email position')
+          .populate('lastUpdatedBy', 'email position')
+          .sort(sort)
+          .limit(parseInt(limit))
+          .skip((parseInt(page) - 1) * parseInt(limit));
+      }
+
+      const total = await KnowledgeBase.countDocuments(searchQuery);
+
+      return {
+        articles,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit))
+        }
+      };
+    } catch (error) {
+      logger.error('Error searching KB articles:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Знайти пов'язані статті
+   * @param {String} articleId - ID статті
+   * @param {Number} limit - Максимальна кількість статей
+   * @returns {Array} - Масив пов'язаних статей
+   */
+  async findRelatedArticles(articleId, limit = 5) {
+    try {
+      const article = await KnowledgeBase.findById(articleId);
+      if (!article) {
+        return [];
+      }
+
+      // Знаходимо статті з такими ж категоріями та тегами
+      let relatedQuery = {
+        _id: { $ne: articleId },
+        status: 'published',
+        isDeleted: false,
+        isPublic: true
+      };
+
+      if (article.category) {
+        relatedQuery.category = article.category;
+      }
+
+      if (article.tags && article.tags.length > 0) {
+        relatedQuery.tags = { $in: article.tags };
+      }
+
+      const relatedArticles = await KnowledgeBase.find(relatedQuery)
+        .populate('category', 'name color')
+        .populate('author', 'email position')
+        .sort({ views: -1, helpfulCount: -1 })
+        .limit(limit);
+
+      return relatedArticles;
+    } catch (error) {
+      logger.error('Error finding related articles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Генерація статті KB з вирішеного тикету (для AI інтеграції)
+   * @param {String} ticketId - ID тикету
+   * @returns {Object} - Дані для статті KB
+   */
+  async generateArticleFromTicket(ticketId) {
+    try {
+      const Ticket = require('../models/Ticket');
+      const ticket = await Ticket.findById(ticketId)
+        .populate('category', 'name')
+        .populate('assignedTo', 'email position');
+
+      if (!ticket || ticket.status !== 'resolved' && ticket.status !== 'closed') {
+        throw new Error('Ticket not found or not resolved');
+      }
+
+      // Створюємо базову структуру статті
+      const articleData = {
+        title: `Рішення: ${ticket.title}`,
+        content: `## Проблема\n\n${ticket.description}\n\n## Рішення\n\n${ticket.comments && ticket.comments.length > 0 ? ticket.comments[ticket.comments.length - 1].content : 'Рішення не вказано'}\n\n## Додаткова інформація\n\n- Тикет: ${ticket.ticketNumber}\n- Категорія: ${ticket.category?.name || 'Не вказано'}\n- Пріоритет: ${ticket.priority}\n- Статус: ${ticket.status}`,
+        category: ticket.category?._id,
+        tags: ticket.tags || [],
+        status: 'draft', // Стаття створюється як чернетка
+        metadata: {
+          source: 'ticket',
+          sourceTicket: ticketId
+        }
+      };
+
+      return articleData;
+    } catch (error) {
+      logger.error('Error generating article from ticket:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отримати популярні статті
+   * @param {Number} limit - Максимальна кількість статей
+   * @returns {Array} - Масив популярних статей
+   */
+  async getPopularArticles(limit = 10) {
+    try {
+      return await KnowledgeBase.findPopular(limit)
+        .populate('category', 'name color')
+        .populate('author', 'email position');
+    } catch (error) {
+      logger.error('Error getting popular articles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Отримати нещодавні статті
+   * @param {Number} limit - Максимальна кількість статей
+   * @returns {Array} - Масив нещодавніх статей
+   */
+  async getRecentArticles(limit = 10) {
+    try {
+      return await KnowledgeBase.findRecent(limit)
+        .populate('category', 'name color')
+        .populate('author', 'email position');
+    } catch (error) {
+      logger.error('Error getting recent articles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Отримати статті по категорії
+   * @param {String} categoryId - ID категорії
+   * @param {Number} limit - Максимальна кількість статей
+   * @returns {Array} - Масив статей
+   */
+  async getArticlesByCategory(categoryId, limit = 10) {
+    try {
+      return await KnowledgeBase.findPublished({ category: categoryId })
+        .populate('category', 'name color')
+        .populate('author', 'email position')
+        .sort({ createdAt: -1 })
+        .limit(limit);
+    } catch (error) {
+      logger.error('Error getting articles by category:', error);
+      return [];
+    }
+  }
+}
+
+module.exports = new KBSearchService();
+

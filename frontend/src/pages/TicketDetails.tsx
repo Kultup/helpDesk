@@ -10,6 +10,9 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
+import TicketSLA from '../components/TicketSLA';
+import TicketRelatedArticles from '../components/TicketRelatedArticles';
+import TicketEmailThread from '../components/TicketEmailThread';
 
 import { formatDate } from '../utils';
 
@@ -259,6 +262,23 @@ const TicketDetails: React.FC = () => {
             </Card>
           )}
           
+          {/* SLA Статус */}
+          <TicketSLA ticketId={ticket._id} />
+
+          {/* Пов'язані статті KB */}
+          {ticket && (
+            <TicketRelatedArticles
+              ticketId={ticket._id}
+              categoryId={typeof ticket.category === 'object' ? ticket.category?._id : ticket.category}
+              tags={ticket.tags?.map((tag: any) => typeof tag === 'object' ? tag._id || tag.name : tag) || []}
+            />
+          )}
+
+          {/* Email Листування */}
+          {ticket && ticket.createdFromEmail && (
+            <TicketEmailThread ticketId={ticket._id} />
+          )}
+
           {/* Коментарі */}
           <TicketComments ticketId={ticket._id} />
 
