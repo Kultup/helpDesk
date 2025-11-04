@@ -240,7 +240,7 @@ const rateLimits = {
 
 /**
  * Рекурсивна санітизація HTML в об'єктах
- * Використовує xss-clean для очищення від XSS атак
+ * xss-clean middleware вже обробить запити, тут тільки trim для рядків
  */
 const xss = require('xss-clean');
 const sanitizeObject = (obj, allowedFields = []) => {
@@ -263,8 +263,8 @@ const sanitizeObject = (obj, allowedFields = []) => {
     }
 
     if (typeof obj[key] === 'string') {
-      // Використовуємо xss-clean для очищення
-      sanitized[key] = xss(obj[key]).trim();
+      // xss-clean middleware вже обробить запити, тут тільки trim
+      sanitized[key] = String(obj[key]).trim();
     } else if (typeof obj[key] === 'object' && obj[key] !== null) {
       sanitized[key] = sanitizeObject(obj[key], allowedFields);
     } else {

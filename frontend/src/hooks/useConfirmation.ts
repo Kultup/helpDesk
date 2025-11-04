@@ -31,7 +31,9 @@ export const useConfirmation = () => {
     confirmText: 'Підтвердити',
     cancelText: 'Скасувати',
     type: 'danger',
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     onConfirm: () => {},
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     onCancel: () => {}
   });
 

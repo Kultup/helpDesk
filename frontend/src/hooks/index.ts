@@ -261,17 +261,13 @@ export const useUsers = (isActive?: boolean) => {
   }, [fetchUsers]);
 
   const forceDeleteUser = useCallback(async (userId: string) => {
-    try {
-      const response = await apiService.forceDeleteUser(userId);
-      if (response.success) {
-        // Оновлюємо список користувачів після видалення
-        await fetchUsers();
-        return response;
-      } else {
-        throw new Error(response.message || 'Помилка видалення користувача');
-      }
-    } catch (error: any) {
-      throw error;
+    const response = await apiService.forceDeleteUser(userId);
+    if (response.success) {
+      // Оновлюємо список користувачів після видалення
+      await fetchUsers();
+      return response;
+    } else {
+      throw new Error(response.message || 'Помилка видалення користувача');
     }
   }, [fetchUsers]);
 
@@ -316,17 +312,13 @@ export const useDeactivatedUsers = () => {
   }, [fetchDeactivatedUsers]);
 
   const activateUser = useCallback(async (userId: string) => {
-    try {
-      const response = await apiService.toggleUserActive(userId);
-      if (response.success) {
-        // Оновлюємо список деактивованих користувачів після активації
-        await fetchDeactivatedUsers();
-        return response;
-      } else {
-        throw new Error(response.message || 'Помилка активації користувача');
-      }
-    } catch (error: any) {
-      throw error;
+    const response = await apiService.toggleUserActive(userId);
+    if (response.success) {
+      // Оновлюємо список деактивованих користувачів після активації
+      await fetchDeactivatedUsers();
+      return response;
+    } else {
+      throw new Error(response.message || 'Помилка активації користувача');
     }
   }, [fetchDeactivatedUsers]);
 

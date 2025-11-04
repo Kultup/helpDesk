@@ -39,9 +39,10 @@ const themeReducer = (state: ThemeState, action: ThemeAction): ThemeState => {
   switch (action.type) {
     case 'SET_THEME':
       return { ...state, theme: action.payload };
-    case 'TOGGLE_THEME':
+    case 'TOGGLE_THEME': {
       const newTheme = state.theme === 'light' ? 'dark' : 'light';
       return { ...state, theme: newTheme };
+    }
     default:
       return state;
   }

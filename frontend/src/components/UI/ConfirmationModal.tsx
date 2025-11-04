@@ -85,6 +85,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
+      tabIndex={0}
       onKeyDown={handleKeyDown}
     >
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
