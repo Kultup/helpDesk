@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useWindowSize } from '../hooks';
 import { 
   Building2, 
   Plus, 
@@ -24,6 +25,8 @@ import Button from '../components/UI/Button';
 
 const Institutions: React.FC = () => {
   const { t } = useTranslation();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,56 +178,58 @@ const Institutions: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
         <div className="flex items-center">
-          <Building2 className="h-8 w-8 text-primary-600 mr-3" />
-          <h1 className="text-3xl font-bold text-foreground">{t('institutions.title')}</h1>
+          <Building2 className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-primary-600 mr-2 sm:mr-3" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">{t('institutions.title')}</h1>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {selectedInstitutions.length > 0 && (
             <Button
               onClick={handleBulkDelete}
               variant="danger"
               className="flex items-center"
+              size={isMobile ? "sm" : "md"}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               {t('institutions.bulkDelete')} ({selectedInstitutions.length})
             </Button>
           )}
           <Button
             onClick={() => setShowAddForm(true)}
             className="flex items-center"
+            size={isMobile ? "sm" : "md"}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             {t('institutions.add')}
           </Button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-3 sm:px-4 py-2 sm:py-3 rounded mb-3 sm:mb-4 text-sm sm:text-base">
           {error}
         </div>
       )}
 
       {/* Add Institution Form */}
       {showAddForm && (
-        <Card className="mb-6">
-          <CardContent>
-            <h3 className="text-lg font-medium text-foreground mb-4">
+        <Card className="mb-4 sm:mb-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <h3 className="text-base sm:text-lg font-medium text-foreground mb-3 sm:mb-4">
               {editingInstitution ? t('institutions.edit') : t('institutions.add')}
             </h3>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-foreground mb-1">
                 {t('institutions.institution')} *
               </label>
               <input
@@ -232,12 +237,12 @@ const Institutions: React.FC = () => {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-foreground bg-surface"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-foreground bg-surface"
                 placeholder={t('institutions.institutionPlaceholder')}
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4 border-t border-border">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sm:space-x-3 pt-3 sm:pt-4 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
@@ -245,6 +250,8 @@ const Institutions: React.FC = () => {
                   setShowAddForm(false);
                   resetForm();
                 }}
+                className="w-full sm:w-auto"
+                size={isMobile ? "sm" : "md"}
               >
                 {t('common.cancel')}
               </Button>
@@ -252,6 +259,8 @@ const Institutions: React.FC = () => {
                 type="submit"
                 disabled={loading}
                 isLoading={loading}
+                className="w-full sm:w-auto"
+                size={isMobile ? "sm" : "md"}
               >
                 {loading ? t('common.saving') : (editingInstitution ? t('common.update') : t('common.save'))}
               </Button>
@@ -261,23 +270,23 @@ const Institutions: React.FC = () => {
         </Card>
       )}
 
-      <Card className="mb-6">
-        <CardContent className="flex items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary h-4 w-4" />
+      <Card className="mb-4 sm:mb-6">
+        <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+          <div className="relative flex-1 w-full sm:max-w-md">
+            <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-text-secondary h-3 w-3 sm:h-4 sm:w-4" />
             <input
               type="text"
               placeholder={t('institutions.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-border rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-transparent text-foreground bg-surface"
+              className="pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 text-sm sm:text-base border border-border rounded-lg w-full focus:ring-2 focus:ring-primary-500 focus:border-transparent text-foreground bg-surface"
             />
           </div>
           
           {filteredInstitutions.length > 0 && (
             <button
               onClick={handleSelectAll}
-              className="ml-4 text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+              className="text-xs sm:text-sm text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300 sm:ml-4"
             >
               {selectedInstitutions.length === filteredInstitutions.length
                 ? t('institutions.deselectAll')
@@ -290,10 +299,10 @@ const Institutions: React.FC = () => {
 
       {filteredInstitutions.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Building2 className="mx-auto h-12 w-12 text-text-secondary" />
-            <h3 className="mt-2 text-sm font-medium text-foreground">{t('institutions.noInstitutions')}</h3>
-            <p className="mt-1 text-sm text-text-secondary">{t('institutions.noInstitutionsDescription')}</p>
+          <CardContent className="text-center py-8 sm:py-12">
+            <Building2 className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-text-secondary" />
+            <h3 className="mt-2 text-sm sm:text-base font-medium text-foreground">{t('institutions.noInstitutions')}</h3>
+            <p className="mt-1 text-xs sm:text-sm text-text-secondary">{t('institutions.noInstitutionsDescription')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -303,67 +312,67 @@ const Institutions: React.FC = () => {
               {filteredInstitutions.map((institution) => (
                 <div
                   key={institution._id}
-                  className={`p-6 hover:bg-surface/50 transition-colors ${
+                  className={`p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors ${
                     selectedInstitutions.includes(institution._id)
                       ? 'bg-primary-50/50 dark:bg-primary-900/10'
                       : ''
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                     {/* Основна інформація */}
-                    <div className="flex items-start space-x-4 flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-start space-x-2 sm:space-x-4 flex-1 min-w-0 w-full sm:w-auto">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                         <input
                           type="checkbox"
                           checked={selectedInstitutions.includes(institution._id)}
                           onChange={() => handleSelectInstitution(institution._id)}
-                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-border rounded"
+                          className="h-3 w-3 sm:h-4 sm:w-4 text-primary-600 focus:ring-primary-500 border-border rounded"
                         />
-                        <div className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
-                          <Building2 className="h-5 w-5" />
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                          <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div>
-                            <h3 className="text-lg font-semibold text-foreground leading-tight">
+                            <h3 className="text-base sm:text-lg font-semibold text-foreground leading-tight">
                               {institution.name}
                             </h3>
-                            <span className="inline-block bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full mt-1">
+                            <span className="inline-block bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full mt-1">
                               {getTypeLabel(institution.type)}
                             </span>
                           </div>
                         </div>
 
-                        <div className="space-y-2 text-sm text-text-secondary mb-3">
+                        <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-text-secondary mb-2 sm:mb-3">
                           <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span>{institution.address?.street || '—'}, {getCityName(institution.address?.city)}</span>
+                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                            <span className="break-words">{institution.address?.street || '—'}, {getCityName(institution.address?.city)}</span>
                           </div>
                           
                           {institution.contact?.phone && (
                             <div className="flex items-center">
-                              <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                              <span>{institution.contact?.phone}</span>
+                              <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                              <span className="break-words">{institution.contact?.phone}</span>
                             </div>
                           )}
                           
                           {institution.contact?.email && (
                             <div className="flex items-center">
-                              <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-                              <span>{institution.contact?.email}</span>
+                              <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                              <span className="break-words">{institution.contact?.email}</span>
                             </div>
                           )}
                           
                           {institution.contact?.website && (
                             <div className="flex items-center">
-                              <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
                               <a 
                                 href={institution.contact?.website} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="text-primary-600 dark:text-primary-400 hover:underline"
+                                className="text-primary-600 dark:text-primary-400 hover:underline break-words"
                               >
                                 {t('institutions.website')}
                               </a>
@@ -372,50 +381,50 @@ const Institutions: React.FC = () => {
                           
                           {institution.capacity && (
                             <div className="flex items-center">
-                              <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
                               <span>{t('institutions.capacity')}: {institution.capacity}</span>
                             </div>
                           )}
                         </div>
 
                         {institution.description && (
-                          <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                          <p className="text-xs sm:text-sm text-text-secondary mb-2 sm:mb-3 line-clamp-2">
                             {institution.description}
                           </p>
                         )}
 
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isActive 
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' 
                               : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
                           }`}>
                             {institution.isActive ? (
                               <>
-                                <CheckCircle className="h-3 w-3 mr-1" />
+                                <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                 {t('institutions.active')}
                               </>
                             ) : (
                               <>
-                                <XCircle className="h-3 w-3 mr-1" />
+                                <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                 {t('institutions.inactive')}
                               </>
                             )}
                           </span>
                           
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isPublic 
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' 
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                           }`}>
                             {institution.isPublic ? (
                               <>
-                                <Eye className="h-3 w-3 mr-1" />
+                                <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                 {t('institutions.public')}
                               </>
                             ) : (
                               <>
-                                <EyeOff className="h-3 w-3 mr-1" />
+                                <EyeOff className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                 {t('institutions.private')}
                               </>
                             )}
@@ -425,14 +434,14 @@ const Institutions: React.FC = () => {
                     </div>
                     
                     {/* Дії */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(institution)}
-                        className="p-2"
+                        className="p-1.5 sm:p-2"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -441,9 +450,9 @@ const Institutions: React.FC = () => {
                           setEditingInstitution(institution);
                           setShowDeleteModal(true);
                         }}
-                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   </div>
@@ -457,28 +466,32 @@ const Institutions: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && editingInstitution && (
-        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <Card className="w-96">
-            <CardContent className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+        <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-3 sm:p-4">
+          <Card className="w-full sm:w-96">
+            <CardContent className="text-center p-4 sm:p-6">
+              <div className="mx-auto flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-3 sm:mb-4">
+                <Trash2 className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
               </div>
-              <h3 className="text-lg font-medium text-foreground mt-2">
+              <h3 className="text-base sm:text-lg font-medium text-foreground mt-2">
                 {t('institutions.confirmDelete')}
               </h3>
-              <p className="text-sm text-text-secondary mt-2">
+              <p className="text-xs sm:text-sm text-text-secondary mt-2">
                 {t('institutions.confirmDeleteMessage', { name: editingInstitution.name })}
               </p>
-              <div className="flex justify-center space-x-3 mt-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3 sm:space-x-3 mt-4">
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteModal(false)}
+                  className="w-full sm:w-auto"
+                  size={isMobile ? "sm" : "md"}
                 >
                   {t('common.cancel')}
                 </Button>
                 <Button
                   variant="danger"
                   onClick={() => handleDelete(editingInstitution._id)}
+                  className="w-full sm:w-auto"
+                  size={isMobile ? "sm" : "md"}
                 >
                   {t('common.delete')}
                 </Button>
