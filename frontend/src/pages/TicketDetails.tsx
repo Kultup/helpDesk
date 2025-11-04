@@ -149,7 +149,7 @@ const TicketDetails: React.FC = () => {
   if (error) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-red-600 text-center">
+        <div className="text-red-600 dark:text-red-300 text-center">
           <p className="mb-4">{error}</p>
           <Button onClick={() => navigate(`${basePath}/tickets`)}>
             {t('tickets.backToTickets')}
@@ -162,7 +162,7 @@ const TicketDetails: React.FC = () => {
   if (!ticket) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-gray-600 text-center">
+        <div className="text-gray-600 dark:text-gray-300 text-center">
           <p className="mb-4">{t('tickets.notFound')}</p>
           <Button onClick={() => navigate(`${basePath}/tickets`)}>
             {t('tickets.backToTickets')}
@@ -177,19 +177,19 @@ const TicketDetails: React.FC = () => {
       <div className="mb-6">
         <Link 
           to={`${basePath}/tickets`}
-          className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
+          className="text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 mb-4 inline-block"
         >
           ← {t('tickets.backToTickets')}
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">{ticket.title}</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{ticket.title}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">{t('common.description')}</h2>
-              <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{t('common.description')}</h2>
+              <p className="text-gray-700 dark:text-white whitespace-pre-wrap">{ticket.description}</p>
             </div>
           </Card>
 
@@ -197,31 +197,31 @@ const TicketDetails: React.FC = () => {
           {ticket.attachments && ticket.attachments.length > 0 && (
             <Card>
               <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
                 <div className="space-y-3">
                   {ticket.attachments.map((attachment) => (
-                    <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                    <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
                           {attachment.mimetype.startsWith('image/') ? (
-                            <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           ) : attachment.mimetype === 'application/pdf' ? (
-                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                           ) : (
-                            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-8 h-8 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {attachment.originalName}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 dark:text-gray-300">
                             {(attachment.size / 1024 / 1024).toFixed(2)} MB • 
                             {t('tickets.uploadedBy', { firstName: attachment.uploadedBy.firstName, lastName: attachment.uploadedBy.lastName })} • 
                             {new Date(attachment.uploadedAt).toLocaleDateString('uk-UA')}
@@ -232,7 +232,7 @@ const TicketDetails: React.FC = () => {
                         {attachment.mimetype.startsWith('image/') && (
                           <button
                             onClick={() => navigate(`/photo/${attachment.filename}`)}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -244,7 +244,7 @@ const TicketDetails: React.FC = () => {
                         <a
                           href={`/api/files/${attachment.filename}`}
                           download={attachment.originalName}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                         >
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -270,17 +270,17 @@ const TicketDetails: React.FC = () => {
         <div className="space-y-6">
           <Card>
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">{t('tickets.details')}</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('tickets.details')}</h3>
               <div className="space-y-4">
                 {/* Status */}
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.status')}</span>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('common.status')}</span>
                   {editingStatus && canEdit ? (
                     <div className="space-y-2">
                       <select
                         value={ticket.status}
                         onChange={(e) => handleStatusChange(e.target.value as TicketStatus)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         disabled={isUpdating}
                       >
                         <option value="open">{t('common.statuses.open')}</option>
@@ -306,7 +306,7 @@ const TicketDetails: React.FC = () => {
                       {canEdit && (
                         <button
                           onClick={() => setEditingStatus(true)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          className="text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 text-sm"
                           disabled={isUpdating}
                         >
                           {t('common.edit')}
@@ -318,13 +318,13 @@ const TicketDetails: React.FC = () => {
 
                 {/* Priority */}
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.priority')}</span>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('common.priority')}</span>
                   {editingPriority && canEdit ? (
                     <div className="space-y-2">
                       <select
                         value={ticket.priority}
                         onChange={(e) => handlePriorityChange(e.target.value as TicketPriority)}
-                        className="w-full p-2 border border-gray-300 rounded-md"
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         disabled={isUpdating}
                       >
                         <option value="low">{t('common.priorities.low')}</option>
@@ -349,7 +349,7 @@ const TicketDetails: React.FC = () => {
                       {canEdit && (
                         <button
                           onClick={() => setEditingPriority(true)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          className="text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 text-sm"
                           disabled={isUpdating}
                         >
                           {t('common.edit')}
@@ -360,32 +360,32 @@ const TicketDetails: React.FC = () => {
                 </div>
 
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.city')}</span>
-                  <p className="text-gray-900">{ticket.city?.name || t('tickets.notSpecified')}</p>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('common.city')}</span>
+                  <p className="text-gray-900 dark:text-white">{ticket.city?.name || t('tickets.notSpecified')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.assignedTo')}</span>
-                  <p className="text-gray-900">{ticket.assignedTo?.email || t('tickets.notAssigned')}</p>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('tickets.assignedTo')}</span>
+                  <p className="text-gray-900 dark:text-white">{ticket.assignedTo?.email || t('tickets.notAssigned')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdBy')}</span>
-                  <p className="text-gray-900">{ticket.createdBy?.email || t('tickets.unknown')}</p>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('tickets.createdBy')}</span>
+                  <p className="text-gray-900 dark:text-white">{ticket.createdBy?.email || t('tickets.unknown')}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdAt')}</span>
-                  <p className="text-gray-900">{formatDate(ticket.createdAt)}</p>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('tickets.createdAt')}</span>
+                  <p className="text-gray-900 dark:text-white">{formatDate(ticket.createdAt)}</p>
                 </div>
                 {ticket.resolvedAt && (
                   <div>
-                    <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.resolvedAt')}</span>
-                    <p className="text-gray-900">{formatDate(ticket.resolvedAt)}</p>
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-1">{t('tickets.resolvedAt')}</span>
+                    <p className="text-gray-900 dark:text-white">{formatDate(ticket.resolvedAt)}</p>
                   </div>
                 )}
 
                 {/* Оцінка якості */}
                 {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating && (
                   <div>
-                    <span className="text-sm font-medium text-gray-500 block mb-2">{t('tickets.qualityRating')}</span>
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-300 block mb-2">{t('tickets.qualityRating')}</span>
                     <TicketRating 
                       rating={ticket.qualityRating.rating}
                       feedback={ticket.qualityRating.feedback}
@@ -403,7 +403,7 @@ const TicketDetails: React.FC = () => {
             <Card>
               <div className="p-6 text-center">
                 <LoadingSpinner />
-                <p className="mt-2 text-sm text-gray-600">{t('tickets.updating')}</p>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('tickets.updating')}</p>
               </div>
             </Card>
           )}
