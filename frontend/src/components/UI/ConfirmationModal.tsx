@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertTriangle, X, Check, XCircle } from 'lucide-react';
 import Button from './Button';
 import { cn } from '../../utils';
@@ -28,6 +28,24 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   isLoading = false,
   icon
 }) => {
+  // Обробка клавіатури на рівні документа
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      } else if (e.key === 'Enter' && !isLoading) {
+        onConfirm();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, isLoading, onCancel, onConfirm]);
+
   if (!isOpen) return null;
 
   const getTypeStyles = () => {
@@ -71,22 +89,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onCancel();
-    } else if (e.key === 'Enter' && !isLoading) {
-      onConfirm();
-    }
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto"
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
     >
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Background overlay */}
