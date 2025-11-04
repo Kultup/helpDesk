@@ -469,7 +469,7 @@ const QuickNotifications: React.FC = () => {
                   </div>
                 )}
                 
-                <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                   <span className="text-gray-800 font-medium">Загалом користувачів</span>
                   <span className="text-gray-600 font-bold text-lg">{result.total}</span>
                 </div>

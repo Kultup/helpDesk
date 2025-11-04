@@ -223,7 +223,7 @@ const ADStatistics = () => {
 
       {/* Загальна статистика */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-blue-100">
               <FaUsers className="text-blue-600" size={isMobile ? 18 : 24} />
@@ -239,7 +239,7 @@ const ADStatistics = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-green-100">
               <FaDesktop className="text-green-600" size={isMobile ? 18 : 24} />
@@ -255,7 +255,7 @@ const ADStatistics = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-purple-100">
               <FaBuilding className="text-purple-600" size={isMobile ? 18 : 24} />
@@ -267,7 +267,7 @@ const ADStatistics = () => {
           </div>
         </div>
 
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <div className="flex items-center">
             <div className="p-2 sm:p-3 rounded-full bg-orange-100">
               <FaChartPie className="text-orange-600" size={isMobile ? 18 : 24} />
@@ -283,7 +283,7 @@ const ADStatistics = () => {
       {/* Графіки */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Графік користувачів */}
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">{t('activeDirectory.statistics.userDistribution')}</h3>
           <div className="h-48 sm:h-64">
             <Pie data={usersChartData} options={chartOptions} />
@@ -291,7 +291,7 @@ const ADStatistics = () => {
         </div>
 
         {/* Графік комп'ютерів */}
-        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+        <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">{t('activeDirectory.statistics.computerDistribution')}</h3>
           <div className="h-48 sm:h-64">
             <Pie data={computersChartData} options={chartOptions} />
@@ -303,7 +303,7 @@ const ADStatistics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Операційні системи */}
         {osLabels.length > 0 && (
-          <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
             <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">{t('activeDirectory.statistics.operatingSystems')}</h3>
             <div className="h-48 sm:h-64">
               <Bar data={osChartData} options={barChartOptions} />
@@ -313,7 +313,7 @@ const ADStatistics = () => {
 
         {/* Департаменти */}
         {deptLabels.length > 0 && (
-          <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-sm border">
+          <div className="bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border">
             <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">{t('activeDirectory.statistics.usersByDepartments')}</h3>
             <div className="h-48 sm:h-64">
               <Bar data={departmentsChartData} options={barChartOptions} />

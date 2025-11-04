@@ -198,7 +198,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      <p className="text-base text-gray-900 mb-3 font-medium leading-relaxed">{entry.description}</p>
                      
                      {entry.field && (entry.oldValue !== undefined || entry.newValue !== undefined) && (
-                       <div className="bg-white p-3 rounded border border-gray-200 text-sm">
+                       <div className="bg-white p-3 rounded border border-gray-200 shadow-sm text-sm">
                          <div className="font-semibold text-gray-800 mb-2">
                            Поле: {getFieldLabel(entry.field)}
                          </div>

@@ -7,7 +7,7 @@ const ActiveDirectoryPage: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 lg:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('activeDirectory.title')}</h1>

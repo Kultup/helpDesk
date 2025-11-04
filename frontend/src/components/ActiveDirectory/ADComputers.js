@@ -151,7 +151,7 @@ const ADComputers = () => {
       </div>
 
       {/* Фільтри та пошук */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
+      <div className="bg-white p-4 rounded-lg shadow-md border">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Пошук */}
           <div className="flex-1">
@@ -197,7 +197,7 @@ const ADComputers = () => {
       </div>
 
       {/* Список комп'ютерів */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md border overflow-hidden">
         {filteredComputers.length === 0 ? (
           <div className="text-center py-8 sm:py-12">
             <FaDesktop className="mx-auto text-gray-400 mb-3 sm:mb-4" size={isMobile ? 36 : 48} />

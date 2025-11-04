@@ -243,7 +243,7 @@ const Categories: React.FC = () => {
       </div>
 
       {/* Статистика */}
-      <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 sm:p-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
           <div>
             <p className="text-xl sm:text-2xl font-bold text-blue-600">{categories.length}</p>
@@ -330,7 +330,7 @@ const Categories: React.FC = () => {
       )}
 
       {/* Список категорій */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="divide-y divide-gray-200">
           {filteredCategories.map((category) => {
             const stats = getCategoryStats(category._id);

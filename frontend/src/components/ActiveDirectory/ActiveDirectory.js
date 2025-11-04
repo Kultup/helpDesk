@@ -165,7 +165,7 @@ const ActiveDirectory = () => {
           {connectionStatus?.success ? (
             ActiveComponent ? <ActiveComponent /> : null
           ) : (
-            <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 lg:p-8 text-center">
+            <div className="bg-white rounded-lg shadow-md border p-4 sm:p-6 lg:p-8 text-center">
               <FaExclamationTriangle className="mx-auto text-gray-400 mb-3 sm:mb-4" size={isMobile ? 36 : 48} />
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 {t('activeDirectory.connection.disconnected')}
