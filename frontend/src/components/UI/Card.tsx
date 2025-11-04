@@ -14,9 +14,9 @@ const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantClasses = {
-    default: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
-    outlined: 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700',
-    elevated: 'bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700'
+    default: 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white',
+    outlined: 'bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white',
+    elevated: 'bg-white dark:bg-gray-900 shadow-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'
   };
 
   const paddingClasses = {

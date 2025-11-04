@@ -200,7 +200,7 @@ const TicketDetails: React.FC = () => {
                 <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
                 <div className="space-y-3">
                   {ticket.attachments.map((attachment) => (
-                    <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">
                       <div className="flex items-center space-x-3">
                         <div className="flex-shrink-0">
                           {attachment.mimetype.startsWith('image/') ? (

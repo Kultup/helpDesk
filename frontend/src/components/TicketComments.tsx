@@ -124,7 +124,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
             {comments.map((comment) => (
               <div
                 key={comment._id}
-                className="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                className="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-white"
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-1">
