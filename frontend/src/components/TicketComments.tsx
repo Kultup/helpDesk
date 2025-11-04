@@ -8,7 +8,7 @@ import Button from './UI/Button';
 import LoadingSpinner from './UI/LoadingSpinner';
 import { formatDate } from '../utils';
 import { Send, Trash2, User } from 'lucide-react';
-import { useWindowSize } from '../hooks/useWindowSize';
+import { useWindowSize } from '../hooks';
 
 interface TicketCommentsProps {
   ticketId: string;
