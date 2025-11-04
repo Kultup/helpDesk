@@ -8,10 +8,13 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { Plus, Edit2, Save, X, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useWindowSize } from '../hooks';
 
 const Categories: React.FC = () => {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { width } = useWindowSize();
+  const isMobile = width < 640;
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,40 +205,40 @@ const Categories: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Повідомлення */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm sm:text-base">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md">
+        <div className="bg-green-50 border border-green-200 text-green-700 px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm sm:text-base">
           {success}
         </div>
       )}
 
       {/* Заголовок */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('categories.title')}</h1>
-          <p className="text-gray-600 mt-1">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('categories.title')}</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             {t('categories.subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={() => setShowInactive(!showInactive)}
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
           >
-            {showInactive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showInactive ? <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
             {showInactive ? t('categories.hideInactive') : t('categories.showInactive')}
           </Button>
           {user?.role === 'admin' && (
-            <Button onClick={handleCreate} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <Button onClick={handleCreate} className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto">
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
               {t('categories.create')}
             </Button>
           )}
@@ -243,23 +246,23 @@ const Categories: React.FC = () => {
       </div>
 
       {/* Статистика */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="grid grid-cols-3 gap-6 text-center">
+      <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
           <div>
-            <p className="text-2xl font-bold text-blue-600">{categories.length}</p>
-            <p className="text-sm text-gray-600">{t('categories.stats.total')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">{categories.length}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{t('categories.stats.total')}</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-xl sm:text-2xl font-bold text-green-600">
               {categoryStats.reduce((sum, stat) => sum + stat.totalTickets, 0)}
             </p>
-            <p className="text-sm text-gray-600">{t('categories.stats.totalTickets')}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{t('categories.stats.totalTickets')}</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-orange-600">
+            <p className="text-xl sm:text-2xl font-bold text-orange-600">
               {categoryStats.reduce((sum, stat) => sum + stat.openTickets, 0)}
             </p>
-            <p className="text-sm text-gray-600">{t('categories.stats.openTickets')}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{t('categories.stats.openTickets')}</p>
           </div>
         </div>
       </div>
@@ -268,57 +271,60 @@ const Categories: React.FC = () => {
       {isCreating && (
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold">{t('categories.form.createTitle')}</h3>
+            <h3 className="text-base sm:text-lg font-semibold">{t('categories.form.createTitle')}</h3>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-3 sm:p-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 {t('categories.form.name')}
               </label>
               <Input
                 value={editForm.name}
                 onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                 placeholder={t('categories.form.namePlaceholder')}
+                className="text-sm sm:text-base"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 {t('categories.form.description')}
               </label>
               <Input
                 value={editForm.description}
                 onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                 placeholder={t('categories.form.descriptionPlaceholder')}
+                className="text-sm sm:text-base"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   {t('categories.form.color')}
                 </label>
                 <input
                   type="color"
                   value={editForm.color}
                   onChange={(e) => setEditForm(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-full h-10 border border-gray-300 rounded-md"
+                  className="w-full h-8 sm:h-10 border border-gray-300 rounded-md"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   {t('categories.form.icon')}
                 </label>
                 <Input
                   value={editForm.icon}
                   onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
                   placeholder={t('categories.form.iconPlaceholder')}
+                  className="text-sm sm:text-base"
                 />
               </div>
             </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleCancel}>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:space-x-2 pt-2">
+              <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto text-xs sm:text-sm">
                 {t('categories.form.cancel')}
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} className="w-full sm:w-auto text-xs sm:text-sm">
                 {t('categories.form.save')}
               </Button>
             </div>
@@ -336,32 +342,33 @@ const Categories: React.FC = () => {
             return (
               <div 
                 key={category._id} 
-                className={`p-4 hover:bg-gray-50 transition-colors ${!category.isActive ? 'opacity-60' : ''}`}
+                className={`p-3 sm:p-4 hover:bg-gray-50 transition-colors ${!category.isActive ? 'opacity-60' : ''}`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4 flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1 min-w-0 w-full sm:w-auto">
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg flex-shrink-0"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white text-base sm:text-lg flex-shrink-0"
                       style={{ backgroundColor: category.color }}
                     >
                       {category.icon}
                     </div>
                     
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 w-full sm:w-auto">
                       {isEditing ? (
-                        <div className="space-y-3">
+                        <div className="space-y-3 w-full">
                           <Input
                             value={editForm.name}
                             onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="font-semibold"
+                            className="font-semibold text-sm sm:text-base"
                             placeholder={t('categories.form.namePlaceholder')}
                           />
                           <Input
                             value={editForm.description}
                             onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                             placeholder={t('categories.form.descriptionPlaceholder')}
+                            className="text-sm sm:text-base"
                           />
-                          <div className="flex gap-3">
+                          <div className="flex flex-col sm:flex-row gap-3">
                             <div className="flex-1">
                               <label className="block text-xs font-medium text-gray-700 mb-1">
                                 {t('categories.form.color')}
@@ -381,24 +388,25 @@ const Categories: React.FC = () => {
                                 value={editForm.icon}
                                 onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
                                 placeholder={t('categories.form.iconPlaceholder')}
+                                className="text-sm sm:text-base"
                               />
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-base font-semibold text-gray-900">{category.name}</h3>
+                        <div className="w-full">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-sm sm:text-base font-semibold text-gray-900">{category.name}</h3>
                             {!category.isActive && (
-                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 sm:py-1 rounded-full">
                                 {t('categories.status.inactive')}
                               </span>
                             )}
                           </div>
                           {category.description && (
-                            <p className="text-sm text-gray-600 mt-1">{category.description}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">{category.description}</p>
                           )}
-                          <div className="flex items-center space-x-4 mt-2 text-sm">
+                          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 text-xs sm:text-sm">
                             <span className="text-gray-500">
                               {t('categories.stats.totalTickets')}: <span className="font-medium text-blue-600">{stats.totalTickets}</span>
                             </span>
@@ -415,23 +423,25 @@ const Categories: React.FC = () => {
                   </div>
                   
                   {user?.role === 'admin' && (
-                    <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-0 sm:ml-4 w-full sm:w-auto justify-end sm:justify-start">
                       {isEditing ? (
                         <>
                           <Button
                             size="sm"
                             onClick={handleSave}
-                            className="p-2"
+                            className="p-1.5 sm:p-2 text-xs sm:text-sm"
+                            title={t('categories.form.save')}
                           >
-                            <Save className="h-4 w-4" />
+                            <Save className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={handleCancel}
-                            className="p-2"
+                            className="p-1.5 sm:p-2 text-xs sm:text-sm"
+                            title={t('categories.form.cancel')}
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </>
                       ) : (
@@ -440,28 +450,28 @@ const Categories: React.FC = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => handleEdit(category)}
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             title={t('categories.edit')}
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleToggleActive(category._id, category.isActive)}
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
                             title={category.isActive ? t('categories.deactivate') : t('categories.activate')}
                           >
-                            {category.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            {category.isActive ? <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleDelete(category._id)}
-                            className="p-2 text-red-600 hover:text-red-700"
+                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-700"
                             title={t('categories.delete')}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </>
                       )}
