@@ -22,11 +22,11 @@ class RedisClient {
           const delay = Math.min(times * 50, 2000);
           return delay;
         },
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: null,
         enableReadyCheck: true,
-        enableOfflineQueue: false,
-        connectTimeout: 5000, // Зменшено з 10 до 5 секунд
-        lazyConnect: false,
+        enableOfflineQueue: true,
+        connectTimeout: 5000,
+        lazyConnect: true,
         keepAlive: 30000,
         family: 4, // IPv4
         ...(process.env.REDIS_TLS === 'true' && {
@@ -44,6 +44,7 @@ class RedisClient {
           enableReadyCheck: redisConfig.enableReadyCheck,
           enableOfflineQueue: redisConfig.enableOfflineQueue,
           connectTimeout: redisConfig.connectTimeout,
+          lazyConnect: redisConfig.lazyConnect,
           keepAlive: redisConfig.keepAlive
         });
       } else {
@@ -78,13 +79,18 @@ class RedisClient {
         logger.info(`🔄 Redis переподключення через ${delay}ms...`);
       });
 
-      // Очікуємо підключення з таймаутом
+      // Явне підключення при lazyConnect та перевірка ping з таймаутом
       try {
+        if (redisConfig.lazyConnect && typeof this.client.connect === 'function') {
+          await Promise.race([
+            this.client.connect(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connect timeout')), 7000))
+          ]);
+        }
+
         await Promise.race([
           this.client.ping(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
-          )
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Redis ping timeout')), 5000))
         ]);
       } catch (pingError) {
         // Якщо ping не вдався, закриваємо з'єднання
