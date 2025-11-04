@@ -396,8 +396,8 @@ const Institutions: React.FC = () => {
                         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                           <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isActive 
-                              ? 'bg-green-100 text-green-800 
-                              : 'bg-red-100 text-red-800
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
                           }`}>
                             {institution.isActive ? (
                               <>

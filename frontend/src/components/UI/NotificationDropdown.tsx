@@ -158,7 +158,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               key={ticket._id}
               to={`${basePath}/tickets/${ticket._id}`}
               onClick={onClose}
-              className={`block px-3 sm:px-4 py-3.5 sm:py-4 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[70px] sm:min-h-0 bg-white
+              className={`block px-3 sm:px-4 py-3.5 sm:py-4 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[70px] sm:min-h-0 bg-white`}
             >
               <div className="flex items-start space-x-2 sm:space-x-3">
                 <div className="flex-shrink-0 mt-0.5 sm:mt-1">
@@ -191,10 +191,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                       
                       <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-sm font-medium ${
                         ticket.priority === 'high'
-                          ? 'bg-red-100 text-red-800
+                          ? 'bg-red-100 text-red-800'
                           : ticket.priority === 'medium'
-                          ? 'bg-yellow-100 text-yellow-800
-                          : 'bg-green-100 text-green-800
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
                       }`}>
                         {ticket.priority === 'high' ? t('notifications.priority.high') : 
                          ticket.priority === 'medium' ? t('notifications.priority.medium') : t('notifications.priority.low')}
