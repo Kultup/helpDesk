@@ -124,7 +124,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={t('notifications.title')}
-        className={`absolute ${isMobile ? 'right-0 sm:right-0' : 'right-0'} mt-2 ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
+        className={`absolute ${isMobile ? 'left-1/2 -translate-x-1/2 sm:right-0 sm:translate-x-0' : 'right-0'} mt-2 ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
       >
       {/* Header */}
       <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
