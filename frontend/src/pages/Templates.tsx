@@ -194,12 +194,12 @@ const Templates: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-2 sm:p-4 lg:p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+          <div className="h-6 sm:h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 sm:w-1/4 mb-4"></div>
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+              <div key={i} className="h-20 sm:h-24 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             ))}
           </div>
         </div>
@@ -208,44 +208,44 @@ const Templates: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">{t('templates.title')}</h1>
-            <p className="text-text-secondary">
+    <div className="p-2 sm:p-4 lg:p-6">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-3 sm:mb-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">{t('templates.title')}</h1>
+            <p className="text-xs sm:text-sm text-text-secondary">
               {t('templates.subtitle')}
             </p>
           </div>
           {isAdmin && (
             <Button
               onClick={() => navigate('/templates/new')}
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-2 w-full sm:w-auto text-xs sm:text-sm"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
               <span>{t('templates.newTemplate')}</span>
             </Button>
           )}
         </div>
 
         {/* Фільтри */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary w-4 h-4" />
+              <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-text-secondary w-3 h-3 sm:w-4 sm:h-4" />
               <Input
                 type="text"
                 placeholder={t('templates.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-8 sm:pl-10 text-sm sm:text-base"
               />
             </div>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48 text-sm sm:text-base">
                 <SelectValue placeholder={t('templates.allCategories')} />
               </SelectTrigger>
               <SelectContent>
@@ -265,7 +265,7 @@ const Templates: React.FC = () => {
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48 text-sm sm:text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -281,17 +281,17 @@ const Templates: React.FC = () => {
       {/* Список шаблонів */}
       {templates.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <FileText className="w-12 h-12 text-text-secondary mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">{t('templates.noTemplatesFound')}</h3>
-            <p className="text-text-secondary mb-4">
+          <CardContent className="text-center py-8 sm:py-12 px-4">
+            <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-text-secondary mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">{t('templates.noTemplatesFound')}</h3>
+            <p className="text-xs sm:text-sm text-text-secondary mb-4">
               {searchTerm || selectedCategory 
                 ? t('templates.noTemplatesDescription')
                 : t('templates.noTemplatesAvailable')
               }
             </p>
             {isAdmin && (
-              <Button onClick={() => navigate('/templates/new')}>
+              <Button onClick={() => navigate('/templates/new')} className="text-xs sm:text-sm">
                 {t('templates.createFirstTemplate')}
               </Button>
             )}
@@ -304,36 +304,39 @@ const Templates: React.FC = () => {
               {templates.map((template) => (
                 <div 
                   key={template._id} 
-                  className="p-6 hover:bg-surface/50 transition-colors"
+                  className="p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                     {/* Основна інформація */}
-                    <div className="flex items-start space-x-4 flex-1 min-w-0">
+                    <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0 w-full sm:w-auto">
                       <div 
-                        className="p-3 rounded-lg flex-shrink-0"
+                        className="p-2 sm:p-3 rounded-lg flex-shrink-0"
                         style={{ 
                           backgroundColor: `${template.category.color}20`,
                           color: template.category.color 
                         }}
                       >
-                        {getCategoryIcon(template.category.name)}
+                        <div className="w-4 h-4 sm:w-5 sm:h-5">
+                          {getCategoryIcon(template.category.name)}
+                        </div>
                       </div>
                       
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-foreground leading-tight">
+                          <h3 className="text-base sm:text-lg font-semibold text-foreground leading-tight break-words">
                             {template.title}
                           </h3>
                         </div>
                         
-                        <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                        <p className="text-xs sm:text-sm text-text-secondary mb-2 sm:mb-3 line-clamp-2 break-words">
                           {template.description}
                         </p>
                         
-                        <div className="flex items-center flex-wrap gap-2 mb-3">
+                        <div className="flex items-center flex-wrap gap-2 mb-2 sm:mb-3">
                           <Badge 
                             variant="secondary" 
                             size="sm"
+                            className="text-xs"
                             style={{ 
                               backgroundColor: `${template.category.color}20`,
                               color: template.category.color 
@@ -341,19 +344,21 @@ const Templates: React.FC = () => {
                           >
                             {template.category.name}
                           </Badge>
-                          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs border ${getPriorityColor(template.priority)}`}>
-                            {getPriorityIcon(template.priority)}
+                          <div className={`flex items-center space-x-1 px-2 py-0.5 sm:py-1 rounded-full text-xs border ${getPriorityColor(template.priority)}`}>
+                            <div className="w-3 h-3 sm:w-4 sm:h-4">
+                              {getPriorityIcon(template.priority)}
+                            </div>
                             <span>{getPriorityLabel(template.priority)}</span>
                           </div>
                           {template.tags.length > 0 && (
                             <>
                               {template.tags.slice(0, 3).map((tag, index) => (
-                                <Badge key={`${template._id}-tag-${index}`} variant="secondary" size="sm">
+                                <Badge key={`${template._id}-tag-${index}`} variant="secondary" size="sm" className="text-xs">
                                   {tag}
                                 </Badge>
                               ))}
                               {template.tags.length > 3 && (
-                                <Badge variant="secondary" size="sm">
+                                <Badge variant="secondary" size="sm" className="text-xs">
                                   +{template.tags.length - 3}
                                 </Badge>
                               )}
@@ -361,13 +366,13 @@ const Templates: React.FC = () => {
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-4 text-sm text-text-secondary">
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary">
                           <div className="flex items-center space-x-1">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span>~{template.estimatedResolutionTime} {t('templates.estimatedTime')}</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span>{template.usageCount} {t('templates.usageCount')}</span>
                           </div>
                         </div>
@@ -375,10 +380,11 @@ const Templates: React.FC = () => {
                     </div>
                     
                     {/* Дії */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
                       <Button
                         onClick={() => handleUseTemplate(template)}
                         size="sm"
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
                         {t('templates.useTemplate')}
                       </Button>
@@ -389,17 +395,19 @@ const Templates: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => navigate(`/templates/${template._id}/edit`)}
-                            className="p-2"
+                            className="p-1.5 sm:p-2"
+                            title={t('templates.edit')}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteModal({ isOpen: true, template })}
-                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title={t('templates.delete')}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                         </>
                       )}
@@ -414,31 +422,49 @@ const Templates: React.FC = () => {
 
       {/* Пагінація */}
       {totalPages > 1 && (
-        <div className="flex justify-center mt-8">
-          <div className="flex space-x-2">
+        <div className="flex justify-center mt-4 sm:mt-8 px-2">
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
             <Button
               variant="outline"
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
+              className="text-xs sm:text-sm px-2 sm:px-3"
             >
               {t('templates.pagination.previous')}
             </Button>
             
-            {[...Array(totalPages)].map((_, i) => (
-              <Button
-                key={i + 1}
-                variant={currentPage === i + 1 ? "primary" : "outline"}
-                onClick={() => setCurrentPage(i + 1)}
-                className="w-10"
-              >
-                {i + 1}
-              </Button>
-            ))}
+            {[...Array(totalPages)].map((_, i) => {
+              // Показуємо лише кілька кнопок на мобільних
+              const pageNum = i + 1;
+              const showPage = totalPages <= 5 || 
+                pageNum === 1 || 
+                pageNum === totalPages || 
+                (pageNum >= currentPage - 1 && pageNum <= currentPage + 1);
+              
+              if (!showPage) {
+                if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                  return <span key={i + 1} className="px-2 text-xs sm:text-sm text-text-secondary">...</span>;
+                }
+                return null;
+              }
+              
+              return (
+                <Button
+                  key={i + 1}
+                  variant={currentPage === i + 1 ? "primary" : "outline"}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className="w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm"
+                >
+                  {i + 1}
+                </Button>
+              );
+            })}
             
             <Button
               variant="outline"
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
+              className="text-xs sm:text-sm px-2 sm:px-3"
             >
               {t('templates.pagination.next')}
             </Button>
