@@ -1432,6 +1432,7 @@
     "loading": "Loading...",
     "telegramConnected": "Telegram connected",
     "viewDetails": "View details",
+    "delete": "Delete User",
     "forceDelete": "Force delete user",
     "forceDeleteUser": "Force delete user",
     "selectUsers": "Select users to perform operation",
