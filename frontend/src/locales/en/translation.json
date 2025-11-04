@@ -908,6 +908,12 @@
         "previous": "Previous",
         "next": "Next"
       },
+      "errors": {
+        "loadCategoriesError": "Error loading categories",
+        "createFailed": "Failed to create template",
+        "loadTemplateError": "Error loading template",
+        "updateFailed": "Failed to update template"
+      },
       "deleteModal": {
         "title": "Delete Template",
         "message": "Are you sure you want to delete template \"{{title}}\"? This action cannot be undone.",
@@ -1014,6 +1020,8 @@
     "createTemplate": {
       "title": "Create New Template",
       "subtitle": "Create a template for quick ticket creation with pre-filled data",
+      "editTitle": "Edit Template",
+      "editSubtitle": "Make changes to the template",
       "backToTemplates": "Back to Templates",
       "basicInfo": {
         "title": "Basic Information",
@@ -1050,6 +1058,13 @@
         "saving": "Saving...",
         "cancel": "Cancel",
         "reset": "Reset Form"
+      },
+      "buttons": {
+        "cancel": "Cancel",
+        "create": "Create Template",
+        "creating": "Creating...",
+        "update": "Update Template",
+        "updating": "Updating..."
       },
       "validation": {
         "titleRequired": "Template title is required",

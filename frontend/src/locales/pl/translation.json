@@ -1107,8 +1107,62 @@
     "errors": {
       "loadCategoriesError": "Błąd podczas ładowania kategorii",
       "createFailed": "Nie udało się utworzyć szablonu",
+      "loadTemplateError": "Błąd podczas ładowania szablonu",
       "updateFailed": "Nie udało się zaktualizować szablonu",
       "loadFailed": "Nie udało się załadować danych szablonu"
+    }
+  },
+  "createTemplate": {
+    "title": "Utwórz nowy szablon",
+    "subtitle": "Utwórz szablon do szybkiego tworzenia zgłoszeń z wstępnie wypełnionymi danymi",
+    "editTitle": "Edytuj szablon",
+    "editSubtitle": "Wprowadź zmiany w szablonie",
+    "backToTemplates": "Powrót do szablonów",
+    "basicInfo": {
+      "title": "Podstawowe informacje",
+      "templateName": "Nazwa szablonu",
+      "templateNamePlaceholder": "Na przykład: Problemy z drukarką",
+      "category": "Kategoria",
+      "categoryPlaceholder": "Wybierz kategorię",
+      "description": "Opis szablonu",
+      "descriptionPlaceholder": "Szczegółowy opis problemu i kroków do jego rozwiązania",
+      "priority": "Priorytet",
+      "estimatedTime": "Szacowany czas rozwiązania (godziny)"
+    },
+    "tags": {
+      "title": "Tagi",
+      "addTag": "Dodaj tag",
+      "placeholder": "Dodaj tag"
+    },
+    "instructions": {
+      "title": "Instrukcje rozwiązania",
+      "placeholder": "Szczegółowe instrukcje dla personelu technicznego dotyczące rozwiązania tego typu problemu"
+    },
+    "additionalFields": {
+      "title": "Dodatkowe pola formularza",
+      "addField": "Dodaj pole",
+      "fieldName": "Nazwa pola",
+      "fieldNamePlaceholder": "Na przykład: Model drukarki",
+      "fieldType": "Typ pola",
+      "required": "Wymagane",
+      "options": "Opcje wyboru (oddzielone przecinkami)",
+      "optionsPlaceholder": "Opcja 1, Opcja 2, Opcja 3",
+      "noFields": "Nie dodano dodatkowych pól",
+      "noFieldsDescription": "Kliknij \"Dodaj pole\", aby utworzyć dodatkowe pola formularza"
+    },
+    "fieldTypes": {
+      "text": "Tekst",
+      "textarea": "Tekst wielowierszowy",
+      "select": "Lista wyboru",
+      "checkbox": "Pole wyboru",
+      "number": "Liczba"
+    },
+    "buttons": {
+      "cancel": "Anuluj",
+      "create": "Utwórz szablon",
+      "creating": "Tworzenie...",
+      "update": "Zaktualizuj szablon",
+      "updating": "Aktualizowanie..."
     }
   },
   "activeDirectory": {

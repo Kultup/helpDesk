@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 import Card, { CardContent, CardHeader, CardTitle } from '../components/UI/Card';
@@ -7,6 +7,7 @@ import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/UI/Select';
 import Badge from '../components/UI/Badge';
+import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Category } from '../types';
@@ -32,9 +33,12 @@ interface CreateTemplateForm {
 
 const CreateTemplate: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const isEditMode = !!id;
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string>('');
   const [newTag, setNewTag] = useState('');
@@ -53,7 +57,10 @@ const CreateTemplate: React.FC = () => {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+    if (isEditMode && id) {
+      loadTemplate(id);
+    }
+  }, [id, isEditMode]);
 
   const loadCategories = async () => {
     try {
@@ -61,6 +68,33 @@ const CreateTemplate: React.FC = () => {
       setCategories(response.data || []);
     } catch (error) {
       console.error(t('templates.errors.loadCategoriesError'), error);
+    }
+  };
+
+  const loadTemplate = async (templateId: string) => {
+    try {
+      setInitialLoading(true);
+      const response = await apiService.getTicketTemplateById(templateId);
+      if (response.data) {
+        const template = response.data;
+        setFormData({
+          title: template.title || '',
+          description: template.description || '',
+          category: template.category?._id || template.category || '',
+          priority: template.priority || 'medium',
+          estimatedResolutionTime: template.estimatedResolutionTime || 24,
+          tags: template.tags || [],
+          fields: template.fields || [],
+          instructions: template.instructions || '',
+          isActive: template.isActive !== undefined ? template.isActive : true
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading template:', error);
+      setError(error.response?.data?.message || t('templates.errors.loadTemplateError'));
+      navigate('/templates');
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -128,10 +162,14 @@ const CreateTemplate: React.FC = () => {
     setLoading(true);
 
     try {
-      await apiService.createTicketTemplate(formData);
+      if (isEditMode && id) {
+        await apiService.updateTicketTemplate(id, formData);
+      } else {
+        await apiService.createTicketTemplate(formData);
+      }
       navigate('/templates');
     } catch (error: any) {
-      setError(error.response?.data?.message || t('templates.errors.createFailed'));
+      setError(error.response?.data?.message || (isEditMode ? t('templates.errors.updateFailed') : t('templates.errors.createFailed')));
     } finally {
       setLoading(false);
     }
@@ -150,6 +188,14 @@ const CreateTemplate: React.FC = () => {
     return t(`templates.priority.${priority}`, { defaultValue: t('templates.priority.medium') });
   };
 
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -164,9 +210,11 @@ const CreateTemplate: React.FC = () => {
             <span>{t('createTemplate.backToTemplates')}</span>
           </Button>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('createTemplate.title')}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isEditMode ? t('createTemplate.editTitle') : t('createTemplate.title')}
+        </h1>
         <p className="text-gray-600 mt-1">
-          {t('createTemplate.subtitle')}
+          {isEditMode ? t('createTemplate.editSubtitle') : t('createTemplate.subtitle')}
         </p>
       </div>
 
@@ -443,7 +491,12 @@ const CreateTemplate: React.FC = () => {
             className="flex items-center space-x-2"
           >
             <Save className="w-4 h-4" />
-            <span>{loading ? t('createTemplate.buttons.creating') : t('createTemplate.buttons.create')}</span>
+            <span>
+              {loading 
+                ? (isEditMode ? t('createTemplate.buttons.updating') : t('createTemplate.buttons.creating'))
+                : (isEditMode ? t('createTemplate.buttons.update') : t('createTemplate.buttons.create'))
+              }
+            </span>
           </Button>
         </div>
       </form>

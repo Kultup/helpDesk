@@ -112,6 +112,11 @@ const App: React.FC = () => {
                 <CreateTemplate />
               </ProtectedRoute>
             } />
+            <Route path="templates/:id/edit" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <CreateTemplate />
+              </ProtectedRoute>
+            } />
             <Route path="settings" element={<Settings />} />
 
             
