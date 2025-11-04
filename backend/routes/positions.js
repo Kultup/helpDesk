@@ -119,16 +119,41 @@ router.get('/', authenticateToken, async (req, res) => {
       filters.title = { $regex: search, $options: 'i' };
     }
 
+    // Виключаємо посаду "адміністратор системи" для звичайних користувачів
+    // Адміністратори мають бачити всі посади
+    if (req.user.role !== 'admin') {
+      // Додаємо фільтр для виключення посади "адміністратор системи"
+      // Використовуємо $not для regex, щоб виключити посади з такою назвою
+      filters.$and = filters.$and || [];
+      filters.$and.push({
+        title: {
+          $not: {
+            $regex: /адміністратор системи|администратор системы|system administrator/i
+          }
+        }
+      });
+    }
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
     };
 
-    const positions = await Position.find(filters)
+    let positions = await Position.find(filters)
       .sort(options.sort)
       .limit(options.limit * options.page)
       .skip((options.page - 1) * options.limit);
+
+    // Додаткова фільтрація для звичайних користувачів (на випадок, якщо regex не спрацював)
+    if (req.user.role !== 'admin') {
+      positions = positions.filter(position => {
+        const titleLower = position.title.toLowerCase();
+        return !titleLower.includes('адміністратор системи') && 
+               !titleLower.includes('администратор системы') &&
+               !titleLower.includes('system administrator');
+      });
+    }
 
     const total = await Position.countDocuments(filters);
 
@@ -160,6 +185,28 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const position = await Position.findById(req.params.id);
+    
+    if (!position) {
+      return res.status(404).json({
+        success: false,
+        message: 'Посада не знайдена'
+      });
+    }
+    
+    // Перевірка, чи звичайний користувач намагається отримати посаду "адміністратор системи"
+    if (req.user.role !== 'admin') {
+      const titleLower = position.title.toLowerCase();
+      const isAdminPosition = titleLower.includes('адміністратор системи') || 
+                             titleLower.includes('администратор системы') ||
+                             titleLower.includes('system administrator');
+      
+      if (isAdminPosition) {
+        return res.status(403).json({
+          success: false,
+          message: 'Доступ заборонено'
+        });
+      }
+    }
 
     if (!position) {
       return res.status(404).json({
