@@ -414,8 +414,8 @@ const Institutions: React.FC = () => {
                           
                           <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
                             institution.isPublic 
-                              ? 'bg-blue-100 text-blue-800 
-                              : 'bg-gray-100 text-gray-800
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
                           }`}>
                             {institution.isPublic ? (
                               <>
