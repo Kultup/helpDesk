@@ -182,7 +182,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           )}
           
           <div className="flex items-center">
-            <h1 className="text-lg sm:text-xl font-bold text-primary-500">Help Desk</h1>
+            <Link to="/dashboard" className="text-lg sm:text-xl font-bold text-primary-500 hover:text-primary-600 transition-colors duration-200">
+              {t('sidebar.appName')}
+            </Link>
           </div>
         </div>
 
