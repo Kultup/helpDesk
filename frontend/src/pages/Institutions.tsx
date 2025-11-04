@@ -314,7 +314,7 @@ const Institutions: React.FC = () => {
                   key={institution._id}
                   className={`p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors ${
                     selectedInstitutions.includes(institution._id)
-                      ? 'bg-primary-50/50
+                      ? 'bg-primary-50/50'
                       : ''
                   }`}
                 >

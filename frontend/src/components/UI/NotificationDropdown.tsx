@@ -183,8 +183,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
                       <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-sm font-medium ${
                         ticket.status === 'open' 
-                          ? 'bg-red-100 text-red-800
-                          : 'bg-yellow-100 text-yellow-800
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
                       }`}>
                         {getStatusText(ticket.status)}
                       </span>

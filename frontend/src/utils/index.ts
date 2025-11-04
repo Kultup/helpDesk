@@ -78,10 +78,10 @@ export const getDueDateStatus = (dueDate: string | Date | null): 'overdue' | 'du
 // Утиліти для статусів тикетів
 export const getStatusColor = (status: TicketStatus): string => {
   const colors = {
-    [TicketStatus.OPEN]: 'bg-red-100 text-red-800 border-red-200
-    [TicketStatus.IN_PROGRESS]: 'bg-yellow-100 text-yellow-800 border-yellow-200
-    [TicketStatus.RESOLVED]: 'bg-green-100 text-green-800 border-green-200
-    [TicketStatus.CLOSED]: 'bg-gray-100 text-gray-800 border-gray-200
+    [TicketStatus.OPEN]: 'bg-red-100 text-red-800 border-red-200',
+    [TicketStatus.IN_PROGRESS]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    [TicketStatus.RESOLVED]: 'bg-green-100 text-green-800 border-green-200',
+    [TicketStatus.CLOSED]: 'bg-gray-100 text-gray-800 border-gray-200'
   };
   return colors[status] || colors[TicketStatus.OPEN];
 };
@@ -89,9 +89,9 @@ export const getStatusColor = (status: TicketStatus): string => {
 // Утиліти для пріоритетів
 export const getPriorityColor = (priority: TicketPriority): string => {
   const colors = {
-    [TicketPriority.LOW]: 'bg-blue-100 text-blue-800 border-blue-200
-    [TicketPriority.MEDIUM]: 'bg-yellow-100 text-yellow-800 border-yellow-200
-    [TicketPriority.HIGH]: 'bg-red-100 text-red-800 border-red-200
+    [TicketPriority.LOW]: 'bg-blue-100 text-blue-800 border-blue-200',
+    [TicketPriority.MEDIUM]: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    [TicketPriority.HIGH]: 'bg-red-100 text-red-800 border-red-200'
   };
   return colors[priority] || colors[TicketPriority.LOW];
 };

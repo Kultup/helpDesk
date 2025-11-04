@@ -321,11 +321,11 @@ const Positions: React.FC = () => {
                               <span
                                 key={`${position._id}-skill-${index}`}
                                 className={`inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${
-                                  skill.level === 'expert' ? 'bg-purple-100 text-purple-800 :
-                                  skill.level === 'advanced' ? 'bg-blue-100 text-blue-800 :
-                                  skill.level === 'intermediate' ? 'bg-green-100 text-green-800 :
-                                  'bg-gray-100 text-gray-800
-                                } ${skill.required ? 'ring-2 ring-red-200 : ''}`}
+                                  skill.level === 'expert' ? 'bg-purple-100 text-purple-800' :
+                                  skill.level === 'advanced' ? 'bg-blue-100 text-blue-800' :
+                                  skill.level === 'intermediate' ? 'bg-green-100 text-green-800' :
+                                  'bg-gray-100 text-gray-800'
+                                } ${skill.required ? 'ring-2 ring-red-200' : ''}`}
                                 title={`${String(skill.name || t('positions.skillName'))} (${
                                   skill.level === 'expert' ? t('positions.expert') :
                                   skill.level === 'advanced' ? t('positions.advanced') :

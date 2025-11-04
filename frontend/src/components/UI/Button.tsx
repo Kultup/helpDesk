@@ -32,11 +32,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseClasses = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variantClasses = {
-      primary: 'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500
-      secondary: 'bg-surface text-foreground hover:bg-border focus:ring-border
-      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500
-      ghost: 'text-foreground hover:bg-surface focus:ring-border
-      outline: 'border border-border bg-surface text-foreground hover:bg-surface focus:ring-primary-500
+      primary: 'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500',
+      secondary: 'bg-surface text-foreground hover:bg-border focus:ring-border',
+      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+      ghost: 'text-foreground hover:bg-surface focus:ring-border',
+      outline: 'border border-border bg-surface text-foreground hover:bg-surface focus:ring-primary-500'
     };
 
     const sizeClasses = {
