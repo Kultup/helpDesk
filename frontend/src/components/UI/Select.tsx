@@ -27,6 +27,7 @@ interface SelectItemProps {
 interface SelectValueProps {
   placeholder?: string;
   className?: string;
+  children?: React.ReactNode;
 }
 
 const SelectContext = React.createContext<{
@@ -127,11 +128,20 @@ export const SelectItem: React.FC<SelectItemProps> = ({ value, children, classNa
   );
 };
 
-export const SelectValue: React.FC<SelectValueProps> = ({ placeholder, className }) => {
+export const SelectValue: React.FC<SelectValueProps> = ({ placeholder, className, children }) => {
   const context = React.useContext(SelectContext);
   if (!context) throw new Error('SelectValue must be used within Select');
 
   const { value } = context;
+
+  // Якщо є children, використовуємо їх замість value
+  if (children) {
+    return (
+      <span className={cn("block truncate", className)}>
+        {children}
+      </span>
+    );
+  }
 
   return (
     <span className={cn("block truncate", className)}>

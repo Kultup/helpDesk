@@ -56,10 +56,14 @@ const CreateTemplate: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCategories();
-    if (isEditMode && id) {
-      loadTemplate(id);
-    }
+    const loadData = async () => {
+      await loadCategories();
+      if (isEditMode && id) {
+        // Завантажуємо шаблон після того, як категорії завантажені
+        await loadTemplate(id);
+      }
+    };
+    loadData();
   }, [id, isEditMode]);
 
   const loadCategories = async () => {
@@ -75,18 +79,27 @@ const CreateTemplate: React.FC = () => {
     try {
       setInitialLoading(true);
       const response = await apiService.getTicketTemplateById(templateId);
-      if (response.data) {
-        const template = response.data;
+      // API повертає { success: true, data: template }
+      const template = response.data || response;
+      console.log('Loaded template:', template);
+      if (template) {
+        const categoryId = template.category?._id || template.category || '';
+        console.log('Category ID:', categoryId, 'Category object:', template.category);
         setFormData({
           title: template.title || '',
           description: template.description || '',
-          category: template.category?._id || template.category || '',
+          category: categoryId,
           priority: template.priority || 'medium',
           estimatedResolutionTime: template.estimatedResolutionTime || 24,
           tags: template.tags || [],
           fields: template.fields || [],
           instructions: template.instructions || '',
           isActive: template.isActive !== undefined ? template.isActive : true
+        });
+        console.log('Form data set:', {
+          title: template.title || '',
+          description: template.description || '',
+          category: categoryId
         });
       }
     } catch (error: any) {
@@ -253,7 +266,22 @@ const CreateTemplate: React.FC = () => {
                   onValueChange={(value) => handleSelectChange('category', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t('createTemplate.basicInfo.categoryPlaceholder')} />
+                    <SelectValue placeholder={t('createTemplate.basicInfo.categoryPlaceholder')}>
+                      {formData.category && categories.length > 0 ? (
+                        (() => {
+                          const selectedCategory = categories.find(cat => cat._id === formData.category);
+                          return selectedCategory ? (
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: selectedCategory.color }}
+                              />
+                              <span>{selectedCategory.name}</span>
+                            </div>
+                          ) : null;
+                        })()
+                      ) : null}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
