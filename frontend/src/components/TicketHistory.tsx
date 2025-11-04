@@ -138,7 +138,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
       <Card>
         <div className="p-6 text-center">
           <LoadingSpinner />
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Завантаження історії...</p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-white/80">Завантаження історії...</p>
         </div>
       </Card>
     );
@@ -147,7 +147,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   if (error) {
     return (
       <Card>
-        <div className="p-6 text-center text-red-600 dark:text-red-400">
+        <div className="p-6 text-center text-red-600 dark:text-red-300">
           <p>{error}</p>
           <Button onClick={loadHistory} className="mt-2" size="sm">
             Спробувати знову
@@ -161,13 +161,13 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
     <Card>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Історія змін</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Історія змін</h3>
         </div>
 
         {filteredHistory.length === 0 ? (
           <div className="text-center py-8">
-            <Clock className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">Історія змін поки порожня</p>
+            <Clock className="h-12 w-12 text-gray-400 dark:text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-white/80">Історія змін поки порожня</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -182,31 +182,31 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                    </div>
                    <div className="flex-1 min-w-0">
                      <div className="flex items-center flex-wrap gap-2 mb-2">
-                       <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                       <span className="text-sm font-semibold text-gray-900 dark:text-white">
                          {entry.user?.email || 'Невідомий користувач'}
                        </span>
                        {entry.user?.position && (
-                         <span className="text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                         <span className="text-xs font-medium text-gray-700 dark:text-white bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
                            {entry.user.position}
                          </span>
                        )}
-                       <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                       <span className="text-sm text-gray-600 dark:text-white/80 whitespace-nowrap">
                          {formatDate(entry.createdAt)}
                        </span>
                      </div>
                      
-                     <p className="text-base text-gray-900 dark:text-gray-100 mb-3 font-medium leading-relaxed">{entry.description}</p>
+                     <p className="text-base text-gray-900 dark:text-white mb-3 font-medium leading-relaxed">{entry.description}</p>
                      
                      {entry.field && (entry.oldValue !== undefined || entry.newValue !== undefined) && (
                        <div className="bg-white dark:bg-gray-800/90 p-3 rounded border border-gray-200 dark:border-gray-600 text-sm">
-                         <div className="font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                         <div className="font-semibold text-gray-800 dark:text-white mb-2">
                            Поле: {getFieldLabel(entry.field)}
                          </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                            {entry.oldValue !== undefined && (
                              <div>
                                <span className="text-red-600 dark:text-red-300 font-semibold">Було:</span>
-                               <div className="text-gray-900 dark:text-gray-100 bg-red-50 dark:bg-red-950/50 p-2 rounded mt-1 font-medium">
+                               <div className="text-gray-900 dark:text-white bg-red-50 dark:bg-red-950/50 p-2 rounded mt-1 font-medium">
                                  {formatValue(entry.oldValue)}
                                </div>
                              </div>
@@ -214,7 +214,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                            {entry.newValue !== undefined && (
                              <div>
                                <span className="text-green-600 dark:text-green-300 font-semibold">Стало:</span>
-                               <div className="text-gray-900 dark:text-gray-100 bg-green-50 dark:bg-green-950/50 p-2 rounded mt-1 font-medium">
+                               <div className="text-gray-900 dark:text-white bg-green-50 dark:bg-green-950/50 p-2 rounded mt-1 font-medium">
                                  {formatValue(entry.newValue)}
                                </div>
                              </div>
@@ -224,10 +224,10 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      )}
                      
                      {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                       <div className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+                       <div className="mt-2 text-sm text-gray-700 dark:text-white">
                          <details>
-                           <summary className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 font-medium">• Додаткова інформація</summary>
-                           <pre className="mt-1 bg-gray-100 dark:bg-gray-800/90 p-2 rounded text-xs overflow-x-auto text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600">
+                           <summary className="cursor-pointer hover:text-gray-900 dark:hover:text-white font-medium">• Додаткова інформація</summary>
+                           <pre className="mt-1 bg-gray-100 dark:bg-gray-800/90 p-2 rounded text-xs overflow-x-auto text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600">
                              {JSON.stringify(entry.metadata, null, 2)}
                            </pre>
                          </details>
