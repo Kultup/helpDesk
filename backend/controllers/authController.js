@@ -136,16 +136,9 @@ class AuthController {
         user.refreshTokens = user.refreshTokens.slice(-5);
       }
 
-      // Використовуємо updateOne замість save для уникнення проблем з версіонуванням
-      await User.updateOne(
-        { _id: user._id },
-        {
-          $set: {
-            lastLogin: user.lastLogin,
-            refreshTokens: user.refreshTokens
-          }
-        }
-      );
+      // Зберігаємо зміни через user.save(), щоб спрацювали mongoose hooks та валідація
+      user.markModified('refreshTokens');
+      await user.save({ validateModifiedOnly: true });
 
       // Логування успішного входу
       logger.info(`Користувач увійшов в систему: ${email}`, {
