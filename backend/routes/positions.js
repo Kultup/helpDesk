@@ -208,13 +208,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
-    if (!position) {
-      return res.status(404).json({
-        success: false,
-        message: 'Посаду не знайдено'
-      });
-    }
-
     res.json({
       success: true,
       data: position
