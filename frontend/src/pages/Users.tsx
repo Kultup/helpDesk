@@ -543,12 +543,12 @@ const Users: React.FC = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Користувач</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Роль</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Посада</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Місто</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Дата деактивації</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Дії</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('users.userColumn')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('users.roleColumn')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('users.positionColumn')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('users.cityColumn')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('users.deactivationDate')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('users.actionsColumn')}</th>
                     </tr>
                   </thead>
                   <tbody>
