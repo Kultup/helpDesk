@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useWindowSize } from '../hooks';
 
 interface LogEntry {
   timestamp: string;
@@ -18,6 +19,8 @@ const LogViewer: React.FC<LogViewerProps> = ({
   maxLogs = 1000, 
   autoScroll = true 
 }) => {
+  const { width } = useWindowSize();
+  const isMobile = width < 640;
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [filter, setFilter] = useState<{
@@ -126,27 +129,27 @@ const LogViewer: React.FC<LogViewerProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
+    <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4 gap-2 sm:gap-0">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
           Логи системи в реальному часі
         </h2>
         <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-sm text-gray-600">
+          <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-xs sm:text-sm text-gray-600">
             {isConnected ? 'Підключено' : 'Відключено'}
           </span>
         </div>
       </div>
 
       {/* Фільтри та контроли */}
-      <div className="flex flex-wrap gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700">Рівень:</label>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 mb-3 sm:mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+          <label className="text-xs sm:text-sm font-medium text-gray-700">Рівень:</label>
           <select
             value={filter.level}
             onChange={(e) => setFilter(prev => ({ ...prev, level: e.target.value }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md"
           >
             <option value="all">Всі</option>
             <option value="error">Error</option>
@@ -156,12 +159,12 @@ const LogViewer: React.FC<LogViewerProps> = ({
           </select>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700">Джерело:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+          <label className="text-xs sm:text-sm font-medium text-gray-700">Джерело:</label>
           <select
             value={filter.source}
             onChange={(e) => setFilter(prev => ({ ...prev, source: e.target.value }))}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md"
           >
             <option value="all">Всі</option>
             <option value="backend">Backend</option>
@@ -169,21 +172,21 @@ const LogViewer: React.FC<LogViewerProps> = ({
           </select>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700">Пошук:</label>
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+          <label className="text-xs sm:text-sm font-medium text-gray-700">Пошук:</label>
           <input
             type="text"
             value={filter.search}
             onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
             placeholder="Пошук в логах..."
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm w-48"
+            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded-md w-full sm:w-48"
           />
         </div>
 
-        <div className="flex items-center space-x-2 ml-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:space-x-2 sm:ml-auto">
           <button
             onClick={() => setIsPaused(!isPaused)}
-            className={`px-3 py-1 rounded-md text-sm font-medium ${
+            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium ${
               isPaused 
                 ? 'bg-green-500 text-white hover:bg-green-600' 
                 : 'bg-yellow-500 text-white hover:bg-yellow-600'
@@ -193,13 +196,13 @@ const LogViewer: React.FC<LogViewerProps> = ({
           </button>
           <button
             onClick={clearLogs}
-            className="px-3 py-1 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600"
+            className="px-2 sm:px-3 py-1 bg-red-500 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-red-600"
           >
             Очистити
           </button>
           <button
             onClick={exportLogs}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600"
+            className="px-2 sm:px-3 py-1 bg-blue-500 text-white rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600"
           >
             Експорт
           </button>
@@ -207,29 +210,55 @@ const LogViewer: React.FC<LogViewerProps> = ({
       </div>
 
       {/* Область логів */}
-      <div className="bg-black text-green-400 font-mono text-sm p-4 rounded-lg h-96 overflow-y-auto">
+      <div className="bg-black text-green-400 font-mono text-xs sm:text-sm p-2 sm:p-4 rounded-lg h-64 sm:h-80 lg:h-96 overflow-y-auto">
         {filteredLogs.length === 0 ? (
-          <div className="text-gray-500 text-center py-8">
+          <div className="text-gray-500 text-center py-6 sm:py-8 text-xs sm:text-sm">
             {logs.length === 0 ? 'Очікування логів...' : 'Немає логів, що відповідають фільтрам'}
           </div>
         ) : (
           filteredLogs.map((log, index) => (
-            <div key={index} className="mb-1 hover:bg-gray-800 px-2 py-1 rounded">
-              <div className="flex items-start space-x-2">
-                <span className="text-gray-400 text-xs whitespace-nowrap">
-                  {new Date(log.timestamp).toLocaleTimeString()}
-                </span>
-                <span className={`${getLevelColor(log.level)} font-bold text-xs uppercase whitespace-nowrap`}>
-                  {log.level}
-                </span>
-                <span className={`${getSourceBadge(log.source)} whitespace-nowrap`}>
-                  {log.source}
-                </span>
-                <span className="text-green-400 break-all">
-                  {log.message}
-                </span>
-              </div>
-              {log.details && (
+            <div key={index} className="mb-1 hover:bg-gray-800 px-1 sm:px-2 py-0.5 sm:py-1 rounded">
+              {isMobile ? (
+                // Мобільний вигляд - вертикальний layout
+                <div className="flex flex-col space-y-1">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                    <span className="text-gray-400 text-xs whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </span>
+                    <span className={`${getLevelColor(log.level)} font-bold text-xs uppercase whitespace-nowrap`}>
+                      {log.level}
+                    </span>
+                    <span className={`${getSourceBadge(log.source)} whitespace-nowrap`}>
+                      {log.source}
+                    </span>
+                  </div>
+                  <span className="text-green-400 break-words">
+                    {log.message}
+                  </span>
+                  {log.details && (
+                    <div className="mt-1 text-gray-300 text-xs break-all overflow-x-auto">
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(log.details, null, 2)}</pre>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Десктопний вигляд - горизонтальний layout
+                <div className="flex items-start space-x-2">
+                  <span className="text-gray-400 text-xs whitespace-nowrap">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span className={`${getLevelColor(log.level)} font-bold text-xs uppercase whitespace-nowrap`}>
+                    {log.level}
+                  </span>
+                  <span className={`${getSourceBadge(log.source)} whitespace-nowrap`}>
+                    {log.source}
+                  </span>
+                  <span className="text-green-400 break-all">
+                    {log.message}
+                  </span>
+                </div>
+              )}
+              {!isMobile && log.details && (
                 <div className="ml-20 mt-1 text-gray-300 text-xs">
                   {JSON.stringify(log.details, null, 2)}
                 </div>
@@ -241,7 +270,7 @@ const LogViewer: React.FC<LogViewerProps> = ({
       </div>
 
       {/* Статистика */}
-      <div className="mt-4 flex justify-between text-sm text-gray-600">
+      <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row justify-between text-xs sm:text-sm text-gray-600 gap-1 sm:gap-0">
         <span>Всього логів: {logs.length}</span>
         <span>Відфільтровано: {filteredLogs.length}</span>
         <span>Статус: {isPaused ? 'Призупинено' : 'Активно'}</span>
