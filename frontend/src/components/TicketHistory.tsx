@@ -80,26 +80,26 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   const getActionIcon = (action: string) => {
     switch (action) {
       case 'created':
-        return <User className="w-4 h-4 text-green-600" />;
+        return <User className="w-5 h-5 text-green-600 dark:text-green-400" />;
       case 'updated':
-        return <Edit className="w-4 h-4 text-blue-600" />;
+        return <Edit className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
       case 'status_changed':
-        return <Clock className="w-4 h-4 text-orange-600" />;
+        return <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />;
       default:
-        return <Edit className="w-4 h-4 text-gray-600" />;
+        return <Edit className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
     }
   };
 
   const getActionColor = (action: string) => {
     switch (action) {
       case 'created':
-        return 'border-green-200 bg-green-50';
+        return 'border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20';
       case 'updated':
-        return 'border-blue-200 bg-blue-50';
+        return 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20';
       case 'status_changed':
-        return 'border-orange-200 bg-orange-50';
+        return 'border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20';
       default:
-        return 'border-gray-200 bg-gray-50';
+        return 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50';
     }
   };
 
@@ -138,7 +138,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
       <Card>
         <div className="p-6 text-center">
           <LoadingSpinner />
-          <p className="mt-2 text-sm text-gray-600">Завантаження історії...</p>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Завантаження історії...</p>
         </div>
       </Card>
     );
@@ -147,7 +147,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   if (error) {
     return (
       <Card>
-        <div className="p-6 text-center text-red-600">
+        <div className="p-6 text-center text-red-600 dark:text-red-400">
           <p>{error}</p>
           <Button onClick={loadHistory} className="mt-2" size="sm">
             Спробувати знову
@@ -161,13 +161,13 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
     <Card>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Історія змін</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Історія змін</h3>
         </div>
 
         {filteredHistory.length === 0 ? (
           <div className="text-center py-8">
-            <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Історія змін поки порожня</p>
+            <Clock className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">Історія змін поки порожня</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -181,40 +181,40 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      {getActionIcon(entry.action)}
                    </div>
                    <div className="flex-1">
-                     <div className="flex items-center space-x-2 mb-1">
-                       <span className="font-medium text-gray-900">
+                     <div className="flex items-center flex-wrap gap-2 mb-2">
+                       <span className="text-sm font-medium text-gray-900 dark:text-gray-50">
                          {entry.user?.email || 'Невідомий користувач'}
                        </span>
                        {entry.user?.position && (
-                         <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                         <span className="text-xs text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
                            {entry.user.position}
                          </span>
                        )}
-                       <span className="text-sm text-gray-500">
+                       <span className="text-sm text-gray-600 dark:text-gray-400">
                          {formatDate(entry.createdAt)}
                        </span>
                      </div>
                      
-                     <p className="text-gray-700 mb-2">{entry.description}</p>
+                     <p className="text-sm text-gray-800 dark:text-gray-200 mb-3">{entry.description}</p>
                      
                      {entry.field && (entry.oldValue !== undefined || entry.newValue !== undefined) && (
-                       <div className="bg-white p-3 rounded border text-sm">
-                         <div className="font-medium text-gray-600 mb-2">
+                       <div className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 text-sm">
+                         <div className="font-medium text-gray-700 dark:text-gray-300 mb-2">
                            Поле: {getFieldLabel(entry.field)}
                          </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                            {entry.oldValue !== undefined && (
                              <div>
-                               <span className="text-red-600 font-medium">Було:</span>
-                               <div className="text-gray-700 bg-red-50 p-2 rounded mt-1">
+                               <span className="text-red-600 dark:text-red-400 font-medium">Було:</span>
+                               <div className="text-gray-800 dark:text-gray-200 bg-red-50 dark:bg-red-900/20 p-2 rounded mt-1">
                                  {formatValue(entry.oldValue)}
                                </div>
                              </div>
                            )}
                            {entry.newValue !== undefined && (
                              <div>
-                               <span className="text-green-600 font-medium">Стало:</span>
-                               <div className="text-gray-700 bg-green-50 p-2 rounded mt-1">
+                               <span className="text-green-600 dark:text-green-400 font-medium">Стало:</span>
+                               <div className="text-gray-800 dark:text-gray-200 bg-green-50 dark:bg-green-900/20 p-2 rounded mt-1">
                                  {formatValue(entry.newValue)}
                                </div>
                              </div>
@@ -224,10 +224,10 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      )}
                      
                      {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                       <div className="mt-2 text-xs text-gray-500">
+                       <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                          <details>
-                           <summary className="cursor-pointer">Додаткова інформація</summary>
-                           <pre className="mt-1 bg-gray-100 p-2 rounded text-xs overflow-x-auto">
+                           <summary className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200">• Додаткова інформація</summary>
+                           <pre className="mt-1 bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs overflow-x-auto text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700">
                              {JSON.stringify(entry.metadata, null, 2)}
                            </pre>
                          </details>
