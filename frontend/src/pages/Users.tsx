@@ -712,6 +712,7 @@ const Users: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(user)}
+                            title={t('users.editUser')}
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
                             <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -951,6 +952,7 @@ const Users: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(user)}
+                            title={t('users.editUser')}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -963,6 +965,7 @@ const Users: React.FC = () => {
                                 ? "text-red-600 hover:text-red-700" 
                                 : "text-green-600 hover:text-green-700"
                             )}
+                            title={user.isActive ? t('users.deactivate') : t('users.activate')}
                           >
                             {user.isActive ? (
                               <UserX className="h-4 w-4" />
