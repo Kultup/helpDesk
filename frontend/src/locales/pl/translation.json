@@ -1340,6 +1340,7 @@
     "telegramConnected": "Telegram połączony",
     "viewDetails": "Zobacz szczegóły",
     "forceDelete": "Wymuś usunięcie użytkownika",
+    "forceDeleteUser": "Wymuś usunięcie użytkownika",
     "selectUsers": "Wybierz użytkowników do wykonania operacji",
     "activateUsers": "Aktywuj Użytkowników",
     "deactivateUsers": "Dezaktywuj Użytkowników",

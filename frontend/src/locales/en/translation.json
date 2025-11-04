@@ -1433,6 +1433,7 @@
     "telegramConnected": "Telegram connected",
     "viewDetails": "View details",
     "forceDelete": "Force delete user",
+    "forceDeleteUser": "Force delete user",
     "selectUsers": "Select users to perform operation",
     "activateUsers": "Activate Users",
     "deactivateUsers": "Deactivate Users",

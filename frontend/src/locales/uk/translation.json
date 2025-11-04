@@ -1365,6 +1365,7 @@
     "telegramConnected": "Telegram підключено",
     "viewDetails": "Переглянути деталі",
     "forceDelete": "Повне видалення користувача",
+    "forceDeleteUser": "Повне видалення користувача",
     "selectUsers": "Оберіть користувачів для виконання операції",
     "activateUsers": "Активувати користувачів",
     "deactivateUsers": "Деактивувати користувачів",
