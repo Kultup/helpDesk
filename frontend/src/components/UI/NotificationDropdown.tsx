@@ -129,7 +129,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Header */}
       <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 flex-1">{t('notifications.title')}</h3>
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-50 flex-1">{t('notifications.title')}</h3>
           {isMobile && (
             <button
               onClick={onClose}
@@ -137,10 +137,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               aria-label={t('common.close')}
               title={t('common.close')}
             >
-              <X className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <X className="h-4 w-4 text-gray-600 dark:text-gray-300" />
             </button>
           )}
-          <span className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+          <span className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
             {notificationTickets.length} {t('notifications.active')}
           </span>
         </div>
@@ -149,9 +149,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Notifications list */}
       <div className={`${isMobile ? 'max-h-[calc(100vh-11rem)]' : 'max-h-80'} overflow-y-auto overscroll-contain touch-pan-y`}>
         {notificationTickets.length === 0 ? (
-          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-600 dark:text-gray-400">
-            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{t('notifications.noActive')}</p>
+          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-600 dark:text-gray-300">
+            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400 dark:text-gray-400" />
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{t('notifications.noActive')}</p>
           </div>
         ) : (
           notificationTickets.map((ticket) => (
@@ -226,7 +226,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           <Link
             to={`${basePath}/tickets`}
             onClick={onClose}
-            className="block text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 active:text-blue-900 dark:active:text-blue-200 font-medium py-1.5 touch-manipulation transition-colors"
+            className="block text-xs sm:text-sm text-blue-600 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 active:text-blue-900 dark:active:text-blue-100 font-medium py-1.5 touch-manipulation transition-colors"
           >
             {t('notifications.viewAll')} →
           </Link>
