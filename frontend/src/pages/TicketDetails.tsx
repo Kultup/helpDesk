@@ -173,7 +173,7 @@ const TicketDetails: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6 text-gray-900 dark:text-white">
       <div className="mb-6">
         <Link 
           to={`${basePath}/tickets`}
@@ -186,7 +186,7 @@ const TicketDetails: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{t('common.description')}</h2>
               <p className="text-gray-700 dark:text-white whitespace-pre-wrap">{ticket.description}</p>
@@ -195,7 +195,7 @@ const TicketDetails: React.FC = () => {
 
           {/* Прикріплені файли */}
           {ticket.attachments && ticket.attachments.length > 0 && (
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
               <div className="p-6">
                 <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
                 <div className="space-y-3">
@@ -268,7 +268,7 @@ const TicketDetails: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">{t('tickets.details')}</h3>
               <div className="space-y-4">
@@ -400,10 +400,10 @@ const TicketDetails: React.FC = () => {
           </Card>
 
           {isUpdating && (
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
               <div className="p-6 text-center">
                 <LoadingSpinner />
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{t('tickets.updating')}</p>
+                <p className="mt-2 text-sm text-gray-600 dark:text-white">{t('tickets.updating')}</p>
               </div>
             </Card>
           )}
