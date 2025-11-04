@@ -31,7 +31,17 @@ async function setupWebhook() {
     baseUrl = `https://${baseUrl}`;
   }
 
-  const webhookUrl = `${baseUrl}/api/telegram/webhook`;
+  // Видаляємо trailing slash
+  baseUrl = baseUrl.replace(/\/$/, '');
+
+  // Формуємо webhook URL
+  // Якщо baseUrl вже містить /api, не додаємо ще раз
+  let webhookUrl;
+  if (baseUrl.endsWith('/api')) {
+    webhookUrl = `${baseUrl}/telegram/webhook`;
+  } else {
+    webhookUrl = `${baseUrl}/api/telegram/webhook`;
+  }
   
   try {
     console.log(`🔧 Налаштовую webhook для бота...`);
@@ -78,6 +88,14 @@ async function setupWebhook() {
       console.error('  1. URL правильний і доступний з інтернету');
       console.error('  2. Сервер має HTTPS з валідним сертифікатом');
       console.error('  3. Роут /api/telegram/webhook доступний');
+    }
+    if (error.response && error.response.data && error.response.data.description) {
+      const desc = error.response.data.description;
+      if (desc.includes('IP address') && desc.includes('reserved')) {
+        console.error('\n⚠️  Telegram не приймає приватні IP адреси (192.168.x.x, 10.x.x.x тощо)');
+        console.error('   Використайте публічний домен, наприклад:');
+        console.error('   node scripts/setupWebhook.js https://krainamriy.fun');
+      }
     }
   }
 }
