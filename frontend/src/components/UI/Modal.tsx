@@ -23,10 +23,10 @@ const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    sm: 'max-w-sm sm:max-w-md',
+    md: 'max-w-sm sm:max-w-lg',
+    lg: 'max-w-lg sm:max-w-2xl',
+    xl: 'max-w-2xl sm:max-w-4xl'
   };
 
   return (
@@ -38,10 +38,10 @@ const Modal: React.FC<ModalProps> = ({
       />
       
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div 
           className={cn(
-            'relative w-full bg-white rounded-lg shadow-xl transform transition-all',
+            'relative w-full bg-surface rounded-lg sm:rounded-xl shadow-xl transform transition-all',
             sizeClasses[size],
             className
           )}
@@ -49,23 +49,23 @@ const Modal: React.FC<ModalProps> = ({
         >
           {/* Header */}
           {title && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">
                 {title}
               </h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-text-secondary hover:text-foreground"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
           )}
           
           {/* Content */}
-          <div className={cn(title ? 'p-6' : 'p-6')}>
+          <div className={cn(title ? 'p-4 sm:p-6' : 'p-4 sm:p-6')}>
             {children}
           </div>
         </div>

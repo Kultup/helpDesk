@@ -19,7 +19,7 @@ import Pagination from '../components/UI/Pagination';
 import { TicketRating } from '../components/UI';
 import CreateTicketModal from '../components/CreateTicketModal';
 import ExportTicketsModal from '../components/ExportTicketsModal';
-import { useTickets, useCities, useUsers } from '../hooks';
+import { useTickets, useCities, useUsers, useWindowSize } from '../hooks';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { useTicketExport } from '../hooks/useTicketExport';
 import { Ticket, TicketStatus, TicketPriority, TicketFilters, SortOptions, PaginationOptions } from '../types';
@@ -31,6 +31,8 @@ import DayIndicator from '../components/DayIndicator';
 const Tickets: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
   const isAdmin = user?.role === UserRole.ADMIN;
   const basePath = isAdmin ? '/admin' : '';
   
@@ -175,8 +177,8 @@ const Tickets: React.FC = () => {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <div className="lg:col-span-2">
               <Input
                 type="text"
@@ -242,30 +244,117 @@ const Tickets: React.FC = () => {
                 {t('tickets.noTicketsFoundDescription')}
               </p>
             </div>
+          ) : isMobile ? (
+            // Mobile Card View
+            <div className="space-y-3 sm:space-y-4">
+              {displayTickets.map((ticket) => (
+                <Card key={ticket._id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm sm:text-base font-semibold text-foreground mb-1 line-clamp-2">
+                            {ticket.title}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-text-secondary line-clamp-2">
+                            {ticket.description}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-1 sm:space-x-2 ml-2 flex-shrink-0">
+                          <Link to={`${basePath}/tickets/${ticket._id}`}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                              <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          </Link>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                              onClick={() => handleDelete(ticket._id, ticket.title)}
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-error" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <span
+                          className={cn(
+                            'inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium',
+                            getStatusColor(ticket.status)
+                          )}
+                        >
+                          {ticket.status}
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium',
+                            getPriorityColor(ticket.priority)
+                          )}
+                        >
+                          {ticket.priority}
+                        </span>
+                        {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating && (
+                          <TicketRating 
+                            rating={ticket.qualityRating.rating}
+                            ratedAt={ticket.qualityRating.ratedAt}
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-text-secondary">
+                        <div className="flex items-center gap-1">
+                          <span>{formatDate(ticket.createdAt)}</span>
+                          <span className="text-text-secondary/70">
+                            ({formatDaysAgo(ticket.createdAt)})
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <DayIndicator 
+                            date={ticket.createdAt} 
+                            className="text-xs"
+                          />
+                          {ticket.resolvedAt && (
+                            <DayIndicator 
+                              date={ticket.resolvedAt} 
+                              className="text-xs"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : (
+            // Desktop Table View
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-surface border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.ticket')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.status')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.priority')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.createdDate')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.dateStatus')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       Оцінка
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.actions')}
                     </th>
                   </tr>
@@ -273,7 +362,7 @@ const Tickets: React.FC = () => {
                 <tbody className="bg-surface divide-y divide-border">
                   {displayTickets.map((ticket) => (
                     <tr key={ticket._id} className="hover:bg-surface/50">
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-foreground">
                             {ticket.title}
@@ -283,7 +372,7 @@ const Tickets: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -293,7 +382,7 @@ const Tickets: React.FC = () => {
                           {ticket.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4">
                         <span
                           className={cn(
                             'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -303,7 +392,7 @@ const Tickets: React.FC = () => {
                           {ticket.priority}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">
+                      <td className="px-4 sm:px-6 py-4 text-sm text-text-secondary">
                         <div className="space-y-1">
                           <div>{formatDate(ticket.createdAt)}</div>
                           <div className="text-xs text-text-secondary/70">
@@ -311,7 +400,7 @@ const Tickets: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4">
                         <div className="flex flex-wrap gap-1">
                           <DayIndicator 
                             date={ticket.createdAt} 
@@ -325,7 +414,7 @@ const Tickets: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-4">
                         {ticket.qualityRating?.hasRating && ticket.qualityRating?.rating ? (
                           <TicketRating 
                             rating={ticket.qualityRating.rating}
@@ -336,7 +425,7 @@ const Tickets: React.FC = () => {
                           <span className="text-gray-400 text-sm">Не оцінено</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium">
+                      <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           <Link to={`${basePath}/tickets/${ticket._id}`}>
                             <Button variant="ghost" size="sm">
@@ -348,14 +437,16 @@ const Tickets: React.FC = () => {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(ticket._id, ticket.title)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(ticket._id, ticket.title)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

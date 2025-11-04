@@ -167,7 +167,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
 
   return (
     <header className="bg-surface shadow-sm border-b border-border">
-      <div className="flex items-center justify-between h-16 px-4">
+      <div className="flex items-center justify-between h-14 sm:h-16 px-2 sm:px-4">
         {/* Left side */}
         <div className="flex items-center">
           {isMobile && (
@@ -175,19 +175,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               variant="ghost"
               size="sm"
               onClick={onMenuClick}
-              className="mr-2"
+              className="mr-1 sm:mr-2 h-8 w-8 sm:h-10 sm:w-10 p-0"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           )}
           
           <div className="flex items-center">
-            <h1 className="text-xl font-bold text-primary-500">Help Desk</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-primary-500">Help Desk</h1>
           </div>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
           {/* Language Selector */}
           <LanguageSelector />
           
@@ -198,13 +198,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="relative"
+            className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
             title={theme === 'dark' ? t('header.lightMode') : t('header.darkMode')}
           >
             {theme === 'dark' ? (
-              <Sun className="h-5 w-5 text-yellow-500" />
+              <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
             ) : (
-              <Moon className="h-5 w-5 text-gray-600" />
+              <Moon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
             )}
           </Button>
           
@@ -213,16 +213,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="relative"
+              className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
               onClick={handleNotificationClick}
             >
               <Bell 
-                className={`h-5 w-5 transition-transform duration-200 ${
+                className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 ${
                   bellAnimation ? 'animate-bounce text-red-500' : ''
                 }`} 
               />
               {unreadCount > 0 && (
-                <span className={`absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-medium ${
+                <span className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white font-medium ${
                   bellAnimation ? 'animate-pulse' : ''
                 }`}>
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -244,16 +244,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="relative"
+                className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
                 onClick={handleRegistrationClick}
               >
                 <UserPlus 
-                  className={`h-5 w-5 transition-transform duration-200 ${
+                  className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 ${
                     registrationAnimation ? 'animate-bounce text-blue-500' : ''
                   }`} 
                 />
                 {registrationCount > 0 && (
-                  <span className={`absolute -top-1 -right-1 h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center text-xs text-white font-medium ${
+                  <span className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white font-medium ${
                     registrationAnimation ? 'animate-pulse' : ''
                   }`}>
                     {registrationCount > 99 ? '99+' : registrationCount}
@@ -278,10 +278,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="relative"
+                className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
                 onClick={handleCalendarClick}
               >
-                <Calendar className="h-5 w-5 text-gray-600 hover:text-primary-600 transition-colors duration-200" />
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 hover:text-primary-600 transition-colors duration-200" />
               </Button>
 
               {/* Calendar Dropdown */}
@@ -302,32 +302,32 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               variant="ghost"
               size="sm"
               onClick={handleUserMenuClick}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-1 sm:space-x-2"
             >
-              <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
+              <div className="h-7 w-7 sm:h-8 sm:w-8 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
               </div>
               {!isMobile && (
-                <div className="text-left">
-                  <p className="text-sm font-medium text-foreground">
-                {user?.email}
-              </p>
-              <p className="text-xs text-text-secondary">
-                {user?.role === 'admin' ? t('header.administrator') : t('header.user')}
-              </p>
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-none">
+                    {user?.email}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {user?.role === 'admin' ? t('header.administrator') : t('header.user')}
+                  </p>
                 </div>
               )}
             </Button>
 
             {/* Dropdown menu */}
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-surface rounded-lg shadow-lg border border-border py-1 z-50">
+              <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-surface rounded-lg shadow-lg border border-border py-1 z-50">
                 <Link
                   to="/settings"
-                  className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-gray-100"
+                  className="flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm text-foreground hover:bg-gray-100"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  <Settings className="h-4 w-4 mr-3" />
+                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3" />
                   {t('header.settings')}
                 </Link>
                 
@@ -335,9 +335,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
                 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="flex items-center w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50"
                 >
-                  <LogOut className="h-4 w-4 mr-3" />
+                  <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3" />
                   {t('header.logout')}
                 </button>
               </div>

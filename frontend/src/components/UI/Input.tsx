@@ -40,8 +40,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         
         <div className="relative">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <span className="text-text-secondary">{leftIcon}</span>
+            <div className="absolute inset-y-0 left-0 flex items-center pl-2 sm:pl-3 pointer-events-none">
+              <span className="text-text-secondary text-sm sm:text-base">{leftIcon}</span>
             </div>
           )}
           
@@ -49,10 +49,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'block w-full px-3 py-2 border border-border rounded-lg shadow-sm placeholder-text-secondary bg-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors',
+              'block w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-border rounded-lg shadow-sm placeholder-text-secondary bg-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors',
               'text-[var(--color-text)]',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
+              leftIcon && 'pl-8 sm:pl-10',
+              rightIcon && 'pr-8 sm:pr-10',
               error && 'border-error focus:ring-error',
               className
             )}
@@ -60,8 +60,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           />
           
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-              <span className="text-text-secondary">{rightIcon}</span>
+            <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:pr-3 pointer-events-none">
+              <span className="text-text-secondary text-sm sm:text-base">{rightIcon}</span>
             </div>
           )}
         </div>

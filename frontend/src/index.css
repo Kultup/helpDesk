@@ -222,3 +222,40 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  
+  /* Адаптивні утиліти для мобільних */
+  @media (max-width: 640px) {
+    /* Зменшення розмірів шрифтів на мобільних */
+    .text-2xl {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+    }
+    
+    .text-xl {
+      font-size: 1.125rem;
+      line-height: 1.75rem;
+    }
+    
+    /* Адаптивні відступи */
+    .container {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  }
+  
+  /* Запобігання горизонтальному скролу */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  /* Адаптивні таблиці */
+  @media (max-width: 768px) {
+    table {
+      font-size: 0.875rem;
+    }
+    
+    th, td {
+      padding: 0.5rem 0.25rem;
+    }
+  }

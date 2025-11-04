@@ -414,12 +414,12 @@ const Dashboard: React.FC = () => {
         </div>
 
           {/* Key Metrics Section */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center">
-              <BarChart3 className="h-6 w-6 mr-3 text-primary" />
+          <div className="mb-6 sm:mb-8 lg:mb-12">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
+              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
               {t('dashboard.keyMetrics')}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {statsArray.map((stat, index) => (
                 <StatCard key={index} {...stat} />
               ))}
@@ -427,38 +427,38 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Main Content Grid */}
-          <div className="space-y-8">
+          <div className="space-y-4 sm:space-y-6 lg:space-y-8">
             {/* Top Section - Tickets */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Left Column - Recent Tickets */}
               <div className="lg:col-span-2">
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-                  <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-xl font-bold text-foreground flex items-center">
-                      <Clock className="h-5 w-5 mr-3 text-primary" />
+                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 lg:mb-8">
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground flex items-center">
+                      <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-primary" />
                       {t('dashboard.recentTickets')}
                     </h2>
                     <Button
                       onClick={() => navigate('/tickets')}
                       variant="outline"
-                      className="text-primary border-primary/30 hover:bg-primary/10 hover:border-primary px-6 py-2 rounded-xl font-semibold transition-all duration-300"
+                      className="text-primary border-primary/30 hover:bg-primary/10 hover:border-primary px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base"
                     >
                       {t('dashboard.viewAll')}
                     </Button>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {recentTickets.length > 0 ? (
                       recentTickets.map((ticket) => (
                         <div
                           key={ticket._id}
-                          className="group border border-border rounded-xl p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
+                          className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
                           onClick={() => navigate(`/tickets/${ticket._id}`)}
                         >
-                          <div className="flex justify-between items-start mb-4">
-                            <h3 className="font-bold text-foreground text-lg group-hover:text-primary transition-colors duration-300">
+                          <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
+                            <h3 className="font-bold text-foreground text-base sm:text-lg group-hover:text-primary transition-colors duration-300 flex-1 min-w-0 line-clamp-2">
                               {ticket.title}
                             </h3>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 ${
                               ticket.priority === 'high' ? 'bg-gradient-to-r from-error/20 to-error/30 text-error border border-error/30' :
                               ticket.priority === 'medium' ? 'bg-gradient-to-r from-warning/20 to-warning/30 text-warning border border-warning/30' :
                               'bg-gradient-to-r from-success/20 to-success/30 text-success border border-success/30'
@@ -467,12 +467,12 @@ const Dashboard: React.FC = () => {
                                ticket.priority === 'medium' ? t('dashboard.priorities.medium') : t('dashboard.priorities.low')}
                             </span>
                           </div>
-                          <p className="text-text-secondary mb-4 line-clamp-2">{ticket.description}</p>
-                          <div className="flex justify-between items-center text-sm">
+                          <p className="text-text-secondary mb-3 sm:mb-4 line-clamp-2 text-sm">{ticket.description}</p>
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 text-xs sm:text-sm">
                             <span className="text-text-secondary font-medium">
                                 {t('dashboard.created')}: {formatDateWithLocale(ticket.createdAt)}
                               </span>
-                            <span className={`px-3 py-1 rounded-full font-bold ${
+                            <span className={`px-2 sm:px-3 py-1 rounded-full font-bold text-xs ${
                               ticket.status === 'open' ? 'bg-gradient-to-r from-primary/20 to-primary/30 text-primary' :
                               ticket.status === 'in_progress' ? 'bg-gradient-to-r from-accent/20 to-accent/30 text-accent' :
                               ticket.status === 'resolved' ? 'bg-gradient-to-r from-success/20 to-success/30 text-success' :
@@ -496,37 +496,37 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Right Column - Quick Actions & Priority Tickets */}
-              <div className="space-y-8">
+              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                 {/* Quick Actions */}
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-                  <h2 className="text-xl font-bold text-foreground mb-8 flex items-center">
-                    <Zap className="h-5 w-5 mr-3 text-accent" />
+                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-accent" />
                     {t('dashboard.quickActions')}
                   </h2>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <Button
                       onClick={() => navigate('/tickets/new')}
-                      className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
                       style={{
                         background: 'linear-gradient(to right, var(--color-primary), var(--color-accent))',
                         color: 'white'
                       }}
                     >
-                      <Plus className="h-5 w-5 mr-3" />
+                      <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
                         {t('dashboard.createNewTicket')}
                     </Button>
 
                     <Button
                       onClick={() => navigate('/analytics')}
                       variant="outline"
-                      className="w-full py-4 rounded-xl font-bold transition-all duration-300"
+                      className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
                       style={{
                         borderColor: 'var(--color-border)',
                         color: 'var(--color-text)',
                         backgroundColor: 'var(--color-surface)'
                       }}
                     >
-                      <BarChart3 className="h-5 w-5 mr-2" />
+                      <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       {t('dashboard.analytics')}
                     </Button>
                   </div>
@@ -538,12 +538,12 @@ const Dashboard: React.FC = () => {
                       <AlertTriangle className="h-5 w-5 mr-3 text-error" />
                       {t('dashboard.priorityTickets')}
                     </h2>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {priorityTickets.length > 0 ? (
                       priorityTickets.slice(0, 3).map((ticket) => (
                         <div
                           key={ticket._id}
-                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-4 rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
+                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-3 sm:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
                           onClick={() => navigate(`/tickets/${ticket._id}`)}
                         >
                           <h3 className="font-bold text-foreground text-sm mb-2 group-hover:text-error transition-colors duration-300 line-clamp-1">
@@ -572,12 +572,12 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Analytics Section - Full Width */}
-            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-              <h2 className="text-2xl font-bold text-foreground mb-8 flex items-center">
-                <BarChart3 className="h-6 w-6 mr-3 text-primary" />
+            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
                 {t('dashboard.analyticsAndReports')}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
                   <WeeklyTicketsChart />
                 </div>
