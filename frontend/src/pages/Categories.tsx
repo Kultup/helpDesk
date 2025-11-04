@@ -8,13 +8,10 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { Plus, Edit2, Save, X, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useWindowSize } from '../hooks';
 
 const Categories: React.FC = () => {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const { width } = useWindowSize();
-  const isMobile = width < 640;
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
