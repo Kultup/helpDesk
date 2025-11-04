@@ -112,10 +112,10 @@ const CategoryDistributionChart: React.FC = () => {
       legend: {
         position: 'bottom' as const,
         labels: {
-          padding: 20,
+          padding: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 20,
           usePointStyle: true,
           font: {
-            size: 12
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
           },
           generateLabels: (chart: any) => {
             const original = ChartJS.defaults.plugins.legend.labels.generateLabels;
@@ -138,6 +138,12 @@ const CategoryDistributionChart: React.FC = () => {
         bodyColor: 'white',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 1,
+        titleFont: {
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 11 : 12
+        },
+        bodyFont: {
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 11
+        },
         callbacks: {
           label: (context: any) => {
             const item = data[context.dataIndex];
@@ -152,12 +158,12 @@ const CategoryDistributionChart: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-48 sm:h-64 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
@@ -165,16 +171,16 @@ const CategoryDistributionChart: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="text-red-500 text-center">
-            <p>{error}</p>
+        <div className="h-48 sm:h-64 flex items-center justify-center">
+          <div className="text-red-500 text-center px-2">
+            <p className="text-sm sm:text-base">{error}</p>
             <button 
               onClick={fetchCategoryData}
-              className="mt-2 text-blue-600 hover:text-blue-800 underline"
+              className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
             >
               {t('dashboard.charts.tryAgain')}
             </button>
@@ -186,13 +192,13 @@ const CategoryDistributionChart: React.FC = () => {
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="text-gray-500 text-center">
-            <p>{t('dashboard.charts.noData')}</p>
+        <div className="h-48 sm:h-64 flex items-center justify-center">
+          <div className="text-gray-500 text-center px-2">
+            <p className="text-sm sm:text-base">{t('dashboard.charts.noData')}</p>
           </div>
         </div>
       </div>
@@ -202,36 +208,36 @@ const CategoryDistributionChart: React.FC = () => {
   const totalTickets = data.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
-          <p className="text-sm text-gray-500">
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.categoryDistribution')}</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
             {t('dashboard.charts.totalTickets')}: {totalTickets}
           </p>
         </div>
         <button 
           onClick={fetchCategoryData}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
           title={t('dashboard.charts.refreshData')}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
-      <div className="h-64">
+      <div className="h-48 sm:h-64">
         <Doughnut data={chartData} options={options} />
       </div>
       
       {/* Додаткова інформація */}
-      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+      <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
         <div className="text-center">
-          <p className="text-gray-500">{t('dashboard.charts.mostPopular')}</p>
-          <p className="font-semibold text-gray-900">{resolveCategoryName(data[0]?.category || '')}</p>
+          <p className="text-gray-500 mb-1">{t('dashboard.charts.mostPopular')}</p>
+          <p className="font-semibold text-gray-900 break-words">{resolveCategoryName(data[0]?.category || '')}</p>
         </div>
         <div className="text-center">
-          <p className="text-gray-500">{t('dashboard.charts.totalCategories')}</p>
+          <p className="text-gray-500 mb-1">{t('dashboard.charts.totalCategories')}</p>
           <p className="font-semibold text-gray-900">{data.length}</p>
         </div>
       </div>

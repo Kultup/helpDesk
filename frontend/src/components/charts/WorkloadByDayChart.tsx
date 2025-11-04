@@ -152,10 +152,10 @@ const WorkloadByDayChart: React.FC = () => {
       legend: {
         position: 'top' as const,
         labels: {
-          padding: 20,
+          padding: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 20,
           usePointStyle: true,
           font: {
-            size: 12
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
           }
         }
       },
@@ -165,6 +165,12 @@ const WorkloadByDayChart: React.FC = () => {
         bodyColor: 'white',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 1,
+        titleFont: {
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 11 : 12
+        },
+        bodyFont: {
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 11
+        },
         callbacks: {
           title: (context: any) => {
             const index = context[0].dataIndex;
@@ -185,7 +191,7 @@ const WorkloadByDayChart: React.FC = () => {
         ticks: {
           color: '#6B7280',
           font: {
-            size: 12
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
           }
         }
       },
@@ -198,7 +204,7 @@ const WorkloadByDayChart: React.FC = () => {
         ticks: {
           color: '#6B7280',
           font: {
-            size: 12
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
           },
           stepSize: 1
         }
@@ -212,12 +218,12 @@ const WorkloadByDayChart: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-48 sm:h-64 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
@@ -225,16 +231,16 @@ const WorkloadByDayChart: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
         </div>
-        <div className="h-64 flex items-center justify-center">
-          <div className="text-red-500 text-center">
-            <p>{error}</p>
+        <div className="h-48 sm:h-64 flex items-center justify-center">
+          <div className="text-red-500 text-center px-2">
+            <p className="text-sm sm:text-base">{error}</p>
             <button 
               onClick={fetchWorkloadData}
-              className="mt-2 text-blue-600 hover:text-blue-800 underline"
+              className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
             >
               {t('dashboard.charts.tryAgain')}
             </button>
@@ -250,19 +256,19 @@ const WorkloadByDayChart: React.FC = () => {
     item.totalTickets > max.totalTickets ? item : max, data[0] || { dayNumber: 0, totalTickets: 0 });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
-          <p className="text-sm text-gray-500">
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
             {t('dashboard.charts.total')}: {totalTickets} | {t('dashboard.charts.average')}: {avgPerDay}{t('dashboard.charts.perDay')} | {t('dashboard.charts.busiestDay')}: {getDayName(busiestDay.dayNumber)}
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex bg-gray-100 rounded-lg p-0.5 sm:p-1 flex-1 sm:flex-none">
             <button
               onClick={() => setViewMode('total')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${
                 viewMode === 'total'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -272,7 +278,7 @@ const WorkloadByDayChart: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('status')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${
                 viewMode === 'status'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
@@ -283,16 +289,16 @@ const WorkloadByDayChart: React.FC = () => {
           </div>
           <button 
             onClick={fetchWorkloadData}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
             title={t('dashboard.charts.refreshData')}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
         </div>
       </div>
-      <div className="h-64">
+      <div className="h-48 sm:h-64">
         <Bar 
           data={viewMode === 'total' ? getTotalChartData() : getStatusChartData()} 
           options={options} 
@@ -300,9 +306,9 @@ const WorkloadByDayChart: React.FC = () => {
       </div>
       
       {/* Додаткова статистика */}
-      <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+      <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
         <div className="text-center">
-          <p className="text-gray-500">{t('dashboard.charts.leastLoad')}</p>
+          <p className="text-gray-500 mb-1">{t('dashboard.charts.leastLoad')}</p>
           <p className="font-semibold text-gray-900">
             {getDayName(data.reduce((min, item) => 
               item.totalTickets < min.totalTickets ? item : min, 
@@ -311,11 +317,11 @@ const WorkloadByDayChart: React.FC = () => {
           </p>
         </div>
         <div className="text-center">
-          <p className="text-gray-500">{t('dashboard.charts.mostLoad')}</p>
+          <p className="text-gray-500 mb-1">{t('dashboard.charts.mostLoad')}</p>
           <p className="font-semibold text-gray-900">{getDayName(busiestDay.dayNumber)}</p>
         </div>
         <div className="text-center">
-          <p className="text-gray-500">{t('dashboard.charts.minMaxDiff')}</p>
+          <p className="text-gray-500 mb-1">{t('dashboard.charts.minMaxDiff')}</p>
           <p className="font-semibold text-gray-900">
             {busiestDay.totalTickets - data.reduce((min, item) => 
               item.totalTickets < min.totalTickets ? item : min, 
