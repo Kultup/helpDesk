@@ -87,29 +87,29 @@ const StatCard: React.FC<StatCardProps> = ({
       onClick={onClick}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-surface/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <CardContent className="relative p-8">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-bold text-text-secondary mb-3 tracking-wider uppercase opacity-80">
+      <CardContent className="relative p-4 sm:p-6 lg:p-8">
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm font-bold text-text-secondary mb-2 sm:mb-3 tracking-wider uppercase opacity-80">
               {title}
             </p>
-            <p className="text-4xl font-black text-foreground mb-4 tracking-tight">
+            <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-2 sm:mb-4 tracking-tight">
               {value.toLocaleString()}
             </p>
             {trend !== undefined && (
-              <div className={`inline-flex items-center px-3 py-2 rounded-full text-xs font-bold ${trendColor} bg-gradient-to-r ${
+              <div className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs font-bold ${trendColor} bg-gradient-to-r ${
                 isPositiveTrend 
                   ? 'from-emerald-50 to-emerald-100 border border-emerald-200/50' 
                   : 'from-rose-50 to-rose-100 border border-rose-200/50'
               } shadow-sm`}>
-                <TrendingUp className={`h-3 w-3 mr-1.5 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`} />
+                <TrendingUp className={`h-3 w-3 mr-1 sm:mr-1.5 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`} />
                 <span>{trendSign}{trend}%</span>
               </div>
             )}
           </div>
-          <div className="ml-6">
-            <div className={`p-4 rounded-2xl ${color} shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
-              <Icon className="h-8 w-8 text-white" />
+          <div className="ml-2 sm:ml-6 flex-shrink-0">
+            <div className={`p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl ${color} shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
+              <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-white" />
             </div>
           </div>
         </div>
@@ -376,15 +376,15 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="p-8 space-y-8">
+      <div className="p-2 sm:p-4 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
         {/* Header Section */}
-        <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-          <div className="flex justify-between items-center">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-black text-foreground">
+        <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+            <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground">
                 {t('dashboard.title')}
               </h1>
-              <p className="text-sm text-text-secondary font-medium">
+              <p className="text-xs sm:text-sm text-text-secondary font-medium">
                 {t('dashboard.welcome')}
               </p>
               {lastUpdated && (
@@ -396,16 +396,16 @@ const Dashboard: React.FC = () => {
             <Button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-primary-foreground px-8 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-primary-foreground px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 lg:py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto"
             >
               {refreshing ? (
                 <div className="flex items-center">
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
                   {t('dashboard.updating')}
                 </div>
               ) : (
                 <div className="flex items-center">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   {t('dashboard.refreshData')}
                 </div>
               )}
@@ -533,9 +533,9 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Priority Tickets - Compact */}
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-                  <h2 className="text-xl font-bold text-foreground mb-6 flex items-center">
-                      <AlertTriangle className="h-5 w-5 mr-3 text-error" />
+                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
+                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
                       {t('dashboard.priorityTickets')}
                     </h2>
                   <div className="space-y-2 sm:space-y-3">
@@ -543,13 +543,13 @@ const Dashboard: React.FC = () => {
                       priorityTickets.slice(0, 3).map((ticket) => (
                         <div
                           key={ticket._id}
-                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-3 sm:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
+                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
                           onClick={() => navigate(`/tickets/${ticket._id}`)}
                         >
-                          <h3 className="font-bold text-foreground text-sm mb-2 group-hover:text-error transition-colors duration-300 line-clamp-1">
+                          <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
                             {ticket.title}
                           </h3>
-                          <div className="flex justify-between items-center text-xs">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 text-xs">
                             <span className="text-error font-bold flex items-center">
                               <Zap className="h-3 w-3 mr-1" />
                               {t('dashboard.priorities.high')}
@@ -561,9 +561,9 @@ const Dashboard: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8">
-                        <AlertTriangle className="h-12 w-12 text-text-secondary/50 mx-auto mb-3" />
-                        <p className="text-text-secondary text-sm font-medium">{t('dashboard.noPriorityTickets')}</p>
+                      <div className="text-center py-6 sm:py-8">
+                        <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
+                        <p className="text-text-secondary text-xs sm:text-sm font-medium">{t('dashboard.noPriorityTickets')}</p>
                       </div>
                     )}
                   </div>
@@ -577,68 +577,68 @@ const Dashboard: React.FC = () => {
                 <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
                 {t('dashboard.analyticsAndReports')}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
                   <WeeklyTicketsChart />
                 </div>
-                <div className="p-6 bg-gradient-to-br from-accent/10 to-accent/20 rounded-xl border border-accent/30 hover:shadow-lg transition-all duration-300">
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-accent/10 to-accent/20 rounded-lg sm:rounded-xl border border-accent/30 hover:shadow-lg transition-all duration-300">
                   <CategoryDistributionChart />
                 </div>
-                <div className="p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
                   <WorkloadByDayChart />
                 </div>
                 {/* Analytics & Reports Shortcut Block replaced with AD counters */}
-                <div className="p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-warning" />
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
+                      <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
                       {t('dashboard.analyticsAndReports')}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => loadAdStats()} variant="ghost" size="sm">
-                        <RefreshCw className="h-4 w-4" />
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button onClick={() => loadAdStats()} variant="ghost" size="sm" className="flex-1 sm:flex-none">
+                        <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm">
+                      <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm">
                         Відкрити
                       </Button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="flex items-center p-3 sm:p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
                          onClick={() => navigate('/admin/active-directory?view=users')}>
-                      <div className="p-3 rounded-xl bg-warning text-white mr-4">
-                        <Users className="h-5 w-5" />
+                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                           {t('activeDirectory.statistics.totalUsers')}
                         </p>
                         {adStatsLoading ? (
-                          <span className="text-sm text-text-secondary">Завантаження...</span>
+                          <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
                         ) : adStatsError ? (
-                          <span className="text-sm text-rose-600">{adStatsError}</span>
+                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
                         ) : (
-                          <p className="text-2xl font-black text-foreground">
+                          <p className="text-xl sm:text-2xl font-black text-foreground">
                             {(adUsersTotal ?? 0).toLocaleString()}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
+                    <div className="flex items-center p-3 sm:p-4 bg-white/40 dark:bg-white/5 rounded-lg border border-warning/30 cursor-pointer hover:bg-white/60"
                          onClick={() => navigate('/admin/active-directory?view=computers')}>
-                      <div className="p-3 rounded-xl bg-warning text-white mr-4">
-                        <Monitor className="h-5 w-5" />
+                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                        <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                           {t('activeDirectory.statistics.totalComputers')}
                         </p>
                         {adStatsLoading ? (
-                          <span className="text-sm text-text-secondary">Завантаження...</span>
+                          <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
                         ) : adStatsError ? (
-                          <span className="text-sm text-rose-600">{adStatsError}</span>
+                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
                         ) : (
-                          <p className="text-2xl font-black text-foreground">
+                          <p className="text-xl sm:text-2xl font-black text-foreground">
                             {(adComputersTotal ?? 0).toLocaleString()}
                           </p>
                         )}
@@ -651,13 +651,13 @@ const Dashboard: React.FC = () => {
 
             {/* Bottom Section - Admin Tools */}
             {user?.role === 'admin' && (
-              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-2xl shadow-xl p-8">
-                <h2 className="text-xl font-bold text-foreground mb-8 flex items-center">
-                  <StickyNote className="h-5 w-5 mr-3 text-warning" />
+              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                  <StickyNote className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-warning" />
                   {t('dashboard.adminTools')}
                 </h2>
-                <div className="space-y-6">
-                  <div className="p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="p-4 sm:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
                     <AdminNotes />
                   </div>
                 </div>
