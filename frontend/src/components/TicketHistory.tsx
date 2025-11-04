@@ -93,13 +93,13 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   const getActionColor = (action: string) => {
     switch (action) {
       case 'created':
-        return 'border-green-200 bg-green-50
+        return 'border-green-200 bg-green-50';
       case 'updated':
-        return 'border-blue-200 bg-blue-50
+        return 'border-blue-200 bg-blue-50';
       case 'status_changed':
-        return 'border-orange-200 bg-orange-50
+        return 'border-orange-200 bg-orange-50';
       default:
-        return 'border-gray-200 bg-gray-50
+        return 'border-gray-200 bg-gray-50';
     }
   };
 
