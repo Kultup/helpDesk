@@ -1416,7 +1416,7 @@
     "bulkActivate": "Activate ({count})",
     "bulkDeactivate": "Deactivate ({count})",
     "hideDeactivated": "Hide Deactivated",
-    "showDeactivated": "Show Deactivated ({count})",
+    "showDeactivated": "Show Deactivated ({{count}})",
     "search": "Search users...",
     "searchPlaceholder": "Search by first name, last name or email...",
     "allRoles": "All Roles",

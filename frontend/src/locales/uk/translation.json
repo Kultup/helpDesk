@@ -1348,7 +1348,7 @@
     "bulkActivate": "Активувати ({count})",
     "bulkDeactivate": "Деактивувати ({count})",
     "hideDeactivated": "Приховати деактивованих",
-    "showDeactivated": "Показати деактивованих ({count})",
+    "showDeactivated": "Показати деактивованих ({{count}})",
     "search": "Пошук користувачів...",
     "searchPlaceholder": "Пошук за ім'ям, прізвищем або email...",
     "allRoles": "Всі ролі",

@@ -1323,7 +1323,7 @@
     "bulkActivate": "Aktywuj ({count})",
     "bulkDeactivate": "Dezaktywuj ({count})",
     "hideDeactivated": "Ukryj Dezaktywowanych",
-    "showDeactivated": "Pokaż Dezaktywowanych ({count})",
+    "showDeactivated": "Pokaż Dezaktywowanych ({{count}})",
     "search": "Szukaj użytkowników...",
     "searchPlaceholder": "Szukaj po imieniu, nazwisku lub e-mailu...",
     "allRoles": "Wszystkie Role",
