@@ -1945,9 +1945,33 @@ class TelegramService {
 
   async askForPosition(chatId) {
     try {
-      const positions = await Position.find({}).sort({ name: 1 });
+      // Завантажуємо всі активні посади, виключаючи "адміністратор системи"
+      // Виключаємо посади з назвами, що містять "адміністратор системи" (різні варіанти написання)
+      const adminPositionTitles = [
+        'адміністратор системи',
+        'Адміністратор системи',
+        'АДМІНІСТРАТОР СИСТЕМИ',
+        'администратор системы',
+        'Администратор системы',
+        'System Administrator',
+        'system administrator',
+        'SYSTEM ADMINISTRATOR'
+      ];
       
-      if (positions.length === 0) {
+      const positions = await Position.find({
+        isActive: true,
+        title: { $nin: adminPositionTitles }
+      }).sort({ title: 1 });
+      
+      // Додаткова перевірка на нечутливість до регістру
+      const filteredPositions = positions.filter(position => {
+        const titleLower = position.title.toLowerCase();
+        return !titleLower.includes('адміністратор системи') && 
+               !titleLower.includes('администратор системы') &&
+               !titleLower.includes('system administrator');
+      });
+      
+      if (filteredPositions.length === 0) {
         await this.sendMessage(chatId, 
           `❌ *Помилка*\n\n` +
           `Список посад не знайдено. Зверніться до адміністратора.`
@@ -1956,7 +1980,7 @@ class TelegramService {
       }
 
       // Створюємо кнопки для вибору посади (по 1 в ряду для кращої читабельності)
-      const positionButtons = positions.map(position => [
+      const positionButtons = filteredPositions.map(position => [
         { text: position.title, callback_data: `position_${position._id}` }
       ]);
 
@@ -2092,6 +2116,21 @@ class TelegramService {
         
         if (!position) {
           await this.sendMessage(chatId, '❌ Посада не знайдена. Спробуйте ще раз.');
+          return;
+        }
+
+        // Перевірка, чи не обрано посаду "адміністратор системи"
+        const titleLower = position.title.toLowerCase();
+        const isAdminPosition = titleLower.includes('адміністратор системи') || 
+                               titleLower.includes('администратор системы') ||
+                               titleLower.includes('system administrator');
+        
+        if (isAdminPosition) {
+          await this.sendMessage(chatId, 
+            `❌ *Помилка*\n\n` +
+            `Ця посада недоступна для реєстрації через бота.\n\n` +
+            `📞 Зверніться до адміністратора для отримання доступу.`
+          );
           return;
         }
 
