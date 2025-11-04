@@ -124,12 +124,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={t('notifications.title')}
-        className={`${isMobile ? 'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2' : 'absolute right-0 mt-2'} ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
+        className={`${isMobile ? 'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-auto sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:right-0 sm:mt-2' : 'absolute right-0 mt-2'} ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : isTablet ? 'w-96' : 'w-80'} bg-surface dark:bg-gray-800 text-foreground dark:text-gray-100 rounded-lg shadow-xl border border-border dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden touch-manipulation`}
       >
       {/* Header */}
-      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-border dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 flex-1">{t('notifications.title')}</h3>
+          <h3 className="text-xs sm:text-sm font-semibold text-foreground dark:text-gray-100 flex-1">{t('notifications.title')}</h3>
           {isMobile && (
             <button
               onClick={onClose}
@@ -137,10 +137,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               aria-label={t('common.close')}
               title={t('common.close')}
             >
-              <X className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <X className="h-4 w-4 text-text-secondary dark:text-gray-400" />
             </button>
           )}
-          <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+          <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
             {notificationTickets.length} {t('notifications.active')}
           </span>
         </div>
@@ -149,8 +149,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {/* Notifications list */}
       <div className={`${isMobile ? 'max-h-[calc(100vh-11rem)]' : 'max-h-80'} overflow-y-auto overscroll-contain touch-pan-y`}>
         {notificationTickets.length === 0 ? (
-          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-500 dark:text-gray-400">
-            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+          <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-text-secondary dark:text-gray-400">
+            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-text-secondary dark:text-gray-500" />
             <p className="text-xs sm:text-sm">{t('notifications.noActive')}</p>
           </div>
         ) : (
@@ -159,7 +159,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               key={ticket._id}
               to={`${basePath}/tickets/${ticket._id}`}
               onClick={onClose}
-              className={`block px-3 sm:px-4 py-3 sm:py-3 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100 dark:active:bg-gray-700 transition-colors touch-manipulation min-h-[60px] sm:min-h-0`}
+              className={`block px-3 sm:px-4 py-3 sm:py-3 border-l-4 ${getPriorityColor(ticket.priority)} hover:bg-gray-50 dark:hover:bg-gray-700/50 active:bg-gray-100 dark:active:bg-gray-700 transition-colors touch-manipulation min-h-[60px] sm:min-h-0 bg-surface dark:bg-gray-800/50`}
             >
               <div className="flex items-start space-x-2 sm:space-x-3">
                 <div className="flex-shrink-0 mt-0.5 sm:mt-1">
@@ -168,15 +168,15 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1">
-                    <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p className="text-xs sm:text-sm font-medium text-foreground dark:text-gray-100 truncate">
                       {ticket.title}
                     </p>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                    <span className="text-xs text-text-secondary dark:text-gray-400 flex-shrink-0">
                       {formatDate(ticket.createdAt)}
                     </span>
                   </div>
                   
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mb-2 line-clamp-2 break-words">
+                  <p className="text-xs text-text-secondary dark:text-gray-300 mb-2 line-clamp-2 break-words">
                     {ticket.description}
                   </p>
                   
@@ -203,7 +203,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     </div>
                     
                     {ticket.assignedTo && (
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center text-xs text-text-secondary dark:text-gray-400">
                         <User className="h-3 w-3 mr-1 flex-shrink-0" />
                         <span className="truncate max-w-[120px] sm:max-w-20">
                           {typeof ticket.assignedTo === 'object' 
@@ -222,11 +222,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
       {/* Footer */}
       {notificationTickets.length > 0 && (
-        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+        <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-border dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <Link
             to={`${basePath}/tickets`}
             onClick={onClose}
-            className="block text-xs sm:text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 active:text-primary-900 dark:active:text-primary-200 font-medium py-1.5 touch-manipulation transition-colors"
+            className="block text-xs sm:text-sm text-primary-500 dark:text-primary-400 hover:text-primary-600 dark:hover:text-primary-300 active:text-primary-700 dark:active:text-primary-200 font-medium py-1.5 touch-manipulation transition-colors"
           >
             {t('notifications.viewAll')} →
           </Link>
