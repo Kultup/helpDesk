@@ -312,8 +312,7 @@ export interface ApiResponse<T> {
 }
 
 // Спеціальний тип для відповіді оновлення тікета
-export interface UpdateTicketResponse extends ApiResponse<Ticket> {
-}
+export type UpdateTicketResponse = ApiResponse<Ticket>
 
 export interface PaginatedResponse<T> {
   data: T[];

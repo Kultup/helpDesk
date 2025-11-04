@@ -81,7 +81,7 @@ export interface CreateQuickTipData {
   tags?: string[];
 }
 
-export interface UpdateQuickTipData extends Partial<CreateQuickTipData> {}
+export type UpdateQuickTipData = Partial<CreateQuickTipData>
 
 export interface RateQuickTipData {
   isHelpful: boolean;
@@ -89,7 +89,7 @@ export interface RateQuickTipData {
 
 class QuickTipService {
   // Отримати швидкі поради по категорії
-  async getQuickTipsByCategory(categoryId: string, limit: number = 5): Promise<QuickTipResponse> {
+  async getQuickTipsByCategory(categoryId: string, limit = 5): Promise<QuickTipResponse> {
     try {
       const response = await api.get(`/quick-tips/category/${categoryId}`, {
         params: { limit }

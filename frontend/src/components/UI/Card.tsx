@@ -78,7 +78,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   );
 };
 
-interface CardContentProps extends HTMLAttributes<HTMLDivElement> {}
+type CardContentProps = HTMLAttributes<HTMLDivElement>
 
 export const CardContent: React.FC<CardContentProps> = ({
   className,
@@ -92,7 +92,7 @@ export const CardContent: React.FC<CardContentProps> = ({
   );
 };
 
-interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {}
+type CardFooterProps = HTMLAttributes<HTMLDivElement>
 
 export const CardFooter: React.FC<CardFooterProps> = ({
   className,
@@ -112,7 +112,7 @@ export const CardFooter: React.FC<CardFooterProps> = ({
   );
 };
 
-interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {}
+type CardTitleProps = HTMLAttributes<HTMLHeadingElement>
 
 export const CardTitle: React.FC<CardTitleProps> = ({
   className,
