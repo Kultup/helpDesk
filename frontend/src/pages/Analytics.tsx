@@ -33,7 +33,7 @@ import { Bar, Pie, Line } from 'react-chartjs-2';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import { useCities, useUsers } from '../hooks';
+import { useCities, useUsers, useWindowSize } from '../hooks';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useUserRegistrationStats } from '../hooks/useUserRegistrationStats';
 import { useTicketExport } from '../hooks/useTicketExport';
@@ -60,6 +60,8 @@ ChartJS.register(
 
 const Analytics: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { width } = useWindowSize();
+  const isMobile = width < 640;
   const { cities, isLoading: citiesLoading } = useCities();
   const { users, isLoading: usersLoading } = useUsers();
   const { userStats, loading: userStatsLoading, refetch: refetchUserStats } = useUserRegistrationStats();
@@ -175,10 +177,10 @@ const Analytics: React.FC = () => {
       legend: {
         position: 'bottom' as const,
         labels: {
-          padding: 20,
+          padding: isMobile ? 10 : 20,
           usePointStyle: true,
           font: {
-            size: 12
+            size: isMobile ? 10 : 12
           }
         }
       },
@@ -189,6 +191,12 @@ const Analytics: React.FC = () => {
             const percentage = ((context.parsed * 100) / total).toFixed(1);
             return `${context.label}: ${context.parsed} (${percentage}%)`;
           }
+        },
+        titleFont: {
+          size: isMobile ? 11 : 13
+        },
+        bodyFont: {
+          size: isMobile ? 10 : 12
         }
       }
     }
@@ -220,8 +228,19 @@ const Analytics: React.FC = () => {
       legend: {
         position: 'bottom' as const,
         labels: {
-          padding: 20,
-          usePointStyle: true
+          padding: isMobile ? 10 : 20,
+          usePointStyle: true,
+          font: {
+            size: isMobile ? 10 : 12
+          }
+        }
+      },
+      tooltip: {
+        titleFont: {
+          size: isMobile ? 11 : 13
+        },
+        bodyFont: {
+          size: isMobile ? 10 : 12
         }
       }
     },
@@ -229,7 +248,17 @@ const Analytics: React.FC = () => {
       y: {
         beginAtZero: true,
         ticks: {
-          stepSize: 1
+          stepSize: 1,
+          font: {
+            size: isMobile ? 10 : 12
+          }
+        }
+      },
+      x: {
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12
+          }
         }
       }
     }
@@ -312,13 +341,22 @@ const Analytics: React.FC = () => {
       legend: {
         position: 'top' as const,
         labels: {
-          padding: 20,
-          usePointStyle: true
+          padding: isMobile ? 10 : 20,
+          usePointStyle: true,
+          font: {
+            size: isMobile ? 10 : 12
+          }
         }
       },
       tooltip: {
         mode: 'index' as const,
         intersect: false,
+        titleFont: {
+          size: isMobile ? 11 : 13
+        },
+        bodyFont: {
+          size: isMobile ? 10 : 12
+        }
       }
     },
     scales: {
@@ -326,18 +364,32 @@ const Analytics: React.FC = () => {
         display: true,
         title: {
           display: true,
-          text: t('analytics.charts.date')
+          text: t('analytics.charts.date'),
+          font: {
+            size: isMobile ? 11 : 13
+          }
+        },
+        ticks: {
+          font: {
+            size: isMobile ? 10 : 12
+          }
         }
       },
       y: {
         display: true,
         title: {
           display: true,
-          text: t('analytics.charts.ticketCount')
+          text: t('analytics.charts.ticketCount'),
+          font: {
+            size: isMobile ? 11 : 13
+          }
         },
         beginAtZero: true,
         ticks: {
-          stepSize: 1
+          stepSize: 1,
+          font: {
+            size: isMobile ? 10 : 12
+          }
         }
       }
     },
@@ -482,12 +534,12 @@ const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('analytics.title')}</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('analytics.title')}</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             {t('analytics.periodStats', { 
               start: formatDateWithLocale(dateRange.start, { 
                 year: 'numeric', 
@@ -509,7 +561,7 @@ const Analytics: React.FC = () => {
             {t('analytics.lastUpdated')}: {lastUpdated.toLocaleTimeString(i18n.language === 'uk' ? 'uk-UA' : i18n.language === 'en' ? 'en-US' : 'pl-PL')}
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
           <Button 
             onClick={async () => {
               if (!autoRefresh) {
@@ -524,36 +576,39 @@ const Analytics: React.FC = () => {
               setAutoRefresh(!autoRefresh);
             }}
             variant={autoRefresh ? "primary" : "secondary"}
+            className="w-full sm:w-auto"
+            size={isMobile ? "sm" : "md"}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            {autoRefresh ? t('analytics.autoRefresh.enabled') : t('analytics.autoRefresh.enable')}
+            <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+            <span className="text-xs sm:text-sm">{autoRefresh ? t('analytics.autoRefresh.enabled') : t('analytics.autoRefresh.enable')}</span>
           </Button>
-          <div className="flex space-x-2">
-            <div className="flex space-x-1">
-              <span className="text-xs text-gray-500 self-center mr-2">{t('analytics.export.analytics')}:</span>
-              <Button onClick={() => exportData('csv')} size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                {t('analytics.export.csv')}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+            <div className="flex flex-wrap gap-1 sm:gap-1">
+              {!isMobile && <span className="text-xs text-gray-500 self-center mr-1">{t('analytics.export.analytics')}:</span>}
+              <Button onClick={() => exportData('csv')} size="sm" className="flex-1 sm:flex-none">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="text-xs">{t('analytics.export.csv')}</span>
               </Button>
-              <Button onClick={() => exportData('excel')} size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                {t('analytics.export.excel')}
+              <Button onClick={() => exportData('excel')} size="sm" className="flex-1 sm:flex-none">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="text-xs">{t('analytics.export.excel')}</span>
               </Button>
-              <Button onClick={() => exportData('pdf')} size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                {t('analytics.export.pdf')}
+              <Button onClick={() => exportData('pdf')} size="sm" className="flex-1 sm:flex-none">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="text-xs">{t('analytics.export.pdf')}</span>
               </Button>
             </div>
-            <div className="border-l border-gray-300 mx-2"></div>
-            <div className="flex space-x-1">
-              <span className="text-xs text-gray-500 self-center mr-2">{t('analytics.export.tickets')}:</span>
+            {!isMobile && <div className="border-l border-gray-300 mx-2"></div>}
+            <div className="flex gap-1 sm:gap-1">
+              {!isMobile && <span className="text-xs text-gray-500 self-center mr-1">{t('analytics.export.tickets')}:</span>}
               <Button 
                 onClick={() => setIsExportModalOpen(true)}
                 variant="primary"
                 size="sm"
+                className="flex-1 sm:flex-none"
               >
-                <Download className="h-4 w-4 mr-1" />
-                {t('analytics.export.exportTickets')}
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span className="text-xs">{t('analytics.export.exportTickets')}</span>
               </Button>
             </div>
           </div>
@@ -562,10 +617,10 @@ const Analytics: React.FC = () => {
 
       {/* Вкладки */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8" aria-label="Tabs">
+        <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto" aria-label="Tabs">
           <button
             onClick={() => setActiveTab('general')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-2 px-1 sm:px-2 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
               activeTab === 'general'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -580,24 +635,24 @@ const Analytics: React.FC = () => {
         <>
           {/* Date Range Filter */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{t('analytics.period')}:</span>
+        <CardContent className="p-3 sm:p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+              <span className="text-xs sm:text-sm font-medium text-foreground">{t('analytics.period')}:</span>
             </div>
             <input
               type="date"
               value={dateRange.start}
               onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 text-sm rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             />
-            <span className="text-muted-foreground">—</span>
+            <span className="text-muted-foreground hidden sm:inline">—</span>
             <input
               type="date"
               value={dateRange.end}
               onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
+              className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 text-sm rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>
         </CardContent>
@@ -605,23 +660,23 @@ const Analytics: React.FC = () => {
 
       {/* Filter Presets */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
+        <CardContent className="p-3 sm:p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
             <div className="flex items-center gap-2">
-              <Bookmark className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{t('analytics.presets.title')}</span>
+              <Bookmark className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+              <span className="text-xs sm:text-sm font-medium text-foreground">{t('analytics.presets.title')}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <input
                 type="text"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
                 placeholder={t('analytics.presets.namePlaceholder')}
-                className="px-3 py-2 rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary w-48"
+                className="flex-1 sm:w-48 px-2 sm:px-3 py-1.5 sm:py-2 text-sm rounded-lg border border-border bg-surface text-foreground shadow-sm focus:ring-2 focus:ring-primary focus:border-primary"
               />
-              <Button variant="primary" size="sm" onClick={savePreset} className="flex items-center gap-2">
-                <BookmarkPlus className="h-4 w-4" />
-                {t('analytics.presets.save')}
+              <Button variant="primary" size="sm" onClick={savePreset} className="flex items-center justify-center gap-2">
+                <BookmarkPlus className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">{t('analytics.presets.save')}</span>
               </Button>
             </div>
           </div>
@@ -655,13 +710,13 @@ const Analytics: React.FC = () => {
 
       {/* Advanced Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">{t('analytics.additionalFilters')}:</span>
+        <CardContent className="p-3 sm:p-4 lg:p-6">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+            <span className="text-xs sm:text-sm font-medium text-gray-700">{t('analytics.additionalFilters')}:</span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Status Filter */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-2">{t('analytics.filters.statuses')}:</label>
@@ -776,100 +831,100 @@ const Analytics: React.FC = () => {
       </Card>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.totalTickets')}</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.totalTickets')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">
                   {analyticsLoading ? '...' : (analyticsData?.overview?.totalTickets || 0)}
                 </p>
               </div>
-              <BarChart3 className="h-8 w-8 text-blue-500" />
+              <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.resolved')}</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.resolved')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">
                   {analyticsLoading ? '...' : getStatusCount('resolved')}
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-500" />
+              <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.highPriority')}</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.highPriority')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-600">
                   {analyticsLoading ? '...' : getPriorityCount('high')}
                 </p>
               </div>
-              <Filter className="h-8 w-8 text-red-500" />
+              <Filter className="h-6 w-6 sm:h-8 sm:w-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.activeCities')}</p>
-                <p className="text-2xl font-bold text-purple-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.activeCities')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">
                   {analyticsLoading ? '...' : (dashboardData?.topCities?.length || 0)}
                 </p>
               </div>
-              <MapPin className="h-8 w-8 text-purple-500" />
+              <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.averageResolutionTime')}</p>
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.averageResolutionTime')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">
                   {analyticsLoading ? '...' : `${Math.round(analyticsData?.avgResolutionTime || 0)} ${t('analytics.metrics.hours')}`}
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-blue-500" />
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.activeUsers')}</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.activeUsers')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">
                   {analyticsLoading ? '...' : (analyticsData?.overview?.activeUsers || 0)}
                 </p>
               </div>
-              <Users className="h-8 w-8 text-green-500" />
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{t('analytics.metrics.resolutionRate')}</p>
-                <p className="text-2xl font-bold text-orange-600">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.metrics.resolutionRate')}</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600">
                   {analyticsLoading ? '...' : (() => {
                     const total = analyticsData?.overview?.totalTickets || 0;
                     const resolved = getStatusCount('resolved');
@@ -877,123 +932,127 @@ const Analytics: React.FC = () => {
                   })()}
                 </p>
               </div>
-              <Activity className="h-8 w-8 text-orange-500" />
+              <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* User Registration Statistics */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-          <Users className="h-6 w-6 mr-2 text-blue-500" />
+      <div className="space-y-4 sm:space-y-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+          <Users className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" />
           {t('analytics.userRegistration.title')}
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{t('analytics.userRegistration.totalUsers')}</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.userRegistration.totalUsers')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">
                     {userStatsLoading ? '...' : (userStats?.summary?.totalUsers || 0)}
                   </p>
                 </div>
-                <Users className="h-8 w-8 text-blue-500" />
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{t('analytics.userRegistration.newIn30Days')}</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.userRegistration.newIn30Days')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">
                     {userStatsLoading ? '...' : (userStats?.summary?.growthRates?.last30Days || 0)}
                   </p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{t('analytics.userRegistration.newIn7Days')}</p>
-                  <p className="text-2xl font-bold text-purple-600">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.userRegistration.newIn7Days')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-purple-600">
                     {userStatsLoading ? '...' : (userStats?.summary?.growthRates?.last7Days || 0)}
                   </p>
                 </div>
-                <Activity className="h-8 w-8 text-purple-500" />
+                <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{t('analytics.userRegistration.activeSources')}</p>
-                  <p className="text-2xl font-bold text-orange-600">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{t('analytics.userRegistration.activeSources')}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-orange-600">
                     {userStatsLoading ? '...' : (userStats?.registrationSources?.length || 0)}
                   </p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-orange-500" />
+                <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* User Registration Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Registration Sources Chart */}
           <Card>
-            <CardHeader>
-              <h3 className="text-lg font-semibold flex items-center">
-                <PieChart className="h-5 w-5 mr-2 text-blue-500" />
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <h3 className="text-base sm:text-lg font-semibold flex items-center">
+                <PieChart className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-500" />
                 {t('analytics.userRegistration.registrationSources')}
               </h3>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               {userStatsLoading ? (
-                <div className="flex justify-center items-center h-64">
+                <div className="flex justify-center items-center h-48 sm:h-64">
                   <LoadingSpinner />
                 </div>
               ) : userStats?.registrationSources && userStats.registrationSources.length > 0 ? (
-                <Pie
-                  data={{
-                    labels: userStats.registrationSources.map((source: any) => source._id || t('analytics.unknown')),
-                    datasets: [{
-                      data: userStats.registrationSources.map((source: any) => source.count),
-                      backgroundColor: [
-                        '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-                        '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280'
-                      ],
-                      borderWidth: 2,
-                      borderColor: '#ffffff'
-                    }]
-                  }}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: {
-                        position: 'bottom' as const,
-                        labels: {
-                          padding: 20,
-                          usePointStyle: true
+                <div className="h-48 sm:h-64">
+                  <Pie
+                    data={{
+                      labels: userStats.registrationSources.map((source: any) => source._id || t('analytics.unknown')),
+                      datasets: [{
+                        data: userStats.registrationSources.map((source: any) => source.count),
+                        backgroundColor: [
+                          '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+                          '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6B7280'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'bottom' as const,
+                          labels: {
+                            padding: 10,
+                            usePointStyle: true,
+                            font: {
+                              size: isMobile ? 10 : 12
+                            }
+                          }
                         }
                       }
-                    }
-                  }}
-                  height={300}
-                />
+                    }}
+                  />
+                </div>
               ) : (
-                <div className="flex justify-center items-center h-64 text-gray-500">
+                <div className="flex justify-center items-center h-48 sm:h-64 text-gray-500">
                   {t('analytics.noData')}
                 </div>
               )}
@@ -1002,41 +1061,116 @@ const Analytics: React.FC = () => {
 
           {/* Registration Status Chart */}
           <Card>
-            <CardHeader>
-              <h3 className="text-lg font-semibold flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2 text-green-500" />
+            <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <h3 className="text-base sm:text-lg font-semibold flex items-center">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-green-500" />
                 {t('analytics.charts.registrationStatuses')}
               </h3>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4 lg:p-6">
               {userStatsLoading ? (
-                <div className="flex justify-center items-center h-64">
+                <div className="flex justify-center items-center h-48 sm:h-64">
                   <LoadingSpinner />
                 </div>
               ) : userStats?.registrationStatuses && userStats.registrationStatuses.length > 0 ? (
-                <Bar
-                  data={{
-                    labels: userStats.registrationStatuses.map((status: any) => {
-                      switch(status._id) {
-                        case 'pending': return t('analytics.status.pending');
-                        case 'approved': return t('analytics.status.approved');
-                        case 'rejected': return t('analytics.status.rejected');
-                        default: return status._id || t('analytics.status.unknown');
-                      }
-                    }),
-                    datasets: [{
-                      label: t('analytics.charts.userCount'),
-                      data: userStats.registrationStatuses.map((status: any) => status.count),
-                      backgroundColor: userStats.registrationStatuses.map((status: any) => {
+                <div className="h-48 sm:h-64">
+                  <Bar
+                    data={{
+                      labels: userStats.registrationStatuses.map((status: any) => {
                         switch(status._id) {
-                          case 'pending': return '#F59E0B';
-                          case 'approved': return '#10B981';
-                          case 'rejected': return '#EF4444';
-                          default: return '#6B7280';
+                          case 'pending': return t('analytics.status.pending');
+                          case 'approved': return t('analytics.status.approved');
+                          case 'rejected': return t('analytics.status.rejected');
+                          default: return status._id || t('analytics.status.unknown');
                         }
                       }),
-                      borderRadius: 4,
-                      borderSkipped: false
+                      datasets: [{
+                        label: t('analytics.charts.userCount'),
+                        data: userStats.registrationStatuses.map((status: any) => status.count),
+                        backgroundColor: userStats.registrationStatuses.map((status: any) => {
+                          switch(status._id) {
+                            case 'pending': return '#F59E0B';
+                            case 'approved': return '#10B981';
+                            case 'rejected': return '#EF4444';
+                            default: return '#6B7280';
+                          }
+                        }),
+                        borderRadius: 4,
+                        borderSkipped: false
+                      }]
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          ticks: {
+                            stepSize: 1,
+                            font: {
+                              size: isMobile ? 10 : 12
+                            }
+                          }
+                        },
+                        x: {
+                          ticks: {
+                            font: {
+                              size: isMobile ? 10 : 12
+                            }
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex justify-center items-center h-48 sm:h-64 text-gray-500">
+                  {t('analytics.noData')}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Daily Registrations Chart */}
+        <Card>
+          <CardHeader className="p-3 sm:p-4 lg:p-6">
+              <h3 className="text-base sm:text-lg font-semibold flex items-center">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-purple-500" />
+                {t('analytics.userRegistration.dailyRegistrations')}
+              </h3>
+            </CardHeader>
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            {userStatsLoading ? (
+              <div className="flex justify-center items-center h-48 sm:h-64">
+                <LoadingSpinner />
+              </div>
+            ) : userStats?.dailyStats && userStats.dailyStats.length > 0 ? (
+              <div className="h-48 sm:h-64">
+                <Line
+                  data={{
+                    labels: userStats.dailyStats.map((day: any) => 
+                      new Date(day._id).toLocaleDateString('uk-UA', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })
+                    ),
+                    datasets: [{
+                      label: t('analytics.userRegistration.newRegistrations'),
+                      data: userStats.dailyStats.map((day: any) => day.count),
+                      borderColor: '#8B5CF6',
+                      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                      fill: true,
+                      tension: 0.4,
+                      pointBackgroundColor: '#8B5CF6',
+                      pointBorderColor: '#ffffff',
+                      pointBorderWidth: 2,
+                      pointRadius: isMobile ? 3 : 4
                     }]
                   }}
                   options={{
@@ -1051,83 +1185,28 @@ const Analytics: React.FC = () => {
                       y: {
                         beginAtZero: true,
                         ticks: {
-                          stepSize: 1
+                          stepSize: 1,
+                          font: {
+                            size: isMobile ? 10 : 12
+                          }
+                        }
+                      },
+                      x: {
+                        grid: {
+                          display: false
+                        },
+                        ticks: {
+                          font: {
+                            size: isMobile ? 10 : 12
+                          }
                         }
                       }
                     }
                   }}
-                  height={300}
                 />
-              ) : (
-                <div className="flex justify-center items-center h-64 text-gray-500">
-                  {t('analytics.noData')}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Daily Registrations Chart */}
-        <Card>
-          <CardHeader>
-              <h3 className="text-lg font-semibold flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2 text-purple-500" />
-                {t('analytics.userRegistration.dailyRegistrations')}
-              </h3>
-            </CardHeader>
-          <CardContent>
-            {userStatsLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <LoadingSpinner />
               </div>
-            ) : userStats?.dailyStats && userStats.dailyStats.length > 0 ? (
-              <Line
-                data={{
-                  labels: userStats.dailyStats.map((day: any) => 
-                    new Date(day._id).toLocaleDateString('uk-UA', { 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })
-                  ),
-                  datasets: [{
-                    label: t('analytics.userRegistration.newRegistrations'),
-                    data: userStats.dailyStats.map((day: any) => day.count),
-                    borderColor: '#8B5CF6',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#8B5CF6',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4
-                  }]
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: false
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        stepSize: 1
-                      }
-                    },
-                    x: {
-                      grid: {
-                        display: false
-                      }
-                    }
-                  }
-                }}
-                height={300}
-              />
             ) : (
-              <div className="flex justify-center items-center h-64 text-gray-500">
+              <div className="flex justify-center items-center h-48 sm:h-64 text-gray-500">
                 {t('analytics.noData')}
               </div>
             )}
@@ -1136,17 +1215,17 @@ const Analytics: React.FC = () => {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Status Distribution */}
         <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center">
-              <PieChart className="h-5 w-5 mr-2" />
+          <CardHeader className="p-3 sm:p-4 lg:p-6">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center">
+              <PieChart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               {t('analytics.charts.statusDistribution')}
             </h3>
           </CardHeader>
-          <CardContent>
-            <div className="h-80">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="h-64 sm:h-80">
               <Pie data={statusData} options={statusChartOptions} />
             </div>
           </CardContent>
@@ -1154,14 +1233,14 @@ const Analytics: React.FC = () => {
 
         {/* Priority Distribution */}
         <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center">
-              <BarChart3 className="h-5 w-5 mr-2" />
+          <CardHeader className="p-3 sm:p-4 lg:p-6">
+            <h3 className="text-base sm:text-lg font-semibold flex items-center">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               {t('analytics.charts.priorityDistribution')}
             </h3>
           </CardHeader>
-          <CardContent>
-            <div className="h-80">
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="h-64 sm:h-80">
               <Bar data={priorityData} options={priorityChartOptions} />
             </div>
           </CardContent>
@@ -1170,30 +1249,30 @@ const Analytics: React.FC = () => {
 
       {/* Cities Statistics */}
       <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold flex items-center">
-            <MapPin className="h-5 w-5 mr-2" />
+        <CardHeader className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold flex items-center">
+            <MapPin className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             {t('analytics.charts.cityStatistics')}
           </h3>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2 sm:p-4 lg:p-6">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">{t('analytics.table.city')}</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">{t('analytics.table.totalTickets')}</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">{t('analytics.table.resolved')}</th>
-                  <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">{t('analytics.table.resolutionRate')}</th>
+                  <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-500">{t('analytics.table.city')}</th>
+                  <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-500">{t('analytics.table.totalTickets')}</th>
+                  <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-500">{t('analytics.table.resolved')}</th>
+                  <th className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-500">{t('analytics.table.resolutionRate')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {cityStats.slice(0, 10).map((city, index) => (
                   <tr key={`city-${index}-${city.name}`}>
-                    <td className="px-4 py-2 text-sm font-medium text-gray-900">{city.name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-500">{city.count}</td>
-                    <td className="px-4 py-2 text-sm text-gray-500">{city.resolved}</td>
-                    <td className="px-4 py-2 text-sm text-gray-500">
+                    <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-900">{city.name}</td>
+                    <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-gray-500">{city.count}</td>
+                    <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-gray-500">{city.resolved}</td>
+                    <td className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-gray-500">
                       {city.count > 0 ? Math.round((city.resolved / city.count) * 100) : 0}%
                     </td>
                   </tr>
@@ -1206,14 +1285,14 @@ const Analytics: React.FC = () => {
 
       {/* Trend Chart */}
       <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2" />
+        <CardHeader className="p-3 sm:p-4 lg:p-6">
+          <h3 className="text-base sm:text-lg font-semibold flex items-center">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
               {t('analytics.charts.timeTrend')}
             </h3>
         </CardHeader>
-        <CardContent>
-          <div className="h-80">
+        <CardContent className="p-3 sm:p-4 lg:p-6">
+          <div className="h-64 sm:h-80">
             <Line data={trendData} options={trendChartOptions} />
           </div>
         </CardContent>
