@@ -82,7 +82,15 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   };
 
   return (
-    <div className={`absolute ${isMobile ? 'left-0 right-0 mx-2 sm:right-0 sm:left-auto sm:mx-0' : 'right-0'} mt-2 ${isMobile ? 'w-[calc(100%-1rem)]' : 'w-80'} bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-8rem)]' : 'max-h-96'} overflow-hidden`}>
+    <>
+      {/* Backdrop для мобільних */}
+      {isMobile && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={onClose}
+        />
+      )}
+      <div className={`absolute ${isMobile ? 'right-0 sm:right-0' : 'right-0'} mt-2 ${isMobile ? 'w-[calc(100vw-1rem)] sm:w-80 max-w-sm' : 'w-80'} bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${isMobile ? 'max-h-[calc(100vh-5rem)]' : 'max-h-96'} overflow-hidden`}>
       {/* Header */}
       <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center justify-between">
@@ -94,7 +102,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       </div>
 
       {/* Notifications list */}
-      <div className={`${isMobile ? 'max-h-[calc(100vh-12rem)]' : 'max-h-80'} overflow-y-auto`}>
+      <div className={`${isMobile ? 'max-h-[calc(100vh-11rem)]' : 'max-h-80'} overflow-y-auto`}>
         {notificationTickets.length === 0 ? (
           <div className="px-3 sm:px-4 py-4 sm:py-6 text-center text-gray-500 dark:text-gray-400">
             <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
@@ -179,7 +187,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           </Link>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
