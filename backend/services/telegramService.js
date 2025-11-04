@@ -58,9 +58,17 @@ class TelegramService {
       }
       // Додаємо підтримку Markdown форматування за замовчуванням
       const defaultOptions = { parse_mode: 'Markdown', ...options };
-      return await this.bot.sendMessage(chatId, text, defaultOptions);
+      logger.debug(`Відправляю повідомлення в чат ${chatId}`, { text: text?.substring(0, 50) });
+      const result = await this.bot.sendMessage(chatId, text, defaultOptions);
+      logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, { messageId: result.message_id });
+      return result;
     } catch (error) {
-      logger.error('Помилка відправки повідомлення:', error);
+      logger.error('Помилка відправки повідомлення:', {
+        chatId,
+        error: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      });
       throw error;
     }
   }
@@ -82,6 +90,12 @@ class TelegramService {
     try {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
+      
+      logger.info(`Отримано повідомлення від користувача ${userId} в чаті ${chatId}`, {
+        text: msg.text?.substring(0, 100),
+        hasPhoto: !!msg.photo,
+        hasContact: !!msg.contact
+      });
 
       // Обробка фото
       if (msg.photo) {
@@ -97,6 +111,7 @@ class TelegramService {
 
       // Обробка команд
       if (msg.text && msg.text.startsWith('/')) {
+        logger.info(`Обробка команди: ${msg.text}`);
         await this.handleCommand(msg);
         return;
       }
@@ -104,8 +119,17 @@ class TelegramService {
       // Обробка звичайних повідомлень
       await this.handleTextMessage(msg);
     } catch (error) {
-      logger.error('Помилка обробки повідомлення:', error);
-      await this.sendMessage(msg.chat.id, 'Виникла помилка. Спробуйте ще раз.');
+      logger.error('Помилка обробки повідомлення:', {
+        error: error.message,
+        stack: error.stack,
+        chatId: msg.chat?.id,
+        userId: msg.from?.id
+      });
+      try {
+        await this.sendMessage(msg.chat.id, 'Виникла помилка. Спробуйте ще раз.');
+      } catch (sendError) {
+        logger.error('Не вдалося відправити повідомлення про помилку:', sendError);
+      }
     }
   }
 
