@@ -134,6 +134,8 @@ exports.getOverview = async (req, res) => {
     // Щоденна статистика тикетів за останні 14 днів (для тренду часу)
     const now = new Date();
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    
+    // Створені тикети за день
     const ticketsByDay = await Ticket.aggregate([
       {
         $match: {
@@ -144,6 +146,25 @@ exports.getOverview = async (req, res) => {
         $group: {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Вирішені тикети за день (за датою вирішення)
+    const resolvedTicketsByDay = await Ticket.aggregate([
+      {
+        $match: {
+          resolvedAt: { $exists: true, $gte: fourteenDaysAgo },
+          status: 'resolved'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$resolvedAt" }
           },
           count: { $sum: 1 }
         }
@@ -162,6 +183,7 @@ exports.getOverview = async (req, res) => {
         ticketsByStatus: statusStats,
         ticketsByPriority: priorityStats,
         ticketsByDay,
+        resolvedTicketsByDay,
         avgResolutionTime: avgResolutionTime[0]?.avgTime ? Math.round(avgResolutionTime[0].avgTime * 100) / 100 : 0,
         userStats: {
           totalUsers,
@@ -511,7 +533,7 @@ exports.getDashboardMetrics = async (req, res) => {
       }
     ]);
 
-    // Топ міста за кількістю тикетів
+    // Топ міста за кількістю тикетів з реальними даними вирішених
     const topCities = await Ticket.aggregate([
       { $match: { createdAt: { $gte: startOfMonth } } },
       {
@@ -527,7 +549,10 @@ exports.getDashboardMetrics = async (req, res) => {
         $group: {
           _id: '$city',
           cityName: { $first: '$cityInfo.name' },
-          count: { $sum: 1 }
+          count: { $sum: 1 },
+          resolved: {
+            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+          }
         }
       },
       { $sort: { count: -1 } },

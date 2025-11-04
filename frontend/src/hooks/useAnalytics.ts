@@ -53,6 +53,7 @@ export interface DashboardData {
     _id: string;
     cityName: string;
     count: number;
+    resolved?: number;
   }>;
 }
 

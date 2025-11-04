@@ -268,7 +268,7 @@ const Analytics: React.FC = () => {
   const cityStats = (dashboardData?.topCities || []).map(cityData => ({
     name: cityData.cityName,
     count: cityData.count,
-    resolved: Math.round(cityData.count * 0.7) // Приблизний розрахунок вирішених
+    resolved: cityData.resolved || 0 // Реальні дані вирішених тикетів
   })).sort((a, b) => b.count - a.count);
 
   // Часовий тренд (останні 14 днів)
@@ -295,6 +295,10 @@ const Analytics: React.FC = () => {
     return analyticsData?.ticketsByDay?.find(item => item._id === date)?.count || 0;
   };
 
+  const getResolvedTrendCount = (date: string) => {
+    return analyticsData?.resolvedTicketsByDay?.find(item => item._id === date)?.count || 0;
+  };
+
   const trendData = {
     labels: last14Days.map(date => new Date(date).toLocaleDateString(getLocale(i18n.language), {
       month: 'short',
@@ -312,14 +316,12 @@ const Analytics: React.FC = () => {
         pointBackgroundColor: '#3B82F6',
         pointBorderColor: '#1E40AF',
         pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 8
+        pointRadius: isMobile ? 3 : 5,
+        pointHoverRadius: isMobile ? 5 : 8
       },
       {
         label: t('analytics.charts.resolvedTickets'),
-        data: last14Days.map(date => 
-          Math.round(getTrendCount(date) * 0.7) // Приблизний розрахунок вирішених
-        ),
+        data: last14Days.map(date => getResolvedTrendCount(date)), // Реальні дані вирішених тикетів
         borderColor: '#10B981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         borderWidth: 3,
@@ -328,8 +330,8 @@ const Analytics: React.FC = () => {
         pointBackgroundColor: '#10B981',
         pointBorderColor: '#047857',
         pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 8
+        pointRadius: isMobile ? 3 : 5,
+        pointHoverRadius: isMobile ? 5 : 8
       }
     ]
   };

@@ -266,6 +266,10 @@ export interface AnalyticsData {
     _id: string;
     count: number;
   }>;
+  resolvedTicketsByDay: Array<{
+    _id: string;
+    count: number;
+  }>;
   avgResolutionTime: number;
   topResolvers: Array<{
     _id: string;
