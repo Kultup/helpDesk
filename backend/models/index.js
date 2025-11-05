@@ -18,6 +18,11 @@ const SLAPolicy = require('./SLAPolicy');
 const KnowledgeBase = require('./KnowledgeBase');
 const EmailThread = require('./EmailThread');
 const EmailSettings = require('./EmailSettings');
+const TelegramConfig = require('./TelegramConfig');
+const ActiveDirectoryConfig = require('./ActiveDirectoryConfig');
+const Notification = require('./Notification');
+const TicketHistory = require('./TicketHistory');
+const Attachment = require('./Attachment');
 
 module.exports = {
   User,
@@ -36,5 +41,10 @@ module.exports = {
   SLAPolicy,
   KnowledgeBase,
   EmailThread,
-  EmailSettings
+  EmailSettings,
+  TelegramConfig,
+  ActiveDirectoryConfig,
+  Notification,
+  TicketHistory,
+  Attachment
 };

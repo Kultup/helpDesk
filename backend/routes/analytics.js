@@ -765,4 +765,13 @@ router.get('/charts/workload-by-day',
   analyticsController.getWorkloadByDayOfWeek
 );
 
+// @route   GET /api/analytics/monthly-report
+// @desc    Експорт звіту за минулий місяць з діаграмами
+// @access  Private
+router.get('/monthly-report', 
+  authenticateToken,
+  requirePermission('export_data'),
+  analyticsController.exportMonthlyReport
+);
+
 module.exports = router;

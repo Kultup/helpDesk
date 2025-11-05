@@ -173,22 +173,6 @@ const updateProfileValidation = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Біографія не повинна перевищувати 500 символів'),
-  body('preferences')
-    .optional()
-    .isObject()
-    .withMessage('Налаштування повинні бути об\'єктом'),
-  body('preferences.language')
-    .optional()
-    .isIn(['uk', 'en', 'ru'])
-    .withMessage('Мова повинна бути uk, en або ru'),
-  body('preferences.theme')
-    .optional()
-    .isIn(['light', 'dark', 'auto'])
-    .withMessage('Тема повинна бути light, dark або auto'),
-  body('preferences.notifications')
-    .optional()
-    .isObject()
-    .withMessage('Налаштування сповіщень повинні бути об\'єктом')
 ];
 
 // Валідація параметрів запиту
@@ -287,44 +271,6 @@ router.get('/:userId/comments', authenticateToken, [
   ...queryValidation
 ], commentController.getUserComments);
 
-// Отримати налаштування користувача
-router.get('/:id/preferences', authenticateToken, idValidation, userController.getUserPreferences);
-
-// Оновити налаштування користувача
-router.put('/:id/preferences', authenticateToken, idValidation, [
-  body('language')
-    .optional()
-    .isIn(['uk', 'en'])
-    .withMessage('Мова повинна бути uk або en'),
-  body('theme')
-    .optional()
-    .isIn(['light', 'dark', 'auto'])
-    .withMessage('Тема повинна бути light, dark або auto'),
-  body('timezone')
-    .optional()
-    .isString()
-    .withMessage('Часовий пояс повинен бути рядком'),
-  body('dateFormat')
-    .optional()
-    .isIn(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'])
-    .withMessage('Формат дати повинен бути DD/MM/YYYY, MM/DD/YYYY або YYYY-MM-DD'),
-  body('timeFormat')
-    .optional()
-    .isIn(['12h', '24h'])
-    .withMessage('Формат часу повинен бути 12h або 24h'),
-  body('itemsPerPage')
-    .optional()
-    .isInt({ min: 5, max: 100 })
-    .withMessage('Кількість елементів на сторінці повинна бути від 5 до 100'),
-  body('emailNotifications')
-    .optional()
-    .isObject()
-    .withMessage('Налаштування email сповіщень повинні бути об\'єктом'),
-  body('telegramNotifications')
-    .optional()
-    .isObject()
-    .withMessage('Налаштування telegram сповіщень повинні бути об\'єктом')
-], handleValidationErrors, userController.updateUserPreferences);
 
 // ДОДАТКОВІ МАРШРУТИ (ЗАКОМЕНТОВАНО ДО РЕАЛІЗАЦІЇ МЕТОДІВ)
 // Завантажити аватар користувача

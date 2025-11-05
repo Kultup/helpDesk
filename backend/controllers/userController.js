@@ -90,135 +90,6 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-// Отримати налаштування користувача
-exports.getUserPreferences = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Невірний ID користувача'
-      });
-    }
-
-    // Перевірка прав доступу - користувач може отримати тільки свої налаштування
-    if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Недостатньо прав для доступу до налаштувань цього користувача'
-      });
-    }
-
-    const user = await User.findById(id).select('preferences');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Користувача не знайдено'
-      });
-    }
-
-    // Повертаємо налаштування з дефолтними значеннями
-    const defaultPreferences = {
-      theme: 'light',
-      language: 'uk',
-      timezone: 'Europe/Kiev',
-      dateFormat: 'DD/MM/YYYY',
-      timeFormat: '24h',
-      itemsPerPage: 10,
-      emailNotifications: {
-        newTickets: true,
-        ticketUpdates: true,
-        comments: true,
-        mentions: true,
-        systemUpdates: false
-      },
-      telegramNotifications: {
-        newTickets: true,
-        ticketUpdates: true,
-        comments: true,
-        mentions: true,
-        systemUpdates: false
-      }
-    };
-
-    const preferences = { ...defaultPreferences, ...user.preferences };
-
-    res.json({
-      success: true,
-      data: preferences
-    });
-  } catch (error) {
-    logger.error('Error getting user preferences:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка при отриманні налаштувань користувача',
-      error: error.message
-    });
-  }
-};
-
-// Оновити налаштування користувача
-exports.updateUserPreferences = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Невірний ID користувача'
-      });
-    }
-
-    // Перевірка прав доступу - користувач може оновити тільки свої налаштування
-    if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Недостатньо прав для зміни налаштувань цього користувача'
-      });
-    }
-
-    const user = await User.findById(id);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Користувача не знайдено'
-      });
-    }
-
-    // Оновлюємо налаштування
-    const updatedPreferences = {
-      ...user.preferences,
-      ...req.body
-    };
-
-    await User.findByIdAndUpdate(id, { 
-      preferences: updatedPreferences 
-    }, { new: true });
-
-    logger.info(`🔧 Налаштування користувача оновлено:`, {
-      userId: id,
-      email: user.email,
-      updatedFields: Object.keys(req.body),
-      updatedBy: req.user.email
-    });
-
-    res.json({
-      success: true,
-      message: 'Налаштування успішно оновлено',
-      data: updatedPreferences
-    });
-  } catch (error) {
-    logger.error('Error updating user preferences:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка при оновленні налаштувань користувача',
-      error: error.message
-    });
-  }
-};
 
 // Отримати користувача за ID
 exports.getUserById = async (req, res) => {
@@ -311,7 +182,8 @@ exports.createUser = async (req, res) => {
       city,
       telegramUsername,
       phone,
-      isActive
+      isActive,
+      permissions = []
     } = req.body;
     
     logger.info('🏢 Department value:', department);
@@ -347,6 +219,17 @@ exports.createUser = async (req, res) => {
       }
     }
 
+    // Валідація permissions
+    const validPermissions = [
+      'create_tickets', 'edit_tickets', 'delete_tickets', 'assign_tickets',
+      'view_all_tickets', 'view_analytics', 'export_data', 'manage_users',
+      'manage_cities', 'manage_positions', 'system_settings', 'telegram_admin'
+    ];
+    
+    const filteredPermissions = Array.isArray(permissions) 
+      ? permissions.filter(p => validPermissions.includes(p))
+      : [];
+
     const user = new User({
       firstName,
       lastName,
@@ -361,6 +244,7 @@ exports.createUser = async (req, res) => {
       isActive: typeof isActive === 'boolean' ? isActive : true,
       isEmailVerified: true, // Адмін створює підтверджених користувачів
       registrationStatus: 'approved',
+      permissions: filteredPermissions,
       createdBy: req.user._id
     });
 
@@ -438,7 +322,8 @@ exports.updateUser = async (req, res) => {
       telegramUsername,
       phone,
       isActive,
-      avatar
+      avatar,
+      permissions
     } = req.body;
 
     // Перевірка унікальності email (якщо змінюється)
@@ -473,6 +358,26 @@ exports.updateUser = async (req, res) => {
     // Поля, які може змінювати тільки адмін
     if (req.user.role === 'admin') {
       if (role !== undefined) user.role = role;
+      
+      // Оновлення permissions
+      if (permissions !== undefined) {
+        const validPermissions = [
+          'create_tickets', 'edit_tickets', 'delete_tickets', 'assign_tickets',
+          'view_all_tickets', 'view_analytics', 'export_data', 'manage_users',
+          'manage_cities', 'manage_positions', 'system_settings', 'telegram_admin'
+        ];
+        
+        // Якщо роль admin, то permissions не потрібні (адмін має всі права)
+        if (role === 'admin') {
+          user.permissions = [];
+        } else {
+          const filteredPermissions = Array.isArray(permissions) 
+            ? permissions.filter(p => validPermissions.includes(p))
+            : [];
+          user.permissions = filteredPermissions;
+        }
+      }
+      
       if (isActive !== undefined) user.isActive = isActive;
       if (position !== undefined) {
         if (position) {

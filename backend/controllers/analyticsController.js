@@ -2,6 +2,7 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const City = require('../models/City');
 const Comment = require('../models/Comment');
+const Position = require('../models/Position');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 
@@ -63,52 +64,25 @@ exports.getOverview = async (req, res) => {
     ]);
 
     // Активні користувачі
-    const activeUsers = await User.countDocuments({ 
-      lastLogin: { 
-        $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // останні 30 днів
-      } 
-    });
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const totalUsers = await User.countDocuments();
+    const totalCities = await City.countDocuments({ isActive: true });
+    const totalPositions = await Position.countDocuments({ isActive: true });
 
-    // Статистика користувачів
-    const userFilter = {};
-    if (Object.keys(dateFilter).length > 0) {
-      userFilter.createdAt = dateFilter;
-    }
-
-    // Загальна кількість користувачів
-    const totalUsers = await User.countDocuments(userFilter);
-
-    // Статистика по джерелах реєстрації
-    const registrationSourceStats = await User.aggregate([
-      { $match: userFilter },
-      { 
-        $group: { 
-          _id: '$metadata.registrationSource', 
-          count: { $sum: 1 } 
+    // Статистика реєстрацій
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const registrationStatusStats = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo }
         } 
       },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Прирост користувачів за останні 30 днів
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const newUsersLast30Days = await User.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-
-    // Прирост користувачів за останні 7 днів
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const newUsersLast7Days = await User.countDocuments({
-      createdAt: { $gte: sevenDaysAgo }
-    });
-
-    // Статистика по статусах реєстрації
-    const registrationStatusStats = await User.aggregate([
-      { $match: userFilter },
-      { 
-        $group: { 
-          _id: '$registrationStatus', 
-          count: { $sum: 1 } 
+      {
+        $group: {
+          _id: '$registrationStatus',
+          count: { $sum: 1 }
         } 
       }
     ]);
@@ -132,7 +106,6 @@ exports.getOverview = async (req, res) => {
     ]);
 
     // Щоденна статистика тикетів (для тренду часу)
-    // Використовуємо dateRange або останні 14 днів за замовчуванням
     const now = new Date();
     const defaultStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const trendStartDate = startDate ? new Date(startDate) : defaultStartDate;
@@ -182,27 +155,63 @@ exports.getOverview = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
+    // Статистика по категоріях
+    const categoryStats = await Ticket.aggregate([
+      { $match: filter },
+      { $group: { _id: '$category', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Топ вирішувачів
+    const topResolvers = await Ticket.aggregate([
+      {
+        $match: {
+          ...filter,
+          status: 'resolved',
+          assignedTo: { $exists: true }
+        }
+      },
+      {
+        $group: {
+          _id: '$assignedTo',
+          resolvedCount: { $sum: 1 }
+        }
+      },
+      { $sort: { resolvedCount: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Заповнюємо дані користувачів
+    const topResolversWithUsers = await Promise.all(
+      topResolvers.map(async (item) => {
+        const user = await User.findById(item._id).select('firstName lastName email').lean();
+        return {
+          _id: item._id,
+          resolvedCount: item.resolvedCount,
+          user: user || { firstName: 'Невідомий', lastName: '', email: '' }
+        };
+      })
+    );
+
     res.json({
       success: true,
       data: {
         overview: {
           totalTickets,
+          totalUsers,
           activeUsers,
-          highPriorityTickets: priorityStats.find(p => p._id === 'high')?.count || 0
+          totalCities,
+          totalPositions
         },
         ticketsByStatus: statusStats,
         ticketsByPriority: priorityStats,
+        ticketsByCategory: categoryStats,
         ticketsByDay,
         resolvedTicketsByDay,
-        avgResolutionTime: avgResolutionTime[0]?.avgTime ? Math.round(avgResolutionTime[0].avgTime * 100) / 100 : 0,
-        userStats: {
-          totalUsers,
-          newUsersLast30Days,
-          newUsersLast7Days,
-          registrationSourceStats,
-          registrationStatusStats,
-          dailyRegistrations
-        }
+        avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
+        topResolvers: topResolversWithUsers,
+        registrationStatusStats,
+        dailyRegistrations
       }
     });
   } catch (error) {
@@ -210,285 +219,6 @@ exports.getOverview = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка сервера при отриманні статистики'
-    });
-  }
-};
-
-// Статистика по містах
-exports.getCitiesStats = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
-    
-    const matchFilter = {};
-    if (Object.keys(dateFilter).length > 0) {
-      matchFilter.createdAt = dateFilter;
-    }
-
-    const citiesStats = await Ticket.aggregate([
-      { $match: matchFilter },
-      {
-        $lookup: {
-          from: 'cities',
-          localField: 'city',
-          foreignField: '_id',
-          as: 'cityInfo'
-        }
-      },
-      { $unwind: '$cityInfo' },
-      {
-        $group: {
-          _id: '$city',
-          cityName: { $first: '$cityInfo.name' },
-          region: { $first: '$cityInfo.region' },
-          coordinates: { $first: '$cityInfo.coordinates' },
-          totalTickets: { $sum: 1 },
-          openTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] }
-          },
-          inProgressTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] }
-          },
-          resolvedTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
-          },
-          closedTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] }
-          }
-        }
-      },
-      { $sort: { totalTickets: -1 } }
-    ]);
-
-    res.json({
-      success: true,
-      data: citiesStats
-    });
-  } catch (error) {
-    logger.error('Помилка отримання статистики по містах:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка сервера при отриманні статистики по містах'
-    });
-  }
-};
-
-// Статистика по користувачах
-exports.getUsersStats = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
-    
-    const matchFilter = {};
-    if (Object.keys(dateFilter).length > 0) {
-      matchFilter.createdAt = dateFilter;
-    }
-
-    const usersStats = await Ticket.aggregate([
-      { $match: matchFilter },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'assignedTo',
-          foreignField: '_id',
-          as: 'assignedUser'
-        }
-      },
-      { $unwind: { path: '$assignedUser', preserveNullAndEmptyArrays: true } },
-      {
-        $group: {
-          _id: '$assignedTo',
-          userName: { $first: '$assignedUser.email' },
-          position: { $first: '$assignedUser.position' },
-          totalAssigned: { $sum: 1 },
-          resolved: {
-            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
-          },
-          avgResolutionTime: {
-            $avg: {
-              $cond: [
-                { $and: [{ $eq: ['$status', 'resolved'] }, { $ne: ['$resolvedAt', null] }] },
-                {
-                  $divide: [
-                    { $subtract: ['$resolvedAt', '$createdAt'] },
-                    1000 * 60 * 60 // години
-                  ]
-                },
-                null
-              ]
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          userName: 1,
-          position: 1,
-          totalAssigned: 1,
-          resolved: 1,
-          resolutionRate: {
-            $cond: [
-              { $gt: ['$totalAssigned', 0] },
-              { $multiply: [{ $divide: ['$resolved', '$totalAssigned'] }, 100] },
-              0
-            ]
-          },
-          avgResolutionTime: { $ifNull: ['$avgResolutionTime', 0] }
-        }
-      },
-      { $sort: { resolutionRate: -1 } }
-    ]);
-
-    res.json({
-      success: true,
-      data: usersStats
-    });
-  } catch (error) {
-    logger.error('Помилка отримання статистики по користувачах:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка сервера при отриманні статистики по користувачах'
-    });
-  }
-};
-
-// Тренди по часу
-exports.getTimelineStats = async (req, res) => {
-  try {
-    const { period = 'month', startDate, endDate } = req.query;
-    
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
-    
-    const matchFilter = {};
-    if (Object.keys(dateFilter).length > 0) {
-      matchFilter.createdAt = dateFilter;
-    }
-
-    // Визначаємо формат групування за періодом
-    let dateFormat;
-    switch (period) {
-      case 'day':
-        dateFormat = '%Y-%m-%d';
-        break;
-      case 'week':
-        dateFormat = '%Y-%U';
-        break;
-      case 'month':
-        dateFormat = '%Y-%m';
-        break;
-      case 'year':
-        dateFormat = '%Y';
-        break;
-      default:
-        dateFormat = '%Y-%m';
-    }
-
-    const timelineStats = await Ticket.aggregate([
-      { $match: matchFilter },
-      {
-        $group: {
-          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
-          created: { $sum: 1 },
-          resolved: {
-            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
-          }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    res.json({
-      success: true,
-      data: timelineStats
-    });
-  } catch (error) {
-    logger.error('Помилка отримання статистики по часу:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка сервера при отриманні статистики по часу'
-    });
-  }
-};
-
-// Експорт даних
-exports.exportData = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Помилки валідації',
-        errors: errors.array()
-      });
-    }
-
-    const { format = 'json', type = 'tickets', startDate, endDate } = req.query;
-    
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
-    
-    const filter = {};
-    if (Object.keys(dateFilter).length > 0) {
-      filter.createdAt = dateFilter;
-    }
-
-    let data;
-    let filename;
-
-    switch (type) {
-      case 'tickets':
-        data = await Ticket.find(filter)
-          .populate('city', 'name region')
-          .populate('assignedTo', 'email position')
-          .populate('createdBy', 'email')
-          .lean();
-        filename = `tickets_export_${Date.now()}`;
-        break;
-      
-      case 'analytics':
-        data = await exports.getOverview({ query: req.query }, { json: (data) => data });
-        filename = `analytics_export_${Date.now()}`;
-        break;
-      
-      default:
-        return res.status(400).json({
-          success: false,
-          message: 'Невідомий тип експорту'
-        });
-    }
-
-    // Встановлюємо заголовки відповіді
-    if (format === 'csv') {
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-      
-      // Тут має бути логіка конвертації в CSV
-      // Для простоти повертаємо JSON
-      res.json(data);
-    } else {
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.json"`);
-      res.json({
-        success: true,
-        data,
-        exportedAt: new Date(),
-        totalRecords: Array.isArray(data) ? data.length : 1
-      });
-    }
-  } catch (error) {
-    logger.error('Помилка експорту даних:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка сервера при експорті даних'
     });
   }
 };
@@ -543,22 +273,11 @@ exports.getDashboardMetrics = async (req, res) => {
       }
     ]);
 
-    // Топ міста за кількістю тикетів з реальними даними вирішених
+    // Топ міста за кількістю тикетів
     const topCities = await Ticket.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth } } },
-      {
-        $lookup: {
-          from: 'cities',
-          localField: 'city',
-          foreignField: '_id',
-          as: 'cityInfo'
-        }
-      },
-      { $unwind: '$cityInfo' },
       {
         $group: {
           _id: '$city',
-          cityName: { $first: '$cityInfo.name' },
           count: { $sum: 1 },
           resolved: {
             $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
@@ -566,76 +285,74 @@ exports.getDashboardMetrics = async (req, res) => {
         }
       },
       { $sort: { count: -1 } },
-      { $limit: 5 }
+      { $limit: 10 }
     ]);
+
+    // Заповнюємо назви міст
+    const topCitiesWithNames = await Promise.all(
+      topCities.map(async (item) => {
+        const city = await City.findById(item._id).select('name').lean();
+        return {
+          cityId: item._id,
+          cityName: city?.name || 'Невідоме місто',
+          count: item.count,
+          resolved: item.resolved || 0
+        };
+      })
+    );
 
     res.json({
       success: true,
       data: {
-        dailyMetrics: todayMetrics[0] || { created: 0, resolved: 0 },
-        weeklyMetrics: weekMetrics[0] || { created: 0, resolved: 0 },
-        monthlyMetrics: monthMetrics[0] || { created: 0, resolved: 0 },
-        topCities
+        today: todayMetrics[0] || { created: 0, resolved: 0 },
+        week: weekMetrics[0] || { created: 0, resolved: 0 },
+        month: monthMetrics[0] || { created: 0, resolved: 0 },
+        topCities: topCitiesWithNames,
+        dailyMetrics: []
       }
     });
   } catch (error) {
     logger.error('Помилка отримання метрик дашборду:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні метрик дашборду'
+      message: 'Помилка сервера при отриманні метрик'
     });
   }
 };
 
-// Детальна статистика реєстрацій користувачів
 exports.getUserRegistrationStats = async (req, res) => {
   try {
-    const { startDate, endDate, period = '30d' } = req.query;
+    const { startDate, endDate } = req.query;
     
-    // Створюємо фільтр дат
     const dateFilter = {};
-    if (startDate && endDate) {
-      dateFilter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    } else {
-      // За замовчуванням - останні 30 днів
-      const daysAgo = period === '7d' ? 7 : period === '90d' ? 90 : 30;
-      dateFilter.createdAt = {
-        $gte: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
-      };
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
     }
 
-    // Загальна статистика
     const totalUsers = await User.countDocuments();
     const usersInPeriod = await User.countDocuments(dateFilter);
-    
+
     // Статистика по джерелах реєстрації
     const registrationSources = await User.aggregate([
       { $match: dateFilter },
-      { 
-        $group: { 
-          _id: '$metadata.registrationSource', 
-          count: { $sum: 1 },
-          percentage: { $sum: 1 }
-        } 
+      {
+        $group: {
+          _id: '$metadata.registrationSource',
+          count: { $sum: 1 }
+        }
       },
       { $sort: { count: -1 } }
     ]);
 
-    // Обчислюємо відсотки
-    registrationSources.forEach(source => {
-      source.percentage = usersInPeriod > 0 ? Math.round((source.count / usersInPeriod) * 100) : 0;
-    });
-
     // Статистика по статусах реєстрації
     const registrationStatuses = await User.aggregate([
       { $match: dateFilter },
-      { 
-        $group: { 
-          _id: '$registrationStatus', 
-          count: { $sum: 1 } 
+      {
+        $group: {
+          _id: '$registrationStatus',
+          count: { $sum: 1 }
         } 
       },
       { $sort: { count: -1 } }
@@ -743,7 +460,7 @@ exports.getWeeklyTicketsChart = async (req, res) => {
       
       weekData.push({
         date: dateStr,
-        dayNumber: date.getDay(), // Повертаємо номер дня (0-6)
+        dayNumber: date.getDay(),
         count: dayData ? dayData.count : 0
       });
     }
@@ -762,18 +479,20 @@ exports.getWeeklyTicketsChart = async (req, res) => {
   }
 };
 
-// Отримати дані для розподілу за категоріями
+// Розподіл за категоріями
 exports.getCategoryDistribution = async (req, res) => {
   try {
-    // Мапа для перекладу строкових значень категорій
-    const categoryNameMap = {
-      'technical': 'Технічні питання',
-      'account': 'Акаунт',
-      'billing': 'Фінанси',
-      'general': 'Загальні питання'
-    };
+    const { startDate, endDate } = req.query;
+    
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+    }
 
-    const categoryStats = await Ticket.aggregate([
+    const categoryDistribution = await Ticket.aggregate([
+      { $match: dateFilter },
       {
         $group: {
           _id: '$category',
@@ -783,90 +502,312 @@ exports.getCategoryDistribution = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
-    // Обчислюємо відсотки та перекладаємо назви
-    const totalTickets = categoryStats.reduce((sum, cat) => sum + cat.count, 0);
-    const categoryData = categoryStats.map(cat => ({
-      category: categoryNameMap[cat._id] || cat._id || 'Без категорії',
-      count: cat.count,
-      percentage: totalTickets > 0 ? Math.round((cat.count / totalTickets) * 100) : 0
-    }));
-
     res.json({
       success: true,
-      data: categoryData
+      data: categoryDistribution
     });
-
   } catch (error) {
     logger.error('Помилка отримання розподілу за категоріями:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка отримання розподілу за категоріями'
+      message: 'Помилка сервера'
     });
   }
 };
 
-// Отримати дані для навантаження по днях тижня
+// Навантаження по днях тижня
 exports.getWorkloadByDayOfWeek = async (req, res) => {
   try {
-    const workloadStats = await Ticket.aggregate([
-      {
-        $project: {
-          dayOfWeek: { $dayOfWeek: '$createdAt' },
-          status: 1
-        }
-      },
+    const { startDate, endDate } = req.query;
+    
+    const dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+    }
+
+    const workloadByDay = await Ticket.aggregate([
+      { $match: dateFilter },
       {
         $group: {
-          _id: '$dayOfWeek',
-          totalTickets: { $sum: 1 },
-          openTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] }
+          _id: {
+            $dayOfWeek: '$createdAt'
           },
-          inProgressTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] }
-          },
-          resolvedTickets: {
-            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
-          }
+          count: { $sum: 1 }
         }
       },
       { $sort: { _id: 1 } }
     ]);
 
-    console.log('Raw MongoDB workload stats:', workloadStats);
-
-    // Створюємо дані для днів тижня у правильному порядку (JavaScript: 0=неділя, 1=понеділок, ..., 6=субота)
-    const workloadData = [];
-
-    // Створюємо масив у порядку JavaScript днів тижня (0-6)
-    for (let jsDay = 0; jsDay <= 6; jsDay++) {
-      // Конвертуємо JavaScript dayNumber до MongoDB dayOfWeek
-      // JavaScript: 0=неділя, 1=понеділок, ..., 6=субота
-      // MongoDB: 1=неділя, 2=понеділок, ..., 7=субота
-      const mongoDay = jsDay + 1;
-      const dayData = workloadStats.find(d => d._id === mongoDay);
-      
-      const dayEntry = {
-        dayNumber: jsDay,
-        totalTickets: dayData ? dayData.totalTickets : 0,
-        openTickets: dayData ? dayData.openTickets : 0,
-        inProgressTickets: dayData ? dayData.inProgressTickets : 0,
-        resolvedTickets: dayData ? dayData.resolvedTickets : 0
-      };
-      
-      workloadData.push(dayEntry);
-    }
+    // Мапінг днів тижня (1 = неділя, 7 = субота)
+    const dayNames = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
+    const workloadData = workloadByDay.map(item => ({
+      day: dayNames[item._id - 1] || `День ${item._id}`,
+      dayNumber: item._id,
+      count: item.count
+    }));
 
     res.json({
       success: true,
       data: workloadData
     });
-
   } catch (error) {
     logger.error('Помилка отримання навантаження по днях тижня:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка отримання навантаження по днях тижня'
+      message: 'Помилка сервера'
+    });
+  }
+};
+
+// Експорт звіту за минулий місяць з діаграмами
+exports.exportMonthlyReport = async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Визначаємо минулий місяць
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    
+    // Визначаємо попередній місяць для порівняння
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+    
+    // Фільтри для минулого місяця
+    const lastMonthFilter = {
+      createdAt: {
+        $gte: lastMonthStart,
+        $lte: lastMonthEnd
+      }
+    };
+    
+    // Фільтри для попереднього місяця
+    const previousMonthFilter = {
+      createdAt: {
+        $gte: previousMonthStart,
+        $lte: previousMonthEnd
+      }
+    };
+    
+    // Збираємо дані для минулого місяця
+    const [
+      lastMonthTotal,
+      lastMonthStatusStats,
+      lastMonthPriorityStats,
+      lastMonthByDay,
+      lastMonthResolved,
+      lastMonthByCity,
+      lastMonthAvgResolution,
+      lastMonthByCategory
+    ] = await Promise.all([
+      // Загальна кількість
+      Ticket.countDocuments(lastMonthFilter),
+      
+      // Статистика по статусах
+      Ticket.aggregate([
+        { $match: lastMonthFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      
+      // Статистика по пріоритетах
+      Ticket.aggregate([
+        { $match: lastMonthFilter },
+        { $group: { _id: '$priority', count: { $sum: 1 } } }
+      ]),
+      
+      // Щоденна статистика
+      Ticket.aggregate([
+        { $match: lastMonthFilter },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      
+      // Вирішені тикети
+      Ticket.countDocuments({
+        ...lastMonthFilter,
+        status: 'resolved'
+      }),
+      
+      // По містах
+      Ticket.aggregate([
+        { $match: lastMonthFilter },
+        {
+          $group: {
+            _id: '$city',
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+      
+      // Середній час вирішення
+      Ticket.aggregate([
+        {
+          $match: {
+            ...lastMonthFilter,
+            status: 'resolved',
+            resolvedAt: { $exists: true }
+          }
+        },
+        {
+          $project: {
+            resolutionTime: {
+              $divide: [
+                { $subtract: ['$resolvedAt', '$createdAt'] },
+                1000 * 60 * 60 // години
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgTime: { $avg: '$resolutionTime' }
+          }
+        }
+      ]),
+      
+      // По категоріях
+      Ticket.aggregate([
+        { $match: lastMonthFilter },
+        {
+          $group: {
+            _id: '$category',
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { count: -1 } }
+      ])
+    ]);
+    
+    // Збираємо дані для попереднього місяця для порівняння
+    const [
+      previousMonthTotal,
+      previousMonthResolved,
+      previousMonthAvgResolution
+    ] = await Promise.all([
+      Ticket.countDocuments(previousMonthFilter),
+      Ticket.countDocuments({
+        ...previousMonthFilter,
+        status: 'resolved'
+      }),
+      Ticket.aggregate([
+        {
+          $match: {
+            ...previousMonthFilter,
+            status: 'resolved',
+            resolvedAt: { $exists: true }
+          }
+        },
+        {
+          $project: {
+            resolutionTime: {
+              $divide: [
+                { $subtract: ['$resolvedAt', '$createdAt'] },
+                1000 * 60 * 60
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgTime: { $avg: '$resolutionTime' }
+          }
+        }
+      ])
+    ]);
+    
+    // Заповнюємо міста
+    const citiesWithNames = await Promise.all(
+      lastMonthByCity.map(async (item) => {
+        const city = await City.findById(item._id).select('name region').lean();
+        return {
+          name: city?.name || 'Невідоме місто',
+          region: city?.region || '',
+          count: item.count
+        };
+      })
+    );
+    
+    // Формуємо дані для діаграм
+    const reportData = {
+      period: {
+        lastMonth: {
+          start: lastMonthStart.toISOString().split('T')[0],
+          end: lastMonthEnd.toISOString().split('T')[0],
+          label: lastMonthStart.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })
+        },
+        previousMonth: {
+          start: previousMonthStart.toISOString().split('T')[0],
+          end: previousMonthEnd.toISOString().split('T')[0],
+          label: previousMonthStart.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })
+        }
+      },
+      summary: {
+        lastMonth: {
+          total: lastMonthTotal,
+          resolved: lastMonthResolved,
+          avgResolutionTime: lastMonthAvgResolution[0]?.avgTime || 0,
+          resolutionRate: lastMonthTotal > 0 ? (lastMonthResolved / lastMonthTotal * 100) : 0
+        },
+        previousMonth: {
+          total: previousMonthTotal,
+          resolved: previousMonthResolved,
+          avgResolutionTime: previousMonthAvgResolution[0]?.avgTime || 0,
+          resolutionRate: previousMonthTotal > 0 ? (previousMonthResolved / previousMonthTotal * 100) : 0
+        },
+        comparison: {
+          totalChange: lastMonthTotal - previousMonthTotal,
+          totalChangePercent: previousMonthTotal > 0 
+            ? ((lastMonthTotal - previousMonthTotal) / previousMonthTotal * 100) 
+            : 0,
+          resolvedChange: lastMonthResolved - previousMonthResolved,
+          resolvedChangePercent: previousMonthResolved > 0
+            ? ((lastMonthResolved - previousMonthResolved) / previousMonthResolved * 100)
+            : 0,
+          avgResolutionTimeChange: (lastMonthAvgResolution[0]?.avgTime || 0) - (previousMonthAvgResolution[0]?.avgTime || 0)
+        }
+      },
+      charts: {
+        statusDistribution: lastMonthStatusStats.map(item => ({
+          label: item._id,
+          value: item.count
+        })),
+        priorityDistribution: lastMonthPriorityStats.map(item => ({
+          label: item._id,
+          value: item.count
+        })),
+        dailyTrend: lastMonthByDay.map(item => ({
+          date: item._id,
+          count: item.count
+        })),
+        citiesDistribution: citiesWithNames,
+        categoriesDistribution: lastMonthByCategory.map(item => ({
+          label: item._id || 'Не вказано',
+          value: item.count
+        }))
+      },
+      generatedAt: new Date().toISOString()
+    };
+    
+    res.json({
+      success: true,
+      data: reportData
+    });
+  } catch (error) {
+    logger.error('Помилка експорту звіту за місяць:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера при експорті звіту',
+      error: error.message
     });
   }
 };

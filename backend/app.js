@@ -218,6 +218,9 @@ app.use('/api/telegram', require('./routes/telegram'));
 // Файли
 app.use('/api/files', require('./routes/files'));
 
+// Структура бази даних (тільки для адміністраторів)
+app.use('/api/database', require('./routes/database'));
+
 // Базовий маршрут
 app.get('/', (req, res) => {
   res.json({

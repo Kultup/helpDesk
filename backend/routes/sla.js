@@ -307,21 +307,26 @@ router.get('/breaches', auth, adminAuth, async (req, res) => {
   try {
     const { status, priority, page = 1, limit = 20 } = req.query;
     
-    const tickets = await Ticket.find({
+    // Отримуємо всі активні тикети без пагінації для перевірки порушень
+    const allTickets = await Ticket.find({
       status: { $nin: ['closed', 'resolved', 'cancelled'] },
       isDeleted: false
     })
       .populate('category', 'name color')
       .populate('assignedTo', 'email position')
       .populate('createdBy', 'email position')
-      .populate('slaPolicy', 'name')
-      .sort({ slaBreachAt: -1, createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
+      .populate('slaPolicy', 'name');
     
     const breaches = [];
     
-    for (const ticket of tickets) {
+    // Перевіряємо всі тикети на порушення
+    for (const ticket of allTickets) {
+      // Ініціалізуємо SLA, якщо його немає
+      if (!ticket.sla || !ticket.sla.responseTime) {
+        await slaService.updateTicketSLA(ticket);
+        await ticket.save();
+      }
+      
       const breachCheck = await slaService.checkSLABreach(ticket);
       
       if (breachCheck.isBreached) {
@@ -344,25 +349,42 @@ router.get('/breaches', auth, adminAuth, async (req, res) => {
           breach: {
             type: breachCheck.breachType,
             percentage: breachCheck.percentage,
-            breachedAt: ticket.slaBreachAt
+            breachedAt: ticket.slaBreachAt || null
           },
           sla: {
-            responseTime: ticket.sla.responseTime,
-            resolutionTime: ticket.sla.resolutionTime,
-            dueDate: ticket.dueDate,
+            responseTime: ticket.sla?.responseTime || 24,
+            resolutionTime: ticket.sla?.resolutionTime || 72,
+            dueDate: ticket.dueDate || null,
             policy: ticket.slaPolicy
           }
         });
       }
     }
     
+    // Сортуємо за датою порушення та створення
+    breaches.sort((a, b) => {
+      if (a.breach.breachedAt && b.breach.breachedAt) {
+        return new Date(b.breach.breachedAt) - new Date(a.breach.breachedAt);
+      }
+      if (a.breach.breachedAt) return -1;
+      if (b.breach.breachedAt) return 1;
+      return new Date(b.ticket.createdAt) - new Date(a.ticket.createdAt);
+    });
+    
+    // Застосовуємо пагінацію
+    const total = breaches.length;
+    const startIndex = (parseInt(page) - 1) * parseInt(limit);
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedBreaches = breaches.slice(startIndex, endIndex);
+    
     res.json({
       success: true,
-      data: breaches,
+      data: paginatedBreaches,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: breaches.length
+        total: total,
+        totalPages: Math.ceil(total / parseInt(limit))
       }
     });
   } catch (error) {
@@ -419,28 +441,31 @@ router.get('/statistics', auth, adminAuth, async (req, res) => {
       if (ticket.status === 'closed' || ticket.status === 'resolved' || ticket.status === 'cancelled') {
         totalTickets++;
         
-        if (ticket.metrics.responseTime > 0) {
+        if (ticket.metrics && ticket.metrics.responseTime > 0) {
           totalResponseTime += ticket.metrics.responseTime;
           responseTimeCount++;
         }
         
-        if (ticket.metrics.resolutionTime > 0) {
+        if (ticket.metrics && ticket.metrics.resolutionTime > 0) {
           totalResolutionTime += ticket.metrics.resolutionTime;
           resolutionTimeCount++;
         }
       } else {
+        totalTickets++; // Рахуємо активні тикети також
+        
         const breachCheck = await slaService.checkSLABreach(ticket);
         
         if (breachCheck.isBreached) {
           breachedTickets++;
-          breachesByPriority[ticket.priority] = (breachesByPriority[ticket.priority] || 0) + 1;
+          const priority = ticket.priority || 'medium';
+          breachesByPriority[priority] = (breachesByPriority[priority] || 0) + 1;
         }
         
-        if (ticket.slaWarningsSent && ticket.slaWarningsSent.length > 0) {
+        if (ticket.slaWarningsSent && Array.isArray(ticket.slaWarningsSent) && ticket.slaWarningsSent.length > 0) {
           warnedTickets++;
         }
         
-        if (ticket.escalationHistory && ticket.escalationHistory.length > 0) {
+        if (ticket.escalationHistory && Array.isArray(ticket.escalationHistory) && ticket.escalationHistory.length > 0) {
           escalatedTickets++;
         }
       }
@@ -461,7 +486,7 @@ router.get('/statistics', auth, adminAuth, async (req, res) => {
           ? Math.round((totalResolutionTime / resolutionTimeCount) * 100) / 100 
           : 0,
         breachRate: totalTickets > 0 
-          ? Math.round((breachedTickets / totalTickets) * 100) 
+          ? Math.round((breachedTickets / totalTickets) * 100 * 10) / 10 
           : 0
       }
     });
