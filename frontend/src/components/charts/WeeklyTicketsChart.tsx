@@ -46,7 +46,8 @@ const WeeklyTicketsChart: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL as string;
+      const baseURL = process.env.REACT_APP_API_URL || 
+        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
       const response = await axios.get(`${baseURL}/analytics/charts/weekly-tickets`, {
         headers: { Authorization: `Bearer ${token}` }
       });

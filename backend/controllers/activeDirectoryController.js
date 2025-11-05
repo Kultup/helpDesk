@@ -122,6 +122,31 @@ const getStatistics = async (req, res) => {
   try {
     logger.info('Getting Active Directory statistics');
     
+    // Перевіряємо чи AD доступний
+    const isADAvailable = activeDirectoryService.isADAvailable();
+    
+    if (!isADAvailable) {
+      // Якщо AD недоступний, повертаємо порожню статистику
+      return res.json({
+        success: true,
+        data: {
+          users: {
+            total: 0,
+            enabled: 0,
+            disabled: 0
+          },
+          computers: {
+            total: 0,
+            enabled: 0,
+            disabled: 0
+          },
+          operatingSystems: {},
+          departments: {}
+        },
+        adAvailable: false
+      });
+    }
+    
     const [users, computers] = await Promise.all([
       activeDirectoryService.getUsers(),
       activeDirectoryService.getComputers()
@@ -161,14 +186,30 @@ const getStatistics = async (req, res) => {
         },
         operatingSystems: osStats,
         departments: departmentStats
-      }
+      },
+      adAvailable: true
     });
   } catch (error) {
     logger.error('Error getting AD statistics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка отримання статистики Active Directory',
-      error: error.message
+    // Повертаємо успішну відповідь навіть при помилці, але з порожніми даними
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: 0,
+          enabled: 0,
+          disabled: 0
+        },
+        computers: {
+          total: 0,
+          enabled: 0,
+          disabled: 0
+        },
+        operatingSystems: {},
+        departments: {}
+      },
+      adAvailable: false,
+      message: 'Active Directory недоступний'
     });
   }
 };

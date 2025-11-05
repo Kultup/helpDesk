@@ -6,6 +6,25 @@ const { authenticateToken } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 /**
+ * @route   GET /api/telegram/webhook
+ * @desc    Тестовий endpoint для перевірки доступності webhook
+ * @access  Public
+ */
+router.get('/webhook', (req, res) => {
+  logger.info('✅ Webhook endpoint доступний (GET тест)', {
+    url: req.url,
+    headers: req.headers
+  });
+  res.status(200).json({
+    success: true,
+    message: 'Webhook endpoint доступний',
+    timestamp: new Date().toISOString(),
+    url: req.url,
+    method: req.method
+  });
+});
+
+/**
  * @route   POST /api/telegram/webhook
  * @desc    Webhook для отримання повідомлень від Telegram
  * @access  Public

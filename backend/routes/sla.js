@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
-const { adminAuth } = require('../middleware/adminAuth');
+const { authenticateToken: auth } = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
 const SLAPolicy = require('../models/SLAPolicy');
 const Ticket = require('../models/Ticket');
 const slaService = require('../services/slaService');

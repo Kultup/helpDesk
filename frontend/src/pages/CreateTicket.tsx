@@ -57,11 +57,23 @@ const CreateTicket: React.FC = () => {
           const response = await apiService.getTicketById(id); // Fixed method name
           if (response.success && response.data) {
             const ticket: Ticket = response.data;
+            // Helper function to convert category to TicketCategory enum
+            const getCategoryValue = (category: TicketCategory | { _id: string; name: string; color?: string }): TicketCategory => {
+              if (typeof category === 'object' && category !== null && 'name' in category) {
+                const categoryName = category.name.toLowerCase();
+                if (Object.values(TicketCategory).includes(categoryName as TicketCategory)) {
+                  return categoryName as TicketCategory;
+                }
+                return TicketCategory.GENERAL;
+              }
+              return (category as TicketCategory) || TicketCategory.GENERAL;
+            };
+
             setFormData({
               title: ticket.title,
               description: ticket.description,
               priority: ticket.priority,
-              category: ticket.category || TicketCategory.GENERAL,
+              category: getCategoryValue(ticket.category),
               cityId: ticket.city?._id || '',
               status: ticket.status
             });
@@ -130,8 +142,17 @@ const CreateTicket: React.FC = () => {
         setError(response.message || (isEditMode ? t('createTicketPage.messages.updateError') : t('createTicketPage.messages.createError')));
       }
     } catch (error: any) {
-      console.error('Помилка:', error);
-      setError(error.response?.data?.message || t('createTicketPage.messages.requestError'));
+      console.error('Помилка створення тикету:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          error.response?.data?.error ||
+                          t('createTicketPage.messages.requestError');
+      setError(errorMessage);
+      
+      // Логуємо деталі помилки для діагностики
+      if (error.response?.data) {
+        console.error('Деталі помилки від сервера:', error.response.data);
+      }
     } finally {
       setIsLoading(false);
     }

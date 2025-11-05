@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
-const { adminAuth } = require('../middleware/adminAuth');
+const { authenticateToken: auth } = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
 const KnowledgeBase = require('../models/KnowledgeBase');
 const kbSearchService = require('../services/kbSearchService');
 const logger = require('../utils/logger');

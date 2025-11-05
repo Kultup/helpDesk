@@ -1,14 +1,15 @@
 const { authenticate } = require('ldap-authentication');
 const ldap = require('ldapjs');
 const logger = require('../utils/logger');
+const ActiveDirectoryConfig = require('../models/ActiveDirectoryConfig');
 
 class ActiveDirectoryService {
   constructor() {
+    // Ініціалізуємо з .env, потім завантажимо з БД при першому використанні
     this.enabled = process.env.AD_ENABLED === 'true';
     this.config = {
       ldapOpts: {
         url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
-        // Додаткові опції для підключення
         timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
         connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
         reconnect: true
@@ -21,21 +22,117 @@ class ActiveDirectoryService {
       username: 'dpytlyk-da',
       userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
     };
-
-    // Кеш для даних AD
-    this.cache = {
-      users: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 }, // 5 хвилин
-      computers: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 }
-    };
-
-    // Стан підключення
     this.connectionState = {
       isAvailable: this.enabled,
       lastFailure: null,
-      retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000, // 2 хвилини
+      retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
       consecutiveFailures: 0,
       maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
     };
+    this.cache = {
+      users: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 },
+      computers: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 }
+    };
+    this._configLoaded = false;
+    // Завантажуємо конфігурацію з БД асинхронно
+    this.loadConfig().catch(err => {
+      logger.error('Помилка завантаження конфігурації AD з БД:', err);
+    });
+  }
+
+  async loadConfig() {
+    if (this._configLoaded) {
+      return; // Вже завантажено
+    }
+    try {
+      // Спочатку пробуємо завантажити з БД
+      let config = await ActiveDirectoryConfig.findOne({ key: 'default' });
+      
+      if (config) {
+        this.enabled = config.enabled;
+        this.config = {
+          ldapOpts: {
+            url: config.ldapUrl,
+            timeout: config.timeout,
+            connectTimeout: config.connectTimeout,
+            reconnect: true
+          },
+          adminDn: config.adminDn,
+          adminPassword: config.adminPassword,
+          userSearchBase: config.userSearchBase,
+          computerSearchBase: config.computerSearchBase,
+          usernameAttribute: config.usernameAttribute,
+          username: config.adminDn.split('@')[0] || 'admin',
+          userDn: config.adminDn
+        };
+        this.connectionState = {
+          isAvailable: config.enabled,
+          lastFailure: null,
+          retryAfter: config.retryInterval,
+          consecutiveFailures: 0,
+          maxRetries: config.maxRetries
+        };
+      } else {
+        // Якщо немає в БД, використовуємо .env
+        this.enabled = process.env.AD_ENABLED === 'true';
+        this.config = {
+          ldapOpts: {
+            url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
+            timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
+            connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
+            reconnect: true
+          },
+          adminDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
+          adminPassword: process.env.AD_ADMIN_PASSWORD || 'Qa123456',
+          userSearchBase: process.env.AD_USER_SEARCH_BASE || 'dc=dreamland,dc=loc',
+          computerSearchBase: process.env.AD_COMPUTER_SEARCH_BASE || 'dc=dreamland,dc=loc',
+          usernameAttribute: process.env.AD_USERNAME_ATTRIBUTE || 'sAMAccountName',
+          username: 'dpytlyk-da',
+          userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
+        };
+        this.connectionState = {
+          isAvailable: this.enabled,
+          lastFailure: null,
+          retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
+          consecutiveFailures: 0,
+          maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+        };
+      }
+    } catch (error) {
+      logger.error('Помилка завантаження конфігурації Active Directory:', error);
+      // Fallback на .env
+      this.enabled = process.env.AD_ENABLED === 'true';
+      this.config = {
+        ldapOpts: {
+          url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
+          timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
+          connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
+          reconnect: true
+        },
+        adminDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
+        adminPassword: process.env.AD_ADMIN_PASSWORD || 'Qa123456',
+        userSearchBase: process.env.AD_USER_SEARCH_BASE || 'dc=dreamland,dc=loc',
+        computerSearchBase: process.env.AD_COMPUTER_SEARCH_BASE || 'dc=dreamland,dc=loc',
+        usernameAttribute: process.env.AD_USERNAME_ATTRIBUTE || 'sAMAccountName',
+        username: 'dpytlyk-da',
+        userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
+      };
+      this.connectionState = {
+        isAvailable: this.enabled,
+        lastFailure: null,
+        retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
+        consecutiveFailures: 0,
+        maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+      };
+    }
+
+    this._configLoaded = true;
+  }
+
+  async reloadConfig() {
+    this._configLoaded = false;
+    await this.loadConfig();
+    logger.info('✅ Конфігурація Active Directory перезавантажена');
   }
 
   // Перевірка чи доступний AD

@@ -1,0 +1,50 @@
+const express = require('express');
+const router = express.Router();
+const settingsController = require('../controllers/settingsController');
+const { authenticateToken } = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
+
+/**
+ * @route   GET /api/settings/telegram
+ * @desc    Отримати налаштування Telegram
+ * @access  Private (Admin only)
+ */
+router.get('/telegram', authenticateToken, adminAuth, settingsController.getTelegramSettings);
+
+/**
+ * @route   PUT /api/settings/telegram
+ * @desc    Оновити налаштування Telegram
+ * @access  Private (Admin only)
+ */
+router.put('/telegram', authenticateToken, adminAuth, settingsController.updateTelegramSettings);
+
+/**
+ * @route   POST /api/settings/telegram/webhook
+ * @desc    Налаштувати webhook для Telegram бота
+ * @access  Private (Admin only)
+ */
+router.post('/telegram/webhook', authenticateToken, adminAuth, settingsController.setupWebhook);
+
+/**
+ * @route   GET /api/settings/telegram/webhook
+ * @desc    Отримати інформацію про поточний webhook
+ * @access  Private (Admin only)
+ */
+router.get('/telegram/webhook', authenticateToken, adminAuth, settingsController.getWebhookInfo);
+
+/**
+ * @route   GET /api/settings/active-directory
+ * @desc    Отримати налаштування Active Directory
+ * @access  Private (Admin only)
+ */
+router.get('/active-directory', authenticateToken, adminAuth, settingsController.getActiveDirectorySettings);
+
+/**
+ * @route   PUT /api/settings/active-directory
+ * @desc    Оновити налаштування Active Directory
+ * @access  Private (Admin only)
+ */
+router.put('/active-directory', authenticateToken, adminAuth, settingsController.updateActiveDirectorySettings);
+
+module.exports = router;
+

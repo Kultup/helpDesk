@@ -152,6 +152,7 @@ app.use(cors);
 app.use(sanitizeData);
 
 // Rate limiting для різних ендпоінтів
+// Telegram webhook має бути доступний без загального rate limiting
 app.use('/api/', rateLimits.general);
 app.use('/api/auth/', rateLimits.auth);
 app.use('/api/upload/', rateLimits.upload);
@@ -196,6 +197,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
+app.use('/api/settings', require('./routes/settings')); // Налаштування системи
 app.use('/api/sla', require('./routes/sla')); // SLA трекінг
 app.use('/api/kb', require('./routes/knowledgeBase')); // Knowledge Base
 app.use('/api/email', require('./routes/email')); // Email інтеграція

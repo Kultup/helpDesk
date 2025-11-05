@@ -12,7 +12,6 @@ import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
 import TicketSLA from '../components/TicketSLA';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
-import TicketEmailThread from '../components/TicketEmailThread';
 
 import { formatDate } from '../utils';
 
@@ -49,10 +48,13 @@ const TicketDetails: React.FC = () => {
   };
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== 'new') {
       loadTicket();
+    } else if (id === 'new') {
+      // Якщо id = 'new', це не валідний ID тикету, перенаправляємо на створення
+      navigate('/tickets/create');
     }
-  }, [id]);
+  }, [id, navigate]);
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!ticket || isUpdating) return;
@@ -269,14 +271,11 @@ const TicketDetails: React.FC = () => {
           {ticket && (
             <TicketRelatedArticles
               ticketId={ticket._id}
-              categoryId={typeof ticket.category === 'object' ? ticket.category?._id : ticket.category}
+              categoryId={typeof ticket.category === 'object' && ticket.category !== null && '_id' in ticket.category 
+                ? ticket.category._id 
+                : String(ticket.category)}
               tags={ticket.tags?.map((tag: any) => typeof tag === 'object' ? tag._id || tag.name : tag) || []}
             />
-          )}
-
-          {/* Email Листування */}
-          {ticket && ticket.createdFromEmail && (
-            <TicketEmailThread ticketId={ticket._id} />
           )}
 
           {/* Коментарі */}

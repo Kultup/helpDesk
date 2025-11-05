@@ -81,7 +81,7 @@ export interface Ticket {
   description: string;
   status: TicketStatus;
   priority: TicketPriority;
-  category: TicketCategory;
+  category: TicketCategory | { _id: string; name: string; color?: string };
   city: City;
   assignedTo?: User;
   createdBy: User;
@@ -91,6 +91,8 @@ export interface Ticket {
   updatedAt: string;
   resolvedAt?: string;
   comments: Comment[];
+  tags?: Array<{ _id: string; name: string } | string>;
+  createdFromEmail?: boolean;
   attachments?: Array<{
     _id: string;
     filename: string;

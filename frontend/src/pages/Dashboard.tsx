@@ -38,6 +38,7 @@ import WorkloadByDayChart from '../components/charts/WorkloadByDayChart';
 
 // Admin Components
 import AdminNotes from '../components/AdminNotes';
+import CreateTicketModal from '../components/CreateTicketModal';
 
 // Hooks and Services
 import { useTickets } from '../hooks';
@@ -145,6 +146,9 @@ const Dashboard: React.FC = () => {
   const [adComputersTotal, setAdComputersTotal] = useState<number | null>(null);
   const [adStatsLoading, setAdStatsLoading] = useState<boolean>(false);
   const [adStatsError, setAdStatsError] = useState<string | null>(null);
+  
+  // Create Ticket Modal state
+  const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
 
   const loadAdStats = async () => {
     setAdStatsLoading(true);
@@ -158,10 +162,17 @@ const Dashboard: React.FC = () => {
         setAdUsersTotal(usersTotal);
         setAdComputersTotal(computersTotal);
       } else {
-        setAdStatsError(t('activeDirectory.statistics.errorLoading'));
+        // Якщо AD недоступний, це не критична помилка
+        setAdStatsError(null); // Не показуємо помилку, якщо AD просто недоступний
       }
     } catch (error: any) {
-      setAdStatsError(error?.message || t('activeDirectory.statistics.errorLoading'));
+      // Якщо помилка 404 або AD недоступний, не показуємо помилку
+      if (error?.response?.status !== 404 && error?.response?.status !== 500) {
+        setAdStatsError(error?.message || t('activeDirectory.statistics.errorLoading'));
+      } else {
+        // AD недоступний - це нормально, не показуємо помилку
+        setAdStatsError(null);
+      }
     } finally {
       setAdStatsLoading(false);
     }
@@ -505,7 +516,7 @@ const Dashboard: React.FC = () => {
                   </h2>
                   <div className="space-y-3 sm:space-y-4">
                     <Button
-                      onClick={() => navigate('/tickets/new')}
+                      onClick={() => setIsCreateTicketModalOpen(true)}
                       className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
                       style={{
                         background: 'linear-gradient(to right, var(--color-primary), var(--color-accent))',
@@ -665,6 +676,17 @@ const Dashboard: React.FC = () => {
             )}
           </div>
         </div>
+        
+        {/* Modal для створення тікету */}
+        <CreateTicketModal
+          isOpen={isCreateTicketModalOpen}
+          onClose={() => setIsCreateTicketModalOpen(false)}
+          onSuccess={() => {
+            setIsCreateTicketModalOpen(false);
+            refetchTickets(); // Оновлюємо список тікетів
+            refetchStats(); // Оновлюємо статистику
+          }}
+        />
     </div>
   );
 };

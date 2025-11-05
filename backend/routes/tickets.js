@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const multer = require('multer');
 const path = require('path');
@@ -7,6 +8,8 @@ const fs = require('fs');
 const Joi = require('joi');
 const { body, query, param } = require('express-validator');
 const Ticket = require('../models/Ticket');
+const City = require('../models/City');
+const Category = require('../models/Category');
 const ticketController = require('../controllers/ticketController');
 const commentController = require('../controllers/commentController');
 const attachmentController = require('../controllers/attachmentController');
@@ -16,6 +19,7 @@ const { authenticateToken, logUserAction, requirePermission } = require('../midd
 const adminAuth = require('../middleware/adminAuth');
 const { rateLimits } = require('../middleware');
 const telegramService = require('../services/telegramServiceInstance');
+const ticketWebSocketService = require('../services/ticketWebSocketService');
 
 // Налаштування multer для завантаження файлів
 const storage = multer.diskStorage({
@@ -228,13 +232,92 @@ router.post('/',
   logUserAction('створив тикет'),
   async (req, res) => {
     try {
+      logger.info('📥 Запит на створення тикету');
+      logger.info('📥 req.body:', JSON.stringify(req.body));
+      logger.info('📥 req.files:', req.files ? `${req.files.length} файлів` : 'немає файлів');
+      
       // Валідація даних
       const { error, value } = createTicketSchema.validate(req.body);
       if (error) {
+        logger.warn('❌ Помилка валідації:', JSON.stringify(error.details, null, 2));
         return res.status(400).json({
           success: false,
-          message: error.details[0].message
+          message: error.details[0].message,
+          errors: error.details
         });
+      }
+      
+      logger.info('✅ Валідація пройдена успішно, value:', JSON.stringify(value, null, 2));
+
+      // Перевірка існування міста
+      if (value.city) {
+        const cityExists = await City.findById(value.city);
+        if (!cityExists) {
+          logger.warn('❌ Місто не знайдено:', value.city);
+          return res.status(400).json({
+            success: false,
+            message: 'Вказане місто не існує'
+          });
+        }
+      }
+
+      // Конвертація category зі строки в ObjectId
+      let categoryId = value.category;
+      if (typeof value.category === 'string' && !mongoose.Types.ObjectId.isValid(value.category)) {
+        // Мапінг англійських назв enum на українські назви категорій в базі
+        const categoryNameMap = {
+          'technical': ['Технічні', 'Технічні питання', 'Технічні проблеми'],
+          'account': ['Акаунт', 'Обліковий запис', 'Авторизація'],
+          'billing': ['Фінанси', 'Біллінг'],
+          'general': ['Загальні', 'Загальні питання', 'Інструкції']
+        };
+        
+        const categoryNames = categoryNameMap[value.category.toLowerCase()] || [];
+        
+        // Спочатку шукаємо точний збіг
+        let category = await Category.findOne({ 
+          name: { $in: categoryNames },
+          isActive: true 
+        });
+        
+        // Якщо не знайдено, шукаємо по частковому збігу (на початку назви)
+        if (!category && categoryNames.length > 0) {
+          const regexPatterns = categoryNames.map(name => new RegExp(`^${name}`, 'i'));
+          category = await Category.findOne({ 
+            name: { $regex: regexPatterns[0] },
+            isActive: true 
+          });
+        }
+        
+        // Якщо все ще не знайдено, спробуємо знайти за англійською назвою
+        if (!category) {
+          category = await Category.findOne({ 
+            name: new RegExp(`^${value.category.toLowerCase()}$`, 'i'),
+            isActive: true 
+          });
+        }
+        
+        if (!category) {
+          logger.warn('❌ Категорія не знайдена:', value.category);
+          logger.warn('❌ Шукали за назвами:', categoryNames);
+          // Логуємо всі доступні категорії для діагностики
+          const allCategories = await Category.find({ isActive: true }).select('name');
+          logger.warn('❌ Доступні категорії в базі:', allCategories.map(c => c.name));
+          return res.status(400).json({
+            success: false,
+            message: `Категорія "${value.category}" не знайдена. Переконайтеся, що категорії ініціалізовані в базі даних.`
+          });
+        }
+        
+        categoryId = category._id;
+        logger.info('✅ Категорія знайдена за назвою:', { 
+          category: value.category, 
+          categoryId: category._id,
+          foundName: category.name 
+        });
+      } else if (typeof value.category === 'string' && mongoose.Types.ObjectId.isValid(value.category)) {
+        // Якщо category - це валідний ObjectId
+        categoryId = new mongoose.Types.ObjectId(value.category);
       }
 
       // Обробка вкладених файлів
@@ -249,19 +332,40 @@ router.post('/',
       // Створення тикету
       const ticket = new Ticket({
         ...value,
+        category: categoryId, // Використовуємо конвертований categoryId
         createdBy: req.user._id,
         attachments,
         source: 'web'
       });
 
       await ticket.save();
+      logger.info('✅ Тикет успішно створено:', ticket._id);
 
       // Заповнення полів для відповіді
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email' },
         { path: 'assignedTo', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' }
+        { path: 'city', select: 'name region' },
+        { path: 'category', select: 'name color' }
       ]);
+
+      // Відправка Telegram сповіщення про новий тікет
+      try {
+        await telegramService.sendNewTicketNotificationToGroup(ticket, req.user);
+        logger.info('✅ Telegram сповіщення про новий тікет відправлено');
+      } catch (error) {
+        logger.error('❌ Помилка відправки Telegram сповіщення про новий тікет:', error);
+        // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      }
+
+      // Відправка WebSocket сповіщення про новий тікет
+      try {
+        ticketWebSocketService.notifyNewTicket(ticket);
+        logger.info('✅ WebSocket сповіщення про новий тікет відправлено');
+      } catch (error) {
+        logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет:', error);
+        // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      }
 
       res.status(201).json({
         success: true,
@@ -270,10 +374,12 @@ router.post('/',
       });
 
     } catch (error) {
-      logger.error('Помилка створення тикету:', error);
+      logger.error('❌ Помилка створення тикету:', error);
+      logger.error('❌ Stack trace:', error.stack);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: error.message || 'Помилка сервера',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }

@@ -14,6 +14,8 @@ interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialTitle?: string;
+  initialDescription?: string;
 }
 
 interface TicketTemplate {
@@ -27,7 +29,13 @@ interface TicketTemplate {
   quickTips?: string[];
 }
 
-const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, onSuccess }) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess,
+  initialTitle,
+  initialDescription
+}) => {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cities, setCities] = useState<any[]>([]);
@@ -45,6 +53,9 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     city: '',
     assignedTo: ''
   });
+
+  // Чи є попередньо заповнені поля
+  const hasInitialData = !!(initialTitle || initialDescription);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -197,6 +208,17 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
     loadAdmins();
   }, []);
 
+  // Заповнюємо поля при відкритті модального вікна, якщо є initial дані
+  useEffect(() => {
+    if (isOpen && (initialTitle || initialDescription)) {
+      setFormData(prev => ({
+        ...prev,
+        title: initialTitle || prev.title,
+        description: initialDescription || prev.description
+      }));
+    }
+  }, [isOpen, initialTitle, initialDescription]);
+
   const loadCities = async () => {
     setLoadingCities(true);
     try {
@@ -271,58 +293,51 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
 
     setIsSubmitting(true);
     try {
-      // Створюємо FormData для відправки файлів
-      const formDataToSend = new FormData();
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('priority', formData.priority);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('city', formData.city);
+      // Готуємо дані для створення тікету
+      const ticketData = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        category: formData.category,
+        cityId: formData.city,
+        assignedTo: formData.assignedTo || undefined
+      };
+
+      // Використовуємо apiService з файлами, якщо вони є
+      const response = await apiService.createTicket(ticketData, attachments.length > 0 ? attachments : undefined);
       
-      if (formData.assignedTo) {
-        formDataToSend.append('assignedTo', formData.assignedTo);
-      }
-
-      // Додаємо файли
-      attachments.forEach((file) => {
-        formDataToSend.append('attachments', file);
-      });
-
-      // Відправляємо запит
-      const response = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formDataToSend
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create ticket');
+      if (!response.success) {
+        throw new Error(response.message || 'Помилка створення тікету');
       }
 
       handleClose();
       toast.success(t('createTicketModal.success.created'));
       onSuccess(); // Викликаємо callback для оновлення списку
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating ticket:', error);
-      toast.error(t('createTicketModal.errors.createError'));
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          t('createTicketModal.errors.createError');
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
-    setFormData({
-      title: '',
-      description: '',
-      priority: TicketPriority.MEDIUM,
-      category: TicketCategory.TECHNICAL,
-      city: '',
-      assignedTo: ''
-    });
-    setSelectedTemplate(null);
-    setAttachments([]);
+    // Очищаємо форму при закритті, якщо немає initial даних
+    if (!hasInitialData) {
+      setFormData({
+        title: '',
+        description: '',
+        priority: TicketPriority.MEDIUM,
+        category: TicketCategory.TECHNICAL,
+        city: '',
+        assignedTo: ''
+      });
+      setSelectedTemplate(null);
+      setAttachments([]);
+    }
     onClose();
   };
 
@@ -397,10 +412,13 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
             label={t('createTicketModal.titleLabel')}
             placeholder={t('createTicketModal.titlePlaceholder')}
             value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+            onChange={initialTitle ? undefined : (e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
             maxLength={100}
             fullWidth
             required
+            disabled={!!initialTitle}
+            readOnly={!!initialTitle}
+            className={initialTitle ? 'bg-gray-100 cursor-not-allowed' : ''}
           />
           <p className="text-xs text-gray-500 mt-1">
             {formData.title.length}/100 {t('createTicketModal.titleCounter')}
@@ -413,13 +431,17 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ isOpen, onClose, 
             {t('createTicketModal.descriptionLabel')} *
           </label>
           <textarea
-            className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-foreground placeholder:text-text-secondary focus:ring-2 focus:ring-primary focus:border-primary"
+            className={`w-full px-3 py-2 rounded-lg border border-border bg-surface text-foreground placeholder:text-text-secondary focus:ring-2 focus:ring-primary focus:border-primary ${
+              initialDescription ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             rows={4}
             placeholder={t('createTicketModal.descriptionPlaceholder')}
             value={formData.description}
-            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+            onChange={initialDescription ? undefined : (e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             maxLength={1000}
             required
+            disabled={!!initialDescription}
+            readOnly={!!initialDescription}
           />
           <p className="text-xs text-text-secondary mt-1">
             {formData.description.length}/1000 {t('createTicketModal.titleCounter')}

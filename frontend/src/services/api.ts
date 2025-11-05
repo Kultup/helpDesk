@@ -36,14 +36,22 @@ import {
   InstitutionType
 } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL as string;
+// Fallback для development режиму
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '');
 
 class ApiService {
   private api: AxiosInstance;
 
   constructor() {
+    // Перевірка налаштування API URL
+    if (!API_BASE_URL && process.env.NODE_ENV === 'development') {
+      console.warn('[API SERVICE] REACT_APP_API_URL не встановлено, використовується fallback: http://localhost:5000/api');
+      console.warn('[API SERVICE] Для production встановіть REACT_APP_API_URL в .env файлі');
+    }
+    
     this.api = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: API_BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api'),
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -164,15 +172,66 @@ class ApiService {
     return response.data;
   }
 
-  async createTicket(ticket: CreateTicketForm): Promise<ApiResponse<Ticket>> {
+  async createTicket(ticket: CreateTicketForm, files?: File[]): Promise<ApiResponse<Ticket>> {
     // Мапимо cityId на city для бекенду
     const { cityId, ...rest } = ticket;
     const ticketData = {
       ...rest,
       city: cityId
     };
-    const response: AxiosResponse<ApiResponse<Ticket>> = await this.api.post('/tickets', ticketData);
-    return response.data;
+    
+    // Перевірка наявності обов'язкових полів
+    if (!ticketData.city) {
+      throw new Error('Місто є обов\'язковим полем');
+    }
+    if (!ticketData.title || !ticketData.title.trim()) {
+      throw new Error('Заголовок є обов\'язковим полем');
+    }
+    if (!ticketData.description || !ticketData.description.trim()) {
+      throw new Error('Опис є обов\'язковим полем');
+    }
+    
+    console.log('📤 Відправляю дані для створення тикету:', JSON.stringify(ticketData, null, 2));
+    if (files && files.length > 0) {
+      console.log('📎 Файли для відправки:', files.map(f => f.name));
+    }
+    
+    try {
+      // Якщо є файли, використовуємо FormData
+      if (files && files.length > 0) {
+        const formData = new FormData();
+        formData.append('title', ticketData.title);
+        formData.append('description', ticketData.description);
+        formData.append('priority', ticketData.priority);
+        formData.append('category', ticketData.category);
+        formData.append('city', ticketData.city);
+        
+        if (ticketData.assignedTo) {
+          formData.append('assignedTo', ticketData.assignedTo);
+        }
+
+        // Додаємо файли
+        files.forEach((file) => {
+          formData.append('attachments', file);
+        });
+
+        // Axios автоматично встановлює Content-Type для FormData з правильним boundary
+        // Не встановлюємо Content-Type вручну, щоб axios міг додати boundary
+        const response: AxiosResponse<ApiResponse<Ticket>> = await this.api.post('/tickets', formData);
+        console.log('✅ Тикет успішно створено з файлами:', response.data);
+        return response.data;
+      } else {
+        // Якщо немає файлів, використовуємо JSON
+        const response: AxiosResponse<ApiResponse<Ticket>> = await this.api.post('/tickets', ticketData);
+        console.log('✅ Тикет успішно створено:', response.data);
+        return response.data;
+      }
+    } catch (error: any) {
+      console.error('❌ Помилка створення тикету:', error.response?.data || error.message);
+      console.error('❌ Деталі помилки:', JSON.stringify(error.response?.data, null, 2));
+      console.error('❌ Статус помилки:', error.response?.status);
+      throw error;
+    }
   }
 
   async updateTicket(id: string, updates: UpdateTicketForm): Promise<UpdateTicketResponse> {
@@ -1275,20 +1334,34 @@ class ApiService {
     return this.get(`/email/threads/${id}`);
   }
 
-  async getEmailSettings(): Promise<ApiResponse<any>> {
-    return this.get('/email/settings');
-  }
-
-  async updateEmailSettings(data: any): Promise<ApiResponse<any>> {
-    return this.post('/email/settings', data);
-  }
-
-  async testEmail(to: string): Promise<ApiResponse<any>> {
-    return this.post('/email/test', { to });
-  }
-
   async testEmailConnection(): Promise<ApiResponse<any>> {
     return this.post('/email/test-connection');
+  }
+
+  // Налаштування Telegram
+  async getTelegramSettings(): Promise<ApiResponse<any>> {
+    return this.get('/settings/telegram');
+  }
+
+  async updateTelegramSettings(data: any): Promise<ApiResponse<any>> {
+    return this.put('/settings/telegram', data);
+  }
+
+  async setupTelegramWebhook(baseUrl: string): Promise<ApiResponse<any>> {
+    return this.post('/settings/telegram/webhook', { baseUrl });
+  }
+
+  async getTelegramWebhookInfo(): Promise<ApiResponse<any>> {
+    return this.get('/settings/telegram/webhook');
+  }
+
+  // Налаштування Active Directory
+  async getActiveDirectorySettings(): Promise<ApiResponse<any>> {
+    return this.get('/settings/active-directory');
+  }
+
+  async updateActiveDirectorySettings(data: any): Promise<ApiResponse<any>> {
+    return this.put('/settings/active-directory', data);
   }
 
 }

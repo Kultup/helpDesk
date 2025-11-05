@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Clock, User, Edit } from 'lucide-react';
 import { apiService } from '../services/api';
 import Card from './UI/Card';
@@ -33,6 +34,7 @@ export interface TicketHistoryRef {
 }
 
 const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticketId }, ref) => {
+  const { t } = useTranslation();
   const [history, setHistory] = useState<TicketHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,31 +105,147 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
     }
   };
 
-  const formatValue = (value: any) => {
-    if (value === null || value === undefined) return 'Не вказано';
-    if (typeof value === 'object') return JSON.stringify(value);
+  const formatValue = (value: any, field?: string): string | React.ReactNode => {
+    if (value === null || value === undefined) return t('common.notSpecified', 'Не вказано');
+    
+    // Спеціальна обробка для статусів
+    if (field === 'status' || field === 'statusHistory') {
+      if (typeof value === 'string') {
+        const statusMap: { [key: string]: string } = {
+          'open': t('common.statuses.open'),
+          'in_progress': t('common.statuses.inProgress'),
+          'resolved': t('common.statuses.resolved'),
+          'closed': t('common.statuses.closed')
+        };
+        return statusMap[value] || value;
+      }
+    }
+    
+    // Спеціальна обробка для пріоритетів
+    if (field === 'priority') {
+      if (typeof value === 'string') {
+        const priorityMap: { [key: string]: string } = {
+          'low': t('common.priorities.low'),
+          'medium': t('common.priorities.medium'),
+          'high': t('common.priorities.high')
+        };
+        return priorityMap[value] || value;
+      }
+    }
+    
+    // Обробка масивів (особливо statusHistory)
+    if (Array.isArray(value)) {
+      if (field === 'statusHistory' && value.length > 0) {
+        // Якщо це масив статусів, показуємо їх як читабельний список
+        return (
+          <div className="space-y-1">
+            {value.map((item: any, index: number) => {
+              if (typeof item === 'object' && item.status) {
+                const statusLabel = t(`common.statuses.${item.status}`, item.status);
+                const changedAt = item.changedAt ? formatDate(item.changedAt) : '';
+                return (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium">{statusLabel}</span>
+                    {changedAt && <span className="text-gray-500 ml-2">({changedAt})</span>}
+                  </div>
+                );
+              }
+              return <div key={index} className="text-sm">{formatValue(item, field)}</div>;
+            })}
+          </div>
+        );
+      }
+      // Для інших масивів показуємо як список
+      if (value.length === 0) {
+        return t('common.none', 'Жодного');
+      }
+      return value.map((item: any, index: number) => (
+        <div key={index} className="text-sm">• {formatValue(item, field)}</div>
+      ));
+    }
+    
+    // Обробка об'єктів
+    if (typeof value === 'object') {
+      // Якщо це об'єкт з полями, які можна показати
+      if (value._id || value.email || value.name) {
+        return value.email || value.name || value._id || JSON.stringify(value);
+      }
+      // Для складних об'єктів показуємо структурований вигляд
+      const keys = Object.keys(value);
+      if (keys.length <= 3) {
+        return keys.map(key => `${key}: ${formatValue(value[key], field)}`).join(', ');
+      }
+      // Для великих об'єктів - JSON, але з форматуванням
+      return JSON.stringify(value, null, 2);
+    }
+    
     return String(value);
   };
 
   const getFieldLabel = (field: string) => {
     const labels: { [key: string]: string } = {
-      status: 'Статус',
-      priority: 'Пріоритет',
-      title: 'Заголовок',
-      description: 'Опис',
-      assignedTo: 'Призначено',
-      city: 'Місто',
-      category: 'Категорія',
-      subcategory: 'Підкategorія',
-      type: 'Тип',
-      department: 'Відділ',
-      location: 'Місцезнаходження',
-      dueDate: 'Термін виконання',
-      estimatedHours: 'Оціночний час',
-      actualHours: 'Фактичний час',
-      tags: 'Теги'
+      status: t('common.status', 'Статус'),
+      statusHistory: t('tickets.history', 'Історія статусів'),
+      priority: t('common.priority', 'Пріоритет'),
+      title: t('common.title', 'Заголовок'),
+      description: t('common.description', 'Опис'),
+      assignedTo: t('tickets.assignedTo', 'Призначено'),
+      city: t('common.city', 'Місто'),
+      category: t('common.category', 'Категорія'),
+      subcategory: t('tickets.subcategory', 'Підкатегорія'),
+      type: t('common.type', 'Тип'),
+      department: t('users.department', 'Відділ'),
+      location: t('common.location', 'Місцезнаходження'),
+      dueDate: t('tickets.dueDate', 'Термін виконання'),
+      estimatedHours: t('tickets.estimatedTime', 'Очікуваний час'),
+      actualHours: t('tickets.actualTime', 'Фактичний час'),
+      tags: t('tickets.tags', 'Теги')
     };
     return labels[field] || field;
+  };
+  
+  const formatMetadata = (metadata: any): React.ReactNode => {
+    if (!metadata || typeof metadata !== 'object') {
+      return null;
+    }
+    
+    // Якщо це простий об'єкт з невеликою кількістю ключів, показуємо структурований вигляд
+    const keys = Object.keys(metadata);
+    if (keys.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="space-y-2">
+        {keys.map((key) => {
+          const value = metadata[key];
+          let displayValue: React.ReactNode;
+          
+          if (value === null || value === undefined) {
+            displayValue = <span className="text-gray-400">{t('common.notSpecified', 'Не вказано')}</span>;
+          } else if (typeof value === 'object') {
+            if (Array.isArray(value)) {
+              displayValue = value.length > 0 
+                ? <div className="space-y-1">{value.map((item: any, idx: number) => (
+                    <div key={idx} className="text-xs">• {typeof item === 'object' ? JSON.stringify(item) : String(item)}</div>
+                  ))}</div>
+                : <span className="text-gray-400">{t('common.none', 'Жодного')}</span>;
+            } else {
+              displayValue = <pre className="text-xs bg-gray-50 p-2 rounded overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
+            }
+          } else {
+            displayValue = <span className="font-medium">{String(value)}</span>;
+          }
+          
+          return (
+            <div key={key} className="border-b border-gray-200 pb-2 last:border-b-0">
+              <div className="text-xs font-semibold text-gray-700 mb-1">{key}:</div>
+              <div className="text-sm text-gray-900">{displayValue}</div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // Завжди показуємо всю історію
@@ -205,17 +323,21 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                            {entry.oldValue !== undefined && (
                              <div>
-                               <span className="text-red-600 font-semibold">Було:</span>
+                               <span className="text-red-600 font-semibold">{t('common.was', 'Було')}:</span>
                                <div className="text-gray-900 bg-red-50 p-2 rounded mt-1 font-medium">
-                                 {formatValue(entry.oldValue)}
+                                 {typeof formatValue(entry.oldValue, entry.field) === 'string' 
+                                   ? formatValue(entry.oldValue, entry.field) 
+                                   : <div>{formatValue(entry.oldValue, entry.field)}</div>}
                                </div>
                              </div>
                            )}
                            {entry.newValue !== undefined && (
                              <div>
-                               <span className="text-green-600 font-semibold">Стало:</span>
+                               <span className="text-green-600 font-semibold">{t('common.became', 'Стало')}:</span>
                                <div className="text-gray-900 bg-green-50 p-2 rounded mt-1 font-medium">
-                                 {formatValue(entry.newValue)}
+                                 {typeof formatValue(entry.newValue, entry.field) === 'string' 
+                                   ? formatValue(entry.newValue, entry.field) 
+                                   : <div>{formatValue(entry.newValue, entry.field)}</div>}
                                </div>
                              </div>
                            )}
@@ -225,11 +347,13 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                      
                      {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                        <div className="mt-2 text-sm text-gray-700">
-                         <details>
-                           <summary className="cursor-pointer hover:text-gray-900 font-medium text-gray-900">• Додаткова інформація</summary>
-                           <pre className="mt-1 bg-gray-100 p-3 rounded text-xs overflow-x-auto text-gray-900 border border-gray-200 whitespace-pre-wrap break-words">
-                             {JSON.stringify(entry.metadata, null, 2)}
-                           </pre>
+                         <details className="cursor-pointer">
+                           <summary className="hover:text-gray-900 font-medium text-gray-900">
+                             • {t('common.additionalInfo', 'Додаткова інформація')}
+                           </summary>
+                           <div className="mt-2 bg-gray-50 p-3 rounded border border-gray-200">
+                             {formatMetadata(entry.metadata)}
+                           </div>
                          </details>
                        </div>
                      )}

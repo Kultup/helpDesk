@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
-const { adminAuth } = require('../middleware/adminAuth');
+const { authenticateToken: auth } = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth');
 const emailService = require('../services/emailService');
 const emailReceiveService = require('../services/emailReceiveService');
 const EmailThread = require('../models/EmailThread');

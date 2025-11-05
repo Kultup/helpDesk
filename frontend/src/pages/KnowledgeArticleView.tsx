@@ -202,9 +202,11 @@ const KnowledgeArticleView: React.FC = () => {
 
               {/* Контент статті */}
               <div className="prose max-w-none mb-6">
-                <ReactMarkdown className="text-gray-700 leading-relaxed">
-                  {article.content}
-                </ReactMarkdown>
+                <div className="text-gray-700 leading-relaxed">
+                  <ReactMarkdown>
+                    {article.content}
+                  </ReactMarkdown>
+                </div>
               </div>
 
               {/* Рейтинг корисності */}

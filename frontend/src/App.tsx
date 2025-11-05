@@ -26,6 +26,10 @@ import Templates from './pages/Templates';
 import CreateTemplate from './pages/CreateTemplate';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
+import SLASettings from './pages/SLASettings';
+import SLADashboard from './pages/SLADashboard';
+import TelegramSettings from './pages/TelegramSettings';
+import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
@@ -200,6 +204,26 @@ const App: React.FC = () => {
             <Route path="admin/logs" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Logs />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/sla" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <SLADashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/sla/settings" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <SLASettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/settings/telegram" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <TelegramSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/settings/active-directory" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <ActiveDirectorySettings />
               </ProtectedRoute>
             } />
           </Route>
