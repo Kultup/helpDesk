@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogIn, Mail, Lock } from 'lucide-react';
+import { LogIn, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouteHistory } from '../hooks';
 import { UserRole } from '../types';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
-import ContactModal from '../components/ContactModal';
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
@@ -20,7 +19,6 @@ const Login: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   // Redirect if already logged in - враховуємо роль користувача
   if (user) {
@@ -106,15 +104,9 @@ const Login: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center space-y-2">
-              <button 
-                onClick={() => setIsContactModalOpen(true)}
-                className="text-blue-600 hover:text-blue-800 text-sm underline bg-transparent border-none cursor-pointer block w-full"
-              >
-                {t('auth.contactAdmin')}
-              </button>
+            <div className="mt-6 text-center">
               <div className="text-sm text-gray-600">
-                <span>{t('auth.orContact') || 'Або зв\'яжіться через'}: </span>
+                <span>{t('auth.contactAdmin') || 'Зв\'яжіться з адміністратором'}: </span>
                 <a 
                   href="https://t.me/Kultup" 
                   target="_blank" 
@@ -128,11 +120,6 @@ const Login: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-      
-      <ContactModal 
-        isOpen={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
-      />
     </div>
   );
 };
