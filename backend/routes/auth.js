@@ -169,6 +169,11 @@ router.post('/register', async (req, res) => {
       
       await registrationWebSocketService.notifyNewRegistrationRequest(user);
       logger.info('✅ WebSocket сповіщення про нову реєстрацію відправлено успішно');
+      
+      // Отримуємо оновлену кількість запитів на реєстрацію та відправляємо оновлення
+      const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
+      registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
+      logger.info('✅ WebSocket оновлення кількості реєстрацій відправлено:', pendingCount);
     } catch (error) {
       logger.error('❌ Помилка при відправці WebSocket сповіщення:', error);
     }

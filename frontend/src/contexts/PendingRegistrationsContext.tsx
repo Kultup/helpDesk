@@ -62,9 +62,11 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
             socket.emit('join-admin-room');
           });
 
-          socket.on('registration-count-update', (data: { count: number }) => {
+          socket.on('registration-count-update', (data: { data?: { count: number }, count?: number }) => {
             console.log('Received registration count update:', data);
-            setCount(data.count);
+            // Обробляємо обидва формати: { data: { count } } та { count }
+            const count = data.data?.count ?? data.count ?? 0;
+            setCount(count);
           });
 
           socket.on('disconnect', () => {

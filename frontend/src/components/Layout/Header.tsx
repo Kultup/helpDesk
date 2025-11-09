@@ -75,8 +75,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
 
   // Відстеження нових запитів на реєстрацію для анімації іконки
   useEffect(() => {
-    // Комбінуємо кількість з контексту та нові реєстрації з WebSocket
-    const currentRegistrationCount = contextRegistrationCount + newRegistrationCount;
+    // Використовуємо кількість з контексту як основну, оскільки вона оновлюється через WebSocket в реальному часі
+    const currentRegistrationCount = contextRegistrationCount;
     const previousRegistrationCount = previousRegistrationCountRef.current;
     
     console.log('👤 Header: Registration counts - context:', contextRegistrationCount, 'new:', newRegistrationCount, 'total:', currentRegistrationCount, 'previous:', previousRegistrationCount);
@@ -85,7 +85,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     setRegistrationCount(currentRegistrationCount);
     
     // Якщо з'явилась нова реєстрація (збільшилась кількість)
-    if (currentRegistrationCount > previousRegistrationCount) {
+    if (currentRegistrationCount > previousRegistrationCount && previousRegistrationCount >= 0) {
       console.log('👤 Header: Starting registration animation');
       setRegistrationAnimation(true);
       

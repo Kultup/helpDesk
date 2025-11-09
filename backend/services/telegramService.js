@@ -2055,6 +2055,25 @@ class TelegramService {
       // Видаляємо запис про тимчасову реєстрацію
       await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
 
+      // Відправка WebSocket сповіщення про нову реєстрацію
+      try {
+        const registrationWebSocketService = require('./registrationWebSocketService');
+        const populatedUser = await User.findById(newUser._id)
+          .populate('position')
+          .populate('city')
+          .select('-password');
+        
+        await registrationWebSocketService.notifyNewRegistrationRequest(populatedUser);
+        logger.info('✅ WebSocket сповіщення про нову реєстрацію (Telegram) відправлено успішно');
+        
+        // Отримуємо оновлену кількість запитів на реєстрацію та відправляємо оновлення
+        const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
+        registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
+        logger.info('✅ WebSocket оновлення кількості реєстрацій (Telegram) відправлено:', pendingCount);
+      } catch (error) {
+        logger.error('❌ Помилка при відправці WebSocket сповіщення (Telegram):', error);
+      }
+
       await this.sendMessage(chatId, 
         `✅ *Реєстрацію завершено!*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
