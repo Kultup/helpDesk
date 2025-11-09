@@ -2007,15 +2007,28 @@ class TelegramService {
       `📝 *Реєстрація - Крок 8/8*\n\n` +
       `🏢 Будь ласка, введіть назву вашого *відділу/закладу*:\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💡 *Приклад:* Відділ інформаційних технологій`
+      `💡 *Приклад:* Бухгалтерія, Банкетний менеджер`
     );
   }
 
   async completeRegistration(chatId, userId, pendingRegistration) {
     try {
+      // Генеруємо унікальний логін
+      const { generateUniqueLogin } = require('../utils/helpers');
+      const login = await generateUniqueLogin(
+        pendingRegistration.data.email,
+        pendingRegistration.telegramInfo.username,
+        userId,
+        async (loginToCheck) => {
+          const user = await User.findOne({ login: loginToCheck });
+          return !!user;
+        }
+      );
+      
       // Створюємо нового користувача
       const newUser = new User({
         telegramId: userId,
+        login: login,
         firstName: pendingRegistration.data.firstName,
         lastName: pendingRegistration.data.lastName,
         email: pendingRegistration.data.email,

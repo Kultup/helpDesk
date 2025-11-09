@@ -574,9 +574,22 @@ class AuthController {
           }
           await user.save();
         } else {
+          // Генеруємо унікальний логін
+          const { generateUniqueLogin } = require('../utils/helpers');
+          const login = await generateUniqueLogin(
+            null,
+            username,
+            telegramId,
+            async (loginToCheck) => {
+              const existingUser = await User.findOne({ login: loginToCheck });
+              return !!existingUser;
+            }
+          );
+          
           // Створення нового користувача через Telegram
           const newUser = new User({
             email: `telegram_${telegramId}@temp.com`, // Тимчасовий email
+            login: login,
             firstName: first_name || 'Telegram',
             lastName: last_name || 'User',
             telegramId,

@@ -131,9 +131,22 @@ router.post('/register', async (req, res) => {
       }
     }
 
+    // Генеруємо унікальний логін
+    const { generateUniqueLogin } = require('../utils/helpers');
+    const login = await generateUniqueLogin(
+      email,
+      null,
+      null,
+      async (loginToCheck) => {
+        const user = await User.findOne({ login: loginToCheck });
+        return !!user;
+      }
+    );
+    
     // Створення нового користувача зі статусом pending
     const user = new User({
       email: email.toLowerCase(),
+      login: login,
       password,
       firstName,
       lastName,

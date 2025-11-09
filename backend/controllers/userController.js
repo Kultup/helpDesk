@@ -230,10 +230,23 @@ exports.createUser = async (req, res) => {
       ? permissions.filter(p => validPermissions.includes(p))
       : [];
 
+    // Генеруємо унікальний логін
+    const { generateUniqueLogin } = require('../utils/helpers');
+    const login = await generateUniqueLogin(
+      email,
+      telegramUsername,
+      null,
+      async (loginToCheck) => {
+        const user = await User.findOne({ login: loginToCheck });
+        return !!user;
+      }
+    );
+    
     const user = new User({
       firstName,
       lastName,
       email,
+      login: login,
       password, // Пароль буде захешований в middleware моделі
       role,
       department,

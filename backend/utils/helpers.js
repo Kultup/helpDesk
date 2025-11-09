@@ -242,6 +242,59 @@ const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
   }
 };
 
+/**
+ * Генерація унікального логіну на основі email, username або інших даних
+ * @param {string} email - email користувача
+ * @param {string} username - username (telegram або інший)
+ * @param {string} fallbackId - ID для fallback (telegramId або інший)
+ * @param {Function} checkExists - функція для перевірки існування логіну
+ * @returns {Promise<string>} - унікальний логін
+ */
+const generateUniqueLogin = async (email, username, fallbackId, checkExists) => {
+  let login = '';
+  
+  // Генеруємо логін на основі email
+  if (email) {
+    login = email.split('@')[0].toLowerCase();
+  } else if (username) {
+    login = username.toLowerCase();
+  } else if (fallbackId) {
+    login = `user_${fallbackId.toString().substring(0, 8)}`;
+  } else {
+    // Якщо немає жодних даних, генеруємо випадковий логін
+    login = `user_${Date.now().toString(36)}`;
+  }
+  
+  // Очищаємо логін від спеціальних символів (залишаємо тільки літери, цифри та підкреслення)
+  login = login.replace(/[^a-zA-Z0-9_]/g, '');
+  
+  // Якщо після очищення логін порожній або занадто короткий, створюємо з fallback
+  if (!login || login.length < 3) {
+    if (fallbackId) {
+      login = `user_${fallbackId.toString().substring(0, 8)}`;
+    } else {
+      login = `user_${Date.now().toString(36)}`;
+    }
+  }
+  
+  // Перевіряємо, чи такий логін вже існує
+  if (checkExists) {
+    const exists = await checkExists(login);
+    if (exists) {
+      // Якщо логін вже існує, додаємо суфікс
+      let counter = 1;
+      let newLogin = `${login}${counter}`;
+      while (await checkExists(newLogin)) {
+        counter++;
+        newLogin = `${login}${counter}`;
+      }
+      login = newLogin;
+    }
+  }
+  
+  return login;
+};
+
 module.exports = {
   generateToken,
   generateUniqueFileName,
@@ -257,5 +310,6 @@ module.exports = {
   isEmpty,
   deepClone,
   delay,
-  retryWithBackoff
+  retryWithBackoff,
+  generateUniqueLogin
 };
