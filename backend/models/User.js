@@ -13,6 +13,16 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
+  login: {
+    type: String,
+    required: [true, 'Login is required'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    minlength: [3, 'Login must be at least 3 characters'],
+    maxlength: [50, 'Login cannot exceed 50 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Login can only contain letters, numbers and underscores']
+  },
   password: {
     type: String,
     required: function() {
@@ -451,6 +461,10 @@ userSchema.post('save', async function(doc) {
 // Статичні методи
 userSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });
+};
+
+userSchema.statics.findByLogin = function(login) {
+  return this.findOne({ login: login.toLowerCase() });
 };
 
 userSchema.statics.findByTelegramId = function(telegramId) {

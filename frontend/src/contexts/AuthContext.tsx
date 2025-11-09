@@ -132,11 +132,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Функція входу
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (login: string, password: string): Promise<void> => {
     try {
       dispatch({ type: 'LOGIN_START' });
       
-      const response = await apiService.login({ email, password });
+      const response = await apiService.login({ login, password });
       
       if (response.success && response.data) {
         const { user, token } = response.data;

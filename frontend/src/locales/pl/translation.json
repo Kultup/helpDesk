@@ -1758,6 +1758,7 @@
     "password": "Hasło",
     "loginError": "Błąd logowania",
     "contactAdmin": "Skontaktuj się z administratorem, aby utworzyć konto",
+    "orContact": "Lub skontaktuj się przez",
     "testData": "Dane testowe",
     "testAdmin": "Admin: admin@test.com / admin123",
     "testUser": "User: user@test.com / user123"

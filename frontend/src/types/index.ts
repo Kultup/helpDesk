@@ -356,7 +356,7 @@ export interface PositionsResponse {
 
 // Типи для форм
 export interface LoginForm {
-  email: string;
+  login: string;
   password: string;
 }
 

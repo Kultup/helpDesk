@@ -44,9 +44,10 @@ const registerSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    'string.email': 'Невірний формат email',
-    'any.required': 'Email є обов\'язковим'
+  login: Joi.string().min(3).max(50).required().messages({
+    'string.min': 'Логін повинен містити мінімум 3 символи',
+    'string.max': 'Логін не може перевищувати 50 символів',
+    'any.required': 'Логін є обов\'язковим'
   }),
   password: Joi.string().required().messages({
     'any.required': 'Пароль є обов\'язковим'
@@ -196,10 +197,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const { email, password, device } = value;
+    const { login, password, device } = value;
 
-    // Пошук користувача (email завжди в нижньому регістрі)
-    const user = await User.findOne({ email: email.toLowerCase() })
+    // Пошук користувача за логіном (логін завжди в нижньому регістрі)
+    const user = await User.findOne({ login: login.toLowerCase() })
       .select('+password')
       .populate('position')
       .populate('city');
@@ -207,7 +208,7 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Невірний email або пароль'
+        message: 'Невірний логін або пароль'
       });
     }
 
@@ -234,7 +235,7 @@ router.post('/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Невірний email або пароль'
+        message: 'Невірний логін або пароль'
       });
     }
 

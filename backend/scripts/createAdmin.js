@@ -70,6 +70,7 @@ async function createUsers() {
     // Створюємо першого адміністратора (kenny)
     const kennyData = {
       email: 'kenny@test.com',
+      login: 'kenny',
       password: kennyHashedPassword,
       firstName: 'Kenny',
       lastName: 'Admin',
@@ -100,6 +101,7 @@ async function createUsers() {
     // Створюємо другого адміністратора (kultup)
     const kultupData = {
       email: 'kultup@test.com',
+      login: 'kultup',
       password: kultupHashedPassword,
       firstName: 'Kultup',
       lastName: 'Admin',

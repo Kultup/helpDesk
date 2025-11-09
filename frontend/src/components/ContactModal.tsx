@@ -40,6 +40,28 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Telegram:
+            </label>
+            <div className="flex items-center space-x-2">
+              <a 
+                href="https://t.me/Kultup" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 font-medium underline"
+              >
+                @Kultup
+              </a>
+              <button
+                onClick={() => copyToClipboard('https://t.me/Kultup')}
+                className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded"
+              >
+                Копіювати
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Email адреса:
             </label>
             <div className="flex items-center space-x-2">

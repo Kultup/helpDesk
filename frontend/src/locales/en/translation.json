@@ -1835,6 +1835,7 @@
     "password": "Password",
     "loginError": "Login error",
     "contactAdmin": "Contact administrator to create an account",
+    "orContact": "Or contact via",
     "testData": "Test data",
     "testAdmin": "Admin: admin@test.com / admin123",
     "testUser": "User: user@test.com / user123"

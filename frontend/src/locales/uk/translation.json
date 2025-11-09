@@ -1721,6 +1721,7 @@
     "password": "Пароль",
     "loginError": "Помилка входу в систему",
     "contactAdmin": "Зв'яжіться з адміністратором для створення облікового запису",
+    "orContact": "Або зв'яжіться через",
     "testData": "Тестові дані",
     "testAdmin": "Admin: admin@test.com / admin123",
     "testUser": "User: user@test.com / user123"

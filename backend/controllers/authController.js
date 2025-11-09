@@ -22,17 +22,18 @@ class AuthController {
         });
       }
 
-      const { email, password, rememberMe = false } = req.body;
+      const { login, password, rememberMe = false } = req.body;
 
-      logger.info('🔍 Login attempt:', { email, passwordLength: password?.length });
+      logger.info('🔍 Login attempt:', { login, passwordLength: password?.length });
 
-      // Пошук користувача
+      // Пошук користувача за логіном
       const user = await User.findOne({ 
-        email: email.toLowerCase() 
+        login: login.toLowerCase() 
       }).select('+password').populate('position city');
 
       logger.info('👤 User found:', !!user);
       if (user) {
+        logger.info('👤 User login:', user.login);
         logger.info('📧 User email:', user.email);
         logger.info('🔑 User role:', user.role);
         logger.info('✅ User active:', user.isActive);
@@ -42,7 +43,7 @@ class AuthController {
 
       if (!user) {
         return res.status(401).json({
-          message: 'Невірний email або пароль'
+          message: 'Невірний логін або пароль'
         });
       }
 
@@ -76,7 +77,7 @@ class AuthController {
         const attemptsLeft = 5 - user.loginAttempts;
         if (attemptsLeft > 0) {
           return res.status(401).json({
-            message: `Невірний email або пароль. Залишилось спроб: ${attemptsLeft}`
+            message: `Невірний логін або пароль. Залишилось спроб: ${attemptsLeft}`
           });
         } else {
           return res.status(423).json({
@@ -141,9 +142,10 @@ class AuthController {
       await user.save({ validateModifiedOnly: true });
 
       // Логування успішного входу
-      logger.info(`Користувач увійшов в систему: ${email}`, {
+      logger.info(`Користувач увійшов в систему: ${login}`, {
         userId: user._id,
-        email,
+        login: user.login,
+        email: user.email,
         ip: req.ip,
         userAgent: req.get('User-Agent'),
         rememberMe

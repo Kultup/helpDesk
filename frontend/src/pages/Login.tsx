@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   const { user, login } = useAuth();
   const { clearLastRoute } = useRouteHistory();
   const [formData, setFormData] = useState({
-    email: '',
+    login: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.login, formData.password);
       // Очищаємо збережений маршрут після успішного входу
       clearLastRoute();
     } catch (err: any) {
@@ -75,12 +75,12 @@ const Login: React.FC = () => {
               )}
 
               <Input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={formData.email}
+                type="text"
+                name="login"
+                placeholder={t('auth.login') || 'Логін'}
+                value={formData.login}
                 onChange={handleChange}
-                leftIcon={<Mail className="w-4 h-4" />}
+                leftIcon={<LogIn className="w-4 h-4" />}
                 required
                 disabled={loading}
               />
@@ -106,13 +106,24 @@ const Login: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <button 
                 onClick={() => setIsContactModalOpen(true)}
-                className="text-blue-600 hover:text-blue-800 text-sm underline bg-transparent border-none cursor-pointer"
+                className="text-blue-600 hover:text-blue-800 text-sm underline bg-transparent border-none cursor-pointer block w-full"
               >
                 {t('auth.contactAdmin')}
               </button>
+              <div className="text-sm text-gray-600">
+                <span>{t('auth.orContact') || 'Або зв\'яжіться через'}: </span>
+                <a 
+                  href="https://t.me/Kultup" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline font-medium"
+                >
+                  Telegram @Kultup
+                </a>
+              </div>
             </div>
           </CardContent>
         </Card>
