@@ -18,13 +18,15 @@ const activeDirectoryConfigSchema = new mongoose.Schema({
   },
   adminDn: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   adminPassword: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   userSearchBase: {
     type: String,
