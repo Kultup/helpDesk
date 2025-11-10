@@ -33,6 +33,10 @@ const {
 const app = express();
 const server = createServer(app);
 
+// Налаштування trust proxy для express-rate-limit
+// Встановлюємо trust proxy, якщо додаток працює за проксі (nginx, load balancer)
+app.set('trust proxy', 1); // Довіряємо першому проксі
+
 // Socket.IO конфігурація
 const allowedSocketOrigins = [
   process.env.FRONTEND_URL,
