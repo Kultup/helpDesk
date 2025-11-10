@@ -2022,6 +2022,50 @@ class TelegramService {
 
   async completeRegistration(chatId, userId, pendingRegistration) {
     try {
+      // Логуємо спробу завершення реєстрації
+      logger.info('Спроба завершення реєстрації:', {
+        userId,
+        step: pendingRegistration.step,
+        hasCityId: !!pendingRegistration.data.cityId,
+        hasPositionId: !!pendingRegistration.data.positionId,
+        hasDepartment: !!pendingRegistration.data.department
+      });
+
+      // Перевіряємо, чи вказано місто
+      if (!pendingRegistration.data.cityId) {
+        logger.warn('Місто не вказано для реєстрації:', {
+          userId,
+          pendingRegistrationId: pendingRegistration._id,
+          data: pendingRegistration.data
+        });
+        
+        // Повертаємо користувача до кроку вибору міста
+        pendingRegistration.step = 'city';
+        await pendingRegistration.save();
+        
+        await this.sendMessage(chatId, 
+          `❌ *Помилка реєстрації*\n\n` +
+          `Місто не вказано. Будь ласка, оберіть місто для продовження реєстрації.`,
+          { parse_mode: 'Markdown' }
+        );
+        
+        // Показуємо список міст для вибору
+        await this.askForCity(chatId);
+        return;
+      }
+
+      // Логуємо дані до збереження
+      logger.info('Завершення реєстрації, дані (до збереження):', {
+        userId,
+        email: pendingRegistration.data.email,
+        firstName: pendingRegistration.data.firstName,
+        lastName: pendingRegistration.data.lastName,
+        phone: pendingRegistration.data.phone,
+        cityId: pendingRegistration.data.cityId,
+        positionId: pendingRegistration.data.positionId,
+        department: pendingRegistration.data.department
+      });
+
       // Генеруємо унікальний логін
       const { generateUniqueLogin } = require('../utils/helpers');
       const login = await generateUniqueLogin(
@@ -2051,6 +2095,18 @@ class TelegramService {
       });
 
       await newUser.save();
+
+      // Логуємо дані після збереження
+      logger.info('Завершення реєстрації, дані (після збереження):', {
+        userId: newUser._id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        phone: newUser.phone,
+        city: newUser.city,
+        position: newUser.position,
+        department: newUser.department
+      });
 
       // Видаляємо запис про тимчасову реєстрацію
       await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
