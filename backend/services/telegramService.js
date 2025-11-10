@@ -235,6 +235,8 @@ class TelegramService {
     const userId = callbackQuery.from.id;
 
     try {
+      logger.info('Обробка callback query:', { userId, data, chatId, messageId });
+
       // Обробка callback-запитів для незареєстрованих користувачів
       if (data === 'register_user') {
         await this.handleUserRegistrationCallback(chatId, userId);
@@ -244,6 +246,7 @@ class TelegramService {
 
       // Обробка callback-запитів для реєстрації (вибір міста та посади)
       if (data.startsWith('city_') || data.startsWith('position_')) {
+        logger.info('Виявлено callback для реєстрації (місто/посада):', { userId, data });
         await this.handleRegistrationCallback(chatId, userId, data);
         await this.answerCallbackQuery(callbackQuery.id);
         return;
@@ -2022,14 +2025,29 @@ class TelegramService {
 
   async completeRegistration(chatId, userId, pendingRegistration) {
     try {
+      // Перезавантажуємо pendingRegistration з БД, щоб отримати актуальні дані
+      const freshPendingRegistration = await PendingRegistration.findById(pendingRegistration._id);
+      if (!freshPendingRegistration) {
+        logger.error('PendingRegistration не знайдено при завершенні реєстрації:', { userId, pendingRegistrationId: pendingRegistration._id });
+        await this.sendMessage(chatId, '❌ Помилка: сесія реєстрації не знайдена. Почніть реєстрацію спочатку.');
+        return;
+      }
+      
+      // Використовуємо свіжі дані
+      pendingRegistration = freshPendingRegistration;
+
       // Логуємо спробу завершення реєстрації
-      logger.info('Спроба завершення реєстрації:', {
+      logger.info('Спроба завершення реєстрації:', JSON.stringify({
         userId,
         step: pendingRegistration.step,
         hasCityId: !!pendingRegistration.data.cityId,
+        cityId: pendingRegistration.data.cityId,
         hasPositionId: !!pendingRegistration.data.positionId,
-        hasDepartment: !!pendingRegistration.data.department
-      });
+        positionId: pendingRegistration.data.positionId,
+        hasDepartment: !!pendingRegistration.data.department,
+        department: pendingRegistration.data.department,
+        fullData: pendingRegistration.data
+      }, null, 2));
 
       // Перевіряємо, чи вказано місто
       if (!pendingRegistration.data.cityId) {
@@ -2055,7 +2073,7 @@ class TelegramService {
       }
 
       // Логуємо дані до збереження
-      logger.info('Завершення реєстрації, дані (до збереження):', {
+      logger.info('Завершення реєстрації, дані (до збереження):', JSON.stringify({
         userId,
         email: pendingRegistration.data.email,
         firstName: pendingRegistration.data.firstName,
@@ -2063,8 +2081,9 @@ class TelegramService {
         phone: pendingRegistration.data.phone,
         cityId: pendingRegistration.data.cityId,
         positionId: pendingRegistration.data.positionId,
-        department: pendingRegistration.data.department
-      });
+        department: pendingRegistration.data.department,
+        fullData: pendingRegistration.data
+      }, null, 2));
 
       // Генеруємо унікальний логін
       const { generateUniqueLogin } = require('../utils/helpers');
@@ -2097,7 +2116,7 @@ class TelegramService {
       await newUser.save();
 
       // Логуємо дані після збереження
-      logger.info('Завершення реєстрації, дані (після збереження):', {
+      logger.info('Завершення реєстрації, дані (після збереження):', JSON.stringify({
         userId: newUser._id,
         email: newUser.email,
         firstName: newUser.firstName,
@@ -2106,7 +2125,7 @@ class TelegramService {
         city: newUser.city,
         position: newUser.position,
         department: newUser.department
-      });
+      }, null, 2));
 
       // Видаляємо запис про тимчасову реєстрацію
       await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
@@ -2185,25 +2204,48 @@ class TelegramService {
   // Обробник callback-запитів для реєстрації (вибір міста та посади)
   async handleRegistrationCallback(chatId, userId, data) {
     try {
+      logger.info('Обробка callback для реєстрації:', { userId, data, chatId });
+      
       const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
       
       if (!pendingRegistration) {
+        logger.warn('Сесія реєстрації не знайдена для callback:', { userId, data });
         await this.sendMessage(chatId, '❌ Сесія реєстрації не знайдена. Почніть реєстрацію спочатку.');
         return;
       }
 
       if (data.startsWith('city_')) {
         const cityId = data.replace('city_', '');
+        logger.info('Обробка вибору міста:', { userId, cityId, currentStep: pendingRegistration.step });
+        
         const city = await City.findById(cityId);
         
         if (!city) {
+          logger.warn('Місто не знайдено в БД:', { userId, cityId });
           await this.sendMessage(chatId, '❌ Місто не знайдено. Спробуйте ще раз.');
           return;
         }
 
+        logger.info('Місто знайдено, зберігаю в pendingRegistration:', { 
+          userId, 
+          cityId, 
+          cityName: city.name,
+          beforeSave: {
+            cityId: pendingRegistration.data.cityId,
+            step: pendingRegistration.step
+          }
+        });
+
         pendingRegistration.data.cityId = cityId;
         pendingRegistration.step = 'position';
         await pendingRegistration.save();
+
+        logger.info('Місто збережено в pendingRegistration:', {
+          userId,
+          cityId: pendingRegistration.data.cityId,
+          step: pendingRegistration.step,
+          afterSave: pendingRegistration.data
+        });
 
         await this.sendMessage(chatId, `✅ Місто обрано: ${city.name}`);
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
