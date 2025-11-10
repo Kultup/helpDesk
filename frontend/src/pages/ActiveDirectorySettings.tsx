@@ -41,7 +41,13 @@ const ActiveDirectorySettings: React.FC = () => {
       setIsLoading(true);
       const response = await apiService.getActiveDirectorySettings();
       if (response.success && response.data) {
-        setSettings(response.data);
+        // Якщо пароль є, встановлюємо порожній рядок, щоб користувач міг ввести новий
+        // Якщо пароль не змінюється (залишається порожнім), він не буде оновлений на сервері
+        const settingsData = {
+          ...response.data,
+          adminPassword: '' // Завжди встановлюємо порожній рядок, щоб користувач міг ввести новий пароль
+        };
+        setSettings(settingsData);
       }
     } catch (error: any) {
       console.error('Помилка завантаження налаштувань Active Directory:', error);
@@ -61,11 +67,12 @@ const ActiveDirectorySettings: React.FC = () => {
       setIsSaving(true);
       setMessage(null);
 
-      const response = await apiService.updateActiveDirectorySettings({
+      // Відправляємо пароль тільки якщо він був змінений (не порожній)
+      // Якщо пароль порожній, сервер не буде оновлювати його
+      const updateData: any = {
         enabled: settings.enabled,
         ldapUrl: settings.ldapUrl,
         adminDn: settings.adminDn,
-        adminPassword: showPassword ? settings.adminPassword : undefined,
         userSearchBase: settings.userSearchBase,
         computerSearchBase: settings.computerSearchBase,
         usernameAttribute: settings.usernameAttribute,
@@ -73,7 +80,14 @@ const ActiveDirectorySettings: React.FC = () => {
         connectTimeout: settings.connectTimeout,
         retryInterval: settings.retryInterval,
         maxRetries: settings.maxRetries
-      });
+      };
+
+      // Додаємо пароль тільки якщо він не порожній
+      if (settings.adminPassword && settings.adminPassword.trim() !== '') {
+        updateData.adminPassword = settings.adminPassword;
+      }
+
+      const response = await apiService.updateActiveDirectorySettings(updateData);
 
       if (response.success) {
         setMessage({
@@ -240,7 +254,7 @@ const ActiveDirectorySettings: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={settings?.adminPassword || ''}
                 onChange={(e) => handleChange('adminPassword', e.target.value)}
-                placeholder="••••••••"
+                placeholder={settings?.hasPassword ? "Залиште порожнім, щоб не змінювати" : "Введіть пароль"}
                 className="pr-10"
               />
               <button
@@ -251,6 +265,11 @@ const ActiveDirectorySettings: React.FC = () => {
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
+            {settings?.hasPassword && (
+              <p className="mt-1 text-sm text-gray-500">
+                Залиште порожнім, щоб не змінювати поточний пароль
+              </p>
+            )}
           </div>
 
           <div>
