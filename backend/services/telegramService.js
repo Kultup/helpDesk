@@ -508,23 +508,16 @@ class TelegramService {
       }
 
       if (session) {
-        // Ініціалізуємо дані тікета з шаблону
-        session.ticketData = {
-          title: template.title,
-          description: template.description,
-          priority: template.priority,
-          categoryId: template.category._id, // Зберігаємо ID категорії з БД напряму
-          photos: []
-        };
-        session.step = 'priority';
-        
-        await this.sendMessage(chatId, 
-          this.getPriorityPromptText(), {
+        // Зберігаємо ID шаблону та переходимо до кроку фото, пропускаючи вибір пріоритету
+        session.templateId = template._id;
+        session.step = 'photo';
+
+        await this.sendMessage(chatId,
+          '📷 Хочете додати фото до тікету? (необов\'язково)', {
             reply_markup: {
               inline_keyboard: [
-                [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
-                [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
-                [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
+                [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
+                [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
                 [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
               ]
             }
