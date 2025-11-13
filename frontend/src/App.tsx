@@ -36,6 +36,7 @@ import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
 import Settings from './pages/Settings';
 import PhotoViewer from './components/PhotoViewer';
+import ErrorNotifications from './components/ErrorNotifications';
 
 
 // Компонент для розумного перенаправлення
@@ -88,6 +89,7 @@ const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <PendingRegistrationsProvider>
+          <ErrorNotifications />
           <Router>
             <RoleBasedRedirect />
             <Routes>

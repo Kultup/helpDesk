@@ -1,5 +1,6 @@
 const { errorLogger } = require('./logging');
 const logger = require('../utils/logger');
+const errorNotificationService = require('../services/errorNotificationService');
 
 // Клас для кастомних помилок
 class AppError extends Error {
@@ -78,6 +79,13 @@ const globalErrorHandler = (err, req, res, next) => {
   
   // Логуємо помилку
   errorLogger(err, req, res, () => {});
+  
+  // Відправляємо помилку через WebSocket для відображення на frontend
+  try {
+    errorNotificationService.notifyError(err, req);
+  } catch (wsError) {
+    logger.error('Помилка відправки сповіщення про помилку:', wsError);
+  }
   
   if (process.env.NODE_ENV === 'development') {
     sendErrorDev(err, res);

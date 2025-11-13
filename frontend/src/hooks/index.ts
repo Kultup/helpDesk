@@ -143,8 +143,15 @@ export const useTickets = () => {
 };
 
 // Хук для роботи з містами
-export const useCities = () => {
+export const useCities = (page = 1, limit = 20, search?: string) => {
   const [cities, setCities] = useState<City[]>([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNext: false,
+    hasPrev: false
+  });
   const { isLoading, startLoading, stopLoading } = useLoading();
   const [error, setError] = useState<string | null>(null);
 
@@ -153,10 +160,14 @@ export const useCities = () => {
       startLoading();
       setError(null);
       
-      const response = await apiService.getCities();
+      const response = await apiService.getCities({ page, limit, search });
       
       if (response.success && response.data) {
         setCities(Array.isArray(response.data) ? response.data : []);
+        // Оновлюємо пагінацію з відповіді
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
       } else {
         setError(response.message || 'Помилка завантаження міст');
         setCities([]); // Встановлюємо порожній масив при помилці
@@ -167,7 +178,7 @@ export const useCities = () => {
     } finally {
       stopLoading();
     }
-  }, [startLoading, stopLoading]);
+  }, [startLoading, stopLoading, page, limit, search]);
 
   useEffect(() => {
     fetchCities();
@@ -216,6 +227,7 @@ export const useCities = () => {
 
   return {
     cities,
+    pagination,
     isLoading,
     error,
     createCity,

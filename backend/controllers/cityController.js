@@ -336,8 +336,8 @@ exports.deleteCity = async (req, res) => {
       });
     }
 
-    // Перевірка прав доступу
-    if (req.user.role !== 'admin') {
+    // Перевірка прав доступу (admin або super_admin)
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Немає прав для видалення міст'

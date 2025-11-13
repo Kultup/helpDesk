@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, Edit, Trash2, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
+import Pagination from '../components/UI/Pagination';
 import { useCities, useWindowSize } from '../hooks';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { useTranslation } from 'react-i18next';
@@ -19,9 +21,12 @@ const Cities: React.FC = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
-  const { cities, isLoading, error, createCity, updateCity, deleteCity, refetch } = useCities();
-  const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const itemsPerPage = 20;
+  
+  const { cities, pagination, isLoading, error, createCity, updateCity, deleteCity, refetch } = useCities(currentPage, itemsPerPage, searchTerm);
+  const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
   const [showForm, setShowForm] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [formData, setFormData] = useState<CityFormData>({
@@ -34,10 +39,10 @@ const Cities: React.FC = () => {
     refetch();
   }, [refetch]);
 
-  const filteredCities = cities.filter(city =>
-    city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    city.region.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Скидаємо сторінку на 1 при зміні пошуку
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,8 +90,18 @@ const Cities: React.FC = () => {
         try {
           await deleteCity(cityId);
           hideConfirmation();
-        } catch (error) {
+          // Показуємо успішне повідомлення
+          const successMessage = t('cities.deleteSuccess') || t('messages.deleteSuccess') || 'Місто успішно видалено';
+          toast.success(successMessage);
+        } catch (error: any) {
           console.error(t('cities.deleteError'), error);
+          // Показуємо помилку користувачу
+          const errorMessage = error?.response?.data?.message || 
+                              error?.message || 
+                              t('cities.deleteError') || 
+                              t('errors.general') ||
+                              'Помилка видалення міста';
+          toast.error(errorMessage);
         }
       },
       onCancel: hideConfirmation
@@ -114,7 +129,7 @@ const Cities: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('cities.title')}</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
-            {t('cities.description')} ({cities?.length || 0} {t('cities.citiesCount')})
+            {t('cities.description')} ({pagination?.totalItems || 0} {t('cities.citiesCount')})
           </p>
         </div>
         <div className="mt-2 sm:mt-0">
@@ -198,7 +213,7 @@ const Cities: React.FC = () => {
       {/* Cities List */}
       <Card>
         <CardContent className="p-0">
-          {filteredCities.length === 0 ? (
+          {cities.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
               <MapPin className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
@@ -211,7 +226,7 @@ const Cities: React.FC = () => {
           ) : isMobile ? (
             // Мобільний вигляд з картками
             <div className="divide-y divide-border">
-              {filteredCities.map((city) => (
+              {cities.map((city) => (
                 <div key={city._id} className="p-3 sm:p-4 hover:bg-surface/50">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -271,7 +286,7 @@ const Cities: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-surface divide-y divide-border">
-                  {filteredCities.map((city) => (
+                  {cities.map((city) => (
                     <tr key={city._id} className="hover:bg-surface/50">
                       <td className="px-4 sm:px-6 py-4">
                         <div className="flex items-center">
@@ -313,6 +328,20 @@ const Cities: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          )}
+          
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           )}
         </CardContent>
       </Card>

@@ -120,6 +120,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   ticketWebSocketService.initialize(io);
   logger.info('✅ WebSocket сервіс для тікетів ініціалізовано');
   
+  // Ініціалізуємо WebSocket сервіс для сповіщень про помилки
+  const errorNotificationService = require('./services/errorNotificationService');
+  errorNotificationService.initialize(io);
+  logger.info('✅ Error Notification Service ініціалізовано');
+  
   // WebSocket обробка підключень
   io.on('connection', (socket) => {
     logger.info('👤 Користувач підключився:', socket.id);

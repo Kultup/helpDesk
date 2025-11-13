@@ -267,8 +267,17 @@ class ApiService {
 
 
   // Методи для міст
-  async getCities(): Promise<ApiResponse<City[]>> {
-    const response: AxiosResponse<ApiResponse<City[]>> = await this.api.get('/cities');
+  async getCities(params?: { page?: number; limit?: number; search?: string; region?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<ApiResponse<City[]> & { pagination?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.region) queryParams.append('region', params.region);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const url = queryParams.toString() ? `/cities?${queryParams.toString()}` : '/cities';
+    const response: AxiosResponse<ApiResponse<City[]> & { pagination?: any }> = await this.api.get(url);
     return response.data;
   }
 
