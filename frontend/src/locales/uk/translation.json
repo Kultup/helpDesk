@@ -117,6 +117,8 @@
     "activeDirectory": "Active Directory",
     "telegramSettings": "Налаштування Telegram",
     "activeDirectorySettings": "Налаштування Active Directory",
+    "zabbixSettings": "Налаштування Zabbix",
+    "documents": "Документи",
     "logs": "Системні логи",
     "sla": "SLA Дашборд",
     "slaSettings": "SLA Налаштування",
@@ -1771,6 +1773,183 @@
       "connected": "Підключено",
       "disconnected": "Відключено",
       "paused": "На паузі"
+    }
+  },
+  "documents": {
+    "title": "Документи",
+    "description": "Управління документами та зберігання даних",
+    "create": "Створити документ",
+    "edit": "Редагувати документ",
+    "createDescription": "Створіть новий документ для зберігання даних",
+    "editDescription": "Редагуйте існуючий документ",
+    "export": "Експортувати",
+    "form": {
+      "title": "Назва",
+      "titlePlaceholder": "Введіть назву документа",
+      "description": "Опис",
+      "descriptionPlaceholder": "Введіть опис документа",
+      "type": "Тип документа",
+      "status": "Статус",
+      "category": "Категорія",
+      "categoryPlaceholder": "Введіть категорію",
+      "content": "Вміст",
+      "contentPlaceholder": "Введіть текстовий вміст документа",
+      "tableData": "Дані таблиці",
+      "tags": "Теги",
+      "tagPlaceholder": "Введіть тег",
+      "addTag": "Додати тег"
+    },
+    "view": "Перегляд документа",
+    "viewDescription": "Детальна інформація про документ",
+    "notFound": "Документ не знайдено",
+    "tableEditor": {
+      "columns": "Колонки таблиці",
+      "columnName": "Назва колонки",
+      "addColumn": "Додати колонку",
+      "existingColumns": "Існуючі колонки",
+      "data": "Дані таблиці",
+      "addRow": "Додати рядок",
+      "actions": "Дії",
+      "noRows": "Немає даних. Додайте рядки для відображення таблиці.",
+      "rowCount": "Всього рядків: {count}",
+      "cellPlaceholder": "Введіть значення",
+      "types": {
+        "text": "Текст",
+        "number": "Число",
+        "date": "Дата",
+        "boolean": "Так/Ні",
+        "email": "Email",
+        "url": "URL"
+      }
+    },
+    "tableView": {
+      "title": "Таблиця даних",
+      "noData": "Таблиця не містить даних",
+      "noRows": "Немає рядків для відображення",
+      "metadata": "Рядків: {rows}, Колонок: {columns}"
+    },
+    "search": {
+      "placeholder": "Пошук документів..."
+    },
+    "filters": "Фільтри",
+    "clearFilters": "Очистити фільтри",
+    "noDocuments": "Документи не знайдено",
+    "createFirst": "Створити перший документ",
+    "table": {
+      "title": "Назва",
+      "type": "Тип",
+      "status": "Статус",
+      "category": "Категорія",
+      "author": "Автор",
+      "updated": "Оновлено",
+      "actions": "Дії"
+    },
+    "type": {
+      "text": "Текст",
+      "table": "Таблиця",
+      "mixed": "Змішаний"
+    },
+    "status": {
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "Архівовано"
+    },
+    "filters": {
+      "type": "Тип",
+      "status": "Статус",
+      "category": "Категорія",
+      "allTypes": "Всі типи",
+      "allStatuses": "Всі статуси",
+      "categoryPlaceholder": "Введіть категорію"
+    },
+    "actions": {
+      "view": "Переглянути",
+      "edit": "Редагувати",
+      "delete": "Видалити",
+      "export": "Експортувати",
+      "restore": "Відновити"
+    },
+    "deleteConfirm": {
+      "title": "Підтвердження видалення",
+      "message": "Ви впевнені, що хочете видалити цей документ?"
+    },
+    "export": {
+      "title": "Експорт документів",
+      "description": "Виберіть формат для експорту",
+      "format": "Формат експорту",
+      "options": "Опції експорту",
+      "exportButton": "Експортувати",
+      "selectedCount": "Вибрано документів: {count}",
+      "formats": {
+        "csv": {
+          "name": "CSV",
+          "description": "Текстовий формат, сумісний з Excel та іншими табличними редакторами"
+        },
+        "excel": {
+          "name": "Excel",
+          "description": "Формат Microsoft Excel з підтримкою форматування та стилів"
+        },
+        "pdf": {
+          "name": "PDF",
+          "description": "Портативний формат документів для друку та перегляду"
+        }
+      },
+      "options": {
+        "includeMetadata": "Включити метадані (автор, дата створення, теги)",
+        "includeContent": "Включити текстовий вміст",
+        "includeTableData": "Включити дані таблиць",
+        "includeAttachments": "Включити вкладення"
+      },
+      "messages": {
+        "success": "Документи успішно експортовано"
+      },
+      "errors": {
+        "exportError": "Помилка експорту документів"
+      },
+      "csv": "Експортувати в CSV",
+      "excel": "Експортувати в Excel",
+      "pdf": "Експортувати в PDF"
+    },
+    "versionHistory": {
+      "title": "Історія версій",
+      "version": "Версія",
+      "current": "Поточна",
+      "noVersions": "Історія версій порожня",
+      "view": "Переглянути",
+      "restore": "Відновити",
+      "updatedBy": "Оновлено користувачем",
+      "updatedAt": "Дата оновлення",
+      "reason": "Причина зміни",
+      "unknownUser": "Невідомий користувач",
+      "restoreConfirm": {
+        "title": "Підтвердження відновлення",
+        "message": "Ви впевнені, що хочете відновити версію {version}? Поточна версія буде збережена як нова версія."
+      },
+      "messages": {
+        "restored": "Версія успішно відновлена"
+      },
+      "errors": {
+        "loadError": "Помилка завантаження історії версій",
+        "restoreError": "Помилка відновлення версії"
+      }
+    },
+    "pagination": {
+      "showing": "Показано {from}-{to} з {total}",
+      "page": "Сторінка {page} з {total}",
+      "previous": "Попередня",
+      "next": "Наступна"
+    },
+    "messages": {
+      "deleted": "Документ видалено",
+      "exported": "Документи експортовано",
+      "created": "Документ створено",
+      "updated": "Документ оновлено"
+    },
+    "errors": {
+      "loadError": "Помилка завантаження документів",
+      "deleteError": "Помилка видалення документа",
+      "exportError": "Помилка експорту документів",
+      "saveError": "Помилка збереження документа"
     }
   }
 }

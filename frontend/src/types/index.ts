@@ -1,8 +1,14 @@
 // Типи користувачів
 export enum UserRole {
   ADMIN = 'admin',
-  USER = 'user'
+  USER = 'user',
+  SUPER_ADMIN = 'super_admin'
 }
+
+// Helper функція для перевірки, чи користувач є адміністратором
+export const isAdminRole = (role: UserRole): boolean => {
+  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+};
 
 export interface MobileDevice {
   deviceId: string;

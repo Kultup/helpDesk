@@ -117,6 +117,8 @@
     "activeDirectory": "Active Directory",
     "telegramSettings": "Ustawienia Telegram",
     "activeDirectorySettings": "Ustawienia Active Directory",
+    "zabbixSettings": "Ustawienia Zabbix",
+    "documents": "Dokumenty",
     "logs": "Logi systemowe",
     "sla": "Panel SLA",
     "slaSettings": "Ustawienia SLA",
@@ -1768,5 +1770,182 @@
     "user": "Użytkownik",
     "settings": "Ustawienia",
     "logout": "Wyloguj"
+  },
+  "documents": {
+    "title": "Dokumenty",
+    "description": "Zarządzanie dokumentami i przechowywanie danych",
+    "create": "Utwórz dokument",
+    "edit": "Edytuj dokument",
+    "createDescription": "Utwórz nowy dokument do przechowywania danych",
+    "editDescription": "Edytuj istniejący dokument",
+    "export": "Eksportuj",
+    "form": {
+      "title": "Tytuł",
+      "titlePlaceholder": "Wprowadź tytuł dokumentu",
+      "description": "Opis",
+      "descriptionPlaceholder": "Wprowadź opis dokumentu",
+      "type": "Typ dokumentu",
+      "status": "Status",
+      "category": "Kategoria",
+      "categoryPlaceholder": "Wprowadź kategorię",
+      "content": "Treść",
+      "contentPlaceholder": "Wprowadź treść tekstową",
+      "tableData": "Dane tabeli",
+      "tags": "Tagi",
+      "tagPlaceholder": "Wprowadź tag",
+      "addTag": "Dodaj tag"
+    },
+    "view": "Podgląd dokumentu",
+    "viewDescription": "Szczegółowe informacje o dokumencie",
+    "notFound": "Dokument nie znaleziony",
+    "tableEditor": {
+      "columns": "Kolumny tabeli",
+      "columnName": "Nazwa kolumny",
+      "addColumn": "Dodaj kolumnę",
+      "existingColumns": "Istniejące kolumny",
+      "data": "Dane tabeli",
+      "addRow": "Dodaj wiersz",
+      "actions": "Akcje",
+      "noRows": "Brak danych. Dodaj wiersze, aby wyświetlić tabelę.",
+      "rowCount": "Łącznie wierszy: {count}",
+      "cellPlaceholder": "Wprowadź wartość",
+      "types": {
+        "text": "Tekst",
+        "number": "Liczba",
+        "date": "Data",
+        "boolean": "Tak/Nie",
+        "email": "Email",
+        "url": "URL"
+      }
+    },
+    "tableView": {
+      "title": "Tabela danych",
+      "noData": "Tabela nie zawiera danych",
+      "noRows": "Brak wierszy do wyświetlenia",
+      "metadata": "Wierszy: {rows}, Kolumn: {columns}"
+    },
+    "search": {
+      "placeholder": "Szukaj dokumentów..."
+    },
+    "filters": "Filtry",
+    "clearFilters": "Wyczyść filtry",
+    "noDocuments": "Nie znaleziono dokumentów",
+    "createFirst": "Utwórz pierwszy dokument",
+    "table": {
+      "title": "Tytuł",
+      "type": "Typ",
+      "status": "Status",
+      "category": "Kategoria",
+      "author": "Autor",
+      "updated": "Zaktualizowano",
+      "actions": "Akcje"
+    },
+    "type": {
+      "text": "Tekst",
+      "table": "Tabela",
+      "mixed": "Mieszany"
+    },
+    "status": {
+      "draft": "Szkic",
+      "published": "Opublikowany",
+      "archived": "Zarchiwizowany"
+    },
+    "filters": {
+      "type": "Typ",
+      "status": "Status",
+      "category": "Kategoria",
+      "allTypes": "Wszystkie typy",
+      "allStatuses": "Wszystkie statusy",
+      "categoryPlaceholder": "Wprowadź kategorię"
+    },
+    "actions": {
+      "view": "Zobacz",
+      "edit": "Edytuj",
+      "delete": "Usuń",
+      "export": "Eksportuj",
+      "restore": "Przywróć"
+    },
+    "deleteConfirm": {
+      "title": "Potwierdzenie usunięcia",
+      "message": "Czy na pewno chcesz usunąć ten dokument?"
+    },
+    "export": {
+      "title": "Eksport dokumentów",
+      "description": "Wybierz format eksportu",
+      "format": "Format eksportu",
+      "options": "Opcje eksportu",
+      "exportButton": "Eksportuj",
+      "selectedCount": "Wybrano dokumentów: {count}",
+      "formats": {
+        "csv": {
+          "name": "CSV",
+          "description": "Format tekstowy zgodny z Excel i innymi edytorami arkuszy kalkulacyjnych"
+        },
+        "excel": {
+          "name": "Excel",
+          "description": "Format Microsoft Excel z obsługą formatowania i stylów"
+        },
+        "pdf": {
+          "name": "PDF",
+          "description": "Przenośny format dokumentów do drukowania i przeglądania"
+        }
+      },
+      "options": {
+        "includeMetadata": "Uwzględnij metadane (autor, data utworzenia, tagi)",
+        "includeContent": "Uwzględnij treść tekstową",
+        "includeTableData": "Uwzględnij dane tabeli",
+        "includeAttachments": "Uwzględnij załączniki"
+      },
+      "messages": {
+        "success": "Dokumenty zostały pomyślnie wyeksportowane"
+      },
+      "errors": {
+        "exportError": "Błąd eksportu dokumentów"
+      },
+      "csv": "Eksportuj do CSV",
+      "excel": "Eksportuj do Excel",
+      "pdf": "Eksportuj do PDF"
+    },
+    "versionHistory": {
+      "title": "Historia wersji",
+      "version": "Wersja",
+      "current": "Bieżąca",
+      "noVersions": "Historia wersji jest pusta",
+      "view": "Zobacz",
+      "restore": "Przywróć",
+      "updatedBy": "Zaktualizowane przez",
+      "updatedAt": "Data aktualizacji",
+      "reason": "Powód zmiany",
+      "unknownUser": "Nieznany użytkownik",
+      "restoreConfirm": {
+        "title": "Potwierdź przywrócenie",
+        "message": "Czy na pewno chcesz przywrócić wersję {version}? Bieżąca wersja zostanie zapisana jako nowa wersja."
+      },
+      "messages": {
+        "restored": "Wersja została pomyślnie przywrócona"
+      },
+      "errors": {
+        "loadError": "Błąd ładowania historii wersji",
+        "restoreError": "Błąd przywracania wersji"
+      }
+    },
+    "pagination": {
+      "showing": "Wyświetlanie {from}-{to} z {total}",
+      "page": "Strona {page} z {total}",
+      "previous": "Poprzednia",
+      "next": "Następna"
+    },
+    "messages": {
+      "deleted": "Dokument usunięty",
+      "exported": "Dokumenty wyeksportowane",
+      "created": "Dokument utworzony",
+      "updated": "Dokument zaktualizowany"
+    },
+    "errors": {
+      "loadError": "Błąd ładowania dokumentów",
+      "deleteError": "Błąd usuwania dokumentu",
+      "exportError": "Błąd eksportu dokumentów",
+      "saveError": "Błąd zapisywania dokumentu"
+    }
   }
 }

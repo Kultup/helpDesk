@@ -100,6 +100,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   setupEmailPolling();
   logger.info('✅ Email сервіс ініціалізовано');
   
+  // Ініціалізуємо Zabbix polling
+  const { setupZabbixPolling } = require('./jobs/zabbixPolling');
+  setupZabbixPolling();
+  logger.info('✅ Zabbix polling налаштовано');
+  
   // Ініціалізуємо WebSocket сервіс для реєстрації
   const registrationWebSocketService = require('./services/registrationWebSocketService');
   registrationWebSocketService.initialize(io);
@@ -205,6 +210,7 @@ app.use('/api/settings', require('./routes/settings')); // Налаштуван�
 app.use('/api/sla', require('./routes/sla')); // SLA трекінг
 app.use('/api/kb', require('./routes/knowledgeBase')); // Knowledge Base
 app.use('/api/email', require('./routes/email')); // Email інтеграція
+app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція
 // Сповіщення
 app.use('/api/notifications', require('./routes/notifications'));
 
@@ -289,6 +295,11 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
+});
+
+// Обробка favicon.ico (ігноруємо запити, щоб не логувати помилки)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
 });
 
 // Обробка неіснуючих маршрутів

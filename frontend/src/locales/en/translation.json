@@ -117,6 +117,8 @@
     "activeDirectory": "Active Directory",
     "telegramSettings": "Telegram Settings",
     "activeDirectorySettings": "Active Directory Settings",
+    "zabbixSettings": "Zabbix Settings",
+    "documents": "Documents",
     "logs": "System logs",
     "sla": "SLA Dashboard",
     "slaSettings": "SLA Settings",
@@ -1860,5 +1862,182 @@
     "feelsLike": "Feels like",
     "humidity": "Humidity",
     "wind": "Wind"
+  },
+  "documents": {
+    "title": "Documents",
+    "description": "Document management and data storage",
+    "create": "Create Document",
+    "edit": "Edit Document",
+    "createDescription": "Create a new document for data storage",
+    "editDescription": "Edit existing document",
+    "export": "Export",
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter document title",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter document description",
+      "type": "Document Type",
+      "status": "Status",
+      "category": "Category",
+      "categoryPlaceholder": "Enter category",
+      "content": "Content",
+      "contentPlaceholder": "Enter text content",
+      "tableData": "Table Data",
+      "tags": "Tags",
+      "tagPlaceholder": "Enter tag",
+      "addTag": "Add Tag"
+    },
+    "view": "View Document",
+    "viewDescription": "Detailed document information",
+    "notFound": "Document not found",
+    "tableEditor": {
+      "columns": "Table Columns",
+      "columnName": "Column Name",
+      "addColumn": "Add Column",
+      "existingColumns": "Existing Columns",
+      "data": "Table Data",
+      "addRow": "Add Row",
+      "actions": "Actions",
+      "noRows": "No data. Add rows to display the table.",
+      "rowCount": "Total rows: {count}",
+      "cellPlaceholder": "Enter value",
+      "types": {
+        "text": "Text",
+        "number": "Number",
+        "date": "Date",
+        "boolean": "Yes/No",
+        "email": "Email",
+        "url": "URL"
+      }
+    },
+    "tableView": {
+      "title": "Data Table",
+      "noData": "Table contains no data",
+      "noRows": "No rows to display",
+      "metadata": "Rows: {rows}, Columns: {columns}"
+    },
+    "search": {
+      "placeholder": "Search documents..."
+    },
+    "filters": "Filters",
+    "clearFilters": "Clear Filters",
+    "noDocuments": "No documents found",
+    "createFirst": "Create first document",
+    "table": {
+      "title": "Title",
+      "type": "Type",
+      "status": "Status",
+      "category": "Category",
+      "author": "Author",
+      "updated": "Updated",
+      "actions": "Actions"
+    },
+    "type": {
+      "text": "Text",
+      "table": "Table",
+      "mixed": "Mixed"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "filters": {
+      "type": "Type",
+      "status": "Status",
+      "category": "Category",
+      "allTypes": "All Types",
+      "allStatuses": "All Statuses",
+      "categoryPlaceholder": "Enter category"
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "export": "Export",
+      "restore": "Restore"
+    },
+    "deleteConfirm": {
+      "title": "Confirm Deletion",
+      "message": "Are you sure you want to delete this document?"
+    },
+    "export": {
+      "title": "Export Documents",
+      "description": "Select export format",
+      "format": "Export Format",
+      "options": "Export Options",
+      "exportButton": "Export",
+      "selectedCount": "Selected documents: {count}",
+      "formats": {
+        "csv": {
+          "name": "CSV",
+          "description": "Text format compatible with Excel and other spreadsheet editors"
+        },
+        "excel": {
+          "name": "Excel",
+          "description": "Microsoft Excel format with formatting and styles support"
+        },
+        "pdf": {
+          "name": "PDF",
+          "description": "Portable document format for printing and viewing"
+        }
+      },
+      "options": {
+        "includeMetadata": "Include metadata (author, creation date, tags)",
+        "includeContent": "Include text content",
+        "includeTableData": "Include table data",
+        "includeAttachments": "Include attachments"
+      },
+      "messages": {
+        "success": "Documents exported successfully"
+      },
+      "errors": {
+        "exportError": "Error exporting documents"
+      },
+      "csv": "Export to CSV",
+      "excel": "Export to Excel",
+      "pdf": "Export to PDF"
+    },
+    "versionHistory": {
+      "title": "Version History",
+      "version": "Version",
+      "current": "Current",
+      "noVersions": "Version history is empty",
+      "view": "View",
+      "restore": "Restore",
+      "updatedBy": "Updated by",
+      "updatedAt": "Update date",
+      "reason": "Change reason",
+      "unknownUser": "Unknown user",
+      "restoreConfirm": {
+        "title": "Confirm Restore",
+        "message": "Are you sure you want to restore version {version}? The current version will be saved as a new version."
+      },
+      "messages": {
+        "restored": "Version restored successfully"
+      },
+      "errors": {
+        "loadError": "Error loading version history",
+        "restoreError": "Error restoring version"
+      }
+    },
+    "pagination": {
+      "showing": "Showing {from}-{to} of {total}",
+      "page": "Page {page} of {total}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "messages": {
+      "deleted": "Document deleted",
+      "exported": "Documents exported",
+      "created": "Document created",
+      "updated": "Document updated"
+    },
+    "errors": {
+      "loadError": "Error loading documents",
+      "deleteError": "Error deleting document",
+      "exportError": "Error exporting documents",
+      "saveError": "Error saving document"
+    }
   }
 }

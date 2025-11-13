@@ -33,7 +33,7 @@ import {
   Institution,
   CreateInstitutionData,
   InstitutionsResponse,
-  InstitutionType
+  InstitutionType,
 } from '../types';
 
 // Fallback для development режиму
@@ -1363,6 +1363,64 @@ class ApiService {
   async updateActiveDirectorySettings(data: any): Promise<ApiResponse<any>> {
     return this.put('/settings/active-directory', data);
   }
+
+  // Методи для Zabbix
+  async getZabbixConfig(): Promise<ApiResponse<any>> {
+    return this.get('/zabbix/config');
+  }
+
+  async updateZabbixConfig(data: any): Promise<ApiResponse<any>> {
+    return this.put('/zabbix/config', data);
+  }
+
+  async testZabbixConnection(): Promise<ApiResponse<any>> {
+    return this.post('/zabbix/test-connection');
+  }
+
+  async pollZabbixNow(): Promise<ApiResponse<any>> {
+    return this.post('/zabbix/poll-now');
+  }
+
+  async getZabbixAlerts(params?: {
+    page?: number;
+    limit?: number;
+    severity?: number;
+    status?: string;
+    resolved?: boolean;
+    host?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/zabbix/alerts${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getZabbixAlert(id: string): Promise<ApiResponse<any>> {
+    return this.get(`/zabbix/alerts/${id}`);
+  }
+
+  async getZabbixGroups(): Promise<ApiResponse<any>> {
+    return this.get('/zabbix/groups');
+  }
+
+  async createZabbixGroup(data: any): Promise<ApiResponse<any>> {
+    return this.post('/zabbix/groups', data);
+  }
+
+  async updateZabbixGroup(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.put(`/zabbix/groups/${id}`, data);
+  }
+
+  async deleteZabbixGroup(id: string): Promise<ApiResponse<any>> {
+    return this.delete(`/zabbix/groups/${id}`);
+  }
+
 
 }
 

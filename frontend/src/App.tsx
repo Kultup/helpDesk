@@ -30,6 +30,7 @@ import SLASettings from './pages/SLASettings';
 import SLADashboard from './pages/SLADashboard';
 import TelegramSettings from './pages/TelegramSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
+import ZabbixSettings from './pages/ZabbixSettings';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
@@ -224,6 +225,11 @@ const App: React.FC = () => {
             <Route path="admin/settings/active-directory" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActiveDirectorySettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/settings/zabbix" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <ZabbixSettings />
               </ProtectedRoute>
             } />
           </Route>

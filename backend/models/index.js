@@ -23,6 +23,9 @@ const ActiveDirectoryConfig = require('./ActiveDirectoryConfig');
 const Notification = require('./Notification');
 const TicketHistory = require('./TicketHistory');
 const Attachment = require('./Attachment');
+const ZabbixConfig = require('./ZabbixConfig');
+const ZabbixAlert = require('./ZabbixAlert');
+const ZabbixAlertGroup = require('./ZabbixAlertGroup');
 
 module.exports = {
   User,
@@ -46,5 +49,8 @@ module.exports = {
   ActiveDirectoryConfig,
   Notification,
   TicketHistory,
-  Attachment
+  Attachment,
+  ZabbixConfig,
+  ZabbixAlert,
+  ZabbixAlertGroup,
 };
