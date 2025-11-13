@@ -71,6 +71,14 @@ class ZabbixService {
         hasPassword: !!this.password,
         requestData: JSON.stringify(requestData)
       });
+      
+      // Детальне логування для user.login
+      console.log('[Zabbix user.login Request]:', {
+        url: apiUrl,
+        username: this.username,
+        requestBody: JSON.stringify(requestData, null, 2)
+      });
+      
       const response = await axios.post(apiUrl, requestData, {
         headers: {
           'Content-Type': 'application/json'
@@ -84,6 +92,13 @@ class ZabbixService {
         hasError: !!response.data?.error,
         hasResult: !!response.data?.result,
         fullResponse: JSON.stringify(response.data)
+      });
+      
+      // Детальне логування відповіді user.login
+      console.log('[Zabbix user.login Response]:', {
+        status: response.status,
+        statusText: response.statusText,
+        responseData: JSON.stringify(response.data, null, 2)
       });
 
       if (response.data.error) {
@@ -351,9 +366,13 @@ class ZabbixService {
           id: Math.floor(Math.random() * 1000000)
         };
 
+        // Для Bearer токенів використовуємо поле auth (не заголовок Authorization)
+        // Zabbix API не підтримує Bearer токени в заголовку для JSON-RPC
         if (authContext.isBearer) {
-          headers.Authorization = `Bearer ${authContext.token}`;
+          // Bearer токен передаємо в полі auth як session токен
+          requestData.auth = authContext.token;
         } else {
+          // Session токен завжди в полі auth
           requestData.auth = authContext.token;
         }
 
@@ -365,6 +384,14 @@ class ZabbixService {
           tokenLength: authContext.token?.length || 0,
           requestData: JSON.stringify(requestData),
           headers: JSON.stringify(headers)
+        });
+        
+        // Детальне логування для діагностики
+        console.log(`[Zabbix API Request] ${method}:`, {
+          url: apiUrl,
+          method: method,
+          requestBody: JSON.stringify(requestData, null, 2),
+          headers: headers
         });
 
         const response = await axios.post(apiUrl, requestData, {
@@ -378,6 +405,13 @@ class ZabbixService {
           hasError: !!response.data?.error,
           errorCode: response.data?.error?.code,
           errorMessage: response.data?.error?.message
+        });
+        
+        // Детальне логування відповіді
+        console.log(`[Zabbix API Response] ${method}:`, {
+          status: response.status,
+          statusText: response.statusText,
+          responseData: JSON.stringify(response.data, null, 2)
         });
 
         if (response.data.error) {
@@ -485,13 +519,32 @@ class ZabbixService {
         };
       }
 
-      // Використовуємо простий метод API для перевірки підключення
+      // apiinfo.version не потребує автентифікації - викликаємо без токену
       logger.info('Testing Zabbix connection...', { url: this.url });
-      const result = await this.apiRequest('apiinfo.version', {}, 1);
-      logger.info('Zabbix connection test successful', { version: result.data });
+      const apiUrl = `${this.url}/api_jsonrpc.php`;
+      const requestData = {
+        jsonrpc: '2.0',
+        method: 'apiinfo.version',
+        params: {},
+        id: Math.floor(Math.random() * 1000000)
+      };
+
+      const response = await axios.post(apiUrl, requestData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      });
+
+      if (response.data.error) {
+        throw new Error(response.data.error.message || 'Zabbix API error');
+      }
+
+      const version = response.data.result;
+      logger.info('Zabbix connection test successful', { version });
       return {
         success: true,
-        version: result.data
+        version
       };
     } catch (error) {
       logger.error('Zabbix connection test failed:', {
