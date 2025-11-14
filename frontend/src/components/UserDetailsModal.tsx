@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe } from 'lucide-react';
+import { User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
@@ -17,7 +17,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
   
   if (!user) return null;
 
-  const formatDate = (date: string | Date) => {
+  const formatDate = (date: string | Date): string => {
     return new Date(date).toLocaleDateString('uk-UA', {
       year: 'numeric',
       month: 'long',
@@ -27,13 +27,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
     });
   };
 
-  const getCityName = (city: any) => {
+  const getCityName = (city: string | { name: string } | undefined): string => {
     if (typeof city === 'string') return city;
     if (city && typeof city === 'object' && city.name) return city.name;
     return t('users.notSpecified');
   };
 
-  const getPositionTitle = (position: any) => {
+  const getPositionTitle = (position: string | { title: string } | undefined): string => {
     if (typeof position === 'string') return position;
     if (position && typeof position === 'object' && position.title) return position.title;
     return t('users.notSpecified');
@@ -113,19 +113,38 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
               </div>
             </div>
 
-
-
-            {user.telegramId && (
-              <div className="flex items-center space-x-3">
-                <div className="h-5 w-5 bg-blue-500 rounded text-white flex items-center justify-center text-xs font-bold">
-                  T
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Telegram ID</p>
-                  <p className="text-sm text-gray-900">{user.telegramId}</p>
-                </div>
+            {/* Telegram інформація - завжди показуємо секцію */}
+            <div className="flex items-center space-x-3">
+              <div className="h-5 w-5 bg-blue-500 rounded text-white flex items-center justify-center text-xs font-bold">
+                T
               </div>
-            )}
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-500">Telegram</p>
+                {(user.telegramId || user.telegramUsername) ? (
+                  <div className="space-y-1 mt-1">
+                    {user.telegramUsername && (
+                      <p className="text-sm text-gray-900">
+                        <span className="font-medium">Username:</span> @{user.telegramUsername}
+                      </p>
+                    )}
+                    {user.telegramId && (
+                      <p className="text-sm text-gray-900">
+                        <span className="font-medium">ID:</span> {user.telegramId}
+                      </p>
+                    )}
+                    {!user.telegramId && user.telegramUsername && (
+                      <p className="text-xs text-yellow-600 mt-1">
+                        ⚠️ Для відправки сповіщень потрібен числовий Telegram ID. Додайте Telegram ID в налаштуваннях користувача.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 mt-1">
+                    Не налаштовано. Додайте Telegram ID або username в налаштуваннях користувача.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">

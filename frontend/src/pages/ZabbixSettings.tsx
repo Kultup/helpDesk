@@ -46,6 +46,10 @@ interface ZabbixAlertGroup {
   severityLevels: number[];
   enabled: boolean;
   priority: number;
+  telegram?: {
+    botToken?: string;
+    groupId?: string;
+  };
   settings: {
     notifyOnResolve: boolean;
     notifyOnAcknowledge: boolean;
@@ -64,9 +68,17 @@ const ZabbixSettings: React.FC = () => {
   const [groups, setGroups] = useState<ZabbixAlertGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { users: allUsers } = useUsers(true); // Отримуємо активних користувачів
-  // Фільтруємо адміністраторів (включаючи super_admin) з telegramId
+  
+  
+  // Фільтруємо всіх адміністраторів (включаючи super_admin)
+  // Показуємо всіх адміністраторів для вибору, а не тільки з Telegram ID
   const admins = allUsers.filter(user => 
-    isAdminRole(user.role) && user.telegramId && user.telegramId.trim() !== ''
+    isAdminRole(user.role)
+  );
+  
+  // Адміністратори з Telegram (ID або username) для інформації
+  const adminsWithTelegram = allUsers.filter(user => 
+    isAdminRole(user.role) && (user.telegramId || user.telegramUsername)
   );
   const [isSaving, setIsSaving] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -92,6 +104,10 @@ const ZabbixSettings: React.FC = () => {
     severityLevels: [] as number[],
     enabled: true,
     priority: 0,
+    telegram: {
+      botToken: '',
+      groupId: ''
+    },
     settings: {
       notifyOnResolve: false,
       notifyOnAcknowledge: false,
@@ -311,6 +327,10 @@ const ZabbixSettings: React.FC = () => {
         severityLevels: group.severityLevels,
         enabled: group.enabled,
         priority: group.priority,
+        telegram: {
+          botToken: group.telegram?.botToken || '',
+          groupId: group.telegram?.groupId || ''
+        },
         settings: group.settings
       });
     } else {
@@ -324,6 +344,10 @@ const ZabbixSettings: React.FC = () => {
         severityLevels: [],
         enabled: true,
         priority: 0,
+        telegram: {
+          botToken: '',
+          groupId: ''
+        },
         settings: {
           notifyOnResolve: false,
           notifyOnAcknowledge: false,
@@ -353,6 +377,10 @@ const ZabbixSettings: React.FC = () => {
         severityLevels: groupForm.severityLevels,
         enabled: groupForm.enabled,
         priority: groupForm.priority,
+        telegram: {
+          botToken: groupForm.telegram.botToken?.trim() || null,
+          groupId: groupForm.telegram.groupId?.trim() || null
+        },
         settings: groupForm.settings
       };
 
@@ -882,45 +910,72 @@ const ZabbixSettings: React.FC = () => {
                           </span>
                         </div>
 
-                        <div>
-                          <span className="text-sm font-medium text-gray-700">Адміністратори:</span>
-                          <div className="mt-1 flex flex-wrap gap-2">
-                            {group.adminIds && group.adminIds.length > 0 ? (
-                              group.adminIds.map((adminId: any, index: number) => {
-                                // Якщо adminId - це об'єкт (після populate), використовуємо його напряму
-                                // Якщо це ID, знаходимо адміністратора в списку
-                                const admin = typeof adminId === 'object' && adminId !== null && adminId._id
-                                  ? adminId
-                                  : admins.find(a => a._id === adminId || a._id?.toString() === adminId?.toString());
-                                if (!admin) {
-                                  // Якщо не знайдено, показуємо ID
+                        {/* Telegram група */}
+                        {group.telegram && group.telegram.groupId && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Telegram група:</span>
+                            <div className="mt-1">
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
+                                📢 Група: {group.telegram.groupId}
+                                {group.telegram.botToken && (
+                                  <span className="ml-1 text-green-600" title="Використовується кастомний бот">[Кастомний бот]</span>
+                                )}
+                                {!group.telegram.botToken && (
+                                  <span className="ml-1 text-blue-600" title="Використовується глобальний бот">[Глобальний бот]</span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Адміністратори (показуємо тільки якщо немає Telegram групи) */}
+                        {(!group.telegram || !group.telegram.groupId) && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Адміністратори:</span>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {group.adminIds && group.adminIds.length > 0 ? (
+                                group.adminIds.map((adminId: any, index: number) => {
+                                  // Якщо adminId - це об'єкт (після populate), використовуємо його напряму
+                                  // Якщо це ID, знаходимо адміністратора в списку
+                                  const admin = typeof adminId === 'object' && adminId !== null && adminId._id
+                                    ? adminId
+                                    : admins.find(a => a._id === adminId || a._id?.toString() === adminId?.toString());
+                                  if (!admin) {
+                                    // Якщо не знайдено, показуємо ID
+                                    return (
+                                      <span
+                                        key={index}
+                                        className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs"
+                                      >
+                                        ID: {typeof adminId === 'object' ? adminId._id : adminId}
+                                      </span>
+                                    );
+                                  }
                                   return (
                                     <span
-                                      key={index}
-                                      className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs"
+                                      key={admin._id || index}
+                                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                                      title={admin.telegramId ? `Telegram ID: ${admin.telegramId}` : undefined}
                                     >
-                                      ID: {typeof adminId === 'object' ? adminId._id : adminId}
+                                      {admin.firstName} {admin.lastName} ({admin.email})
+                                      {admin.telegramUsername && (
+                                        <span className="ml-1 text-blue-600" title="Telegram username">[@{admin.telegramUsername}]</span>
+                                      )}
+                                      {admin.telegramId && !admin.telegramUsername && (
+                                        <span className="ml-1 text-gray-600" title="Telegram ID">[ID: {admin.telegramId}]</span>
+                                      )}
+                                      {!admin.telegramId && !admin.telegramUsername && (
+                                        <span className="ml-1 text-red-500" title="Немає Telegram ID">[Немає Telegram]</span>
+                                      )}
                                     </span>
                                   );
-                                }
-                                return (
-                                  <span
-                                    key={admin._id || index}
-                                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
-                                    title={admin.telegramId ? `Telegram ID: ${admin.telegramId}` : undefined}
-                                  >
-                                    {admin.firstName} {admin.lastName} ({admin.email})
-                                    {admin.telegramId && (
-                                      <span className="ml-1 text-gray-600">[ID: {admin.telegramId}]</span>
-                                    )}
-                                  </span>
-                                );
-                              })
-                            ) : (
-                              <span className="text-sm text-gray-500">Не призначено</span>
-                            )}
+                                })
+                              ) : (
+                                <span className="text-sm text-gray-500">Не призначено</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {group.severityLevels.length > 0 && (
                           <div>
@@ -1190,36 +1245,82 @@ const ZabbixSettings: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Адміністратори *
+                    Адміністратори
+                    <span className="ml-2 text-xs text-gray-500 font-normal">
+                      {groupForm.telegram && groupForm.telegram.groupId && groupForm.telegram.groupId.trim()
+                        ? '(Необов\'язково, якщо вказано Telegram групу)'
+                        : '*(Обов\'язково, якщо не вказано Telegram групу)'}
+                    </span>
                   </label>
+                  {groupForm.telegram && groupForm.telegram.groupId && groupForm.telegram.groupId.trim() && (
+                    <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                      ℹ️ Оскільки вказано Telegram групу, адміністратори не обов&apos;язкові. Сповіщення будуть відправлятися в групу.
+                    </div>
+                  )}
+                  {adminsWithTelegram.length > 0 && adminsWithTelegram.length < admins.length && (
+                    <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                      ⚠️ {adminsWithTelegram.length} з {admins.length} адміністраторів мають Telegram ID. 
+                      Сповіщення будуть відправлятися тільки адміністраторам з числовим Telegram ID.
+                    </div>
+                  )}
                   <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
                     {admins.length === 0 ? (
                       <p className="text-sm text-gray-500">
-                        Адміністратори з Telegram ID не знайдені. Додайте Telegram ID в деталях користувача.
+                        Адміністратори не знайдені. Створіть адміністратора в розділі користувачів.
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {admins.map((admin) => (
-                          <label
-                            key={admin._id}
-                            className="flex items-center space-x-2 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={groupForm.adminIds.includes(admin._id)}
-                              onChange={() => handleToggleAdmin(admin._id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <span className="text-sm">
-                              {admin.firstName} {admin.lastName} ({admin.email})
-                              {admin.telegramId && (
-                                <span className="ml-2 text-xs text-gray-500">
-                                  [ID: {admin.telegramId}]
+                        {admins.map((admin) => {
+                          const hasTelegramId = !!admin.telegramId;
+                          const hasTelegramUsername = !!admin.telegramUsername;
+                          const canReceiveNotifications = hasTelegramId;
+                          
+                          return (
+                            <label
+                              key={admin._id}
+                              className={`flex items-start space-x-2 cursor-pointer p-2 rounded ${
+                                !canReceiveNotifications ? 'bg-gray-50' : ''
+                              }`}
+                              title={
+                                !canReceiveNotifications 
+                                  ? 'Для отримання сповіщень потрібен числовий Telegram ID. Додайте його в деталях користувача.'
+                                  : undefined
+                              }
+                            >
+                              <input
+                                type="checkbox"
+                                checked={groupForm.adminIds.includes(admin._id)}
+                                onChange={() => handleToggleAdmin(admin._id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">
+                                  {admin.firstName} {admin.lastName}
                                 </span>
-                              )}
-                            </span>
-                          </label>
-                        ))}
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({admin.email})
+                                </span>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {hasTelegramUsername && (
+                                    <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded" title="Telegram username">
+                                      @{admin.telegramUsername}
+                                    </span>
+                                  )}
+                                  {hasTelegramId && (
+                                    <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded" title="Telegram ID (може отримувати сповіщення)">
+                                      ID: {admin.telegramId} ✓
+                                    </span>
+                                  )}
+                                  {!canReceiveNotifications && (
+                                    <span className="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded" title="Немає числового Telegram ID - сповіщення не будуть відправлятися">
+                                      ⚠️ Немає Telegram ID
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1269,6 +1370,9 @@ const ZabbixSettings: React.FC = () => {
                       <span>Додати</span>
                     </Button>
                   </div>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Фільтрація алертів за конкретними тригерами. Якщо вказано - група отримає сповіщення тільки для цих тригерів. Якщо не вказано - для всіх тригерів.
+                  </p>
                   <div className="space-y-2">
                     {groupForm.triggerIds.map((triggerId, index) => (
                       <div key={index} className="flex space-x-2">
@@ -1312,6 +1416,9 @@ const ZabbixSettings: React.FC = () => {
                       <span>Додати</span>
                     </Button>
                   </div>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Фільтрація алертів за назвами хостів. Підтримуються регулярні вирази (наприклад: <code className="text-xs bg-gray-100 px-1 rounded">prod-.*</code> для всіх хостів, що починаються з "prod-"). Якщо не вказано - для всіх хостів.
+                  </p>
                   <div className="space-y-2">
                     {groupForm.hostPatterns.map((pattern, index) => (
                       <div key={index} className="flex space-x-2">
@@ -1340,6 +1447,64 @@ const ZabbixSettings: React.FC = () => {
                   </div>
                 </div>
 
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Налаштування Telegram</h3>
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-sm text-blue-800 mb-2">
+                      <strong>Режими відправки сповіщень:</strong>
+                    </p>
+                    <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
+                      <li><strong>В групу Telegram:</strong> Якщо вказано ID групи - сповіщення відправляються в групу</li>
+                      <li><strong>Окремим адміністраторам:</strong> Якщо ID групи не вказано - сповіщення відправляються кожному адміністратору з Telegram ID</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID групи Telegram (chat_id) *
+                    </label>
+                    <Input
+                      type="text"
+                      value={groupForm.telegram.groupId || ''}
+                      onChange={(e) => setGroupForm({
+                        ...groupForm,
+                        telegram: {
+                          ...groupForm.telegram,
+                          groupId: e.target.value
+                        }
+                      })}
+                      placeholder="-1001234567890"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      ID групи Telegram (зазвичай починається з -100). Якщо вказано - сповіщення відправляються в групу, інакше - окремим адміністраторам.
+                    </p>
+                    <p className="mt-1 text-xs text-blue-600">
+                      💡 Щоб отримати ID групи: додайте бота в групу та перешліть будь-яке повідомлення. Потім перейдіть на https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates і знайдіть chat.id
+                    </p>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Токен бота Telegram (опціонально)
+                    </label>
+                    <Input
+                      type="password"
+                      value={groupForm.telegram.botToken || ''}
+                      onChange={(e) => setGroupForm({
+                        ...groupForm,
+                        telegram: {
+                          ...groupForm.telegram,
+                          botToken: e.target.value
+                        }
+                      })}
+                      placeholder="Якщо не вказано - використовується глобальний бот"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Залиште порожнім, щоб використовувати глобальний бот з налаштувань. Вкажіть токен, щоб використовувати окремий бот для цієї групи.
+                    </p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Пріоритет
@@ -1352,7 +1517,7 @@ const ZabbixSettings: React.FC = () => {
                     onChange={(e) => setGroupForm({ ...groupForm, priority: parseInt(e.target.value) || 0 })}
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Вищий пріоритет = раніше перевірка (0-100)
+                    Визначає порядок перевірки груп при обробці алертів. Групи з вищим пріоритетом перевіряються першими. Якщо алерт відповідає кільком групам - всі вони отримають сповіщення, але обробка почнеться з групи з найвищим пріоритетом (0-100).
                   </p>
                 </div>
 
@@ -1428,7 +1593,14 @@ const ZabbixSettings: React.FC = () => {
                   </Button>
                   <Button
                     onClick={handleSaveGroup}
-                    disabled={isSaving || !groupForm.name || groupForm.adminIds.length === 0}
+                    disabled={
+                      isSaving || 
+                      !groupForm.name || 
+                      (
+                        (!groupForm.telegram || !groupForm.telegram.groupId || !groupForm.telegram.groupId.trim()) &&
+                        groupForm.adminIds.length === 0
+                      )
+                    }
                   >
                     {isSaving ? 'Збереження...' : 'Зберегти'}
                   </Button>

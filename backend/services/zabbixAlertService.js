@@ -3,6 +3,7 @@ const ZabbixAlertGroup = require('../models/ZabbixAlertGroup');
 const ZabbixConfig = require('../models/ZabbixConfig');
 const zabbixService = require('./zabbixService');
 const telegramService = require('./telegramServiceInstance');
+const TelegramBot = require('node-telegram-bot-api');
 const logger = require('../utils/logger');
 
 class ZabbixAlertService {
@@ -26,13 +27,6 @@ class ZabbixAlertService {
       if (config._id) {
         config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
       }
-
-      logger.info(`Zabbix Alert Service: Initializing with config - URL: ${config.url || '(empty)'}`);
-      logger.info(`Zabbix Alert Service: Initializing with config - URL type: ${typeof config.url}`);
-      logger.info(`Zabbix Alert Service: Initializing with config - URL length: ${config.url?.length || 0}`);
-      logger.info(`Zabbix Alert Service: Initializing with config - hasToken: ${!!(config.apiTokenEncrypted && config.apiTokenIV)}`);
-      logger.info(`Zabbix Alert Service: Initializing with config - enabled: ${config.enabled}`);
-      logger.info(`Zabbix Alert Service: Initializing with config - _id: ${config._id?.toString()}`);
 
       const initialized = await zabbixService.initialize(config);
       this.isInitialized = initialized;
@@ -325,12 +319,56 @@ class ZabbixAlertService {
   }
 
   /**
+   * Відправка повідомлення в групу Telegram з кастомним токеном бота
+   * @param {String} botToken - Токен бота (опціонально, якщо не вказано - використовується глобальний бот)
+   * @param {String} groupId - ID групи Telegram
+   * @param {String} message - Текст повідомлення
+   * @returns {Promise<Object>} - Результат відправки
+   */
+  async sendMessageToGroup(botToken, groupId, message) {
+    try {
+      let bot = null;
+      
+      // Якщо вказано кастомний токен бота, створюємо новий екземпляр бота
+      if (botToken && botToken.trim()) {
+        bot = new TelegramBot(botToken.trim(), { polling: false });
+      } else if (telegramService.bot) {
+        // Використовуємо глобальний бот, якщо він ініціалізований
+        bot = telegramService.bot;
+      }
+      
+      if (!bot) {
+        const errorMsg = botToken 
+          ? 'Failed to create Telegram bot with provided token' 
+          : 'Telegram bot not initialized and no bot token provided';
+        logger.error(errorMsg, { groupId, hasBotToken: !!botToken });
+        return { success: false, error: errorMsg };
+      }
+      
+      const result = await bot.sendMessage(groupId, message, {
+        parse_mode: 'Markdown'
+      });
+      
+      return { success: true, messageId: result.message_id };
+    } catch (error) {
+      logger.error('Помилка відправки повідомлення в групу Telegram:', {
+        groupId,
+        hasBotToken: !!botToken,
+        error: error.message,
+        code: error.code,
+        response: error.response?.data
+      });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Відправка сповіщень через Telegram
    * @param {Object} alert - Алерт (ZabbixAlert model instance)
    * @param {Array} groups - Групи адміністраторів
    * @returns {Object} - Результат відправки
    */
-  async sendNotifications(alert, groups) {
+async sendNotifications(alert, groups) {
     if (!groups || groups.length === 0) {
       logger.info(`No groups found for alert ${alert.alertId || alert._id}`);
       return {
@@ -340,14 +378,28 @@ class ZabbixAlertService {
       };
     }
 
-    if (!telegramService.isInitialized) {
-      logger.warn('Telegram service is not initialized, cannot send notifications');
-      return {
-        sent: 0,
-        failed: 0,
-        total: 0,
-        error: 'Telegram service not initialized'
-      };
+    // Перевіряємо чи є хоча б один спосіб відправки
+    // Якщо є групи з Telegram групами (з токенами ботів або без) - можемо відправляти
+    // Якщо немає груп з Telegram групами - потрібен глобальний бот для відправки окремим адміністраторам
+    const hasGroupsWithTelegramGroups = groups.some(group => 
+      group.telegram && group.telegram.groupId && group.telegram.groupId.trim()
+    );
+    const hasGroupsWithoutTelegramGroups = groups.some(group => 
+      !group.telegram || !group.telegram.groupId || !group.telegram.groupId.trim()
+    );
+    
+    // Якщо є групи з Telegram групами - можемо відправляти навіть без глобального бота
+    // Якщо всі групи без Telegram груп - потрібен глобальний бот для відправки окремим адміністраторам
+    if (!hasGroupsWithTelegramGroups && hasGroupsWithoutTelegramGroups) {
+      if (!telegramService.isInitialized || !telegramService.bot) {
+        logger.warn('Telegram service is not initialized, cannot send notifications to individual administrators');
+        return {
+          sent: 0,
+          failed: 0,
+          total: 0,
+          error: 'Telegram service not initialized'
+        };
+      }
     }
 
     let sent = 0;
@@ -366,31 +418,63 @@ class ZabbixAlertService {
       }
 
       try {
-        // Отримуємо адміністраторів з Telegram ID
-        const admins = await group.getAdminsWithTelegram();
-
-        if (admins.length === 0) {
-          logger.info(`No admins with Telegram ID in group ${group.name}`);
-          continue;
-        }
-
-        // Відправляємо сповіщення кожному адміністратору
-        for (const admin of admins) {
+        const severityLabel = alert.severityLabel || 
+          (alert.severity === 3 ? 'High' : alert.severity === 4 ? 'Disaster' : 'Unknown');
+        const title = `Zabbix Alert: ${severityLabel}`;
+        const fullMessage = `📢 ${title}\n\n${message}`;
+        
+        // Перевіряємо чи вказано ID групи Telegram
+        if (group.telegram && group.telegram.groupId && group.telegram.groupId.trim()) {
+          // Відправляємо сповіщення в групу Telegram
+          const botToken = (group.telegram.botToken && group.telegram.botToken.trim()) ? group.telegram.botToken.trim() : null;
+          const groupId = group.telegram.groupId.trim();
+          
           try {
-            const severityLabel = alert.severityLabel || 
-              (alert.severity === 3 ? 'High' : alert.severity === 4 ? 'Disaster' : 'Unknown');
+            const result = await this.sendMessageToGroup(botToken, groupId, fullMessage);
             
-            await telegramService.sendNotification(admin.telegramId, {
-              title: `Zabbix Alert: ${severityLabel}`,
-              message: message,
-              type: 'zabbix_alert'
-            });
-
-            sent++;
-            logger.info(`Zabbix alert notification sent to admin ${admin.email}`);
+            if (result.success) {
+              sent++;
+              logger.info(`Zabbix alert notification sent to Telegram group ${groupId} (group: ${group.name})`);
+            } else {
+              failed++;
+              logger.error(`Error sending notification to Telegram group ${groupId}: ${result.error}`);
+            }
           } catch (error) {
             failed++;
-            logger.error(`Error sending notification to admin ${admin.email}:`, error);
+            logger.error(`Error sending notification to Telegram group ${groupId}:`, error);
+          }
+        } else {
+          // Відправляємо сповіщення окремим адміністраторам
+          const admins = await group.getAdminsWithTelegram();
+
+          if (admins.length === 0) {
+            logger.info(`No admins with Telegram ID in group ${group.name} and no Telegram group ID specified`);
+            continue;
+          }
+
+          // Відправляємо сповіщення кожному адміністратору
+          for (const admin of admins) {
+            try {
+              const telegramId = admin.telegramId;
+              
+              if (!telegramId) {
+                logger.warn(`Admin ${admin.email} has telegramUsername but no telegramId. Cannot send notification.`);
+                failed++;
+                continue;
+              }
+              
+              await telegramService.sendNotification(telegramId, {
+                title: title,
+                message: message,
+                type: 'zabbix_alert'
+              });
+
+              sent++;
+              logger.info(`Zabbix alert notification sent to admin ${admin.email} (telegramId: ${telegramId})`);
+            } catch (error) {
+              failed++;
+              logger.error(`Error sending notification to admin ${admin.email}:`, error);
+            }
           }
         }
 
@@ -446,11 +530,6 @@ class ZabbixAlertService {
         config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
       }
 
-      logger.info('Starting Zabbix alerts processing...', {
-        url: config.url,
-        hasToken: !!(config.apiTokenEncrypted && config.apiTokenIV)
-      });
-
       // Перевіряємо чи сервіс ініціалізований
       if (!zabbixService.isInitialized) {
         logger.warn('Zabbix service not initialized, attempting to initialize...');
@@ -461,7 +540,6 @@ class ZabbixAlertService {
       }
 
       // Отримуємо проблеми з деталями (тільки критичні)
-      logger.info('Fetching problems from Zabbix...');
       const problemsResult = await zabbixService.getProblemsWithDetails([3, 4], 1000);
 
       if (!problemsResult.success) {
@@ -475,7 +553,6 @@ class ZabbixAlertService {
       const problems = problemsResult.problems || [];
 
       if (problems.length === 0) {
-        logger.info('No problems found in Zabbix');
         await config.recordSuccess(0);
         return {
           success: true,
@@ -484,14 +561,11 @@ class ZabbixAlertService {
           notificationsSent: 0
         };
       }
-
-      logger.info(`Found ${problems.length} problems in Zabbix`);
 
       // Фільтруємо критичні алерти (якщо ще не відфільтровані)
       const criticalProblems = this.filterCriticalAlerts(problems);
 
       if (criticalProblems.length === 0) {
-        logger.info('No critical problems found');
         await config.recordSuccess(0);
         return {
           success: true,
@@ -500,8 +574,6 @@ class ZabbixAlertService {
           notificationsSent: 0
         };
       }
-
-      logger.info(`Found ${criticalProblems.length} critical problems`);
 
       // Перетворюємо проблеми в алерти
       const alertsData = criticalProblems.map(problem => {
@@ -514,7 +586,6 @@ class ZabbixAlertService {
 
       // Зберігаємо алерти
       const saveResult = await this.saveAlerts(alertsData);
-      logger.info(`Saved ${saveResult.saved} new alerts, updated ${saveResult.updated} existing alerts`);
 
       // Отримуємо нові алерти для сповіщень (тільки щойно створені)
       const newAlerts = await ZabbixAlert.find({
@@ -523,8 +594,6 @@ class ZabbixAlertService {
         resolved: false,
         status: 'PROBLEM'
       });
-
-      logger.info(`Found ${newAlerts.length} new alerts to notify (out of ${saveResult.saved} newly created)`);
 
       // Відправляємо сповіщення для нових алертів
       let totalNotificationsSent = 0;
@@ -544,8 +613,6 @@ class ZabbixAlertService {
 
       // Оновлюємо статистику конфігурації
       await config.recordSuccess(newAlerts.length);
-
-      logger.info(`Zabbix alerts processing completed. Sent ${totalNotificationsSent} notifications`);
 
       return {
         success: true,

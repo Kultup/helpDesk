@@ -22,6 +22,7 @@ export interface UserFormData {
   firstName: string;
   lastName: string;
   email: string;
+  login: string;
   password?: string;
   role: UserRole;
   position: string;
@@ -35,6 +36,7 @@ interface ValidationErrors {
   firstName?: string;
   lastName?: string;
   email?: string;
+  login?: string;
   password?: string;
   position?: string;
   department?: string;
@@ -58,6 +60,7 @@ const UserForm: React.FC<UserFormProps> = ({
     firstName: '',
     lastName: '',
     email: '',
+    login: '',
     password: '',
     role: UserRole.USER,
     position: '',
@@ -105,22 +108,38 @@ const UserForm: React.FC<UserFormProps> = ({
 
   useEffect(() => {
     if (user) {
-      setFormData({
+      console.log('UserForm: Loading user data for editing:', JSON.stringify(user, null, 2));
+      const formDataToSet = {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
+        login: user.login || '',
         role: user.role || UserRole.USER,
         position: typeof user.position === 'object' ? user.position?._id || '' : user.position || '',
         department: user.department || '',
         city: typeof user.city === 'string' ? user.city : user.city?._id || '',
-        telegramId: user.telegramId || '',
+        telegramId: user.telegramUsername ? `@${user.telegramUsername}` : (user.telegramId || ''),
         isActive: user.isActive !== undefined ? user.isActive : true
+      };
+      console.log('UserForm: Setting form data:', JSON.stringify(formDataToSet, null, 2));
+      console.log('UserForm: Form fields check:', {
+        hasFirstName: !!formDataToSet.firstName,
+        hasLastName: !!formDataToSet.lastName,
+        hasEmail: !!formDataToSet.email,
+        hasLogin: !!formDataToSet.login,
+        hasDepartment: !!formDataToSet.department,
+        hasCity: !!formDataToSet.city,
+        hasPosition: !!formDataToSet.position,
+        hasTelegramId: !!formDataToSet.telegramId
       });
+      setFormData(formDataToSet);
     } else {
+      console.log('UserForm: Creating new user');
       setFormData({
         firstName: '',
         lastName: '',
         email: '',
+        login: '',
         password: '',
         role: UserRole.USER,
         position: '',
@@ -149,6 +168,14 @@ const UserForm: React.FC<UserFormProps> = ({
       newErrors.email = t('users.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = t('users.invalidEmailFormat');
+    }
+
+    if (!formData.login.trim()) {
+      newErrors.login = t('users.loginRequired') || 'Логін обов\'язковий';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.login.trim())) {
+      newErrors.login = t('users.invalidLoginFormat') || 'Логін може містити тільки літери, цифри та підкреслення';
+    } else if (formData.login.trim().length < 3 || formData.login.trim().length > 50) {
+      newErrors.login = t('users.loginLength') || 'Логін повинен містити від 3 до 50 символів';
     }
 
     if (!user && !formData.password) {
@@ -191,6 +218,15 @@ const UserForm: React.FC<UserFormProps> = ({
     switch (field) {
       case 'email':
         fieldError = validateEmail(value);
+        break;
+      case 'login':
+        if (!value.trim()) {
+          fieldError = t('users.loginRequired') || 'Логін обов\'язковий';
+        } else if (!/^[a-zA-Z0-9_]+$/.test(value.trim())) {
+          fieldError = t('users.invalidLoginFormat') || 'Логін може містити тільки літери, цифри та підкреслення';
+        } else if (value.trim().length < 3 || value.trim().length > 50) {
+          fieldError = t('users.loginLength') || 'Логін повинен містити від 3 до 50 символів';
+        }
         break;
       case 'password':
         fieldError = validatePassword(value);
@@ -258,8 +294,8 @@ const UserForm: React.FC<UserFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ zIndex: 9999 }}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'white', minHeight: '400px' }}>
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">
             {user ? t('users.editUser') : t('users.addUser')}
@@ -275,8 +311,29 @@ const UserForm: React.FC<UserFormProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Debug info */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-40">
+              <strong>Debug Info:</strong>
+              <pre className="mt-2 text-xs">{JSON.stringify({ user, formData, isOpen }, null, 2)}</pre>
+              <div className="mt-2">
+                <strong>Fields visibility check:</strong>
+                <ul className="list-disc list-inside mt-1">
+                  <li>firstName: {formData.firstName ? '✓' : '✗'}</li>
+                  <li>lastName: {formData.lastName ? '✓' : '✗'}</li>
+                  <li>email: {formData.email ? '✓' : '✗'}</li>
+                  <li>login: {formData.login ? '✓' : '✗'}</li>
+                  <li>department: {formData.department ? '✓' : '✗'}</li>
+                  <li>city: {formData.city ? '✓' : '✗'}</li>
+                  <li>position: {formData.position ? '✓' : '✗'}</li>
+                  <li>telegramId: {formData.telegramId ? '✓' : '✗'}</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          
           {/* Основна інформація */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ display: 'grid', visibility: 'visible' }}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <User className="h-4 w-4 inline mr-1" />
@@ -330,6 +387,27 @@ const UserForm: React.FC<UserFormProps> = ({
             )}
           </div>
 
+          {/* Login */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <User className="h-4 w-4 inline mr-1" />
+              {t('users.login') || 'Логін'} *
+            </label>
+            <Input
+              type="text"
+              value={formData.login}
+              onChange={(e) => handleInputChange('login', e.target.value)}
+              placeholder={t('users.enterLogin') || 'Введіть логін'}
+              className={cn(errors.login && 'border-red-500')}
+            />
+            {errors.login && (
+              <p className="mt-1 text-sm text-red-600">{errors.login}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              {t('users.loginFormat') || 'Логін може містити тільки літери, цифри та підкреслення (3-50 символів)'}
+            </p>
+          </div>
+
           {/* Пароль */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -375,7 +453,7 @@ const UserForm: React.FC<UserFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Briefcase className="h-4 w-4 inline mr-1" />
                 {t('users.position')} *
               </label>
@@ -420,7 +498,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {/* Місто */}
           <div>
-            <label className="block text-sm font-medium text mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               <MapPin className="h-4 w-4 inline mr-1" />
               {t('users.city')} *
             </label>
@@ -446,7 +524,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
           {/* Telegram ID */}
           <div>
-            <label className="block text-sm font-medium text mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               <MessageSquare className="h-4 w-4 inline mr-1" />
               {t('users.telegramId')} ({t('users.optional')})
             </label>

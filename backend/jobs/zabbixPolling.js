@@ -33,8 +33,6 @@ function setupZabbixPolling() {
       // Створюємо новий cron job
       pollingJob = cron.schedule(cronPattern, async () => {
         try {
-          logger.info('🔍 Starting Zabbix polling check...');
-
           // Перевіряємо чи інтеграція все ще увімкнена
           let activeConfig = await ZabbixConfig.getActive();
           if (!activeConfig || !activeConfig.enabled) {
@@ -51,13 +49,6 @@ function setupZabbixPolling() {
           const result = await zabbixAlertService.processNewAlerts();
 
           if (result.success) {
-            logger.info(`✅ Zabbix polling completed:`, {
-              alertsProcessed: result.alertsProcessed || 0,
-              alertsSaved: result.alertsSaved || 0,
-              alertsUpdated: result.alertsUpdated || 0,
-              notificationsSent: result.notificationsSent || 0
-            });
-
             // Оновлюємо статус вирішених алертів
             try {
               await zabbixAlertService.updateResolvedAlerts();
@@ -129,13 +120,6 @@ async function pollNow() {
     if (config._id) {
       config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
     }
-
-    logger.info(`Polling with config - URL: ${config.url || '(empty)'}`);
-    logger.info(`Polling with config - URL type: ${typeof config.url}`);
-    logger.info(`Polling with config - URL length: ${config.url?.length || 0}`);
-    logger.info(`Polling with config - hasToken: ${!!(config.apiTokenEncrypted && config.apiTokenIV)}`);
-    logger.info(`Polling with config - enabled: ${config.enabled}`);
-    logger.info(`Polling with config - _id: ${config._id?.toString()}`);
 
     // Обробляємо нові алерти
     const result = await zabbixAlertService.processNewAlerts();

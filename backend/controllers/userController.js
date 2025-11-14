@@ -175,6 +175,7 @@ exports.createUser = async (req, res) => {
       firstName,
       lastName,
       email,
+      login,
       password,
       role = 'user',
       department,
@@ -195,6 +196,30 @@ exports.createUser = async (req, res) => {
         success: false,
         message: 'Користувач з таким email вже існує'
       });
+    }
+
+    // Перевірка унікальності login
+    if (login && login.trim()) {
+      const existingUserByLogin = await User.findOne({ login: login.toLowerCase().trim() });
+      if (existingUserByLogin) {
+        return res.status(400).json({
+          success: false,
+          message: 'Користувач з таким логіном вже існує'
+        });
+      }
+      // Валідація формату login
+      if (!/^[a-zA-Z0-9_]+$/.test(login.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін може містити тільки літери, цифри та підкреслення'
+        });
+      }
+      if (login.trim().length < 3 || login.trim().length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін повинен містити від 3 до 50 символів'
+        });
+      }
     }
 
     // Перевірка існування посади
@@ -230,23 +255,30 @@ exports.createUser = async (req, res) => {
       ? permissions.filter(p => validPermissions.includes(p))
       : [];
 
-    // Генеруємо унікальний логін
-    const { generateUniqueLogin } = require('../utils/helpers');
-    const login = await generateUniqueLogin(
-      email,
-      telegramUsername,
-      null,
-      async (loginToCheck) => {
-        const user = await User.findOne({ login: loginToCheck });
-        return !!user;
-      }
-    );
+    // Визначаємо логін: якщо передано вручну - використовуємо його, інакше генеруємо автоматично
+    let finalLogin;
+    if (login && login.trim()) {
+      // Використовуємо переданий логін (вже перевірений вище)
+      finalLogin = login.toLowerCase().trim();
+    } else {
+      // Генеруємо унікальний логін автоматично
+      const { generateUniqueLogin } = require('../utils/helpers');
+      finalLogin = await generateUniqueLogin(
+        email,
+        telegramUsername,
+        null,
+        async (loginToCheck) => {
+          const user = await User.findOne({ login: loginToCheck });
+          return !!user;
+        }
+      );
+    }
     
     const user = new User({
       firstName,
       lastName,
       email,
-      login: login,
+      login: finalLogin,
       password, // Пароль буде захешований в middleware моделі
       role,
       department,
@@ -329,15 +361,31 @@ exports.updateUser = async (req, res) => {
       firstName,
       lastName,
       email,
+      login,
       role,
       position,
       city,
       telegramUsername,
+      telegramId,
       phone,
       isActive,
       avatar,
       permissions
     } = req.body;
+
+    // Логуємо вхідні дані для діагностики
+    logger.info('Updating user:', {
+      userId: id,
+      hasLogin: login !== undefined,
+      loginValue: login,
+      loginType: typeof login,
+      hasTelegramId: telegramId !== undefined,
+      telegramIdValue: telegramId,
+      telegramIdType: typeof telegramId,
+      hasTelegramUsername: telegramUsername !== undefined,
+      telegramUsernameValue: telegramUsername,
+      bodyKeys: Object.keys(req.body)
+    });
 
     // Перевірка унікальності email (якщо змінюється)
     if (email && email !== user.email) {
@@ -346,6 +394,30 @@ exports.updateUser = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Користувач з таким email вже існує'
+        });
+      }
+    }
+
+    // Перевірка унікальності login (якщо змінюється)
+    if (login && login.trim() && login !== user.login) {
+      const existingUser = await User.findOne({ login: login.toLowerCase().trim() });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Користувач з таким логіном вже існує'
+        });
+      }
+      // Валідація формату login
+      if (!/^[a-zA-Z0-9_]+$/.test(login.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін може містити тільки літери, цифри та підкреслення'
+        });
+      }
+      if (login.trim().length < 3 || login.trim().length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін повинен містити від 3 до 50 символів'
         });
       }
     }
@@ -364,7 +436,115 @@ exports.updateUser = async (req, res) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (email !== undefined) user.email = email;
-    if (telegramUsername !== undefined) user.telegramUsername = telegramUsername;
+    
+    // Оновлюємо login тільки якщо він переданий і не порожній
+    // Важливо: не оновлюємо login, якщо він порожній або null, щоб не видалити існуючий login
+    // Якщо login не передається в запиті (undefined), не змінюємо його
+    if (login !== undefined) {
+      // Якщо login передано як порожній рядок або null, це помилка - login обов'язковий
+      if (login === null || (typeof login === 'string' && login.trim() === '')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін не може бути порожнім'
+        });
+      }
+      // Якщо login передано і він не порожній, оновлюємо його
+      user.login = String(login).toLowerCase().trim();
+    }
+    // Якщо login не передано в запиті (undefined), залишаємо існуючий login без змін
+    
+    // Обробка Telegram полів
+    // Якщо передано telegramId, перевіряємо чи це username (@username) чи числовий ID
+    if (telegramId !== undefined) {
+      if (telegramId === null || telegramId === '') {
+        // Якщо порожній рядок або null, очищаємо обидва поля
+        user.telegramId = undefined;
+        user.telegramUsername = undefined;
+      } else {
+        const trimmedTelegramId = String(telegramId).trim();
+        // Перевіряємо чи це username (починається з @ або містить літери) чи числовий ID
+        if (trimmedTelegramId.startsWith('@') || /^[a-zA-Z0-9_]{5,32}$/.test(trimmedTelegramId)) {
+          // Це username - зберігаємо в telegramUsername (без @ на початку)
+          const username = trimmedTelegramId.startsWith('@') 
+            ? trimmedTelegramId.substring(1) 
+            : trimmedTelegramId;
+          
+          // Перевірка унікальності username (якщо змінюється)
+          if (user.telegramUsername !== username) {
+            const existingUser = await User.findOne({ 
+              telegramUsername: username,
+              _id: { $ne: id }
+            });
+            if (existingUser) {
+              return res.status(400).json({
+                success: false,
+                message: `Користувач з Telegram username "${username}" вже існує`
+              });
+            }
+          }
+          
+          user.telegramUsername = username;
+          // Очищаємо telegramId, якщо встановлюємо username
+          user.telegramId = undefined;
+          logger.info(`Setting telegramUsername for user ${id}: ${user.telegramUsername}`);
+        } else if (/^\d+$/.test(trimmedTelegramId)) {
+          // Це числовий ID - зберігаємо в telegramId
+          // Перевірка унікальності ID (якщо змінюється)
+          if (user.telegramId !== trimmedTelegramId) {
+            const existingUser = await User.findOne({ 
+              telegramId: trimmedTelegramId,
+              _id: { $ne: id }
+            });
+            if (existingUser) {
+              return res.status(400).json({
+                success: false,
+                message: `Користувач з Telegram ID "${trimmedTelegramId}" вже існує`
+              });
+            }
+          }
+          
+          user.telegramId = trimmedTelegramId;
+          // Очищаємо telegramUsername, якщо встановлюємо ID
+          user.telegramUsername = undefined;
+          logger.info(`Setting telegramId for user ${id}: ${user.telegramId}`);
+        } else {
+          // Невідомий формат - намагаємося інтерпретувати як username
+          logger.warn(`Unknown Telegram format for user ${id}: ${trimmedTelegramId}, treating as username`);
+          const username = trimmedTelegramId.startsWith('@') 
+            ? trimmedTelegramId.substring(1) 
+            : trimmedTelegramId;
+          
+          // Перевірка унікальності
+          if (user.telegramUsername !== username) {
+            const existingUser = await User.findOne({ 
+              telegramUsername: username,
+              _id: { $ne: id }
+            });
+            if (existingUser) {
+              return res.status(400).json({
+                success: false,
+                message: `Користувач з Telegram username "${username}" вже існує`
+              });
+            }
+          }
+          
+          user.telegramUsername = username;
+          user.telegramId = undefined;
+        }
+      }
+    }
+    // Якщо передано telegramUsername окремо, оновлюємо його
+    if (telegramUsername !== undefined) {
+      if (telegramUsername === null || telegramUsername === '') {
+        user.telegramUsername = undefined;
+      } else {
+        const trimmedUsername = String(telegramUsername).trim();
+        user.telegramUsername = trimmedUsername.startsWith('@') 
+          ? trimmedUsername.substring(1) 
+          : trimmedUsername;
+      }
+    }
+    
     if (phone !== undefined) user.phone = phone;
     if (avatar !== undefined) user.avatar = avatar;
     
@@ -418,7 +598,46 @@ exports.updateUser = async (req, res) => {
       }
     }
 
+    // Перевірка, що обов'язкові поля не порожні перед збереженням
+    // Важливо: перевіряємо login після всіх оновлень
+    if (!user.login || String(user.login).trim() === '') {
+      logger.error('User login is empty before save:', {
+        userId: user._id,
+        originalLogin: user.login,
+        loginType: typeof user.login,
+        hasLogin: !!user.login
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Логін користувача не може бути порожнім. Будь ласка, вкажіть логін.'
+      });
+    }
+
+    // Додаткова перевірка: якщо login став undefined після оновлень, відновлюємо оригінальне значення
+    if (user.login === undefined || user.login === null) {
+      logger.warn('User login became undefined, restoring original value');
+      // Завантажуємо користувача знову, щоб отримати оригінальне значення login
+      const originalUser = await User.findById(id).select('+login');
+      if (originalUser && originalUser.login) {
+        user.login = originalUser.login;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Логін користувача не може бути порожнім'
+        });
+      }
+    }
+
     user.lastModifiedBy = req.user._id;
+    
+    // Логуємо перед збереженням
+    logger.info('Saving user with login:', {
+      userId: user._id,
+      login: user.login,
+      loginType: typeof user.login,
+      loginLength: String(user.login).length
+    });
+    
     await user.save();
 
     // Заповнити дані для відповіді

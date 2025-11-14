@@ -29,6 +29,7 @@ export interface MobileDevice {
 export interface User {
   _id: string;
   email: string;
+  login?: string;
   firstName: string;
   lastName: string;
   role: UserRole;
@@ -36,6 +37,7 @@ export interface User {
   department: string;
   city: string | City;
   telegramId?: string;
+  telegramUsername?: string;
   isActive: boolean;
   deletedAt?: string;
   deletedBy?: string;

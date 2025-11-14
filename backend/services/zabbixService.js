@@ -65,40 +65,11 @@ class ZabbixService {
     };
 
     try {
-      logger.info('Zabbix service: Executing user.login to obtain session token...', {
-        url: apiUrl,
-        username: this.username,
-        hasPassword: !!this.password,
-        requestData: JSON.stringify(requestData)
-      });
-      
-      // Детальне логування для user.login
-      console.log('[Zabbix user.login Request]:', {
-        url: apiUrl,
-        username: this.username,
-        requestBody: JSON.stringify(requestData, null, 2)
-      });
-      
       const response = await axios.post(apiUrl, requestData, {
         headers: {
           'Content-Type': 'application/json'
         },
         timeout: 30000
-      });
-
-      logger.info('Zabbix user.login response received:', {
-        status: response.status,
-        hasData: !!response.data,
-        hasError: !!response.data?.error,
-        hasResult: !!response.data?.result,
-        fullResponse: JSON.stringify(response.data)
-      });
-      
-      // Детальне логування відповіді user.login
-      console.log('[Zabbix user.login Response]:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseData: JSON.stringify(response.data, null, 2)
       });
 
       if (response.data.error) {
@@ -120,10 +91,6 @@ class ZabbixService {
       this.sessionToken = token;
       this.apiToken = token;
 
-      logger.info('Zabbix service: user.login successful', {
-        tokenLength: token?.length || 0,
-        tokenType: typeof token
-      });
       return {
         success: true,
         token
@@ -200,15 +167,6 @@ class ZabbixService {
         return false;
       }
 
-      logger.info(`Zabbix service: Initializing with config - hasConfig: ${!!config}`);
-      logger.info(`Zabbix service: Initializing with config - enabled: ${config.enabled}`);
-      logger.info(`Zabbix service: Initializing with config - URL: ${config.url || '(empty)'}`);
-      logger.info(`Zabbix service: Initializing with config - URL type: ${typeof config.url}`);
-      logger.info(`Zabbix service: Initializing with config - URL length: ${config.url?.length || 0}`);
-      logger.info(`Zabbix service: Initializing with config - hasTokenEncrypted: ${!!config.apiTokenEncrypted}`);
-      logger.info(`Zabbix service: Initializing with config - hasTokenIV: ${!!config.apiTokenIV}`);
-      logger.info(`Zabbix service: Initializing with config - _id: ${config._id?.toString()}`);
-
       if (!config.enabled) {
         logger.warn('Zabbix service: Integration is disabled');
         this.isInitialized = false;
@@ -217,9 +175,6 @@ class ZabbixService {
 
       // Нормалізуємо URL
       const rawUrl = config.url;
-      logger.info(`Zabbix service: Raw URL from config - rawUrl: ${rawUrl || '(empty)'}`);
-      logger.info(`Zabbix service: Raw URL from config - type: ${typeof rawUrl}`);
-      logger.info(`Zabbix service: Raw URL from config - length: ${rawUrl?.length || 0}`);
       this.url = this.normalizeUrl(rawUrl);
       this.originalToken = config.decryptToken ? config.decryptToken() : null;
       this.username = config.username ? config.username.trim() : null;
@@ -227,10 +182,6 @@ class ZabbixService {
       this.apiToken = null;
       this.isBearerAuth = false;
       this.sessionToken = null;
-      
-      logger.info(`Zabbix service: After normalization - normalizedUrl: ${this.url || '(empty)'}`);
-      logger.info(`Zabbix service: After normalization - normalizedUrlLength: ${this.url?.length || 0}`);
-      logger.info(`Zabbix service: Credentials summary - hasStoredToken: ${!!this.originalToken}, tokenLength: ${this.originalToken?.length || 0}, hasUsername: ${!!this.username}, hasPassword: ${!!this.password}`);
 
       if (!this.url) {
         logger.warn('Zabbix service: Missing URL', { url: rawUrl });
@@ -244,9 +195,7 @@ class ZabbixService {
       if (trimmedToken) {
         this.isBearerAuth = this.isLikelyBearerToken(trimmedToken);
         this.apiToken = trimmedToken;
-        logger.info(`Zabbix service: Using ${this.isBearerAuth ? 'Bearer' : 'session'} token for authentication`);
       } else if (this.username && this.password) {
-        logger.info('Zabbix service: No API token provided, attempting user.login with stored credentials...');
         const loginResult = await this.login();
         if (!loginResult.success) {
           logger.error('Zabbix service: Failed to obtain session token via user.login', {
@@ -258,7 +207,6 @@ class ZabbixService {
         this.apiToken = loginResult.token;
         this.isBearerAuth = false;
         this.sessionToken = loginResult.token;
-        logger.info('Zabbix service: Session token obtained via user.login');
       } else {
         logger.warn('Zabbix service: Missing authentication credentials (token or username/password)');
         this.isInitialized = false;
@@ -277,13 +225,6 @@ class ZabbixService {
         return false;
       }
 
-      logger.info('Zabbix service: Initializing with URL:', this.url || '(empty)', {
-        rawUrl: rawUrl,
-        normalizedUrl: this.url,
-        hasToken: !!this.apiToken,
-        authType: this.isBearerAuth ? 'bearer' : 'session'
-      });
-
       // Встановлюємо isInitialized перед тестом, щоб testConnection міг працювати
       // Це безпечно, оскільки ми вже перевірили наявність URL та токену
       this.isInitialized = true;
@@ -299,15 +240,9 @@ class ZabbixService {
             this.apiToken = loginResult.token;
             this.isBearerAuth = false;
             this.sessionToken = loginResult.token;
-            logger.info('Zabbix service: Fallback to user.login successful, retesting connection...');
-            
             // Повторно тестуємо підключення з сесійним токеном
             const retryTestResult = await this.testConnection();
             if (retryTestResult.success) {
-              logger.info('✅ Zabbix service initialized successfully with user.login fallback', {
-                url: this.url,
-                version: retryTestResult.version
-              });
               return true;
             }
           }
@@ -321,10 +256,6 @@ class ZabbixService {
         this.isInitialized = false;
         return false;
       }
-      logger.info('✅ Zabbix service initialized successfully', {
-        url: this.url,
-        version: testResult.version
-      });
       return true;
     } catch (error) {
       logger.error('❌ Error initializing Zabbix service:', {
@@ -372,49 +303,17 @@ class ZabbixService {
           // Bearer токен передаємо в полі auth як session токен
           requestData.auth = authContext.token;
         } else {
-          // Session токен завжди в полі auth
-          requestData.auth = authContext.token;
+        // Session токен завжди в полі auth
+        requestData.auth = authContext.token;
         }
-
-        logger.info(`Zabbix API request: ${method}`, {
-          url: apiUrl,
-          attempt: attempt,
-          authType: authContext.isBearer ? 'bearer' : 'session',
-          hasToken: !!authContext.token,
-          tokenLength: authContext.token?.length || 0,
-          requestData: JSON.stringify(requestData),
-          headers: JSON.stringify(headers)
-        });
-        
-        // Детальне логування для діагностики
-        console.log(`[Zabbix API Request] ${method}:`, {
-          url: apiUrl,
-          method: method,
-          requestBody: JSON.stringify(requestData, null, 2),
-          headers: headers
-        });
 
         const response = await axios.post(apiUrl, requestData, {
           headers,
           timeout: 30000 // 30 секунд
         });
         
-        logger.info(`Zabbix API response: ${method}`, {
-          status: response.status,
-          hasData: !!response.data,
-          hasError: !!response.data?.error,
-          errorCode: response.data?.error?.code,
-          errorMessage: response.data?.error?.message
-        });
-        
-        // Детальне логування відповіді
-        console.log(`[Zabbix API Response] ${method}:`, {
-          status: response.status,
-          statusText: response.statusText,
-          responseData: JSON.stringify(response.data, null, 2)
-        });
-
-        if (response.data.error) {
+        // Перевіряємо помилки в відповіді
+        if (response.data?.error) {
           const error = new Error(response.data.error.message || 'Zabbix API error');
           error.code = response.data.error.code;
           error.data = response.data.error.data;
@@ -520,7 +419,6 @@ class ZabbixService {
       }
 
       // apiinfo.version не потребує автентифікації - викликаємо без токену
-      logger.info('Testing Zabbix connection...', { url: this.url });
       const apiUrl = `${this.url}/api_jsonrpc.php`;
       const requestData = {
         jsonrpc: '2.0',
@@ -541,7 +439,6 @@ class ZabbixService {
       }
 
       const version = response.data.result;
-      logger.info('Zabbix connection test successful', { version });
       return {
         success: true,
         version

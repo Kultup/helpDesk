@@ -100,17 +100,27 @@ const updateUserValidation = [
     .isMongoId()
     .withMessage('Невірний ID міста'),
   body('telegramId')
+    .optional()
     .custom((value, { req }) => {
       // Якщо значення відсутнє, null, undefined або порожній рядок - пропускаємо валідацію
-      if (value === undefined || value === null || value === '' || (typeof value === 'string' && value.trim() === '')) {
-        delete req.body.telegramId; // Видаляємо поле з req.body
+      // НЕ видаляємо поле з req.body, щоб контролер міг обробити порожнє значення
+      if (value === undefined || value === null || value === '') {
         return true;
       }
       
-      // Перевіряємо формат для непорожніх значень
-      const trimmedValue = value.trim();
-      if (!/^@?[a-zA-Z0-9_]{5,32}$/.test(trimmedValue)) {
-        throw new Error('Невірний формат Telegram ID');
+      // Якщо це рядок, перевіряємо формат
+      if (typeof value === 'string') {
+        const trimmedValue = value.trim();
+        // Дозволяємо порожній рядок (для очищення поля)
+        if (trimmedValue === '') {
+          return true;
+        }
+        // Перевіряємо формат: може бути username (@username або username) або числовий ID
+        if (!/^@?[a-zA-Z0-9_]{5,32}$/.test(trimmedValue) && !/^\d+$/.test(trimmedValue)) {
+          throw new Error('Невірний формат Telegram ID. Може бути username (@username) або числовий ID');
+        }
+      } else if (typeof value !== 'string' && typeof value !== 'number') {
+        throw new Error('Telegram ID повинен бути рядком або числом');
       }
       
       return true;

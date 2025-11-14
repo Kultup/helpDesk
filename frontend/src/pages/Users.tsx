@@ -691,7 +691,7 @@ const Users: React.FC = () => {
                             <div className="text-xs sm:text-sm text-gray-500 truncate">
                               {user.email}
                             </div>
-                            {user.telegramId && (
+                            {(user.telegramId || user.telegramUsername) && (
                               <div className="text-xs text-blue-600 mt-1">
                                 {t('users.telegramConnected')}
                               </div>
@@ -878,7 +878,7 @@ const Users: React.FC = () => {
                             <div className="text-xs text-gray-500">
                               {user.email}
                             </div>
-                            {user.telegramId && (
+                            {(user.telegramId || user.telegramUsername) && (
                               <div className="text-xs text-blue-600">
                                 {t('users.telegramConnected')}
                               </div>

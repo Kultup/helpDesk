@@ -484,29 +484,68 @@ ticketSchema.pre('save', async function(next) {
 });
 
 // Middleware для оновлення метрик
-ticketSchema.pre('save', function(next) {
-  if (this.isModified('status')) {
-    // Додаємо запис в історію статусів
-    if (this.status !== this.constructor.findOne({ _id: this._id }).status) {
-      this.statusHistory.push({
-        status: this.status,
-        changedBy: this.modifiedBy || this.assignedBy || this.createdBy,
-        changedAt: new Date()
-      });
+ticketSchema.pre('save', async function(next) {
+  try {
+    if (this.isModified('status')) {
+      // Визначаємо хто змінив статус
+      let changedBy = this.modifiedBy || this.assignedBy || this.createdBy;
+      
+      // Якщо changedBy не встановлено, використовуємо createdBy або system
+      if (!changedBy && this.isNew) {
+        changedBy = this.createdBy;
+      }
+      
+      // Перевіряємо чи статус дійсно змінився
+      let statusChanged = true;
+      if (!this.isNew) {
+        try {
+          const oldTicket = await this.constructor.findById(this._id).lean();
+          if (oldTicket && oldTicket.status === this.status) {
+            statusChanged = false;
+          }
+        } catch (error) {
+          // Якщо не вдалося завантажити старий документ, вважаємо що статус змінився
+          statusChanged = true;
+        }
+      }
+      
+      // Додаємо запис в історію статусів тільки якщо статус змінився та changedBy встановлено
+      if (statusChanged && changedBy) {
+        // Перевіряємо чи останній запис в історії не має такий самий статус
+        const lastHistory = this.statusHistory && this.statusHistory.length > 0 
+          ? this.statusHistory[this.statusHistory.length - 1] 
+          : null;
+        
+        if (!lastHistory || lastHistory.status !== this.status) {
+          this.statusHistory.push({
+            status: this.status,
+            changedBy: changedBy,
+            changedAt: new Date()
+          });
+        }
+      } else if (statusChanged && !changedBy) {
+        // Якщо статус змінився але changedBy не встановлено, логуємо попередження
+        // та не додаємо запис в історію (щоб уникнути помилки валідації)
+        console.warn(`Warning: Status changed for ticket ${this._id} but changedBy is not set`);
+      }
+      
+      // Оновлюємо часові мітки
+      if (this.status === 'resolved' && !this.resolvedAt) {
+        this.resolvedAt = new Date();
+        if (this.metrics) {
+          this.metrics.resolutionTime = this.timeToResolution;
+        }
+      }
+      
+      if (this.status === 'closed' && !this.closedAt) {
+        this.closedAt = new Date();
+      }
     }
     
-    // Оновлюємо часові мітки
-    if (this.status === 'resolved' && !this.resolvedAt) {
-      this.resolvedAt = new Date();
-      this.metrics.resolutionTime = this.timeToResolution;
-    }
-    
-    if (this.status === 'closed' && !this.closedAt) {
-      this.closedAt = new Date();
-    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  
-  next();
 });
 
 // Статичні методи

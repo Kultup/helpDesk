@@ -451,7 +451,7 @@ exports.getAlert = async (req, res) => {
 exports.getGroups = async (req, res) => {
   try {
     const groups = await ZabbixAlertGroup.find()
-      .populate('adminIds', 'firstName lastName email telegramId role')
+      .populate('adminIds', 'firstName lastName email telegramId telegramUsername role')
       .sort({ priority: -1, createdAt: -1 });
 
     res.json({
@@ -491,7 +491,8 @@ exports.createGroup = async (req, res) => {
       severityLevels,
       enabled,
       priority,
-      settings
+      settings,
+      telegram
     } = req.body;
 
     const group = new ZabbixAlertGroup({
@@ -503,11 +504,12 @@ exports.createGroup = async (req, res) => {
       severityLevels: severityLevels || [],
       enabled: enabled !== undefined ? enabled : true,
       priority: priority || 0,
-      settings: settings || {}
+      settings: settings || {},
+      telegram: telegram || {}
     });
 
     await group.save();
-    await group.populate('adminIds', 'firstName lastName email telegramId role');
+    await group.populate('adminIds', 'firstName lastName email telegramId telegramUsername role');
 
     res.status(201).json({
       success: true,
@@ -556,7 +558,8 @@ exports.updateGroup = async (req, res) => {
       severityLevels,
       enabled,
       priority,
-      settings
+      settings,
+      telegram
     } = req.body;
 
     if (name !== undefined) group.name = name;
@@ -568,9 +571,10 @@ exports.updateGroup = async (req, res) => {
     if (enabled !== undefined) group.enabled = enabled;
     if (priority !== undefined) group.priority = priority;
     if (settings !== undefined) group.settings = { ...group.settings, ...settings };
+    if (telegram !== undefined) group.telegram = { ...group.telegram, ...telegram };
 
     await group.save();
-    await group.populate('adminIds', 'firstName lastName email telegramId role');
+    await group.populate('adminIds', 'firstName lastName email telegramId telegramUsername role');
 
     res.json({
       success: true,

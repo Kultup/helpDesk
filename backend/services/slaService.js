@@ -1,7 +1,9 @@
 const SLAPolicy = require('../models/SLAPolicy');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
+const Category = require('../models/Category');
 const logger = require('../utils/logger');
+const mongoose = require('mongoose');
 
 class SLAService {
   /**
@@ -333,60 +335,251 @@ class SLAService {
    */
   async checkAllTickets() {
     try {
-      const activeTickets = await Ticket.find({
-        status: { $nin: ['closed', 'resolved', 'cancelled'] },
-        isDeleted: false
-      }).populate('slaPolicy');
+      // Використовуємо aggregation для обходу валідації Mongoose при завантаженні
+      // Це дозволяє отримати всі тікети навіть з невалідними даними
+      const activeTicketsRaw = await Ticket.aggregate([
+        {
+          $match: {
+            status: { $nin: ['closed', 'resolved', 'cancelled'] },
+            isDeleted: false
+          }
+        },
+        {
+          $lookup: {
+            from: 'slapolicies',
+            localField: 'slaPolicy',
+            foreignField: '_id',
+            as: 'slaPolicy'
+          }
+        },
+        {
+          $unwind: {
+            path: '$slaPolicy',
+            preserveNullAndEmptyArrays: true
+          }
+        }
+      ]);
 
       let breachesFound = 0;
       let warningsSent = 0;
       let escalationsPerformed = 0;
+      let errorsCount = 0;
+      let skippedCount = 0;
+      let fixedCount = 0;
 
-      for (const ticket of activeTickets) {
-        const breachCheck = await this.checkSLABreach(ticket);
-        const slaPolicy = ticket.slaPolicy || await SLAPolicy.getDefaultPolicy();
+      for (const ticketData of activeTicketsRaw) {
+        const ticketId = ticketData._id;
+        try {
+          // Перевіряємо чи category валідний (має бути ObjectId)
+          let categoryId = ticketData.category;
+          let categoryIsValid = false;
 
-        if (breachCheck.isBreached) {
-          breachesFound++;
-
-          // Відправляємо попередження
-          if (slaPolicy) {
-            await this.sendSLAWarning(ticket, breachCheck.percentage, slaPolicy);
-            warningsSent++;
+          if (categoryId) {
+            // Якщо category є рядком (наприклад "technical"), спробуємо знайти Category за назвою
+            if (typeof categoryId === 'string') {
+              if (mongoose.Types.ObjectId.isValid(categoryId)) {
+                // Якщо це валідний ObjectId рядок, конвертуємо
+                categoryId = new mongoose.Types.ObjectId(categoryId);
+                categoryIsValid = true;
+              } else {
+                // Якщо це назва категорії (наприклад "technical"), шукаємо Category
+                const categoryName = categoryId;
+                logger.warn(`Ticket ${ticketId} has category as string "${categoryName}", attempting to convert...`);
+                try {
+                  const category = await Category.findOne({ 
+                    name: new RegExp(`^${categoryName}$`, 'i') 
+                  });
+                  if (category) {
+                    categoryId = category._id;
+                    categoryIsValid = true;
+                    // Оновлюємо тікет з правильним category ObjectId
+                    await Ticket.collection.updateOne(
+                      { _id: new mongoose.Types.ObjectId(ticketId) },
+                      { $set: { category: categoryId } },
+                      { bypassDocumentValidation: true }
+                    );
+                    logger.info(`Fixed category for ticket ${ticketId}: "${categoryName}" -> ${category._id}`);
+                    fixedCount++;
+                  } else {
+                    logger.warn(`Category "${categoryName}" not found for ticket ${ticketId}`);
+                    categoryIsValid = false;
+                  }
+                } catch (categoryError) {
+                  logger.error(`Error finding category "${categoryName}" for ticket ${ticketId}:`, categoryError);
+                  categoryIsValid = false;
+                }
+              }
+            } else if (categoryId instanceof mongoose.Types.ObjectId || mongoose.Types.ObjectId.isValid(categoryId)) {
+              // Якщо це вже ObjectId
+              categoryIsValid = true;
+            }
           }
 
-          // Виконуємо ескалацію
-          if (slaPolicy) {
-            const escalation = await this.escalateTicket(
-              ticket,
-              breachCheck.percentage,
-              slaPolicy,
-              breachCheck.breachType
+          if (!categoryIsValid || !categoryId) {
+            logger.warn(`Skipping ticket ${ticketId}: invalid or missing category (${ticketData.category})`);
+            skippedCount++;
+            continue;
+          }
+
+          // Перевіряємо чи statusHistory має невалідні записи
+          let hasInvalidHistory = false;
+          if (ticketData.statusHistory && Array.isArray(ticketData.statusHistory)) {
+            hasInvalidHistory = ticketData.statusHistory.some(
+              entry => !entry || !entry.changedBy || !entry.status
             );
-            if (escalation) {
-              escalationsPerformed++;
-            }
-
-            // Оновлюємо дату порушення
-            if (!ticket.slaBreachAt) {
-              ticket.slaBreachAt = new Date();
-              await ticket.save();
+            
+            if (hasInvalidHistory) {
+              logger.warn(`Ticket ${ticketId} has invalid statusHistory entries, attempting to fix...`);
+              try {
+                // Використовуємо прямі MongoDB операції для виправлення
+                const statusHistoryFixed = ticketData.statusHistory.filter(
+                  entry => entry && entry.changedBy && entry.status
+                );
+                
+                // Якщо немає валідних записів, додаємо початковий запис
+                if (statusHistoryFixed.length === 0 && ticketData.status && ticketData.createdBy) {
+                  // Перевіряємо чи createdBy є валідним ObjectId
+                  let createdById = ticketData.createdBy;
+                  
+                  // Конвертуємо рядок в ObjectId якщо валідний
+                  if (typeof createdById === 'string') {
+                    if (mongoose.Types.ObjectId.isValid(createdById)) {
+                      createdById = new mongoose.Types.ObjectId(createdById);
+                    } else {
+                      // Невалідний рядок, не додаємо запис
+                      logger.warn(`Cannot create statusHistory entry for ticket ${ticketId}: invalid createdBy string "${createdById}"`);
+                    }
+                  }
+                  
+                  // Перевіряємо чи createdById є валідним ObjectId
+                  if (createdById instanceof mongoose.Types.ObjectId || mongoose.Types.ObjectId.isValid(createdById)) {
+                    if (!(createdById instanceof mongoose.Types.ObjectId)) {
+                      createdById = new mongoose.Types.ObjectId(createdById);
+                    }
+                    statusHistoryFixed.push({
+                      status: ticketData.status,
+                      changedBy: createdById,
+                      changedAt: ticketData.createdAt || new Date()
+                    });
+                  } else {
+                    logger.warn(`Cannot create statusHistory entry for ticket ${ticketId}: createdBy is not a valid ObjectId (${ticketData.createdBy})`);
+                  }
+                }
+                
+                // Оновлюємо тікет без валідації
+                await Ticket.collection.updateOne(
+                  { _id: new mongoose.Types.ObjectId(ticketId) },
+                  { $set: { statusHistory: statusHistoryFixed } },
+                  { bypassDocumentValidation: true }
+                );
+                
+                logger.info(`Fixed statusHistory for ticket ${ticketId}`);
+                fixedCount++;
+              } catch (fixError) {
+                logger.error(`Failed to fix ticket ${ticketId}:`, fixError);
+                skippedCount++;
+                continue;
+              }
             }
           }
-        } else if (breachCheck.percentage > 0 && slaPolicy) {
-          // Відправляємо попередження, якщо досягнуто певного відсотка
-          await this.sendSLAWarning(ticket, breachCheck.percentage, slaPolicy);
-        }
 
-        // Оновлюємо метрики
-        await this.updateSLAMetrics(ticket);
+          // Спробуємо завантажити тікет через Mongoose (може викинути помилку валідації)
+          let ticket;
+          try {
+            ticket = await Ticket.findById(ticketId).populate('slaPolicy');
+          } catch (loadError) {
+            // Якщо не вдалося завантажити через валідацію, пропускаємо
+            logger.warn(`Cannot load ticket ${ticketId} due to validation error:`, loadError.message);
+            skippedCount++;
+            continue;
+          }
+
+          if (!ticket) {
+            skippedCount++;
+            continue;
+          }
+
+          // Перевіряємо чи тікет все ще валідний
+          // category має бути ObjectId або об'єктом (якщо populate)
+          if (!ticket.category || 
+              (typeof ticket.category === 'string' && !mongoose.Types.ObjectId.isValid(ticket.category))) {
+            logger.warn(`Skipping ticket ${ticketId}: category is still invalid after load (${ticket.category})`);
+            skippedCount++;
+            continue;
+          }
+
+          // Обробляємо тікет
+          const breachCheck = await this.checkSLABreach(ticket);
+          const slaPolicy = ticket.slaPolicy || await SLAPolicy.getDefaultPolicy();
+
+          if (breachCheck.isBreached) {
+            breachesFound++;
+
+            // Відправляємо попередження
+            if (slaPolicy) {
+              try {
+                await this.sendSLAWarning(ticket, breachCheck.percentage, slaPolicy);
+                warningsSent++;
+              } catch (warningError) {
+                logger.error(`Error sending SLA warning for ticket ${ticketId}:`, warningError);
+              }
+            }
+
+            // Виконуємо ескалацію
+            if (slaPolicy) {
+              try {
+                const escalation = await this.escalateTicket(
+                  ticket,
+                  breachCheck.percentage,
+                  slaPolicy,
+                  breachCheck.breachType
+                );
+                if (escalation) {
+                  escalationsPerformed++;
+                }
+
+                // Оновлюємо дату порушення
+                if (!ticket.slaBreachAt) {
+                  ticket.slaBreachAt = new Date();
+                  await ticket.save();
+                }
+              } catch (escalationError) {
+                logger.error(`Error escalating ticket ${ticketId}:`, escalationError);
+              }
+            }
+          } else if (breachCheck.percentage > 0 && slaPolicy) {
+            // Відправляємо попередження, якщо досягнуто певного відсотка
+            try {
+              await this.sendSLAWarning(ticket, breachCheck.percentage, slaPolicy);
+            } catch (warningError) {
+              logger.error(`Error sending SLA warning for ticket ${ticketId}:`, warningError);
+            }
+          }
+
+          // Оновлюємо метрики
+          try {
+            await this.updateSLAMetrics(ticket);
+          } catch (metricsError) {
+            logger.error(`Error updating SLA metrics for ticket ${ticketId}:`, metricsError);
+          }
+        } catch (ticketError) {
+          errorsCount++;
+          logger.error(`Error processing ticket ${ticketId}:`, ticketError);
+          // Продовжуємо обробку інших тікетів
+          continue;
+        }
       }
 
+      logger.info(`SLA check completed: ${activeTicketsRaw.length} tickets checked, ${fixedCount} fixed, ${skippedCount} skipped, ${errorsCount} errors`);
+
       return {
-        ticketsChecked: activeTickets.length,
+        ticketsChecked: activeTicketsRaw.length,
         breachesFound,
         warningsSent,
-        escalationsPerformed
+        escalationsPerformed,
+        errorsCount,
+        skippedCount,
+        fixedCount
       };
     } catch (error) {
       logger.error('Error checking all tickets:', error);

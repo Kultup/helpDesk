@@ -49,6 +49,22 @@ const zabbixAlertGroupSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  // Налаштування Telegram групи
+  telegram: {
+    // Токен бота Telegram для відправки сповіщень в групу (опціонально, якщо не вказано - використовується глобальний бот)
+    botToken: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    // ID групи Telegram (chat_id) для відправки сповіщень
+    // Якщо вказано - сповіщення відправляються в групу, інакше - окремим адміністраторам
+    groupId: {
+      type: String,
+      trim: true,
+      default: null
+    }
+  },
   // Додаткові налаштування
   settings: {
     // Чи відправляти сповіщення для вирішених проблем
@@ -109,7 +125,7 @@ zabbixAlertGroupSchema.index({
 // Статичні методи
 zabbixAlertGroupSchema.statics.findActive = function() {
   return this.find({ enabled: true })
-    .populate('adminIds', 'firstName lastName email telegramId role')
+    .populate('adminIds', 'firstName lastName email telegramId telegramUsername role')
     .sort({ priority: -1, createdAt: -1 });
 };
 
@@ -118,7 +134,7 @@ zabbixAlertGroupSchema.statics.findByAdmin = function(adminId) {
     enabled: true,
     adminIds: adminId
   })
-    .populate('adminIds', 'firstName lastName email telegramId role')
+    .populate('adminIds', 'firstName lastName email telegramId telegramUsername role')
     .sort({ priority: -1 });
 };
 
@@ -163,14 +179,17 @@ zabbixAlertGroupSchema.methods.checkAlertMatch = function(alert) {
   return true;
 };
 
-// Метод для отримання адміністраторів з Telegram ID
+// Метод для отримання адміністраторів з Telegram ID або username
 zabbixAlertGroupSchema.methods.getAdminsWithTelegram = async function() {
   const User = require('./User');
   const admins = await User.find({
     _id: { $in: this.adminIds },
-    telegramId: { $exists: true, $ne: null },
+    $or: [
+      { telegramId: { $exists: true, $ne: null, $ne: '' } },
+      { telegramUsername: { $exists: true, $ne: null, $ne: '' } }
+    ],
     isActive: true
-  }).select('firstName lastName email telegramId role');
+  }).select('firstName lastName email telegramId telegramUsername role');
   
   return admins;
 };
