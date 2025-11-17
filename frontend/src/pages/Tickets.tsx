@@ -71,8 +71,8 @@ const Tickets: React.FC = () => {
     const statusParam = searchParams.get('status');
     if (statusParam) {
       const validStatuses: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
-      if (validStatuses.includes(statusParam as TicketStatus) && statusFilter === 'all') {
-        // Встановлюємо фільтр тільки якщо він ще не встановлений
+      if (validStatuses.includes(statusParam as TicketStatus)) {
+        // Встановлюємо фільтр з URL параметра
         setStatusFilter(statusParam as TicketStatus);
       }
     }
