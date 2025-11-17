@@ -182,16 +182,45 @@ zabbixAlertGroupSchema.methods.checkAlertMatch = function(alert) {
 // Метод для отримання адміністраторів з Telegram ID або username
 zabbixAlertGroupSchema.methods.getAdminsWithTelegram = async function() {
   const User = require('./User');
-  const admins = await User.find({
-    _id: { $in: this.adminIds },
-    $or: [
-      { telegramId: { $exists: true, $ne: null, $ne: '' } },
-      { telegramUsername: { $exists: true, $ne: null, $ne: '' } }
-    ],
-    isActive: true
-  }).select('firstName lastName email telegramId telegramUsername role');
+  const logger = require('../utils/logger');
   
-  return admins;
+  try {
+    const adminIds = this.adminIds || [];
+    
+    logger.debug(`Getting admins with Telegram for group ${this.name}`, {
+      groupId: this._id,
+      adminIdsCount: adminIds.length,
+      adminIds: adminIds
+    });
+    
+    if (adminIds.length === 0) {
+      logger.info(`No admin IDs in group ${this.name}`);
+      return [];
+    }
+    
+    const admins = await User.find({
+      _id: { $in: adminIds },
+      $or: [
+        { telegramId: { $exists: true, $ne: null, $ne: '' } },
+        { telegramUsername: { $exists: true, $ne: null, $ne: '' } }
+      ],
+      isActive: true
+    }).select('firstName lastName email telegramId telegramUsername role');
+    
+    logger.info(`Found ${admins.length} admins with Telegram in group ${this.name}`, {
+      groupId: this._id,
+      groupName: this.name,
+      adminCount: admins.length,
+      adminsWithTelegramId: admins.filter(a => a.telegramId).length,
+      adminsWithTelegramUsername: admins.filter(a => a.telegramUsername && !a.telegramId).length,
+      adminEmails: admins.map(a => a.email)
+    });
+    
+    return admins;
+  } catch (error) {
+    logger.error(`Error getting admins with Telegram for group ${this.name}:`, error);
+    return [];
+  }
 };
 
 // Метод для перевірки чи можна відправити сповіщення (з урахуванням інтервалу)

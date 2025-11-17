@@ -345,11 +345,51 @@ class ZabbixAlertService {
         return { success: false, error: errorMsg };
       }
       
-      const result = await bot.sendMessage(groupId, message, {
-        parse_mode: 'Markdown'
-      });
-      
-      return { success: true, messageId: result.message_id };
+      // Спробуємо відправити з Markdown форматуванням
+      try {
+        const result = await bot.sendMessage(groupId, message, {
+          parse_mode: 'Markdown'
+        });
+        
+        return { success: true, messageId: result.message_id };
+      } catch (markdownError) {
+        // Якщо помилка пов'язана з форматуванням Markdown, спробуємо відправити без форматування
+        if (markdownError.message && (
+          markdownError.message.includes('parse') || 
+          markdownError.message.includes('Markdown') ||
+          markdownError.code === 400
+        )) {
+          logger.warn('Markdown formatting error, trying to send without Markdown', {
+            groupId,
+            error: markdownError.message
+          });
+          
+          try {
+            // Відправляємо без Markdown форматування
+            const result = await bot.sendMessage(groupId, message, {
+              parse_mode: 'HTML'
+            });
+            return { success: true, messageId: result.message_id, fallback: 'HTML' };
+          } catch (htmlError) {
+            // Якщо і HTML не працює, відправляємо як звичайний текст
+            logger.warn('HTML formatting error, trying to send as plain text', {
+              groupId,
+              error: htmlError.message
+            });
+            
+            try {
+              // Відправляємо як звичайний текст без форматування
+              const plainMessage = message.replace(/\*/g, '').replace(/_/g, '').replace(/`/g, '');
+              const result = await bot.sendMessage(groupId, plainMessage);
+              return { success: true, messageId: result.message_id, fallback: 'plain' };
+            } catch (plainError) {
+              throw plainError;
+            }
+          }
+        } else {
+          throw markdownError;
+        }
+      }
     } catch (error) {
       logger.error('Помилка відправки повідомлення в групу Telegram:', {
         groupId,
@@ -369,8 +409,19 @@ class ZabbixAlertService {
    * @returns {Object} - Результат відправки
    */
 async sendNotifications(alert, groups) {
+    const alertId = alert.alertId || alert._id;
+    const alertSeverity = alert.severity || 'Unknown';
+    const alertHost = alert.host || 'Unknown';
+    
+    logger.info(`📤 Starting notification sending for alert ${alertId}`, {
+      alertId,
+      severity: alertSeverity,
+      host: alertHost,
+      groupsCount: groups ? groups.length : 0
+    });
+    
     if (!groups || groups.length === 0) {
-      logger.info(`No groups found for alert ${alert.alertId || alert._id}`);
+      logger.warn(`No groups found for alert ${alertId}`);
       return {
         sent: 0,
         failed: 0,
@@ -388,11 +439,21 @@ async sendNotifications(alert, groups) {
       !group.telegram || !group.telegram.groupId || !group.telegram.groupId.trim()
     );
     
+    logger.info(`Notification groups analysis:`, {
+      hasGroupsWithTelegramGroups,
+      hasGroupsWithoutTelegramGroups,
+      telegramServiceInitialized: telegramService.isInitialized,
+      telegramBotExists: !!telegramService.bot
+    });
+    
     // Якщо є групи з Telegram групами - можемо відправляти навіть без глобального бота
     // Якщо всі групи без Telegram груп - потрібен глобальний бот для відправки окремим адміністраторам
     if (!hasGroupsWithTelegramGroups && hasGroupsWithoutTelegramGroups) {
       if (!telegramService.isInitialized || !telegramService.bot) {
-        logger.warn('Telegram service is not initialized, cannot send notifications to individual administrators');
+        logger.warn('Telegram service is not initialized, cannot send notifications to individual administrators', {
+          isInitialized: telegramService.isInitialized,
+          hasBot: !!telegramService.bot
+        });
         return {
           sent: 0,
           failed: 0,
@@ -407,21 +468,42 @@ async sendNotifications(alert, groups) {
     const notifiedGroupIds = [];
 
     // Форматуємо повідомлення (використовуємо метод моделі, якщо доступний, або наш метод)
-    const message = alert.formatMessage ? alert.formatMessage() : this.formatAlertMessage(alert);
+    let message;
+    try {
+      message = alert.formatMessage ? alert.formatMessage() : this.formatAlertMessage(alert);
+      logger.debug(`Formatted alert message for ${alertId}`, {
+        messageLength: message ? message.length : 0,
+        hasFormatMessage: !!alert.formatMessage
+      });
+    } catch (formatError) {
+      logger.error(`Error formatting alert message for ${alertId}:`, formatError);
+      message = `Alert: ${alertHost} - ${alert.message || 'No message'}`;
+    }
 
     // Відправляємо сповіщення кожній групі
+    logger.info(`Processing ${groups.length} groups for alert ${alertId}`);
     for (const group of groups) {
-      // Перевіряємо чи можна відправити сповіщення (з урахуванням інтервалу)
-      if (!group.canSendNotification()) {
-        logger.info(`Skipping notification for group ${group.name} due to min notification interval`);
-        continue;
-      }
+        // Перевіряємо чи можна відправити сповіщення (з урахуванням інтервалу)
+        if (!group.canSendNotification()) {
+          logger.info(`Skipping notification for group ${group.name} due to min notification interval`, {
+            groupId: group._id,
+            lastNotificationAt: group.stats?.lastNotificationAt,
+            minInterval: group.settings?.minNotificationInterval
+          });
+          continue;
+        }
 
       try {
         const severityLabel = alert.severityLabel || 
           (alert.severity === 3 ? 'High' : alert.severity === 4 ? 'Disaster' : 'Unknown');
         const title = `Zabbix Alert: ${severityLabel}`;
         const fullMessage = `📢 ${title}\n\n${message}`;
+        
+        logger.info(`Sending notification to group ${group.name}`, {
+          groupId: group._id,
+          hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
+          hasBotToken: !!(group.telegram && group.telegram.botToken)
+        });
         
         // Перевіряємо чи вказано ID групи Telegram
         if (group.telegram && group.telegram.groupId && group.telegram.groupId.trim()) {
@@ -434,18 +516,38 @@ async sendNotifications(alert, groups) {
             
             if (result.success) {
               sent++;
-              logger.info(`Zabbix alert notification sent to Telegram group ${groupId} (group: ${group.name})`);
+              logger.info(`✅ Zabbix alert notification sent to Telegram group ${groupId}`, {
+                groupName: group.name,
+                messageId: result.messageId,
+                alertId
+              });
             } else {
               failed++;
-              logger.error(`Error sending notification to Telegram group ${groupId}: ${result.error}`);
+              logger.error(`❌ Error sending notification to Telegram group ${groupId}`, {
+                groupName: group.name,
+                error: result.error,
+                alertId
+              });
             }
           } catch (error) {
             failed++;
-            logger.error(`Error sending notification to Telegram group ${groupId}:`, error);
+            logger.error(`❌ Exception sending notification to Telegram group ${groupId}`, {
+              groupName: group.name,
+              error: error.message,
+              code: error.code,
+              response: error.response?.data,
+              alertId
+            });
           }
         } else {
           // Відправляємо сповіщення окремим адміністраторам
+          logger.info(`Getting admins with Telegram for group ${group.name}`);
           const admins = await group.getAdminsWithTelegram();
+          
+          logger.info(`Found ${admins.length} admins with Telegram in group ${group.name}`, {
+            adminCount: admins.length,
+            adminEmails: admins.map(a => a.email)
+          });
 
           if (admins.length === 0) {
             logger.info(`No admins with Telegram ID in group ${group.name} and no Telegram group ID specified`);
@@ -470,10 +572,19 @@ async sendNotifications(alert, groups) {
               });
 
               sent++;
-              logger.info(`Zabbix alert notification sent to admin ${admin.email} (telegramId: ${telegramId})`);
+              logger.info(`✅ Zabbix alert notification sent to admin ${admin.email}`, {
+                telegramId,
+                alertId
+              });
             } catch (error) {
               failed++;
-              logger.error(`Error sending notification to admin ${admin.email}:`, error);
+              logger.error(`❌ Error sending notification to admin ${admin.email}`, {
+                telegramId,
+                error: error.message,
+                code: error.code,
+                response: error.response?.data,
+                alertId
+              });
             }
           }
         }
@@ -492,12 +603,19 @@ async sendNotifications(alert, groups) {
       await alert.markNotificationSent(notifiedGroupIds);
     }
 
-    return {
+    const result = {
       sent,
       failed,
       total: sent + failed,
       notifiedGroups: notifiedGroupIds
     };
+    
+    logger.info(`📊 Notification sending completed for alert ${alertId}`, {
+      ...result,
+      alertId
+    });
+    
+    return result;
   }
 
   /**

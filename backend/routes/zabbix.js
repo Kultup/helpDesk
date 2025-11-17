@@ -112,5 +112,28 @@ router.put(
  */
 router.delete('/groups/:id', authenticateToken, adminAuth, zabbixController.deleteGroup);
 
+/**
+ * @route   POST /api/zabbix/test-alert
+ * @desc    Тестування відправки алерту
+ * @access  Private (Admin only)
+ */
+router.post(
+  '/test-alert',
+  authenticateToken,
+  adminAuth,
+  [
+    body('groupId').optional().isMongoId().withMessage('Group ID must be a valid MongoDB ID'),
+    body('alertId').optional().isMongoId().withMessage('Alert ID must be a valid MongoDB ID')
+  ],
+  zabbixController.testAlert
+);
+
+/**
+ * @route   GET /api/zabbix/status
+ * @desc    Отримати статус інтеграції Zabbix та Telegram
+ * @access  Private (Admin only)
+ */
+router.get('/status', authenticateToken, adminAuth, zabbixController.getStatus);
+
 module.exports = router;
 

@@ -3,6 +3,7 @@ const ZabbixAlert = require('../models/ZabbixAlert');
 const ZabbixAlertGroup = require('../models/ZabbixAlertGroup');
 const zabbixService = require('../services/zabbixService');
 const zabbixAlertService = require('../services/zabbixAlertService');
+const telegramService = require('../services/telegramServiceInstance');
 const { updatePollingJob } = require('../jobs/zabbixPolling');
 const { pollNow } = require('../jobs/zabbixPolling');
 const logger = require('../utils/logger');
@@ -616,6 +617,197 @@ exports.deleteGroup = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting Zabbix alert group',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Тестування відправки алерту
+ */
+exports.testAlert = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { groupId, alertId } = req.body;
+
+    let alert;
+    let groups;
+
+    // Якщо вказано alertId, використовуємо існуючий алерт
+    if (alertId) {
+      alert = await ZabbixAlert.findById(alertId);
+      if (!alert) {
+        return res.status(404).json({
+          success: false,
+          message: 'Alert not found'
+        });
+      }
+    } else {
+      // Створюємо тестовий алерт
+      alert = new ZabbixAlert({
+        alertId: `test_${Date.now()}`,
+        host: 'Test Host',
+        triggerName: 'Test Trigger',
+        severity: 4, // Disaster
+        severityLabel: 'Disaster',
+        status: 'PROBLEM',
+        message: 'This is a test alert to verify Telegram notification system',
+        eventTime: new Date(),
+        zabbixData: {
+          test: true
+        }
+      });
+    }
+
+    // Отримуємо групи для алерту
+    if (groupId) {
+      const group = await ZabbixAlertGroup.findById(groupId);
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          message: 'Group not found'
+        });
+      }
+      groups = [group];
+    } else {
+      // Отримуємо всі активні групи, які відповідають алерту
+      groups = await zabbixAlertService.getAlertGroupsForAlert(alert);
+      
+      if (groups.length === 0) {
+        // Якщо немає груп, отримуємо всі активні групи для тестування
+        groups = await ZabbixAlertGroup.find({ enabled: true });
+        
+        if (groups.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'No active alert groups found. Please create at least one alert group.'
+          });
+        }
+      }
+    }
+
+    logger.info(`Testing alert notification`, {
+      alertId: alert.alertId || alert._id,
+      groupsCount: groups.length,
+      groupIds: groups.map(g => g._id)
+    });
+
+    // Відправляємо сповіщення
+    const result = await zabbixAlertService.sendNotifications(alert, groups);
+
+    res.json({
+      success: true,
+      message: 'Test alert notification sent',
+      data: {
+        alert: {
+          id: alert._id || alert.alertId,
+          host: alert.host,
+          severity: alert.severity,
+          triggerName: alert.triggerName
+        },
+        groups: groups.map(g => ({
+          id: g._id,
+          name: g.name,
+          hasTelegramGroup: !!(g.telegram && g.telegram.groupId),
+          hasBotToken: !!(g.telegram && g.telegram.botToken)
+        })),
+        result
+      }
+    });
+  } catch (error) {
+    logger.error('Error testing alert notification:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing alert notification',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Отримати статус інтеграції Zabbix та Telegram
+ */
+exports.getStatus = async (req, res) => {
+  try {
+    const config = await ZabbixConfig.getActive();
+    const groups = await ZabbixAlertGroup.find({ enabled: true });
+    
+    // Отримуємо статистику адміністраторів з Telegram
+    let totalAdminsWithTelegram = 0;
+    const groupStats = [];
+    
+    for (const group of groups) {
+      const admins = await group.getAdminsWithTelegram();
+      totalAdminsWithTelegram += admins.length;
+      
+      groupStats.push({
+        id: group._id,
+        name: group.name,
+        adminCount: group.adminIds?.length || 0,
+        adminsWithTelegramCount: admins.length,
+        hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
+        hasBotToken: !!(group.telegram && group.telegram.botToken)
+      });
+    }
+
+    // Отримуємо останні алерти для статистики
+    const recentAlerts = await ZabbixAlert.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('alertId host severity status notificationSent createdAt');
+
+    const status = {
+      zabbix: {
+        enabled: config ? config.enabled : false,
+        hasConfig: !!config,
+        hasToken: !!(config?.apiTokenEncrypted && config?.apiTokenIV),
+        isInitialized: zabbixService.isInitialized,
+        lastPollAt: config?.lastPollAt || null,
+        lastError: config?.lastError || null,
+        lastErrorAt: config?.lastErrorAt || null,
+        stats: config?.stats || {
+          totalPolls: 0,
+          successfulPolls: 0,
+          failedPolls: 0,
+          alertsProcessed: 0
+        }
+      },
+      telegram: {
+        isInitialized: telegramService.isInitialized || false,
+        hasBot: !!telegramService.bot,
+        botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN
+      },
+      alertGroups: {
+        total: groups.length,
+        active: groups.filter(g => g.enabled).length,
+        totalAdminsWithTelegram,
+        groups: groupStats
+      },
+      recentAlerts: {
+        total: await ZabbixAlert.countDocuments(),
+        recent: recentAlerts,
+        withNotifications: await ZabbixAlert.countDocuments({ notificationSent: true }),
+        withoutNotifications: await ZabbixAlert.countDocuments({ notificationSent: false })
+      }
+    };
+
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    logger.error('Error getting Zabbix status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting status',
       error: error.message
     });
   }

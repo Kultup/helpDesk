@@ -18,6 +18,7 @@ const ticketWebSocketService = require('./ticketWebSocketService');
 class TelegramService {
   constructor() {
     this.bot = null;
+    this.isInitialized = false; // Додаємо флаг ініціалізації
     this.userSessions = new Map();
     this.userStates = new Map();
     this.stateStack = new Map();
@@ -32,10 +33,12 @@ class TelegramService {
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token) {
         logger.error('TELEGRAM_BOT_TOKEN не встановлено');
+        this.isInitialized = false;
         return;
       }
 
       this.bot = new TelegramBot(token, { polling: false });
+      this.isInitialized = true; // Встановлюємо флаг після успішної ініціалізації
       logger.info('✅ Telegram бот ініціалізовано');
 
       // Оновлюємо кеш категорій після ініціалізації бота
@@ -48,6 +51,7 @@ class TelegramService {
       }
     } catch (error) {
       logger.error('Помилка ініціалізації Telegram бота:', error);
+      this.isInitialized = false;
     }
   }
 
