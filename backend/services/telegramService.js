@@ -621,6 +621,9 @@ class TelegramService {
         ],
         [
           { text: '📄 Створити з шаблону', callback_data: 'create_from_template' },
+          { text: '📜 Історія тікетів', callback_data: 'ticket_history' }
+        ],
+        [
           { text: '📊 Статистика', callback_data: 'statistics' }
         ]
       ]
@@ -669,6 +672,17 @@ class TelegramService {
 
       if (data === 'my_tickets') {
         await this.handleMyTicketsCallback(chatId, user);
+      } else if (data === 'ticket_history') {
+        await this.handleTicketHistoryCallback(chatId, user);
+      } else if (data.startsWith('recreate_ticket_')) {
+        const ticketId = data.replace('recreate_ticket_', '');
+        await this.handleRecreateTicketCallback(chatId, user, ticketId);
+      } else if (data === 'use_previous_title') {
+        await this.handleUsePreviousTitleCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'use_previous_description') {
+        await this.handleUsePreviousDescriptionCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'create_ticket') {
         await this.handleCreateTicketCallback(chatId, user);
       } else if (data === 'create_from_template') {
@@ -809,6 +823,228 @@ class TelegramService {
         `Не вдалося завантажити список тікетів.\n\n` +
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async handleTicketHistoryCallback(chatId, user) {
+    try {
+      // Отримуємо всі тікети користувача, відсортовані за датою створення
+      const tickets = await Ticket.find({ createdBy: user._id })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate('category', 'name')
+        .lean();
+
+      if (tickets.length === 0) {
+        await this.sendMessage(chatId, 
+          `📜 *Історія тікетів*\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📄 У вас поки що немає тікетів\n\n` +
+          `💡 Створіть новий тікет, щоб отримати допомогу!`, {
+          reply_markup: {
+            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+          }
+        });
+        return;
+      }
+
+      let text = 
+        `📜 *Історія тікетів*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 Показано ${tickets.length} тікетів\n\n`;
+      
+      const keyboard = [];
+
+      tickets.forEach((ticket, index) => {
+        const status = this.getStatusEmoji(ticket.status);
+        const statusText = this.getStatusText(ticket.status);
+        const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+        
+        text += `${index + 1}. ${status} *${ticket.title}*\n`;
+        text += `   📊 Статус: *${statusText}*\n`;
+        text += `   📅 ${date}\n\n`;
+        
+        // Кнопка для повторного створення тікету
+        keyboard.push([{
+          text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50),
+          callback_data: `recreate_ticket_${ticket._id}`
+        }]);
+      });
+
+      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `💡 Натисніть на кнопку, щоб створити новий тікет на основі попереднього`;
+      
+      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: { inline_keyboard: keyboard },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка отримання історії тікетів:', error);
+      await this.sendMessage(chatId, 
+        `❌ *Помилка завантаження історії*\n\n` +
+        `Не вдалося завантажити історію тікетів.\n\n` +
+        `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async handleRecreateTicketCallback(chatId, user, ticketId) {
+    try {
+      // Знаходимо оригінальний тікет
+      const originalTicket = await Ticket.findById(ticketId)
+        .populate('category', 'name')
+        .lean();
+
+      if (!originalTicket) {
+        await this.sendMessage(chatId,
+          `❌ *Тікет не знайдено*\n\n` +
+          `Оригінальний тікет не знайдено в системі.`
+        );
+        return;
+      }
+
+      // Перевіряємо, чи тікет належить користувачу
+      if (String(originalTicket.createdBy) !== String(user._id)) {
+        await this.sendMessage(chatId,
+          `❌ *Доступ заборонено*\n\n` +
+          `Цей тікет не належить вам.`
+        );
+        return;
+      }
+
+      // Створюємо сесію для нового тікету на основі попереднього
+      const session = {
+        step: 'title',
+        ticketData: {
+          title: originalTicket.title,
+          description: originalTicket.description || '',
+          priority: originalTicket.priority || 'medium',
+          categoryId: originalTicket.category?._id || originalTicket.category || null,
+          photos: [],
+          isRecreated: true,
+          originalTicketId: ticketId
+        }
+      };
+      
+      this.userSessions.set(chatId, session);
+
+      // Показуємо форму з заповненими даними
+      let message = 
+        `🔄 *Повторне створення тікету*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 *Заголовок (на основі попереднього):*\n` +
+        `\`${originalTicket.title}\`\n\n` +
+        `📝 *Опис (на основі попереднього):*\n` +
+        `\`${originalTicket.description || 'Без опису'}\`\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✏️ Ви можете змінити заголовок або описати нову проблему.\n\n` +
+        `📋 *Крок 1/5:* Введіть заголовок тікету\n\n` +
+        `💡 Опишіть коротко суть проблеми`;
+
+      await this.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Використати попередній заголовок', callback_data: 'use_previous_title' }],
+            [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+          ]
+        },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка повторного створення тікету:', error);
+      await this.sendMessage(chatId,
+        `❌ *Помилка*\n\n` +
+        `Не вдалося завантажити дані тікету.\n\n` +
+        `🔄 Спробуйте ще раз.`
+      );
+    }
+  }
+
+  async handleUsePreviousTitleCallback(chatId, user) {
+    try {
+      const session = this.userSessions.get(chatId);
+      if (!session || !session.ticketData || !session.ticketData.title) {
+        await this.sendMessage(chatId,
+          `❌ *Помилка*\n\n` +
+          `Не вдалося знайти попередній заголовок.\n\n` +
+          `🔄 Спробуйте ввести заголовок вручну.`
+        );
+        return;
+      }
+
+      // Використовуємо попередній заголовок і переходимо до опису
+      session.step = 'description';
+      
+      await this.sendMessage(chatId,
+        `✅ *Заголовок використано*\n\n` +
+        `📋 Заголовок: *${session.ticketData.title}*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📝 *Крок 2/5:* Введіть опис проблеми\n\n` +
+        `💡 Опишіть детально вашу проблему.`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Використати попередній опис', callback_data: 'use_previous_description' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка використання попереднього заголовку:', error);
+      await this.sendMessage(chatId,
+        `❌ *Помилка*\n\n` +
+        `Не вдалося використати попередній заголовок.\n\n` +
+        `🔄 Спробуйте ввести заголовок вручну.`
+      );
+    }
+  }
+
+  async handleUsePreviousDescriptionCallback(chatId, user) {
+    try {
+      const session = this.userSessions.get(chatId);
+      if (!session || !session.ticketData || !session.ticketData.description) {
+        await this.sendMessage(chatId,
+          `❌ *Помилка*\n\n` +
+          `Не вдалося знайти попередній опис.\n\n` +
+          `🔄 Спробуйте ввести опис вручну.`
+        );
+        return;
+      }
+
+      // Використовуємо попередній опис і переходимо до фото
+      session.step = 'photo';
+      
+      await this.sendMessage(chatId,
+        `✅ *Опис використано*\n\n` +
+        `📝 Опис: *${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📷 *Крок 3/5:* Прикріпіть фото (необов'язково)\n\n` +
+        `💡 Ви можете прикріпити фото для кращого опису проблеми.`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📷 Прикріпити фото', callback_data: 'attach_photo' }],
+              [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка використання попереднього опису:', error);
+      await this.sendMessage(chatId,
+        `❌ *Помилка*\n\n` +
+        `Не вдалося використати попередній опис.\n\n` +
+        `🔄 Спробуйте ввести опис вручну.`
       );
     }
   }
