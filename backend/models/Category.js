@@ -21,7 +21,7 @@ const categorySchema = new mongoose.Schema({
   icon: {
     type: String,
     trim: true,
-    maxlength: [50, 'Назва іконки не може перевищувати 50 символів']
+    maxlength: [500, 'URL іконки не може перевищувати 500 символів']
   },
   isActive: {
     type: Boolean,
