@@ -627,7 +627,8 @@ export const useRegistrationNotifications = () => {
       });
       
       if (response.success && response.data) {
-        setRegistrations(response.data.docs || []);
+        // API повертає User[] напряму, а не об'єкт з docs
+        setRegistrations(Array.isArray(response.data) ? response.data : []);
       } else {
         setError(response.message || 'Помилка завантаження запитів на реєстрацію');
         setRegistrations([]);

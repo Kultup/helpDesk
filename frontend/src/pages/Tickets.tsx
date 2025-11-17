@@ -70,8 +70,9 @@ const Tickets: React.FC = () => {
   useEffect(() => {
     const statusParam = searchParams.get('status');
     if (statusParam) {
-      const validStatuses: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
-      if (validStatuses.includes(statusParam as TicketStatus)) {
+      // Використовуємо enum значення для перевірки
+      const validStatuses: string[] = [TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CLOSED];
+      if (validStatuses.includes(statusParam)) {
         // Встановлюємо фільтр з URL параметра
         setStatusFilter(statusParam as TicketStatus);
       }
