@@ -257,34 +257,42 @@ const Categories: React.FC = () => {
 
   const getIconUrl = (icon: string | undefined): string => {
     if (!icon) return '';
-    // Якщо це відносний URL (починається з /uploads), повертаємо як є
-    // Express.static обслуговує /uploads напряму
+    // Якщо це відносний URL (починається з /uploads), додаємо базовий URL
     if (icon.startsWith('/uploads')) {
-      return icon;
+      const baseURL = process.env.REACT_APP_API_URL?.replace('/api', '') || 
+        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '');
+      return `${baseURL}${icon}`;
     }
     // Абсолютні URL повертаємо як є
     return icon;
   };
 
   const renderCategoryIcon = (icon: string | undefined, color: string) => {
+    // Якщо немає іконки, не показуємо нічого
+    if (!icon) {
+      return null;
+    }
+
     if (isIconUrl(icon)) {
       return (
         <img 
           src={getIconUrl(icon)} 
           alt="Category icon" 
-          className="w-full h-full object-contain rounded-lg"
+          className="w-full h-full object-contain"
           onError={(e) => {
-            // Fallback до тексту, якщо зображення не завантажилось
+            // При помилці завантаження приховуємо зображення
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
+            // Показуємо placeholder або нічого
             if (target.parentElement) {
-              target.parentElement.textContent = icon || '';
+              target.parentElement.style.display = 'none';
             }
           }}
         />
       );
     }
-    return <span>{icon || ''}</span>;
+    // Якщо це текст/емодзі, відображаємо його
+    return <span className="text-gray-700">{icon}</span>;
   };
 
   const filteredCategories = showInactive 
@@ -505,11 +513,13 @@ const Categories: React.FC = () => {
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                   <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1 min-w-0 w-full sm:w-auto">
-                    <div 
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-                    >
-                      {renderCategoryIcon(category.icon, category.color)}
-                    </div>
+                    {category.icon && (
+                      <div 
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      >
+                        {renderCategoryIcon(category.icon, category.color)}
+                      </div>
+                    )}
                     
                     <div className="flex-1 min-w-0 w-full sm:w-auto">
                       {isEditing ? (
