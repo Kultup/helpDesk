@@ -69,3 +69,14 @@ exports.getCategoryStats = catchAsync(async (req, res) => {
 
   return successResponse(res, stats);
 });
+
+exports.uploadIcon = catchAsync(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('Файл не завантажено', 400);
+  }
+
+  // Повертаємо URL для доступу до файлу
+  const fileUrl = `/uploads/category-icons/${req.file.filename}`;
+
+  return successResponse(res, { url: fileUrl }, 'Іконку успішно завантажено');
+});

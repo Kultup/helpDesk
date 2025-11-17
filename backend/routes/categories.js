@@ -1,10 +1,49 @@
 const express = require('express');
 const { body } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
 const router = express.Router();
 const categoryController = require('../controllers/categoryController');
 const { authenticateToken } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const { cacheMiddleware, invalidateCache, cacheKeyGenerators } = require('../middleware/cache');
+
+// Налаштування multer для завантаження іконок категорій
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads/category-icons');
+    try {
+      await fs.mkdir(uploadPath, { recursive: true });
+    } catch (err) {
+      // Директорія вже існує
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'category-icon-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|svg|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Дозволені тільки зображення (jpeg, jpg, png, gif, svg, webp)'));
+    }
+  }
+});
 
 // Валідація для створення/оновлення категорії
 const categoryValidation = [
@@ -29,8 +68,24 @@ const categoryValidation = [
   body('icon')
     .optional()
     .trim()
-    .isLength({ max: 50 })
-    .withMessage('Назва іконки не може перевищувати 50 символів'),
+    .isLength({ max: 500 })
+    .withMessage('URL іконки не може перевищувати 500 символів')
+    .custom((value) => {
+      // Якщо це URL (починається з http:// або https:// або з /uploads)
+      if (value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/uploads'))) {
+        return true;
+      }
+      // Або це короткий текст/емодзі/назва іконки (до 50 символів)
+      if (value && value.length <= 50) {
+        return true;
+      }
+      // Якщо значення порожнє, це теж добре (опціональне поле)
+      if (!value) {
+        return true;
+      }
+      return false;
+    })
+    .withMessage('Іконка повинна бути URL (починається з http://, https:// або /uploads) або коротким текстом (до 50 символів)'),
   
   body('sortOrder')
     .optional()
@@ -65,6 +120,14 @@ router.get('/:id',
   authenticateToken, 
   cacheMiddleware(300, cacheKeyGenerators.category),
   categoryController.getCategoryById
+);
+
+// Завантажити іконку категорії (тільки адміністратори)
+router.post('/upload-icon',
+  authenticateToken,
+  adminAuth,
+  upload.single('icon'),
+  categoryController.uploadIcon
 );
 
 // Створити нову категорію (тільки адміністратори)

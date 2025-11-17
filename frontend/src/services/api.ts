@@ -372,6 +372,19 @@ class ApiService {
     return response.data;
   }
 
+  async uploadCategoryIcon(file: File): Promise<ApiResponse<{ url: string }>> {
+    const formData = new FormData();
+    formData.append('icon', file);
+    
+    const response: AxiosResponse<ApiResponse<{ url: string }>> = 
+      await this.api.post('/categories/upload-icon', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    return response.data;
+  }
+
   async updateCategory(id: string, updates: UpdateCategoryForm): Promise<ApiResponse<Category>> {
     const response: AxiosResponse<ApiResponse<Category>> = 
       await this.api.put(`/categories/${id}`, updates);

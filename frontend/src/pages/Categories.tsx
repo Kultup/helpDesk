@@ -6,7 +6,7 @@ import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import { Plus, Edit2, Save, X, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit2, Save, X, Trash2, Eye, EyeOff, Upload, Link as LinkIcon, Image } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const Categories: React.FC = () => {
@@ -25,6 +25,9 @@ const Categories: React.FC = () => {
     icon: '',
     sortOrder: 0
   });
+  const [iconInputType, setIconInputType] = useState<'url' | 'file'>('url');
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -83,6 +86,10 @@ const Categories: React.FC = () => {
       icon: category.icon,
       sortOrder: category.sortOrder
     });
+    // Визначаємо тип вводу залежно від існуючого іконки
+    setIconInputType(category.icon?.startsWith('http') ? 'url' : 'url');
+    setIconFile(null);
+    setIconPreview(null);
   };
 
   const handleCreate = () => {
@@ -94,21 +101,46 @@ const Categories: React.FC = () => {
       icon: '',
       sortOrder: categories.length
     });
+    setIconInputType('url');
+    setIconFile(null);
+    setIconPreview(null);
   };
 
   const handleSave = async () => {
     try {
       setError(null);
       
+      // Якщо завантажено файл, спочатку завантажуємо його
+      let iconUrl = editForm.icon;
+      if (iconInputType === 'file' && iconFile) {
+        try {
+          const uploadResponse = await apiService.uploadCategoryIcon(iconFile);
+          if (uploadResponse.data?.url) {
+            iconUrl = uploadResponse.data.url;
+          } else {
+            throw new Error('Не вдалося завантажити іконку');
+          }
+        } catch (uploadError) {
+          console.error('Error uploading icon:', uploadError);
+          setError(t('categories.messages.iconUploadError') || 'Помилка завантаження іконки');
+          return;
+        }
+      }
+      
+      const formData = {
+        ...editForm,
+        icon: iconUrl
+      };
+      
       if (isCreating) {
-        const response = await apiService.createCategory(editForm as CreateCategoryForm);
+        const response = await apiService.createCategory(formData as CreateCategoryForm);
         if (response.data) {
           setCategories(prev => [...prev, response.data!]);
           setSuccess(t('categories.messages.createSuccess'));
         }
         setIsCreating(false);
       } else if (editingCategory) {
-        const response = await apiService.updateCategory(editingCategory, editForm as UpdateCategoryForm);
+        const response = await apiService.updateCategory(editingCategory, formData as UpdateCategoryForm);
         if (response.data) {
           setCategories(prev => prev.map(cat => 
             cat._id === editingCategory ? response.data! : cat
@@ -177,6 +209,35 @@ const Categories: React.FC = () => {
       icon: '',
       sortOrder: 0
     });
+    setIconInputType('url');
+    setIconFile(null);
+    setIconPreview(null);
+  };
+
+  const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Перевіряємо тип файлу
+      if (!file.type.startsWith('image/')) {
+        setError('Файл має бути зображенням');
+        return;
+      }
+      
+      // Перевіряємо розмір файлу (макс 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('Розмір файлу не повинен перевищувати 2MB');
+        return;
+      }
+      
+      setIconFile(file);
+      
+      // Створюємо preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIconPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const getCategoryStats = (categoryId: string) => {
@@ -309,12 +370,76 @@ const Categories: React.FC = () => {
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   {t('categories.form.icon')}
                 </label>
-                <Input
-                  value={editForm.icon}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
-                  placeholder={t('categories.form.iconPlaceholder')}
-                  className="text-sm sm:text-base"
-                />
+                
+                {/* Вибір типу вводу */}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIconInputType('url');
+                      setIconFile(null);
+                      setIconPreview(null);
+                    }}
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      iconInputType === 'url'
+                        ? 'bg-blue-50 border-blue-500 text-blue-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <LinkIcon className="h-3 w-3 inline mr-1" />
+                    URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIconInputType('file');
+                      setEditForm(prev => ({ ...prev, icon: '' }));
+                    }}
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      iconInputType === 'file'
+                        ? 'bg-blue-50 border-blue-500 text-blue-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Upload className="h-3 w-3 inline mr-1" />
+                    Файл
+                  </button>
+                </div>
+
+                {iconInputType === 'url' ? (
+                  <Input
+                    value={editForm.icon}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
+                    placeholder={t('categories.form.iconPlaceholder') || 'https://example.com/icon.png'}
+                    className="text-sm sm:text-base"
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                        {iconPreview ? (
+                          <img src={iconPreview} alt="Preview" className="h-16 w-16 object-contain mb-1" />
+                        ) : (
+                          <>
+                            <Image className="w-6 h-6 mb-2 text-gray-500" />
+                            <p className="text-xs text-gray-500 text-center px-2">
+                              Натисніть для вибору файлу
+                            </p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleIconFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {iconFile && (
+                      <p className="text-xs text-gray-600 truncate">{iconFile.name}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:space-x-2 pt-2">
@@ -381,12 +506,76 @@ const Categories: React.FC = () => {
                               <label className="block text-xs font-medium text-gray-700 mb-1">
                                 {t('categories.form.icon')}
                               </label>
-                              <Input
-                                value={editForm.icon}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
-                                placeholder={t('categories.form.iconPlaceholder')}
-                                className="text-sm sm:text-base"
-                              />
+                              
+                              {/* Вибір типу вводу */}
+                              <div className="flex gap-2 mb-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIconInputType('url');
+                                    setIconFile(null);
+                                    setIconPreview(null);
+                                  }}
+                                  className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                                    iconInputType === 'url'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                      : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  <LinkIcon className="h-3 w-3 inline mr-1" />
+                                  URL
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIconInputType('file');
+                                    setEditForm(prev => ({ ...prev, icon: '' }));
+                                  }}
+                                  className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                                    iconInputType === 'file'
+                                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                      : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  <Upload className="h-3 w-3 inline mr-1" />
+                                  Файл
+                                </button>
+                              </div>
+
+                              {iconInputType === 'url' ? (
+                                <Input
+                                  value={editForm.icon}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, icon: e.target.value }))}
+                                  placeholder={t('categories.form.iconPlaceholder') || 'https://example.com/icon.png'}
+                                  className="text-sm sm:text-base"
+                                />
+                              ) : (
+                                <div className="space-y-2">
+                                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                    <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                                      {iconPreview ? (
+                                        <img src={iconPreview} alt="Preview" className="h-16 w-16 object-contain mb-1" />
+                                      ) : (
+                                        <>
+                                          <Image className="w-6 h-6 mb-2 text-gray-500" />
+                                          <p className="text-xs text-gray-500 text-center px-2">
+                                            Натисніть для вибору файлу
+                                          </p>
+                                        </>
+                                      )}
+                                    </div>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleIconFileChange}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                  {iconFile && (
+                                    <p className="text-xs text-gray-600 truncate">{iconFile.name}</p>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
