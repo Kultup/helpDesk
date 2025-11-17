@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -16,9 +17,11 @@ const RegistrationDropdown: React.FC<RegistrationDropdownProps> = ({
   onClose
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  
   const handleViewAll = () => {
-    // Перенаправлення на сторінку управління користувачами
-    window.location.href = '/admin/users';
+    // Перенаправлення на сторінку запитів на реєстрацію
+    navigate('/admin/pending-registrations');
     onClose();
   };
 
