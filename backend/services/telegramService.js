@@ -558,6 +558,7 @@ class TelegramService {
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
+                  [{ text: '🔐 Авторизуватися', callback_data: 'login_user' }],
                   [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
                   [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
                 ]
@@ -680,10 +681,26 @@ class TelegramService {
         return;
       }
 
-      // Якщо користувач не зареєстрований, обробляємо callback-и для реєстрації
+      // Якщо користувач не зареєстрований, обробляємо callback-и для реєстрації та авторизації
       if (data === 'register_user') {
         await this.handleUserRegistrationCallback(chatId, userId);
-       await this.answerCallbackQuery(callbackQuery.id);
+        await this.answerCallbackQuery(callbackQuery.id);
+        return;
+      }
+
+      if (data === 'login_user') {
+        await this.handleUserLoginCallback(chatId, userId, callbackQuery);
+        await this.answerCallbackQuery(callbackQuery.id);
+        return;
+      }
+
+      if (data === 'cancel_login') {
+        this.userSessions.delete(chatId);
+        await this.sendMessage(chatId, 
+          `❌ *Авторизацію скасовано*\n\n` +
+          `Ви можете спробувати авторизуватися пізніше.`
+        );
+        await this.answerCallbackQuery(callbackQuery.id);
         return;
       }
 
@@ -695,8 +712,8 @@ class TelegramService {
         return;
       }
 
-      // Якщо користувач не зареєстрований і це не callback для реєстрації
-      await this.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані. Використайте /start для реєстрації.');
+      // Якщо користувач не зареєстрований і це не callback для реєстрації/авторизації
+      await this.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані. Використайте /start для реєстрації або авторизації.');
     } catch (error) {
       logger.error('Помилка обробки callback query:', error);
       await this.answerCallbackQuery(callbackQuery.id, 'Виникла помилка');
@@ -1005,6 +1022,12 @@ class TelegramService {
       
       // Якщо немає активної сесії, показуємо головне меню
       await this.showUserDashboard(chatId, existingUser);
+      return;
+    }
+
+    // Перевіряємо, чи користувач в процесі авторизації
+    if (session && session.type === 'login') {
+      await this.handleLoginTextInput(chatId, userId, text, session, msg);
       return;
     }
 
@@ -2280,6 +2303,233 @@ class TelegramService {
       `• Принаймні одну цифру\n\n` +
       `💡 *Приклад:* MyPass123`
     );
+  }
+
+  async handleUserLoginCallback(chatId, userId, callbackQuery = null) {
+    try {
+      // Перевіряємо, чи користувач вже зареєстрований
+      const existingUser = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
+      
+      if (existingUser) {
+        await this.sendMessage(chatId, 
+          `✅ *Ви вже авторизовані!*\n\n` +
+          `Ваш обліковий запис вже підключено до Telegram.\n\n` +
+          `Використайте /start для перегляду меню.`
+        );
+        return;
+      }
+
+      // Створюємо сесію для авторизації
+      const usernameFromMsg = callbackQuery?.from?.username
+        ? callbackQuery.from.username.replace(/^@/, '').toLowerCase()
+        : null;
+      
+      const session = {
+        type: 'login',
+        step: 'login',
+        data: {
+          username: usernameFromMsg
+        }
+      };
+      this.userSessions.set(chatId, session);
+
+      await this.sendMessage(chatId, 
+        `🔐 *Авторизація в системі*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📝 *Крок 1/2:* Введіть ваш логін\n\n` +
+        `💡 Введіть логін, який ви використовуєте для входу в систему.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Скасувати', callback_data: 'cancel_login' }]
+            ]
+          }
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка обробки авторизації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async handleLoginTextInput(chatId, userId, text, session, msg = null) {
+    try {
+      const step = session.step;
+      let isValid = true;
+      let errorMessage = '';
+
+      // Оновлюємо username з повідомлення, якщо він є
+      if (msg?.from?.username && !session.data.username) {
+        session.data.username = msg.from.username.replace(/^@/, '').toLowerCase();
+      }
+
+      switch (step) {
+        case 'login':
+          if (text && text.trim().length >= 3) {
+            session.data.login = text.trim().toLowerCase();
+            session.step = 'password';
+            await this.sendMessage(chatId, 
+              `✅ *Логін прийнято!*\n\n` +
+              `👤 *Логін:* \`${session.data.login}\`\n\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+              `🔐 *Крок 2/2:* Введіть ваш пароль\n\n` +
+              `💡 Введіть пароль для входу в систему.`
+            );
+          } else {
+            isValid = false;
+            errorMessage = '❌ *Некоректний логін*\n\nЛогін повинен містити мінімум 3 символи.\n\n💡 Спробуйте ще раз:';
+          }
+          break;
+
+        case 'password':
+          if (text && text.length >= 6) {
+            session.data.password = text;
+            await this.completeLogin(chatId, userId, session);
+            return;
+          } else {
+            isValid = false;
+            errorMessage = '❌ *Некоректний пароль*\n\nПароль повинен містити мінімум 6 символів.\n\n💡 Спробуйте ще раз:';
+          }
+          break;
+
+        default:
+          await this.sendMessage(chatId, '❌ Помилка в процесі авторизації. Спробуйте почати заново.');
+          this.userSessions.delete(chatId);
+          return;
+      }
+
+      if (!isValid) {
+        await this.sendMessage(chatId, errorMessage);
+      }
+    } catch (error) {
+      logger.error('Помилка обробки введення авторизації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+      this.userSessions.delete(chatId);
+    }
+  }
+
+  async completeLogin(chatId, userId, session) {
+    try {
+      const { login, password } = session.data;
+      const userIdString = String(userId);
+      const chatIdString = String(chatId);
+
+      // Шукаємо користувача за логіном
+      const user = await User.findOne({ login: login.toLowerCase() })
+        .select('+password')
+        .populate('position', 'name')
+        .populate('city', 'name');
+
+      if (!user) {
+        await this.sendMessage(chatId, 
+          `❌ *Помилка авторизації*\n\n` +
+          `Користувача з таким логіном не знайдено.\n\n` +
+          `💡 Перевірте правильність логіну та спробуйте ще раз.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔄 Спробувати ще раз', callback_data: 'login_user' }],
+                [{ text: '📝 Зареєструватися', callback_data: 'register_user' }]
+              ]
+            }
+          }
+        );
+        this.userSessions.delete(chatId);
+        return;
+      }
+
+      // Перевірка активності акаунта
+      if (!user.isActive) {
+        await this.sendMessage(chatId, 
+          `🚫 *Доступ обмежено*\n\n` +
+          `Ваш обліковий запис деактивовано.\n\n` +
+          `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
+          { parse_mode: 'Markdown' }
+        );
+        this.userSessions.delete(chatId);
+        return;
+      }
+
+      // Перевірка статусу реєстрації
+      if (user.registrationStatus === 'pending') {
+        await this.sendMessage(chatId, 
+          `⏳ *Очікування підтвердження*\n\n` +
+          `Ваша реєстрація очікує підтвердження адміністратора.\n\n` +
+          `📞 Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          { parse_mode: 'Markdown' }
+        );
+        this.userSessions.delete(chatId);
+        return;
+      }
+
+      // Перевірка пароля
+      const bcrypt = require('bcryptjs');
+      const isPasswordValid = await user.comparePassword(password);
+
+      if (!isPasswordValid) {
+        await this.sendMessage(chatId, 
+          `❌ *Помилка авторизації*\n\n` +
+          `Невірний пароль.\n\n` +
+          `💡 Перевірте правильність пароля та спробуйте ще раз.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔄 Спробувати ще раз', callback_data: 'login_user' }]
+              ]
+            }
+          }
+        );
+        this.userSessions.delete(chatId);
+        return;
+      }
+
+      // Оновлюємо дані Telegram для користувача
+      user.telegramId = userIdString;
+      user.telegramChatId = chatIdString;
+      if (session.data.username) {
+        user.telegramUsername = session.data.username;
+      }
+      user.lastLogin = new Date();
+      await user.save();
+
+      // Очищуємо сесію
+      this.userSessions.delete(chatId);
+
+      logger.info('✅ Користувач успішно авторизований через Telegram:', {
+        userId: user._id,
+        email: user.email,
+        login: user.login,
+        telegramId: user.telegramId
+      });
+
+      await this.sendMessage(chatId, 
+        `✅ *Авторизація успішна!*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🎉 Вітаємо, ${user.firstName}!\n\n` +
+        `Ваш обліковий запис успішно підключено до Telegram бота.`
+      );
+
+      // Показуємо dashboard
+      await this.showUserDashboard(chatId, user);
+    } catch (error) {
+      logger.error('Помилка завершення авторизації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка при авторизації. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+      this.userSessions.delete(chatId);
+    }
   }
 
   async handleFeedbackMessage(chatId, text, user) {
