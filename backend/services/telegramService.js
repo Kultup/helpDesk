@@ -300,17 +300,26 @@ class TelegramService {
       }
 
       // Якщо досі не знайдено, пробуємо знайти за telegramUsername
-      // Перевіряємо, чи в telegramUsername зберігається ID у форматі @1234567890
+      // Перевіряємо, чи в telegramUsername зберігається ID у форматі @1234567890 або просто 1234567890
       if (!user) {
         logger.info('Пробуємо знайти користувача за telegramUsername (може містити ID):');
         
-        // Шукаємо безпосередньо за значенням @userIdString
-        const idInUsername = `@${userIdString}`;
+        // Шукаємо за значенням @userIdString
+        const idInUsernameWithAt = `@${userIdString}`;
         user = await User.findOne({
-          telegramUsername: idInUsername
+          telegramUsername: idInUsernameWithAt
         })
           .populate('position', 'name')
           .populate('city', 'name');
+
+        // Якщо не знайдено, пробуємо без префікса @
+        if (!user) {
+          user = await User.findOne({
+            telegramUsername: userIdString
+          })
+            .populate('position', 'name')
+            .populate('city', 'name');
+        }
 
         if (user) {
           logger.info('Знайдено користувача за telegramUsername, де зберігається ID:', {
@@ -318,7 +327,8 @@ class TelegramService {
             email: user.email,
             telegramUsername: user.telegramUsername,
             extractedId: userIdString,
-            expectedId: userIdString
+            expectedId: userIdString,
+            foundWithAt: user.telegramUsername === idInUsernameWithAt
           });
 
           logger.info('Оновлюємо дані Telegram для користувача (ID був в telegramUsername):', {
@@ -434,6 +444,7 @@ class TelegramService {
             'telegramChatId as String',
             'telegramChatId as Number',
             'telegramUsername containing ID (@1234567890)',
+            'telegramUsername containing ID (1234567890 without @)',
             'telegramUsername (case-insensitive)',
             'test user auto-update (admin/test.com)'
           ]
