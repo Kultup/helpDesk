@@ -249,10 +249,10 @@ class TelegramService {
             $in: [prefixedId, spacedId, `@ ${userIdString}`, `${userIdString} `]
           }
         })
-          .populate('position', 'name')
-          .populate('city', 'name');
-
-        if (user) {
+        .populate('position', 'name')
+        .populate('city', 'name');
+      
+      if (user) {
           logger.info('Знайдено користувача з telegramId у форматі з префіксом або пробілами. Оновлюємо значення.', {
             userId: user._id,
             email: user.email,
@@ -459,47 +459,47 @@ class TelegramService {
           // Якщо користувач вже зареєстрований, показуємо головне меню
           await this.showUserDashboard(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id, 'Ви вже зареєстровані');
-          return;
-        }
+        return;
+      }
 
         // Якщо користувач зареєстрований, обробляємо callback для зареєстрованих користувачів
-        // Видаляємо попереднє повідомлення з інлайн кнопками
-        try {
-          await this.deleteMessage(chatId, messageId);
-        } catch (deleteError) {
-          logger.warn('Не вдалося видалити повідомлення:', deleteError.message);
-        }
+      // Видаляємо попереднє повідомлення з інлайн кнопками
+      try {
+        await this.deleteMessage(chatId, messageId);
+      } catch (deleteError) {
+        logger.warn('Не вдалося видалити повідомлення:', deleteError.message);
+      }
 
-        if (data === 'my_tickets') {
-          await this.handleMyTicketsCallback(chatId, user);
-        } else if (data === 'create_ticket') {
-          await this.handleCreateTicketCallback(chatId, user);
-        } else if (data === 'create_from_template') {
-          await this.handleCreateFromTemplateCallback(chatId, user);
-        } else if (data === 'statistics') {
-          await this.handleStatisticsCallback(chatId, user);
-        } else if (data === 'back') {
-          await this.showUserDashboard(chatId, user);
-        } else if (data === 'attach_photo') {
-          await this.handleAttachPhotoCallback(chatId, user);
-        } else if (data === 'skip_photo') {
-          await this.handleSkipPhotoCallback(chatId, user);
-        } else if (data === 'add_more_photos') {
-          await this.handleAddMorePhotosCallback(chatId, user);
-        } else if (data === 'finish_ticket') {
-          await this.handleFinishTicketCallback(chatId, user);
-        } else if (data.startsWith('category_')) {
-          const categoryId = data.replace('category_', '');
-          await this.handleDynamicCategoryCallback(chatId, user, categoryId);
-        } else if (data === 'priority_low') {
-          await this.handlePriorityCallback(chatId, user, 'low');
-        } else if (data === 'priority_medium') {
-          await this.handlePriorityCallback(chatId, user, 'medium');
-        } else if (data === 'priority_high') {
-          await this.handlePriorityCallback(chatId, user, 'high');
-        } else if (data.startsWith('template_')) {
-          const templateId = data.replace('template_', '');
-          await this.handleTemplateSelectionCallback(chatId, user, templateId);
+      if (data === 'my_tickets') {
+        await this.handleMyTicketsCallback(chatId, user);
+      } else if (data === 'create_ticket') {
+        await this.handleCreateTicketCallback(chatId, user);
+      } else if (data === 'create_from_template') {
+        await this.handleCreateFromTemplateCallback(chatId, user);
+      } else if (data === 'statistics') {
+        await this.handleStatisticsCallback(chatId, user);
+      } else if (data === 'back') {
+        await this.showUserDashboard(chatId, user);
+      } else if (data === 'attach_photo') {
+        await this.handleAttachPhotoCallback(chatId, user);
+      } else if (data === 'skip_photo') {
+        await this.handleSkipPhotoCallback(chatId, user);
+      } else if (data === 'add_more_photos') {
+        await this.handleAddMorePhotosCallback(chatId, user);
+      } else if (data === 'finish_ticket') {
+        await this.handleFinishTicketCallback(chatId, user);
+      } else if (data.startsWith('category_')) {
+        const categoryId = data.replace('category_', '');
+        await this.handleDynamicCategoryCallback(chatId, user, categoryId);
+      } else if (data === 'priority_low') {
+           await this.handlePriorityCallback(chatId, user, 'low');
+         } else if (data === 'priority_medium') {
+           await this.handlePriorityCallback(chatId, user, 'medium');
+         } else if (data === 'priority_high') {
+           await this.handlePriorityCallback(chatId, user, 'high');
+         } else if (data.startsWith('template_')) {
+           const templateId = data.replace('template_', '');
+           await this.handleTemplateSelectionCallback(chatId, user, templateId);
         } else if (data === 'create_from_template') {
           await this.handleCreateFromTemplateCallback(chatId, user);
         } else {
@@ -511,7 +511,7 @@ class TelegramService {
       // Якщо користувач не зареєстрований, обробляємо callback-и для реєстрації
       if (data === 'register_user') {
         await this.handleUserRegistrationCallback(chatId, userId);
-        await this.answerCallbackQuery(callbackQuery.id);
+       await this.answerCallbackQuery(callbackQuery.id);
         return;
       }
 
@@ -1138,9 +1138,9 @@ class TelegramService {
          );
      } catch (error) {
        logger.error('Помилка обробки фото:', error);
-      await this.sendMessage(chatId, 'Помилка обробки фото. Спробуйте ще раз.');
-    }
-  }
+       await this.sendMessage(chatId, 'Помилка обробки фото. Спробуйте ще раз.');
+     }
+   }
 
   async handleContact(msg) {
     const chatId = msg.chat.id;
@@ -1628,4 +1628,493 @@ class TelegramService {
       ]);
 
       const categoryText = await this.getCategoryText(ticket.category._id);
-      const message = `
+      const priorityText = this.getPriorityText(ticket.priority);
+      const statusText = this.getStatusText(ticket.status);
+      
+      const message = 
+        `🎫 *Новий тікет створено*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 *Заголовок:* ${ticket.title}\n` +
+        `📝 *Опис:* ${ticket.description || 'Без опису'}\n\n` +
+        `👤 *Автор:* ${ticket.createdBy?.firstName || ''} ${ticket.createdBy?.lastName || ''}\n` +
+        `📧 *Email:* \`${ticket.createdBy?.email || 'Невідомий'}\`\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
+        `🏷️ *Категорія:* ${categoryText}\n` +
+        `⚡ *Пріоритет:* ${priorityText}\n` +
+        `📊 *Статус:* ${statusText}\n` +
+        `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+      logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram');
+    } catch (error) {
+      logger.error('Помилка відправки сповіщення про новий тікет в групу:', error);
+    }
+  }
+
+  getStatusText(status) {
+    const statusMap = {
+      'open': 'Відкрито',
+      'in_progress': 'В роботі',
+      'resolved': 'Вирішено',
+      'closed': 'Закрито',
+      'pending': 'Очікує'
+    };
+    return statusMap[status] || status;
+  }
+
+  getStatusEmoji(status) {
+    const emojiMap = {
+      'open': '🔓',
+      'in_progress': '⚙️',
+      'resolved': '✅',
+      'closed': '🔒',
+      'pending': '⏳'
+    };
+    return emojiMap[status] || '📋';
+  }
+
+  getPriorityText(priority) {
+    const priorityMap = {
+      'low': '🟢 Низький',
+      'medium': '🟡 Середній',
+      'high': '🔴 Високий',
+      'urgent': '🔴🔴 Критичний'
+    };
+    return priorityMap[priority] || priority;
+  }
+
+  getCategoryPromptText() {
+    return `🏷️ *Оберіть категорію тікету*\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Категорія допоможе швидше обробити ваш запит.`;
+  }
+
+  getPriorityPromptText() {
+    return `⚡ *Оберіть пріоритет тікету*\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Пріоритет визначає швидкість обробки вашого запиту.`;
+  }
+
+  getCancelButtonText() {
+    return '❌ Скасувати';
+  }
+
+  async generateCategoryButtons() {
+    const categories = this.getAllCategories();
+    const buttons = [];
+    
+    for (const category of categories) {
+      const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
+      const text = icon ? `${icon} ${category.name}` : category.name;
+      buttons.push([{
+        text: text,
+        callback_data: `category_${category._id}`
+      }]);
+    }
+    
+    return buttons;
+  }
+
+  getAllCategories() {
+    return Array.from(this.categoryCache.values());
+  }
+
+  async loadCategories() {
+    try {
+      const categories = await Category.find({ isActive: true })
+        .select('name icon color')
+        .sort({ name: 1 })
+        .lean();
+      
+      this.categoryCache.clear();
+      categories.forEach(cat => {
+        this.categoryCache.set(cat._id.toString(), cat);
+      });
+      
+      logger.debug(`Завантажено ${categories.length} категорій в кеш`);
+    } catch (error) {
+      logger.error('Помилка завантаження категорій:', error);
+    }
+  }
+
+  async loadBotSettings() {
+    try {
+      this.botSettings = await BotSettings.findOne();
+      if (this.botSettings) {
+        logger.debug('Налаштування бота завантажено');
+      }
+    } catch (error) {
+      logger.error('Помилка завантаження налаштувань бота:', error);
+    }
+  }
+
+  async handleDynamicCategoryCallback(chatId, user, categoryId) {
+    const session = this.userSessions.get(chatId);
+    if (session) {
+      session.ticketData.categoryId = categoryId;
+      
+      // Якщо це шаблонний тікет, пропускаємо вибір пріоритету
+      if (session.isTemplate && session.templateId) {
+        const template = await TicketTemplate.findById(session.templateId);
+        if (template) {
+          session.ticketData.title = template.title;
+          session.ticketData.description = template.description;
+          session.ticketData.priority = template.priority;
+          session.ticketData.categoryId = template.category || categoryId;
+          session.step = 'photo';
+          
+          await this.sendMessage(chatId,
+            '📷 Хочете додати фото до тікету? (необов\'язково)', {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
+                  [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
+                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                ]
+              }
+            }
+          );
+          return;
+        }
+      }
+      
+      session.step = 'priority';
+      await this.sendMessage(chatId, 
+        this.getPriorityPromptText(), {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
+              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
+              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
+    }
+  }
+
+  async handleUserRegistrationCallback(chatId, userId) {
+    try {
+      // Перевіряємо, чи користувач вже зареєстрований
+      const existingUser = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
+      
+      if (existingUser) {
+        await this.sendMessage(chatId, 
+          `✅ *Ви вже зареєстровані!*\n\n` +
+          `Ваш обліковий запис вже існує в системі.\n\n` +
+          `Використайте /start для перегляду меню.`
+        );
+        return;
+      }
+
+      // Перевіряємо, чи є активна реєстрація
+      let pendingRegistration = await PendingRegistration.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
+
+      if (!pendingRegistration) {
+        pendingRegistration = new PendingRegistration({
+          telegramId: String(userId),
+          telegramChatId: String(chatId),
+          step: 'firstName',
+          data: {}
+        });
+        await pendingRegistration.save();
+      }
+
+      await this.processRegistrationStep(chatId, userId, pendingRegistration);
+    } catch (error) {
+      logger.error('Помилка обробки реєстрації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async processRegistrationStep(chatId, userId, pendingRegistration) {
+    try {
+      const step = pendingRegistration.step;
+      
+      switch (step) {
+        case 'firstName':
+          await this.sendMessage(chatId, 
+            `📝 *Реєстрація в системі*\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `👤 *Крок 1/7:* Введіть ваше ім'я\n\n` +
+            `💡 Ім'я повинно містити тільки літери та бути довжиною від 2 до 50 символів.`
+          );
+          break;
+          
+        case 'lastName':
+          await this.sendMessage(chatId, 
+            `✅ *Ім'я прийнято!*\n\n` +
+            `👤 *Ім'я:* ${pendingRegistration.data.firstName}\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `👤 *Крок 2/7:* Введіть ваше прізвище\n\n` +
+            `💡 Прізвище повинно містити тільки літери та бути довжиною від 2 до 50 символів.`
+          );
+          break;
+          
+        case 'email':
+          await this.sendMessage(chatId, 
+            `✅ *Прізвище прийнято!*\n\n` +
+            `👤 *Прізвище:* ${pendingRegistration.data.lastName}\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📧 *Крок 3/7:* Введіть вашу електронну адресу\n\n` +
+            `💡 *Приклад:* user@example.com`
+          );
+          break;
+          
+        case 'phone':
+          await this.sendMessage(chatId, 
+            `✅ *Email прийнято!*\n\n` +
+            `📧 *Email:* \`${pendingRegistration.data.email}\`\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📱 *Крок 4/7:* Введіть ваш номер телефону\n\n` +
+            `💡 *Приклад:* +380501234567\n\n` +
+            `Або натисніть кнопку нижче, щоб поділитися номером:`,
+            {
+              reply_markup: {
+                keyboard: [
+                  [{
+                    text: '📱 Поділитися номером',
+                    request_contact: true
+                  }]
+                ],
+                resize_keyboard: true,
+                one_time_keyboard: true
+              }
+            }
+          );
+          break;
+          
+        case 'password':
+          await this.sendMessage(chatId, 
+            `✅ *Номер телефону прийнято!*\n\n` +
+            `📱 *Номер:* ${pendingRegistration.data.phone}\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `🔐 *Крок 5/7:* Введіть пароль\n\n` +
+            `💡 Пароль повинен містити:\n` +
+            `• Мінімум 6 символів\n` +
+            `• Принаймні одну літеру\n` +
+            `• Принаймні одну цифру\n\n` +
+            `💡 *Приклад:* MyPass123`
+          );
+          break;
+          
+        case 'city':
+          await this.sendCitySelection(chatId, userId);
+          break;
+          
+        case 'position':
+          await this.sendPositionSelection(chatId, userId);
+          break;
+          
+        case 'completed':
+          await this.completeRegistration(chatId, userId, pendingRegistration);
+          break;
+          
+        default:
+          await this.sendMessage(chatId, '❌ Помилка в процесі реєстрації. Спробуйте почати заново.');
+      }
+    } catch (error) {
+      logger.error('Помилка обробки кроку реєстрації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async sendCitySelection(chatId, userId) {
+    try {
+      const cities = await City.find({ isActive: true })
+        .select('name region')
+        .sort({ name: 1 })
+        .limit(50)
+        .lean();
+
+      if (cities.length === 0) {
+        await this.sendMessage(chatId, 
+          `❌ *Немає доступних міст*\n\n` +
+          `Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const keyboard = [];
+      cities.forEach(city => {
+        keyboard.push([{
+          text: `🏙️ ${city.name}${city.region ? ` (${city.region})` : ''}`,
+          callback_data: `city_${city._id}`
+        }]);
+      });
+
+      await this.sendMessage(chatId, 
+        `✅ *Пароль прийнято!*\n\n` +
+        `🔐 *Пароль:* \`********\`\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🏙️ *Крок 6/7:* Оберіть ваше місто`,
+        {
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка отримання списку міст:', error);
+      await this.sendMessage(chatId, 'Помилка завантаження списку міст. Спробуйте ще раз.');
+    }
+  }
+
+  async sendPositionSelection(chatId, userId) {
+    try {
+      const positions = await Position.find({ isActive: true })
+        .select('name')
+        .sort({ name: 1 })
+        .limit(50)
+        .lean();
+
+      if (positions.length === 0) {
+        await this.sendMessage(chatId, 
+          `❌ *Немає доступних посад*\n\n` +
+          `Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const keyboard = [];
+      positions.forEach(position => {
+        keyboard.push([{
+          text: `💼 ${position.name}`,
+          callback_data: `position_${position._id}`
+        }]);
+      });
+
+      await this.sendMessage(chatId, 
+        `✅ *Місто обрано!*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `💼 *Крок 7/7:* Оберіть вашу посаду`,
+        {
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка отримання списку посад:', error);
+      await this.sendMessage(chatId, 'Помилка завантаження списку посад. Спробуйте ще раз.');
+    }
+  }
+
+  async handleRegistrationCallback(chatId, userId, data) {
+    try {
+      const pendingRegistration = await PendingRegistration.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
+
+      if (!pendingRegistration) {
+        await this.sendMessage(chatId, 'Ви не в процесі реєстрації. Використайте /start для початку.');
+        return;
+      }
+
+      if (data.startsWith('city_')) {
+        const cityId = data.replace('city_', '');
+        pendingRegistration.data.city = cityId;
+        pendingRegistration.step = 'position';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      } else if (data.startsWith('position_')) {
+        const positionId = data.replace('position_', '');
+        pendingRegistration.data.position = positionId;
+        pendingRegistration.step = 'completed';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      }
+    } catch (error) {
+      logger.error('Помилка обробки callback реєстрації:', error);
+      await this.sendMessage(chatId, 'Помилка обробки вибору. Спробуйте ще раз.');
+    }
+  }
+
+  async completeRegistration(chatId, userId, pendingRegistration) {
+    try {
+      const { firstName, lastName, email, phone, password, city, position } = pendingRegistration.data;
+
+      // Створюємо нового користувача
+      const user = new User({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password, // В реальному проекті потрібно хешувати
+        city,
+        position,
+        telegramId: String(userId),
+        telegramChatId: String(chatId),
+        telegramUsername: pendingRegistration.telegramUsername,
+        isActive: false, // Потребує активації адміністратором
+        registrationStatus: 'pending'
+      });
+
+      await user.save();
+      
+      // Видаляємо тимчасову реєстрацію
+      await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
+
+      await this.sendMessage(chatId, 
+        `🎉 *Реєстрація завершена!*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✅ Ваш обліковий запис створено.\n\n` +
+        `⏳ *Очікуйте активації*\n\n` +
+        `Ваш обліковий запис потребує активації адміністратором.\n\n` +
+        `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        { parse_mode: 'Markdown' }
+      );
+
+      logger.info(`Нова реєстрація через Telegram: ${email} (${userId})`);
+    } catch (error) {
+      logger.error('Помилка завершення реєстрації:', error);
+      await this.sendMessage(chatId, 
+        '❌ *Помилка*\n\nВиникла технічна помилка при завершенні реєстрації. Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async askForPassword(chatId) {
+    await this.sendMessage(chatId, 
+      `🔐 *Крок 5/7:* Введіть пароль\n\n` +
+      `💡 Пароль повинен містити:\n` +
+      `• Мінімум 6 символів\n` +
+      `• Принаймні одну літеру\n` +
+      `• Принаймні одну цифру\n\n` +
+      `💡 *Приклад:* MyPass123`
+    );
+  }
+
+  async handleFeedbackMessage(chatId, text, user) {
+    // Placeholder for feedback handling
+    // This can be implemented based on your requirements
+    return false;
+  }
+}
+
+module.exports = TelegramService;
