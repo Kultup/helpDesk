@@ -257,11 +257,22 @@ const Categories: React.FC = () => {
 
   const getIconUrl = (icon: string | undefined): string => {
     if (!icon) return '';
-    // Якщо це відносний URL (починається з /uploads), додаємо базовий URL
+    
+    // Якщо це відносний URL (починається з /uploads), формуємо повний URL
     if (icon.startsWith('/uploads')) {
-      const baseURL = process.env.REACT_APP_API_URL?.replace('/api', '') || 
-        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '');
-      return `${baseURL}${icon}`;
+      // У development режимі завжди використовуємо повний URL до бекенду
+      if (process.env.NODE_ENV === 'development') {
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+        const baseURL = apiUrl.replace('/api', '') || 'http://localhost:5000';
+        return `${baseURL}${icon}`;
+      }
+      // У production режимі, якщо REACT_APP_API_URL встановлено, використовуємо його
+      if (process.env.REACT_APP_API_URL) {
+        const baseURL = process.env.REACT_APP_API_URL.replace('/api', '') || '';
+        return baseURL ? `${baseURL}${icon}` : icon;
+      }
+      // Інакше використовуємо відносний URL (працює якщо фронтенд і бекенд на одному домені)
+      return icon;
     }
     // Абсолютні URL повертаємо як є
     return icon;
@@ -274,16 +285,23 @@ const Categories: React.FC = () => {
     }
 
     if (isIconUrl(icon)) {
+      const iconUrl = getIconUrl(icon);
+      console.log('Loading category icon:', icon, '->', iconUrl);
+      
       return (
         <img 
-          src={getIconUrl(icon)} 
+          src={iconUrl} 
           alt="Category icon" 
           className="w-full h-full object-contain"
+          onLoad={() => {
+            console.log('Category icon loaded successfully:', iconUrl);
+          }}
           onError={(e) => {
-            // При помилці завантаження приховуємо зображення
+            // При помилці завантаження логуємо помилку та приховуємо зображення
             const target = e.target as HTMLImageElement;
+            console.error('Failed to load category icon:', iconUrl, target.src);
             target.style.display = 'none';
-            // Показуємо placeholder або нічого
+            // Приховуємо батьківський блок, якщо зображення не завантажилось
             if (target.parentElement) {
               target.parentElement.style.display = 'none';
             }
