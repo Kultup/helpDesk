@@ -791,7 +791,7 @@ class TelegramService {
         text += `   📅 Створено: \`${ticket.createdAt.toLocaleDateString('uk-UA')}\`\n\n`;
         
         keyboard.push([{
-          text: `📄 ${ticket.title.substring(0, 30)}...`,
+          text: this.truncateButtonText(`📄 ${ticket.title}`),
           callback_data: `view_ticket_${ticket._id}`
         }]);
       });
@@ -884,8 +884,12 @@ class TelegramService {
       for (const [index, template] of templates.entries()) {
         text += `${index + 1}. 📋 *${template.title}*\n\n`;
         
+        // Обрізаємо текст кнопки, якщо він занадто довгий
+        // Використовуємо більшу довжину для шаблонів, щоб показати більше тексту
+        const buttonText = this.truncateButtonText(`📄 ${template.title}`, 55);
+        
         keyboard.push([{
-          text: `📄 ${template.title}`,
+          text: buttonText,
           callback_data: `template_${template._id}`
         }]);
       }
@@ -2128,6 +2132,28 @@ class TelegramService {
     return lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
   }
 
+  /**
+   * Обрізає текст кнопки, якщо він перевищує максимальну довжину
+   * Telegram має обмеження на довжину тексту кнопки (64 символи)
+   * Використовуємо спеціальні Unicode символи для візуального ефекту бігучої строки
+   */
+  truncateButtonText(text, maxLength = 60) {
+    if (!text || typeof text !== 'string') {
+      return text;
+    }
+    
+    if (text.length <= maxLength) {
+      return text;
+    }
+    
+    // Обрізаємо текст, залишаючи місце для спеціальних символів
+    const truncated = text.substring(0, maxLength - 5);
+    
+    // Використовуємо спеціальні Unicode символи для візуального ефекту бігучої строки
+    // ➡️ для вказівки, що текст продовжується (створює ефект руху)
+    return truncated + ' ➡️';
+  }
+
   async generateCategoryButtons() {
     try {
       const categories = this.getAllCategories();
@@ -2149,7 +2175,7 @@ class TelegramService {
           const icon1 = category1.icon && category1.icon.trim() !== '' ? category1.icon : '';
           const text1 = icon1 ? `${icon1} ${category1.name}` : category1.name;
           // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
-          const buttonText1 = text1.length > 30 ? text1.substring(0, 27) + '...' : text1;
+          const buttonText1 = this.truncateButtonText(text1, 30);
           row.push({
             text: buttonText1,
             callback_data: `category_${category1._id}`
@@ -2162,7 +2188,7 @@ class TelegramService {
           const icon2 = category2.icon && category2.icon.trim() !== '' ? category2.icon : '';
           const text2 = icon2 ? `${icon2} ${category2.name}` : category2.name;
           // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
-          const buttonText2 = text2.length > 30 ? text2.substring(0, 27) + '...' : text2;
+          const buttonText2 = this.truncateButtonText(text2, 30);
           row.push({
             text: buttonText2,
             callback_data: `category_${category2._id}`
