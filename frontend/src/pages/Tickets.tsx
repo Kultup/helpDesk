@@ -86,6 +86,7 @@ const Tickets: React.FC = () => {
 
   useEffect(() => {
     refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination, sort]);
 
   useEffect(() => {
@@ -96,18 +97,20 @@ const Tickets: React.FC = () => {
     
     updateFilters(newFilters);
     updatePagination({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter, priorityFilter]);
 
   useEffect(() => {
     updateSort({ field: sortBy, direction: sortOrder });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy, sortOrder]);
 
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = (page: number): void => {
     updatePagination({ page });
   };
 
-  const handleCreateTicketSuccess = () => {
+  const handleCreateTicketSuccess = (): void => {
     refetch(); // Оновлюємо список тікетів
   };
 
@@ -122,7 +125,7 @@ const Tickets: React.FC = () => {
   // Використовуємо тікети безпосередньо з API, оскільки фільтрація та сортування відбувається на backend
   const displayTickets = tickets || [];
 
-  const handleDelete = async (ticketId: string, ticketTitle: string) => {
+  const handleDelete = async (ticketId: string, ticketTitle: string): Promise<void> => {
     showConfirmation({
       title: t('tickets.deleteConfirmation.title'),
       message: t('tickets.deleteConfirmation.message', { title: ticketTitle }),
@@ -134,6 +137,7 @@ const Tickets: React.FC = () => {
           await deleteTicket(ticketId);
           hideConfirmation();
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.error(t('tickets.errors.deleteError'), error);
         }
       },
@@ -141,7 +145,7 @@ const Tickets: React.FC = () => {
     });
   };
 
-  const handleExportClick = () => {
+  const handleExportClick = (): void => {
     setIsExportModalOpen(true);
   };
 
@@ -176,14 +180,14 @@ const Tickets: React.FC = () => {
                 type="text"
                 placeholder={t('tickets.searchPlaceholder')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e): void => setSearchTerm(e.target.value)}
                 leftIcon={<Search className="w-4 h-4" />}
               />
             </div>
             
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'all')}
+              onChange={(e): void => setStatusFilter(e.target.value as TicketStatus | 'all')}
               className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border border-border bg-surface text-foreground"
             >
               <option value="all">{t('tickets.filters.allStatuses')}</option>
@@ -195,7 +199,7 @@ const Tickets: React.FC = () => {
 
             <select
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | 'all')}
+              onChange={(e): void => setPriorityFilter(e.target.value as TicketPriority | 'all')}
               className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent border border-border bg-surface text-foreground"
             >
               <option value="all">{t('tickets.filters.allPriorities')}</option>
@@ -206,7 +210,7 @@ const Tickets: React.FC = () => {
 
             <select
               value={`${sortBy}-${sortOrder}`}
-              onChange={(e) => {
+                onChange={(e): void => {
                 const [field, order] = e.target.value.split('-');
                 setSortBy(field as 'createdAt' | 'title' | 'status');
                 setSortOrder(order as 'asc' | 'desc');
@@ -464,14 +468,14 @@ const Tickets: React.FC = () => {
       {/* Modal для створення тікету */}
       <CreateTicketModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={(): void => setIsCreateModalOpen(false)}
         onSuccess={handleCreateTicketSuccess}
       />
 
       {/* Modal для експорту тікетів */}
       <ExportTicketsModal
         isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
+        onClose={(): void => setIsExportModalOpen(false)}
         onExport={exportTickets}
         cities={cities || []}
         users={users || []}
