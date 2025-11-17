@@ -549,22 +549,22 @@ class TelegramService {
           await this.showUserDashboard(chatId, user);
         } else {
           // Якщо користувача все ще не знайдено, показуємо повідомлення про реєстрацію
-          await this.sendMessage(chatId, 
-            `🚫 *Доступ обмежено*\n\n` +
-            `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📞 *Зверніться до адміністратора для отримання доступу:* [@Kultup](https://t.me/Kultup)`,
-            {
-              parse_mode: 'Markdown',
-              reply_markup: {
-                inline_keyboard: [
+        await this.sendMessage(chatId, 
+          `🚫 *Доступ обмежено*\n\n` +
+          `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📞 *Зверніться до адміністратора для отримання доступу:* [@Kultup](https://t.me/Kultup)`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
                   [{ text: '🔐 Авторизуватися', callback_data: 'login_user' }],
-                  [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
-                  [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
-                ]
-              }
+                [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
+                [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
+              ]
             }
-          );
+          }
+        );
         }
       }
     } catch (error) {
@@ -688,7 +688,7 @@ class TelegramService {
       // Якщо користувач не зареєстрований, обробляємо callback-и для реєстрації та авторизації
       if (data === 'register_user') {
         await this.handleUserRegistrationCallback(chatId, userId);
-        await this.answerCallbackQuery(callbackQuery.id);
+       await this.answerCallbackQuery(callbackQuery.id);
         return;
       }
 
@@ -1485,9 +1485,17 @@ class TelegramService {
     const session = this.userSessions.get(chatId);
     if (session) {
       session.step = 'category';
+      // Оновлюємо кеш категорій перед показом
+      await this.loadCategories();
       const categoryButtons = await this.generateCategoryButtons();
       const categoriesCount = this.getAllCategories().length;
       const promptText = categoriesCount > 0 ? this.getCategoryPromptText() : 'Немає активних категорій. Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)';
+      
+      // Додаємо кнопку скасування
+      if (categoryButtons.length > 0) {
+        categoryButtons.push([{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]);
+      }
+      
       await this.sendMessage(chatId, promptText, {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -1507,9 +1515,17 @@ class TelegramService {
     const session = this.userSessions.get(chatId);
     if (session) {
       session.step = 'category';
+      // Оновлюємо кеш категорій перед показом
+      await this.loadCategories();
       const categoryButtons = await this.generateCategoryButtons();
       const categoriesCount = this.getAllCategories().length;
       const promptText = categoriesCount > 0 ? this.getCategoryPromptText() : 'Немає активних категорій. Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)';
+      
+      // Додаємо кнопку скасування
+      if (categoryButtons.length > 0) {
+        categoryButtons.push([{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]);
+      }
+      
       await this.sendMessage(chatId, promptText, {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -1905,19 +1921,57 @@ class TelegramService {
   }
 
   async generateCategoryButtons() {
-    const categories = this.getAllCategories();
-    const buttons = [];
-    
-    for (const category of categories) {
-      const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
-      const text = icon ? `${icon} ${category.name}` : category.name;
-      buttons.push([{
-        text: text,
-        callback_data: `category_${category._id}`
-      }]);
+    try {
+      const categories = this.getAllCategories();
+      const buttons = [];
+      
+      // Якщо категорій немає, повертаємо порожній масив
+      if (!categories || categories.length === 0) {
+        logger.warn('Немає категорій для відображення');
+        return buttons;
+      }
+      
+      // Групуємо категорії по дві в рядку для кращого відображення
+      for (let i = 0; i < categories.length; i += 2) {
+        const row = [];
+        
+        // Перша категорія в рядку
+        const category1 = categories[i];
+        if (category1 && category1._id) {
+          const icon1 = category1.icon && category1.icon.trim() !== '' ? category1.icon : '';
+          const text1 = icon1 ? `${icon1} ${category1.name}` : category1.name;
+          // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
+          const buttonText1 = text1.length > 30 ? text1.substring(0, 27) + '...' : text1;
+          row.push({
+            text: buttonText1,
+            callback_data: `category_${category1._id}`
+          });
+        }
+        
+        // Друга категорія в рядку (якщо є)
+        const category2 = categories[i + 1];
+        if (category2 && category2._id) {
+          const icon2 = category2.icon && category2.icon.trim() !== '' ? category2.icon : '';
+          const text2 = icon2 ? `${icon2} ${category2.name}` : category2.name;
+          // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
+          const buttonText2 = text2.length > 30 ? text2.substring(0, 27) + '...' : text2;
+          row.push({
+            text: buttonText2,
+            callback_data: `category_${category2._id}`
+          });
+        }
+        
+        if (row.length > 0) {
+          buttons.push(row);
+        }
+      }
+      
+      logger.debug(`Згенеровано ${buttons.length} рядків кнопок категорій`);
+      return buttons;
+    } catch (error) {
+      logger.error('Помилка генерації кнопок категорій:', error);
+      return [];
     }
-    
-    return buttons;
   }
 
   getAllCategories() {
