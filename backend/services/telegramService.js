@@ -223,17 +223,80 @@ class TelegramService {
 
   async handleStartCommand(chatId, userId) {
     try {
-      // Конвертуємо userId в рядок для пошуку
-      const user = await User.findOne({ 
+      // Конвертуємо userId та chatId в рядки для пошуку
+      const userIdString = String(userId);
+      const chatIdString = String(chatId);
+      
+      // Спочатку шукаємо за telegramId
+      let user = await User.findOne({ 
         $or: [
-          { telegramId: String(userId) },
+          { telegramId: userIdString },
           { telegramId: userId }
         ]
       })
         .populate('position', 'name')
         .populate('city', 'name');
       
+      // Якщо не знайдено за telegramId, спробуємо знайти за telegramChatId
+      if (!user) {
+        logger.info('Користувача не знайдено за telegramId, шукаємо за telegramChatId:', {
+          userId,
+          userIdString,
+          chatId,
+          chatIdString
+        });
+        
+        user = await User.findOne({ 
+          $or: [
+            { telegramChatId: chatIdString },
+            { telegramChatId: chatId }
+          ]
+        })
+          .populate('position', 'name')
+          .populate('city', 'name');
+        
+        // Якщо знайдено за telegramChatId, оновлюємо telegramId
+        if (user && !user.telegramId) {
+          logger.info('Знайдено користувача за telegramChatId, оновлюємо telegramId:', {
+            userId: user._id,
+            email: user.email,
+            oldTelegramId: user.telegramId,
+            newTelegramId: userIdString
+          });
+          user.telegramId = userIdString;
+          await user.save();
+        }
+      }
+      
+      // Діагностичне логування
+      logger.info('Пошук користувача за telegramId:', {
+        userId,
+        userIdString,
+        chatId,
+        chatIdString,
+        userFound: !!user,
+        userIdType: typeof userId,
+        userTelegramId: user?.telegramId,
+        userTelegramIdType: typeof user?.telegramId,
+        userTelegramChatId: user?.telegramChatId,
+        userTelegramChatIdType: typeof user?.telegramChatId,
+        isActive: user?.isActive,
+        registrationStatus: user?.registrationStatus,
+        email: user?.email
+      });
+      
       if (user) {
+        // Перевіряємо, чи користувач активний
+        if (!user.isActive) {
+          await this.sendMessage(chatId, 
+            `🚫 *Доступ обмежено*\n\n` +
+            `Ваш обліковий запис поки не активований.\n\n` +
+            `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
+            { parse_mode: 'Markdown' }
+          );
+          return;
+        }
+        
         await this.showUserDashboard(chatId, user);
       } else {
         await this.sendMessage(chatId, 
