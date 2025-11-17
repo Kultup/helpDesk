@@ -438,7 +438,7 @@ const Dashboard: React.FC = () => {
               <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
               {t('dashboard.keyMetrics')}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
               {statsArray.map((stat, index) => (
                 <StatCard key={index} {...stat} />
               ))}
