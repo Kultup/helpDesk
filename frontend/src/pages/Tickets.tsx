@@ -10,7 +10,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import Card, { CardContent, CardHeader } from '../components/UI/Card';
+import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
@@ -22,8 +22,8 @@ import ExportTicketsModal from '../components/ExportTicketsModal';
 import { useTickets, useCities, useUsers, useWindowSize } from '../hooks';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { useTicketExport } from '../hooks/useTicketExport';
-import { Ticket, TicketStatus, TicketPriority, TicketFilters, SortOptions, PaginationOptions } from '../types';
-import { getStatusColor, getPriorityColor, formatDate, formatDaysAgo, getDueDateStatus, cn } from '../utils';
+import { TicketStatus, TicketPriority, TicketFilters } from '../types';
+import { getStatusColor, getPriorityColor, formatDate, formatDaysAgo, cn } from '../utils';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import DayIndicator from '../components/DayIndicator';
@@ -45,12 +45,9 @@ const Tickets: React.FC = () => {
     totalPages,
     total,
     isLoading,
-    error,
     updateFilters,
     updatePagination,
     updateSort,
-    createTicket,
-    updateTicket,
     deleteTicket,
     refetch
   } = useTickets();
@@ -105,29 +102,9 @@ const Tickets: React.FC = () => {
     updateSort({ field: sortBy, direction: sortOrder });
   }, [sortBy, sortOrder]);
 
-  const handleFilterChange = (newFilters: Partial<TicketFilters>) => {
-    updateFilters(newFilters);
-    updatePagination({ page: 1 });
-  };
-
-  const handleSortChange = (field: string) => {
-    const newDirection = sort.field === field && sort.direction === 'asc' ? 'desc' : 'asc';
-    updateSort({ field, direction: newDirection });
-  };
 
   const handlePageChange = (page: number) => {
     updatePagination({ page });
-  };
-
-  const handleDeleteTicket = async (id: string) => {
-    if (window.confirm(t('tickets.deleteConfirmation.message', { title: '' }))) {
-      try {
-        await deleteTicket(id);
-        refetch();
-      } catch (error) {
-        console.error('Error deleting ticket:', error);
-      }
-    }
   };
 
   const handleCreateTicketSuccess = () => {

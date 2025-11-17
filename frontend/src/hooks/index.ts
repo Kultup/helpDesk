@@ -6,8 +6,6 @@ import {
   TicketFilters, 
   PaginationOptions, 
   SortOptions,
-  PaginatedResponse,
-  TicketsApiResponse,
   TicketStatus
 } from '../types';
 import { apiService } from '../services/api';
