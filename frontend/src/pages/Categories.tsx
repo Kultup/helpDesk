@@ -250,6 +250,43 @@ const Categories: React.FC = () => {
     };
   };
 
+  const isIconUrl = (icon: string | undefined): boolean => {
+    if (!icon) return false;
+    return icon.startsWith('http://') || icon.startsWith('https://') || icon.startsWith('/uploads');
+  };
+
+  const getIconUrl = (icon: string | undefined): string => {
+    if (!icon) return '';
+    // Якщо це відносний URL (починається з /uploads), повертаємо як є
+    // Express.static обслуговує /uploads напряму
+    if (icon.startsWith('/uploads')) {
+      return icon;
+    }
+    // Абсолютні URL повертаємо як є
+    return icon;
+  };
+
+  const renderCategoryIcon = (icon: string | undefined, color: string) => {
+    if (isIconUrl(icon)) {
+      return (
+        <img 
+          src={getIconUrl(icon)} 
+          alt="Category icon" 
+          className="w-full h-full object-contain rounded-lg"
+          onError={(e) => {
+            // Fallback до тексту, якщо зображення не завантажилось
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+            if (target.parentElement) {
+              target.parentElement.textContent = icon || '';
+            }
+          }}
+        />
+      );
+    }
+    return <span>{icon || ''}</span>;
+  };
+
   const filteredCategories = showInactive 
     ? categories 
     : categories.filter(cat => cat.isActive);
@@ -469,10 +506,10 @@ const Categories: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                   <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1 min-w-0 w-full sm:w-auto">
                     <div 
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white text-base sm:text-lg flex-shrink-0"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
                       style={{ backgroundColor: category.color }}
                     >
-                      {category.icon}
+                      {renderCategoryIcon(category.icon, category.color)}
                     </div>
                     
                     <div className="flex-1 min-w-0 w-full sm:w-auto">
