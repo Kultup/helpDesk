@@ -213,7 +213,12 @@ const createRateLimit = (windowMs, max, message) => {
       message: message || 'Забагато запитів, спробуйте пізніше'
     },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    // Виправляємо помилку ERR_ERL_PERMISSIVE_TRUST_PROXY
+    // Явно вказуємо, що trust proxy дозволено
+    validate: {
+      trustProxy: true
+    }
   });
 };
 
