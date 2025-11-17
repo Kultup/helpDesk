@@ -410,13 +410,52 @@ const ZabbixSettings: React.FC = () => {
         const result = response.data?.result;
         const sentCount = result?.sent || 0;
         const failedCount = result?.failed || 0;
+        const errors = result?.errors || [];
         
-        setMessage({
-          type: sentCount > 0 ? 'success' : 'error',
-          text: sentCount > 0
-            ? `Тестове сповіщення успішно відправлено! Відправлено: ${sentCount}, Помилок: ${failedCount}`
-            : `Тестове сповіщення не відправлено. Помилок: ${failedCount}. Перевірте налаштування групи та Telegram.`
-        });
+        if (sentCount > 0) {
+          let messageText = `Тестове сповіщення успішно відправлено! Відправлено: ${sentCount}`;
+          if (failedCount > 0) {
+            messageText += `, Помилок: ${failedCount}`;
+          }
+          setMessage({
+            type: 'success',
+            text: messageText
+          });
+        } else {
+          let errorText = `Тестове сповіщення не відправлено. Помилок: ${failedCount}.`;
+          
+          if (errors.length > 0) {
+            const errorDetails = errors.map((err: any) => {
+              if (err.type === 'no_admins') {
+                return `Група "${err.group}": немає адміністраторів з Telegram ID та не вказано Telegram групу`;
+              } else if (err.type === 'admin_no_telegram_id') {
+                return `Адміністратор ${err.admin} не має Telegram ID`;
+              } else if (err.type === 'telegram_group') {
+                let errorText = `Помилка відправки в Telegram групу "${err.group}": ${err.error}`;
+                if (err.code) {
+                  errorText += ` (код: ${err.code})`;
+                }
+                if (err.details && typeof err.details === 'object' && err.details.description) {
+                  errorText += `\n  Деталі: ${err.details.description}`;
+                }
+                return errorText;
+              } else if (err.type === 'admin_notification') {
+                return `Помилка відправки адміністратору ${err.admin}: ${err.error}`;
+              } else {
+                return `Група "${err.group}": ${err.error}`;
+              }
+            }).join('\n');
+            
+            errorText += '\n\nДеталі помилок:\n' + errorDetails;
+          } else {
+            errorText += '\n\nМожливі причини:\n- Telegram сервіс не ініціалізований\n- Група не має Telegram ID і немає адміністраторів з Telegram ID\n- Неправильний токен бота або ID групи';
+          }
+          
+          setMessage({
+            type: 'error',
+            text: errorText
+          });
+        }
       } else {
         setMessage({
           type: 'error',

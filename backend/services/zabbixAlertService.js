@@ -391,14 +391,47 @@ class ZabbixAlertService {
         }
       }
     } catch (error) {
+      const errorDetails = {
+        message: error.message || 'Unknown error',
+        code: error.code,
+        response: error.response?.data || error.response?.body || error.response
+      };
+      
+      // Формуємо детальне повідомлення про помилку
+      let errorMsg = errorDetails.message;
+      if (errorDetails.response) {
+        if (typeof errorDetails.response === 'object') {
+          const desc = errorDetails.response.description || errorDetails.response.error_description || '';
+          if (desc) {
+            errorMsg += `: ${desc}`;
+          }
+          // Додаємо параметри помилки, якщо є
+          if (errorDetails.response.parameters) {
+            const params = errorDetails.response.parameters;
+            if (params.migrate_to_chat_id) {
+              errorMsg += ` (chat was migrated to: ${params.migrate_to_chat_id})`;
+            }
+            if (params.retry_after) {
+              errorMsg += ` (retry after: ${params.retry_after} seconds)`;
+            }
+          }
+        } else if (typeof errorDetails.response === 'string') {
+          errorMsg += `: ${errorDetails.response}`;
+        }
+      }
+      
       logger.error('Помилка відправки повідомлення в групу Telegram:', {
         groupId,
         hasBotToken: !!botToken,
-        error: error.message,
-        code: error.code,
-        response: error.response?.data
+        ...errorDetails
       });
-      return { success: false, error: error.message };
+      
+      return { 
+        success: false, 
+        error: errorMsg,
+        code: errorDetails.code,
+        details: errorDetails.response
+      };
     }
   }
 
@@ -466,6 +499,7 @@ async sendNotifications(alert, groups) {
     let sent = 0;
     let failed = 0;
     const notifiedGroupIds = [];
+    const errors = [];
 
     // Форматуємо повідомлення (використовуємо метод моделі, якщо доступний, або наш метод)
     let message;
@@ -523,19 +557,48 @@ async sendNotifications(alert, groups) {
               });
             } else {
               failed++;
+              const errorMsg = result.error || 'Unknown error';
+              errors.push({
+                group: group.name,
+                type: 'telegram_group',
+                error: errorMsg,
+                code: result.code,
+                details: result.details
+              });
               logger.error(`❌ Error sending notification to Telegram group ${groupId}`, {
                 groupName: group.name,
-                error: result.error,
+                error: errorMsg,
+                code: result.code,
+                details: result.details,
                 alertId
               });
             }
           } catch (error) {
             failed++;
+            let errorMsg = error.message || 'Exception sending notification';
+            
+            // Додаємо деталі з response, якщо є
+            if (error.response?.data || error.response?.body) {
+              const responseData = error.response.data || error.response.body;
+              if (typeof responseData === 'object' && responseData.description) {
+                errorMsg += `: ${responseData.description}`;
+              } else if (typeof responseData === 'string') {
+                errorMsg += `: ${responseData}`;
+              }
+            }
+            
+            errors.push({
+              group: group.name,
+              type: 'telegram_group',
+              error: errorMsg,
+              code: error.code,
+              details: error.response?.data || error.response?.body
+            });
             logger.error(`❌ Exception sending notification to Telegram group ${groupId}`, {
               groupName: group.name,
-              error: error.message,
+              error: errorMsg,
               code: error.code,
-              response: error.response?.data,
+              response: error.response?.data || error.response?.body,
               alertId
             });
           }
@@ -550,7 +613,14 @@ async sendNotifications(alert, groups) {
           });
 
           if (admins.length === 0) {
-            logger.info(`No admins with Telegram ID in group ${group.name} and no Telegram group ID specified`);
+            failed++;
+            const errorMsg = `No admins with Telegram ID in group ${group.name} and no Telegram group ID specified`;
+            errors.push({
+              group: group.name,
+              type: 'no_admins',
+              error: errorMsg
+            });
+            logger.info(errorMsg);
             continue;
           }
 
@@ -560,8 +630,15 @@ async sendNotifications(alert, groups) {
               const telegramId = admin.telegramId;
               
               if (!telegramId) {
-                logger.warn(`Admin ${admin.email} has telegramUsername but no telegramId. Cannot send notification.`);
                 failed++;
+                const errorMsg = `Admin ${admin.email} has telegramUsername but no telegramId`;
+                errors.push({
+                  group: group.name,
+                  type: 'admin_no_telegram_id',
+                  admin: admin.email,
+                  error: errorMsg
+                });
+                logger.warn(`${errorMsg}. Cannot send notification.`);
                 continue;
               }
               
@@ -578,9 +655,19 @@ async sendNotifications(alert, groups) {
               });
             } catch (error) {
               failed++;
+              const errorMsg = error.message || 'Error sending notification';
+              errors.push({
+                group: group.name,
+                type: 'admin_notification',
+                admin: admin.email,
+                telegramId,
+                error: errorMsg,
+                code: error.code,
+                details: error.response?.data
+              });
               logger.error(`❌ Error sending notification to admin ${admin.email}`, {
                 telegramId,
-                error: error.message,
+                error: errorMsg,
                 code: error.code,
                 response: error.response?.data,
                 alertId
@@ -594,6 +681,12 @@ async sendNotifications(alert, groups) {
         notifiedGroupIds.push(group._id);
       } catch (error) {
         failed++;
+        const errorMsg = error.message || 'Error processing group';
+        errors.push({
+          group: group.name,
+          type: 'group_processing',
+          error: errorMsg
+        });
         logger.error(`Error processing group ${group.name}:`, error);
       }
     }
@@ -607,7 +700,8 @@ async sendNotifications(alert, groups) {
       sent,
       failed,
       total: sent + failed,
-      notifiedGroups: notifiedGroupIds
+      notifiedGroups: notifiedGroupIds,
+      errors: errors.length > 0 ? errors : undefined
     };
     
     logger.info(`📊 Notification sending completed for alert ${alertId}`, {
