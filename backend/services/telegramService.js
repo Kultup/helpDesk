@@ -1,4 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
@@ -103,9 +104,9 @@ class TelegramService {
         return;
       }
 
-      // Обробка контактів - поки що не реалізовано
+      // Обробка контактів (поділитися номером)
       if (msg.contact) {
-        logger.info('Отримано контакт від користувача:', msg.from.id);
+        await this.handleContact(msg);
         return;
       }
 
@@ -417,9 +418,10 @@ class TelegramService {
 
       // Отримуємо шаблони для Telegram
       const templates = await TicketTemplate.find({ isActive: true })
-        .populate('category', 'name')
+        .populate('category', 'name icon color')
         .sort({ title: 1 })
-        .limit(10);
+        .limit(10)
+        .lean();
 
       if (templates.length === 0) {
         await this.sendMessage(chatId, 
@@ -436,6 +438,31 @@ class TelegramService {
         return;
       }
 
+      // Збираємо всі category IDs для одного запиту (якщо populate не спрацював)
+      const categoryIds = new Set();
+      templates.forEach(template => {
+        if (template.category && typeof template.category === 'object' && !template.category.name && template.category._id) {
+          categoryIds.add(template.category._id.toString());
+        } else if (!template.category || (typeof template.category === 'object' && !template.category.name)) {
+          // Якщо category - це ObjectId рядок
+          const catId = typeof template.category === 'string' ? template.category : (template.category?._id?.toString() || null);
+          if (catId) {
+            categoryIds.add(catId);
+          }
+        }
+      });
+
+      // Завантажуємо категорії одним запитом, якщо є такі, що не популюються
+      const categoriesMap = new Map();
+      if (categoryIds.size > 0) {
+        const categories = await Category.find({ _id: { $in: Array.from(categoryIds).map(id => new mongoose.Types.ObjectId(id)) } })
+          .select('name icon color')
+          .lean();
+        categories.forEach(cat => {
+          categoriesMap.set(cat._id.toString(), cat);
+        });
+      }
+
       let text = 
         `📄 *Оберіть шаблон для створення тікету*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -446,7 +473,37 @@ class TelegramService {
         if (template.description) {
           text += `   📝 ${template.description.substring(0, 50)}...\n`;
         }
-        const categoryText = await this.getCategoryText(template.category._id);
+        // Перевіряємо чи існує категорія та чи вона популюється
+        let categoryText = 'Невідома категорія';
+        if (template.category) {
+          // Якщо категорія вже популюється з полями name, icon, color
+          if (template.category.name) {
+            const icon = template.category.icon && template.category.icon.trim() !== '' ? template.category.icon : '';
+            categoryText = icon ? `${icon} ${template.category.name}` : template.category.name;
+          } else if (template.category._id) {
+            // Якщо populate не спрацював, використовуємо мапу категорій
+            const catId = template.category._id.toString();
+            const category = categoriesMap.get(catId);
+            if (category) {
+              const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
+              categoryText = icon ? `${icon} ${category.name}` : category.name;
+            } else {
+              // Якщо не знайдено в мапі, пробуємо через getCategoryText
+              categoryText = await this.getCategoryText(catId);
+            }
+          } else if (typeof template.category === 'string') {
+            // Якщо category зберігається як рядок (ObjectId)
+            const category = categoriesMap.get(template.category);
+            if (category) {
+              const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
+              categoryText = icon ? `${icon} ${category.name}` : category.name;
+            } else {
+              categoryText = await this.getCategoryText(template.category);
+            }
+          }
+        } else {
+          logger.warn(`Категорія не знайдена для шаблону ${template._id}`);
+        }
         text += `   🏷️ ${categoryText} | ⚡ *${this.getPriorityText(template.priority)}*\n\n`;
         
         keyboard.push([{
@@ -607,6 +664,17 @@ class TelegramService {
           if (this.validatePhone(text)) {
             pendingRegistration.data.phone = text.trim();
             pendingRegistration.step = 'password';
+            // Приховуємо клавіатуру після успішного введення номера
+            await this.sendMessage(chatId, 
+              `✅ *Номер телефону прийнято!*\n\n` +
+              `📱 *Номер:* ${text.trim()}\n\n` +
+              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+              {
+                reply_markup: {
+                  remove_keyboard: true
+                }
+              }
+            );
           } else {
             isValid = false;
             errorMessage = '❌ *Некоректний номер телефону*\n\nНомер повинен містити від 10 до 15 цифр та може починатися з +.\n\n💡 *Приклад:* +380501234567\n\nСпробуйте ще раз:';
@@ -820,9 +888,90 @@ class TelegramService {
          );
      } catch (error) {
        logger.error('Помилка обробки фото:', error);
-       await this.sendMessage(chatId, 'Помилка обробки фото. Спробуйте ще раз.');
-     }
-   }
+      await this.sendMessage(chatId, 'Помилка обробки фото. Спробуйте ще раз.');
+    }
+  }
+
+  async handleContact(msg) {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+
+    try {
+      // Перевіряємо, чи користувач в процесі реєстрації на етапі phone
+      const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
+      
+      if (!pendingRegistration) {
+        await this.sendMessage(chatId, 'Ви не в процесі реєстрації. Використайте /start для початку.');
+        return;
+      }
+
+      if (pendingRegistration.step !== 'phone') {
+        await this.sendMessage(chatId, 'Номер телефону можна поділитися тільки на етапі введення номера.');
+        return;
+      }
+
+      // Отримуємо номер телефону з контакту
+      const contact = msg.contact;
+      if (!contact || !contact.phone_number) {
+        await this.sendMessage(chatId, '❌ Не вдалося отримати номер телефону. Спробуйте ввести номер вручну.');
+        return;
+      }
+
+      let phoneNumber = contact.phone_number;
+
+      // Якщо номер не починається з +, додаємо +
+      if (!phoneNumber.startsWith('+')) {
+        phoneNumber = '+' + phoneNumber;
+      }
+
+      // Валідуємо номер телефону
+      if (!this.validatePhone(phoneNumber)) {
+        await this.sendMessage(chatId, 
+          `❌ *Некоректний номер телефону*\n\n` +
+          `Отриманий номер: ${phoneNumber}\n\n` +
+          `Номер повинен містити від 10 до 15 цифр та починатися з +.\n\n` +
+          `💡 Спробуйте ввести номер вручну:`,
+          {
+            reply_markup: {
+              keyboard: [
+                [{
+                  text: '📱 Поділитися номером',
+                  request_contact: true
+                }]
+              ],
+              resize_keyboard: true,
+              one_time_keyboard: true
+            }
+          }
+        );
+        return;
+      }
+
+      // Зберігаємо номер телефону
+      pendingRegistration.data.phone = phoneNumber;
+      pendingRegistration.step = 'password';
+      await pendingRegistration.save();
+
+      // Приховуємо клавіатуру і переходимо до наступного кроку
+      await this.sendMessage(chatId, 
+        `✅ *Номер телефону отримано!*\n\n` +
+        `📱 *Номер:* ${phoneNumber}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        {
+          reply_markup: {
+            remove_keyboard: true
+          }
+        }
+      );
+
+      // Переходимо до наступного кроку (пароль)
+      await this.askForPassword(chatId);
+
+    } catch (error) {
+      logger.error('Помилка обробки контакту:', error);
+      await this.sendMessage(chatId, '❌ Помилка обробки номеру телефону. Спробуйте ще раз.');
+    }
+  }
 
   async downloadTelegramFile(filePath) {
     return new Promise((resolve, reject) => {
@@ -1889,7 +2038,19 @@ class TelegramService {
       `📝 *Реєстрація - Крок 4/8*\n\n` +
       `📱 Будь ласка, введіть ваш *номер телефону*:\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `💡 *Приклад:* +380501234567`
+      `💡 *Приклад:* +380501234567`,
+      {
+        reply_markup: {
+          keyboard: [
+            [{
+              text: '📱 Поділитися номером',
+              request_contact: true
+            }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: true
+        }
+      }
     );
   }
 
