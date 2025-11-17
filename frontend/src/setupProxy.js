@@ -14,6 +14,7 @@ module.exports = function(app) {
 
   console.log(`[PROXY SETUP] Налаштовую проксі для /api -> ${target}`);
   
+  // Проксі для API
   app.use(
     '/api',
     createProxyMiddleware({
@@ -32,6 +33,23 @@ module.exports = function(app) {
       onError: (err, req, res) => {
         console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
         console.error(`[PROXY ERROR] Stack:`, err.stack);
+      }
+    })
+  );
+  
+  // Проксі для статичних файлів (/uploads)
+  app.use(
+    '/uploads',
+    createProxyMiddleware({
+      target,
+      changeOrigin: true,
+      secure: false,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req, res) => {
+        console.log(`[PROXY REQ UPLOADS] ${req.method} ${req.url} -> ${proxyReq.protocol}//${proxyReq.host}${proxyReq.path}`);
+      },
+      onError: (err, req, res) => {
+        console.error(`[PROXY ERROR UPLOADS] ${req.method} ${req.url}:`, err.message);
       }
     })
   );

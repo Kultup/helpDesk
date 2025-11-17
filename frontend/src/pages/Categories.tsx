@@ -258,18 +258,15 @@ const Categories: React.FC = () => {
   const getIconUrl = (icon: string | undefined): string => {
     if (!icon) return '';
     
-    // Якщо це відносний URL (починається з /uploads), формуємо повний URL
+    // Якщо це відносний URL (починається з /uploads), використовуємо його як є
+    // У production фронтенд і бекенд на одному домені, тому відносний URL працює
+    // У development є проксі (setupProxy.js), який обробляє /api і статичні файли
     if (icon.startsWith('/uploads')) {
-      // У development режимі завжди використовуємо повний URL до бекенду
-      if (process.env.NODE_ENV === 'development') {
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-        const baseURL = apiUrl.replace('/api', '') || 'http://localhost:5000';
-        return `${baseURL}${icon}`;
-      }
-      // У production режимі використовуємо відносний URL
-      // (фронтенд і бекенд на одному домені, express.static обслуговує /uploads)
+      // Для /uploads завжди використовуємо відносний URL
+      // Якщо потрібен повний URL у development, використовуємо проксі через бекенд
       return icon;
     }
+    
     // Абсолютні URL повертаємо як є
     return icon;
   };
