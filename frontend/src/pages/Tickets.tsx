@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { 
   Plus, 
@@ -32,6 +32,7 @@ const Tickets: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { width } = useWindowSize();
+  const [searchParams] = useSearchParams();
   const isMobile = width < 768;
   const isAdmin = user?.role === UserRole.ADMIN;
   const basePath = isAdmin ? '/admin' : '';
@@ -64,6 +65,19 @@ const Tickets: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Обробка URL параметрів при завантаженні сторінки
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      const validStatuses: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
+      if (validStatuses.includes(statusParam as TicketStatus) && statusFilter === 'all') {
+        // Встановлюємо фільтр тільки якщо він ще не встановлений
+        setStatusFilter(statusParam as TicketStatus);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Запускається тільки при першому завантаженні сторінки
 
   // Встановлюємо більший ліміт для адміністратора та завантажуємо тікети
   useEffect(() => {

@@ -318,7 +318,7 @@ const Dashboard: React.FC = () => {
       icon: Ticket,
       color: 'bg-gradient-to-br from-blue-500 to-blue-600',
       trend: stats.trends.total,
-      onClick: () => navigate('/tickets')
+      onClick: () => navigate(`${basePath}/tickets`)
     },
     {
       title: t('dashboard.stats.openTickets'),
@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
       icon: Clock,
       color: 'bg-gradient-to-br from-amber-500 to-orange-500',
       trend: stats.trends.open,
-      onClick: () => navigate('/tickets?status=open')
+      onClick: () => navigate(`${basePath}/tickets?status=open`)
     },
     {
       title: t('dashboard.stats.inProgressTickets'),
@@ -334,7 +334,7 @@ const Dashboard: React.FC = () => {
       icon: Activity,
       color: 'bg-gradient-to-br from-purple-500 to-purple-600',
       trend: stats.trends.inProgress,
-      onClick: () => navigate('/tickets?status=in_progress')
+      onClick: () => navigate(`${basePath}/tickets?status=in_progress`)
     },
     {
       title: t('dashboard.stats.resolvedTickets'),
@@ -342,7 +342,7 @@ const Dashboard: React.FC = () => {
       icon: CheckCircle,
       color: 'bg-gradient-to-br from-emerald-500 to-green-600',
       trend: stats.trends.resolved,
-      onClick: () => navigate('/tickets?status=resolved')
+      onClick: () => navigate(`${basePath}/tickets?status=resolved`)
     }
   ];
 
