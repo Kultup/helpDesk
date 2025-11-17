@@ -102,6 +102,39 @@ class TelegramService {
         hasContact: !!msg.contact
       });
 
+      // Перевірка, чи користувач вже зареєстрований
+      const existingUser = await User.findOne({ telegramId: userId })
+        .populate('position', 'name')
+        .populate('city', 'name');
+      
+      // Якщо користувач вже зареєстрований, показуємо головне меню
+      if (existingUser && !msg.text?.startsWith('/')) {
+        // Обробка фото для зареєстрованих користувачів
+        if (msg.photo) {
+          await this.handlePhoto(msg);
+          return;
+        }
+
+        // Обробка контактів для зареєстрованих користувачів
+        if (msg.contact) {
+          await this.handleContact(msg);
+          return;
+        }
+
+        // Якщо це не команда, показуємо головне меню або обробляємо повідомлення
+        if (!msg.text?.startsWith('/')) {
+          // Перевіряємо, чи є активна сесія для створення тікету
+          const session = this.userSessions.get(chatId);
+          if (session) {
+            await this.handleTextMessage(msg);
+            return;
+          }
+          // Якщо немає активної сесії, показуємо головне меню
+          await this.showUserDashboard(chatId, existingUser);
+          return;
+        }
+      }
+
       // Обробка фото
       if (msg.photo) {
         await this.handlePhoto(msg);
@@ -242,7 +275,68 @@ class TelegramService {
     try {
       logger.info('Обробка callback query:', { userId, data, chatId, messageId });
 
-      // Обробка callback-запитів для незареєстрованих користувачів
+      // Спочатку перевіряємо, чи користувач вже зареєстрований
+      const user = await User.findOne({ telegramId: userId })
+        .populate('position', 'name')
+        .populate('city', 'name');
+      
+      // Якщо користувач вже зареєстрований, не дозволяємо повторну реєстрацію
+      if (user) {
+        // Обробка callback-запитів для зареєстрованих користувачів
+        if (data === 'register_user') {
+          // Якщо користувач вже зареєстрований, показуємо головне меню
+          await this.showUserDashboard(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id, 'Ви вже зареєстровані');
+          return;
+        }
+
+        // Якщо користувач зареєстрований, обробляємо callback для зареєстрованих користувачів
+        // Видаляємо попереднє повідомлення з інлайн кнопками
+        try {
+          await this.deleteMessage(chatId, messageId);
+        } catch (deleteError) {
+          logger.warn('Не вдалося видалити повідомлення:', deleteError.message);
+        }
+
+        if (data === 'my_tickets') {
+          await this.handleMyTicketsCallback(chatId, user);
+        } else if (data === 'create_ticket') {
+          await this.handleCreateTicketCallback(chatId, user);
+        } else if (data === 'create_from_template') {
+          await this.handleCreateFromTemplateCallback(chatId, user);
+        } else if (data === 'statistics') {
+          await this.handleStatisticsCallback(chatId, user);
+        } else if (data === 'back') {
+          await this.showUserDashboard(chatId, user);
+        } else if (data === 'attach_photo') {
+          await this.handleAttachPhotoCallback(chatId, user);
+        } else if (data === 'skip_photo') {
+          await this.handleSkipPhotoCallback(chatId, user);
+        } else if (data === 'add_more_photos') {
+          await this.handleAddMorePhotosCallback(chatId, user);
+        } else if (data === 'finish_ticket') {
+          await this.handleFinishTicketCallback(chatId, user);
+        } else if (data.startsWith('category_')) {
+          const categoryId = data.replace('category_', '');
+          await this.handleDynamicCategoryCallback(chatId, user, categoryId);
+        } else if (data === 'priority_low') {
+          await this.handlePriorityCallback(chatId, user, 'low');
+        } else if (data === 'priority_medium') {
+          await this.handlePriorityCallback(chatId, user, 'medium');
+        } else if (data === 'priority_high') {
+          await this.handlePriorityCallback(chatId, user, 'high');
+        } else if (data.startsWith('template_')) {
+          const templateId = data.replace('template_', '');
+          await this.handleTemplateSelectionCallback(chatId, user, templateId);
+        } else if (data === 'create_from_template') {
+          await this.handleCreateFromTemplateCallback(chatId, user);
+        } else {
+          await this.answerCallbackQuery(callbackQuery.id, 'Невідома команда');
+        }
+        return;
+      }
+
+      // Якщо користувач не зареєстрований, обробляємо callback-и для реєстрації
       if (data === 'register_user') {
         await this.handleUserRegistrationCallback(chatId, userId);
         await this.answerCallbackQuery(callbackQuery.id);
@@ -257,67 +351,8 @@ class TelegramService {
         return;
       }
 
-      const user = await User.findOne({ telegramId: userId })
-        .populate('position', 'name')
-        .populate('city', 'name');
-      
-      if (!user) {
-        await this.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані');
-        return;
-      }
-
-      // Видаляємо попереднє повідомлення з інлайн кнопками
-      try {
-        await this.deleteMessage(chatId, messageId);
-      } catch (deleteError) {
-        logger.warn('Не вдалося видалити повідомлення:', deleteError.message);
-        // Продовжуємо виконання навіть якщо видалення не вдалося
-      }
-
-      if (data === 'my_tickets') {
-        await this.handleMyTicketsCallback(chatId, user);
-      } else if (data === 'create_ticket') {
-        await this.handleCreateTicketCallback(chatId, user);
-      } else if (data === 'create_from_template') {
-        await this.handleCreateFromTemplateCallback(chatId, user);
-      } else if (data === 'statistics') {
-        await this.handleStatisticsCallback(chatId, user);
-      } else if (data === 'back') {
-        await this.showUserDashboard(chatId, user);
-      } else if (data === 'attach_photo') {
-        await this.handleAttachPhotoCallback(chatId, user);
-      } else if (data === 'skip_photo') {
-        await this.handleSkipPhotoCallback(chatId, user);
-      } else if (data === 'add_more_photos') {
-        await this.handleAddMorePhotosCallback(chatId, user);
-      } else if (data === 'finish_ticket') {
-        await this.handleFinishTicketCallback(chatId, user);
-      } else if (data.startsWith('category_')) {
-        // Обробка динамічних категорій
-        const categoryId = data.replace('category_', '');
-        await this.handleDynamicCategoryCallback(chatId, user, categoryId);
-      } else if (data === 'priority_low') {
-           await this.handlePriorityCallback(chatId, user, 'low');
-         } else if (data === 'priority_medium') {
-           await this.handlePriorityCallback(chatId, user, 'medium');
-         } else if (data === 'priority_high') {
-           await this.handlePriorityCallback(chatId, user, 'high');
-         } else if (data === 'template_add_photo') {
-           await this.handleTemplateAddPhotoCallback(chatId, user);
-         } else if (data === 'template_create_without_photo') {
-           await this.handleTemplateCreateWithoutPhotoCallback(chatId, user);
-         } else if (data.startsWith('template_')) {
-           const templateId = data.replace('template_', '');
-           await this.handleTemplateSelectionCallback(chatId, user, templateId);
-         } else if (data.startsWith('rate_ticket_')) {
-           await this.handleQualityRatingResponse(chatId, data, user);
-         } else if (data.startsWith('rating_')) {
-           await this.handleQualityRating(chatId, data, user);
-         } else if (data.startsWith('feedback_')) {
-           await this.handleFeedbackCallback(chatId, data, user);
-         }
-
-       await this.answerCallbackQuery(callbackQuery.id);
+      // Якщо користувач не зареєстрований і це не callback для реєстрації
+      await this.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані. Використайте /start для реєстрації.');
     } catch (error) {
       logger.error('Помилка обробки callback query:', error);
       await this.answerCallbackQuery(callbackQuery.id, 'Виникла помилка');
@@ -595,6 +630,33 @@ class TelegramService {
     const text = msg.text;
     const userId = msg.from.id;
     const session = this.userSessions.get(chatId);
+
+    // Перевіряємо, чи користувач вже зареєстрований
+    const existingUser = await User.findOne({ telegramId: userId })
+      .populate('position', 'name')
+      .populate('city', 'name');
+    
+    // Якщо користувач зареєстрований, не проводимо реєстрацію
+    if (existingUser) {
+      // Перевіряємо, чи є активна сесія для створення тікету
+      if (session) {
+        await this.handleTicketCreationStep(chatId, text, session);
+        return;
+      }
+      
+      // Перевіряємо, чи це відгук
+      const user = await User.findOne({ telegramChatId: chatId });
+      if (user) {
+        const feedbackHandled = await this.handleFeedbackMessage(chatId, text, user);
+        if (feedbackHandled) {
+          return; // Повідомлення оброблено як відгук
+        }
+      }
+      
+      // Якщо немає активної сесії, показуємо головне меню
+      await this.showUserDashboard(chatId, existingUser);
+      return;
+    }
 
     // Перевіряємо, чи користувач в процесі реєстрації
     const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
@@ -901,6 +963,17 @@ class TelegramService {
     const userId = msg.from.id;
 
     try {
+      // Перевіряємо, чи користувач вже зареєстрований
+      const existingUser = await User.findOne({ telegramId: userId })
+        .populate('position', 'name')
+        .populate('city', 'name');
+      
+      // Якщо користувач вже зареєстрований, показуємо головне меню
+      if (existingUser) {
+        await this.showUserDashboard(chatId, existingUser);
+        return;
+      }
+
       // Перевіряємо, чи користувач в процесі реєстрації на етапі phone
       const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
       
