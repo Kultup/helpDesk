@@ -32,7 +32,12 @@ interface WeeklyData {
   count: number;
 }
 
-const WeeklyTicketsChart: React.FC = () => {
+interface WeeklyTicketsChartProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endDate }) => {
   const { t } = useTranslation();
   const [data, setData] = useState<WeeklyData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +45,7 @@ const WeeklyTicketsChart: React.FC = () => {
 
   useEffect(() => {
     fetchWeeklyData();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchWeeklyData = async () => {
     try {
@@ -48,7 +53,13 @@ const WeeklyTicketsChart: React.FC = () => {
       const token = localStorage.getItem('token');
       const baseURL = process.env.REACT_APP_API_URL || 
         (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
-      const response = await axios.get(`${baseURL}/analytics/charts/weekly-tickets`, {
+      
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const url = `${baseURL}/analytics/charts/weekly-tickets${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

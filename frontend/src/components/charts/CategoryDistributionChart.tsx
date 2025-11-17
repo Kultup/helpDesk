@@ -19,7 +19,12 @@ interface CategoryData {
   percentage: number;
 }
 
-const CategoryDistributionChart: React.FC = () => {
+interface CategoryDistributionChartProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+const CategoryDistributionChart: React.FC<CategoryDistributionChartProps> = ({ startDate, endDate }) => {
   const { t } = useTranslation();
   const [data, setData] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +34,7 @@ const CategoryDistributionChart: React.FC = () => {
   useEffect(() => {
     fetchCategoryData();
     loadCategoryNames();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchCategoryData = async () => {
     try {
@@ -37,11 +42,18 @@ const CategoryDistributionChart: React.FC = () => {
       const token = localStorage.getItem('token');
       const baseURL = process.env.REACT_APP_API_URL || 
         (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
-      const response = await axios.get(`${baseURL}/analytics/charts/category-distribution`, {
+      
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const url = `${baseURL}/analytics/charts/category-distribution${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.data.success) {
+      if (response.data.success && Array.isArray(response.data.data)) {
+        // Бекенд тепер повертає дані з назвами категорій та відсотками
         setData(response.data.data);
       } else {
         setError('Помилка завантаження даних');
@@ -73,7 +85,8 @@ const CategoryDistributionChart: React.FC = () => {
 
   const isObjectId = (val: string) => /^[a-f\d]{24}$/i.test(val);
   const resolveCategoryName = (raw: string): string => {
-    if (!raw) return raw;
+    if (!raw) return raw || 'Невідома категорія';
+    // Бекенд тепер повертає назви категорій, але залишаємо fallback для сумісності
     if (isObjectId(raw) && categoryNameById[raw]) return categoryNameById[raw];
     return raw;
   };

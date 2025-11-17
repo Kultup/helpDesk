@@ -431,13 +431,27 @@ exports.getUserRegistrationStats = async (req, res) => {
 // Отримати дані для міні-графіка тикетів за тиждень
 exports.getWeeklyTicketsChart = async (req, res) => {
   try {
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const { startDate, endDate } = req.query;
+    
+    let start, end;
+    if (startDate && endDate) {
+      start = new Date(startDate);
+      end = new Date(endDate);
+      // Встановлюємо час на початок та кінець дня
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // За замовчуванням - останні 7 днів
+      end = new Date();
+      end.setHours(23, 59, 59, 999);
+      start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+      start.setHours(0, 0, 0, 0);
+    }
 
     const dailyTickets = await Ticket.aggregate([
       {
         $match: {
-          createdAt: { $gte: sevenDaysAgo }
+          createdAt: { $gte: start, $lte: end }
         }
       },
       {
@@ -451,10 +465,15 @@ exports.getWeeklyTicketsChart = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // Створюємо масив з усіма днями тижня
+    // Створюємо масив з усіма днями в діапазоні
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const daysToShow = Math.min(Math.max(daysDiff + 1, 1), 30); // Мінімум 1 день, максимум 30
+    
     const weekData = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < daysToShow; i++) {
+      const date = new Date(start);
+      date.setDate(date.getDate() + i);
+      date.setHours(0, 0, 0, 0);
       const dateStr = date.toISOString().split('T')[0];
       const dayData = dailyTickets.find(d => d._id === dateStr);
       
@@ -483,6 +502,7 @@ exports.getWeeklyTicketsChart = async (req, res) => {
 exports.getCategoryDistribution = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    const Category = require('../models/Category');
     
     const dateFilter = {};
     if (startDate || endDate) {
@@ -502,9 +522,25 @@ exports.getCategoryDistribution = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
+    // Отримуємо назви категорій
+    const categoryIds = categoryDistribution.map(item => item._id).filter(Boolean);
+    const categories = await Category.find({ _id: { $in: categoryIds } }).select('_id name');
+    const categoryMap = {};
+    categories.forEach(cat => {
+      categoryMap[cat._id.toString()] = cat.name;
+    });
+
+    // Формуємо результат з назвами категорій та відсотками
+    const totalTickets = categoryDistribution.reduce((sum, item) => sum + item.count, 0);
+    const result = categoryDistribution.map(item => ({
+      category: categoryMap[item._id?.toString()] || item._id?.toString() || 'Невідома категорія',
+      count: item.count,
+      percentage: totalTickets > 0 ? Math.round((item.count / totalTickets) * 100) : 0
+    }));
+
     res.json({
       success: true,
-      data: categoryDistribution
+      data: result
     });
   } catch (error) {
     logger.error('Помилка отримання розподілу за категоріями:', error);
@@ -527,6 +563,10 @@ exports.getWorkloadByDayOfWeek = async (req, res) => {
       if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
     }
 
+    // MongoDB $dayOfWeek повертає 1 (неділя) - 7 (субота)
+    // JavaScript getDay() повертає 0 (неділя) - 6 (субота)
+    // Конвертуємо MongoDB день до JavaScript формату (dayNumber - 1) % 7
+    
     const workloadByDay = await Ticket.aggregate([
       { $match: dateFilter },
       {
@@ -534,23 +574,48 @@ exports.getWorkloadByDayOfWeek = async (req, res) => {
           _id: {
             $dayOfWeek: '$createdAt'
           },
-          count: { $sum: 1 }
+          totalTickets: { $sum: 1 },
+          openTickets: {
+            $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] }
+          },
+          inProgressTickets: {
+            $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] }
+          },
+          resolvedTickets: {
+            $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+          }
         }
       },
       { $sort: { _id: 1 } }
     ]);
 
-    // Мапінг днів тижня (1 = неділя, 7 = субота)
-    const dayNames = ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота'];
-    const workloadData = workloadByDay.map(item => ({
-      day: dayNames[item._id - 1] || `День ${item._id}`,
-      dayNumber: item._id,
-      count: item.count
+    // Створюємо масив для всіх 7 днів тижня (0-6 для JavaScript)
+    const allDays = Array.from({ length: 7 }, (_, i) => ({
+      dayNumber: i, // JavaScript формат: 0=неділя, 6=субота
+      totalTickets: 0,
+      openTickets: 0,
+      inProgressTickets: 0,
+      resolvedTickets: 0
     }));
+
+    // Заповнюємо дані з агрегації
+    // MongoDB день 1 (неділя) -> JavaScript 0
+    // MongoDB день 7 (субота) -> JavaScript 6
+    workloadByDay.forEach(item => {
+      const mongoDay = item._id; // 1-7
+      const jsDay = (mongoDay - 1) % 7; // 0-6
+      
+      if (allDays[jsDay]) {
+        allDays[jsDay].totalTickets = item.totalTickets || 0;
+        allDays[jsDay].openTickets = item.openTickets || 0;
+        allDays[jsDay].inProgressTickets = item.inProgressTickets || 0;
+        allDays[jsDay].resolvedTickets = item.resolvedTickets || 0;
+      }
+    });
 
     res.json({
       success: true,
-      data: workloadData
+      data: allDays
     });
   } catch (error) {
     logger.error('Помилка отримання навантаження по днях тижня:', error);

@@ -99,11 +99,11 @@ const WorkloadByDayChart: React.FC = () => {
   };
 
   const getTotalChartData = () => ({
-    labels: data.map(item => getDayName(item.dayNumber)),
+    labels: validData.map(item => getDayName(item.dayNumber)),
     datasets: [
       {
         label: 'Всього тикетів',
-        data: data.map(item => item.totalTickets),
+        data: validData.map(item => item.totalTickets || 0),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 1,
@@ -114,11 +114,11 @@ const WorkloadByDayChart: React.FC = () => {
   });
 
   const getStatusChartData = () => ({
-    labels: data.map(item => getDayName(item.dayNumber)),
+    labels: validData.map(item => getDayName(item.dayNumber)),
     datasets: [
       {
         label: t('dashboard.charts.open'),
-        data: data.map(item => item.openTickets),
+        data: validData.map(item => item.openTickets || 0),
         backgroundColor: 'rgba(239, 68, 68, 0.8)',
         borderColor: 'rgb(239, 68, 68)',
         borderWidth: 1,
@@ -127,7 +127,7 @@ const WorkloadByDayChart: React.FC = () => {
       },
       {
         label: t('dashboard.charts.inProgress'),
-        data: data.map(item => item.inProgressTickets),
+        data: validData.map(item => item.inProgressTickets || 0),
         backgroundColor: 'rgba(245, 158, 11, 0.8)',
         borderColor: 'rgb(245, 158, 11)',
         borderWidth: 1,
@@ -136,7 +136,7 @@ const WorkloadByDayChart: React.FC = () => {
       },
       {
         label: t('dashboard.charts.resolved'),
-        data: data.map(item => item.resolvedTickets),
+        data: validData.map(item => item.resolvedTickets || 0),
         backgroundColor: 'rgba(16, 185, 129, 0.8)',
         borderColor: 'rgb(16, 185, 129)',
         borderWidth: 1,
@@ -251,10 +251,35 @@ const WorkloadByDayChart: React.FC = () => {
     );
   }
 
-  const totalTickets = data.reduce((sum, item) => sum + item.totalTickets, 0);
-  const avgPerDay = data.length > 0 ? Math.round(totalTickets / data.length) : 0;
-  const busiestDay = data.reduce((max, item) => 
-    item.totalTickets > max.totalTickets ? item : max, data[0] || { dayNumber: 0, totalTickets: 0 });
+  // Обчислюємо статистику з безпечними перевірками
+  const validData = data.filter(item => 
+    item && 
+    typeof item.totalTickets === 'number' && 
+    !isNaN(item.totalTickets)
+  );
+
+  const totalTickets = validData.reduce((sum, item) => sum + (item.totalTickets || 0), 0);
+  const avgPerDay = validData.length > 0 ? Math.round(totalTickets / validData.length) : 0;
+  
+  // Знаходимо найзавантаженіший день
+  const busiestDay = validData.length > 0 
+    ? validData.reduce((max, item) => {
+        const maxTickets = max.totalTickets || 0;
+        const itemTickets = item.totalTickets || 0;
+        return itemTickets > maxTickets ? item : max;
+      }, validData[0])
+    : { dayNumber: 0, totalTickets: 0 };
+
+  // Знаходимо найменше завантажений день
+  const leastLoadedDay = validData.length > 0
+    ? validData.reduce((min, item) => {
+        const minTickets = min.totalTickets || 0;
+        const itemTickets = item.totalTickets || 0;
+        return itemTickets < minTickets ? item : min;
+      }, validData[0])
+    : { dayNumber: 0, totalTickets: 0 };
+
+  const minMaxDiff = (busiestDay.totalTickets || 0) - (leastLoadedDay.totalTickets || 0);
 
   return (
     <div className="bg-white rounded-lg shadow p-4 sm:p-6">
@@ -262,7 +287,7 @@ const WorkloadByDayChart: React.FC = () => {
         <div className="flex-1 min-w-0">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.workloadByDay')}</h3>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
-            {t('dashboard.charts.total')}: {totalTickets} | {t('dashboard.charts.average')}: {avgPerDay}{t('dashboard.charts.perDay')} | {t('dashboard.charts.busiestDay')}: {getDayName(busiestDay.dayNumber)}
+            {t('dashboard.charts.total')}: {isNaN(totalTickets) ? 0 : totalTickets} | {t('dashboard.charts.average')}: {isNaN(avgPerDay) ? 0 : avgPerDay}{t('dashboard.charts.perDay')} | {t('dashboard.charts.busiestDay')}: {validData.length > 0 ? getDayName(busiestDay.dayNumber) : '-'}
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -311,23 +336,19 @@ const WorkloadByDayChart: React.FC = () => {
         <div className="text-center">
           <p className="text-gray-500 mb-1">{t('dashboard.charts.leastLoad')}</p>
           <p className="font-semibold text-gray-900">
-            {getDayName(data.reduce((min, item) => 
-              item.totalTickets < min.totalTickets ? item : min, 
-              data[0] || { dayNumber: 0, totalTickets: 0 }
-            ).dayNumber)}
+            {validData.length > 0 ? getDayName(leastLoadedDay.dayNumber) : '-'}
           </p>
         </div>
         <div className="text-center">
           <p className="text-gray-500 mb-1">{t('dashboard.charts.mostLoad')}</p>
-          <p className="font-semibold text-gray-900">{getDayName(busiestDay.dayNumber)}</p>
+          <p className="font-semibold text-gray-900">
+            {validData.length > 0 ? getDayName(busiestDay.dayNumber) : '-'}
+          </p>
         </div>
         <div className="text-center">
           <p className="text-gray-500 mb-1">{t('dashboard.charts.minMaxDiff')}</p>
           <p className="font-semibold text-gray-900">
-            {busiestDay.totalTickets - data.reduce((min, item) => 
-              item.totalTickets < min.totalTickets ? item : min, 
-              data[0] || { totalTickets: 0 }
-            ).totalTickets}
+            {isNaN(minMaxDiff) ? 0 : minMaxDiff}
           </p>
         </div>
       </div>
