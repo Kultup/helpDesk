@@ -193,7 +193,7 @@ class TelegramService {
 
       switch (command) {
         case '/start':
-          await this.handleStartCommand(chatId, userId, msg.text);
+          await this.handleStartCommand(chatId, userId, msg);
           break;
         default:
           if (!user) {
@@ -221,11 +221,14 @@ class TelegramService {
     }
   }
 
-  async handleStartCommand(chatId, userId) {
+  async handleStartCommand(chatId, userId, msg) {
     try {
       // Конвертуємо userId та chatId в рядки для пошуку
       const userIdString = String(userId);
       const chatIdString = String(chatId);
+      const usernameFromMsg = msg?.from?.username
+        ? msg.from.username.replace(/^@/, '').toLowerCase()
+        : null;
       
       // Спочатку шукаємо за telegramId
       let user = await User.findOne({ 
@@ -243,7 +246,8 @@ class TelegramService {
           userId,
           userIdString,
           chatId,
-          chatIdString
+          chatIdString,
+          usernameFromMsg
         });
         
         user = await User.findOne({ 
@@ -264,6 +268,42 @@ class TelegramService {
             newTelegramId: userIdString
           });
           user.telegramId = userIdString;
+          if (usernameFromMsg && user.telegramUsername !== usernameFromMsg) {
+            user.telegramUsername = usernameFromMsg;
+          }
+          await user.save();
+        }
+      }
+      
+      // Якщо досі не знайдено, пробуємо знайти за telegramUsername
+      if (!user && usernameFromMsg) {
+        logger.info('Пробуємо знайти користувача за telegramUsername:', {
+          usernameFromMsg,
+          originalUsername: msg.from.username
+        });
+
+        user = await User.findOne({
+          telegramUsername: { $regex: new RegExp(`^${usernameFromMsg}$`, 'i') }
+        })
+          .populate('position', 'name')
+          .populate('city', 'name');
+
+        if (user) {
+          logger.info('Знайдено користувача за telegramUsername, оновлюємо дані Telegram:', {
+            userId: user._id,
+            email: user.email,
+            oldTelegramId: user.telegramId,
+            newTelegramId: userIdString,
+            oldTelegramChatId: user.telegramChatId,
+            newTelegramChatId: chatIdString,
+            storedTelegramUsername: user.telegramUsername
+          });
+
+          user.telegramId = userIdString;
+          user.telegramChatId = chatIdString;
+          if (user.telegramUsername !== usernameFromMsg) {
+            user.telegramUsername = usernameFromMsg;
+          }
           await user.save();
         }
       }
@@ -274,6 +314,7 @@ class TelegramService {
         userIdString,
         chatId,
         chatIdString,
+        usernameFromMsg,
         userFound: !!user,
         userIdType: typeof userId,
         userTelegramId: user?.telegramId,
@@ -318,7 +359,14 @@ class TelegramService {
           userIdString,
           chatId,
           chatIdString,
-          searchAttempts: ['telegramId as String', 'telegramId as Number', 'telegramChatId as String', 'telegramChatId as Number']
+          usernameFromMsg,
+          searchAttempts: [
+            'telegramId as String',
+            'telegramId as Number',
+            'telegramChatId as String',
+            'telegramChatId as Number',
+            'telegramUsername (case-insensitive)'
+          ]
         });
         
         // Додаткова діагностика: перевіряємо всіх користувачів з email kultup@test.com
@@ -332,7 +380,8 @@ class TelegramService {
               telegramChatId: testUser.telegramChatId,
               telegramChatIdType: typeof testUser.telegramChatId,
               isActive: testUser.isActive,
-              expectedTelegramId: userIdString
+              expectedTelegramId: userIdString,
+              usernameFromMsg
             });
           }
         } catch (diagError) {
@@ -356,7 +405,13 @@ class TelegramService {
         );
       }
     } catch (error) {
-      logger.error('Помилка обробки команди /start:', error);
+      logger.error('Помилка обробки команди /start:', {
+        error: error.message,
+        stack: error.stack,
+        chatId,
+        userId,
+        usernameFromMsg: msg?.from?.username
+      });
       await this.sendMessage(chatId, 
         `❌ *Помилка системи*\n\n` +
         `Виникла технічна помилка. Спробуйте ще раз через кілька хвилин.`
