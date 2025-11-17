@@ -38,7 +38,7 @@ interface TicketTemplate {
     _id: string;
     name: string;
     color: string;
-  };
+  } | null;
   priority: 'low' | 'medium' | 'high';
   estimatedResolutionTime: number;
   tags: string[];
@@ -142,7 +142,7 @@ const Templates: React.FC = () => {
           title: template.title,
           description: template.description,
           priority: template.priority,
-          category: template.category._id,
+          category: template.category?._id || '',
           templateId: template._id
         }
       }
@@ -312,12 +312,12 @@ const Templates: React.FC = () => {
                       <div 
                         className="p-2 sm:p-3 rounded-lg flex-shrink-0"
                         style={{ 
-                          backgroundColor: `${template.category.color}20`,
-                          color: template.category.color 
+                          backgroundColor: `${template.category?.color || '#6B7280'}20`,
+                          color: template.category?.color || '#6B7280'
                         }}
                       >
                         <div className="w-4 h-4 sm:w-5 sm:h-5">
-                          {getCategoryIcon(template.category.name)}
+                          {getCategoryIcon(template.category?.name || 'Невідома категорія')}
                         </div>
                       </div>
                       
@@ -338,11 +338,11 @@ const Templates: React.FC = () => {
                             size="sm"
                             className="text-xs"
                             style={{ 
-                              backgroundColor: `${template.category.color}20`,
-                              color: template.category.color 
+                              backgroundColor: `${template.category?.color || '#6B7280'}20`,
+                              color: template.category?.color || '#6B7280'
                             }}
                           >
-                            {template.category.name}
+                            {template.category?.name || 'Невідома категорія'}
                           </Badge>
                           <div className={`flex items-center space-x-1 px-2 py-0.5 sm:py-1 rounded-full text-xs border ${getPriorityColor(template.priority)}`}>
                             <div className="w-3 h-3 sm:w-4 sm:h-4">
