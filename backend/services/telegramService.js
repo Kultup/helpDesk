@@ -2010,6 +2010,116 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправка сповіщення про зміну статусу тікету в групу
+   */
+  async sendTicketStatusNotificationToGroup(ticket, previousStatus, newStatus, changedBy) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про зміну статусу');
+        return;
+      }
+
+      const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      if (!groupChatId) {
+        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено');
+        return;
+      }
+
+      await ticket.populate([
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'city', select: 'name region' },
+        { path: 'category', select: 'name' }
+      ]);
+
+      const categoryText = await this.getCategoryText(ticket.category?._id || ticket.category);
+      const priorityText = this.getPriorityText(ticket.priority);
+      const previousStatusText = this.getStatusText(previousStatus);
+      const newStatusText = this.getStatusText(newStatus);
+      const previousStatusEmoji = this.getStatusEmoji(previousStatus);
+      const newStatusEmoji = this.getStatusEmoji(newStatus);
+      
+      const message = 
+        `🔄 *Статус тікету змінено*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 *Заголовок:* ${ticket.title}\n` +
+        `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
+        `${previousStatusEmoji} *Попередній статус:* ${previousStatusText}\n` +
+        `${newStatusEmoji} *Новий статус:* ${newStatusText}\n\n` +
+        `👤 *Автор:* ${ticket.createdBy?.firstName || ''} ${ticket.createdBy?.lastName || ''}\n` +
+        `📧 *Email:* \`${ticket.createdBy?.email || 'Невідомий'}\`\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
+        `🏷️ *Категорія:* ${categoryText}\n` +
+        `⚡ *Пріоритет:* ${priorityText}\n` +
+        `👨‍💼 *Змінено:* ${changedBy?.firstName || ''} ${changedBy?.lastName || ''}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+      logger.info('✅ Сповіщення про зміну статусу тікету відправлено в групу Telegram');
+    } catch (error) {
+      logger.error('Помилка відправки сповіщення про зміну статусу тікету в групу:', error);
+    }
+  }
+
+  /**
+   * Відправка сповіщення користувачу про зміну статусу тікету
+   */
+  async sendTicketNotification(ticket, type) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення користувачу');
+        return;
+      }
+
+      // Завантажуємо тікет з повною інформацією
+      await ticket.populate([
+        { path: 'createdBy', select: 'firstName lastName email telegramId telegramChatId' },
+        { path: 'category', select: 'name' }
+      ]);
+
+      // Перевіряємо, чи користувач має Telegram ID або Chat ID
+      const user = ticket.createdBy;
+      if (!user) {
+        logger.warn('Користувач, який створив тікет, не знайдений');
+        return;
+      }
+
+      // Конвертуємо chatId в рядок для сумісності
+      const chatId = user.telegramChatId ? String(user.telegramChatId) : (user.telegramId ? String(user.telegramId) : null);
+      if (!chatId) {
+        logger.info(`Користувач ${user.email} не має Telegram ID для сповіщень`);
+        return;
+      }
+
+      // Формуємо повідомлення
+      const statusText = this.getStatusText(ticket.status);
+      const statusEmoji = this.getStatusEmoji(ticket.status);
+      const categoryText = await this.getCategoryText(ticket.category?._id || ticket.category);
+
+      let message = '';
+      if (type === 'updated') {
+        message = 
+          `🔄 *Статус вашого тікету змінено*\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📋 *Заголовок:* ${ticket.title}\n` +
+          `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
+          `${statusEmoji} *Новий статус:* ${statusText}\n\n` +
+          `🏷️ *Категорія:* ${categoryText}\n` +
+          `⚡ *Пріоритет:* ${this.getPriorityText(ticket.priority)}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `💡 Ви можете переглянути деталі тікету в системі.`;
+      }
+
+      if (message) {
+        await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        logger.info(`✅ Сповіщення про зміну статусу тікету відправлено користувачу ${user.email}`);
+      }
+    } catch (error) {
+      logger.error('Помилка відправки сповіщення користувачу про зміну статусу тікету:', error);
+    }
+  }
+
   getStatusText(status) {
     const statusMap = {
       'open': 'Відкрито',
