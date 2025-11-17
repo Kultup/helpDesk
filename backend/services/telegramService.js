@@ -264,6 +264,41 @@ class TelegramService {
         }
       }
       
+      // Якщо досі не знайдено, пробуємо знайти за telegramChatId
+      if (!user) {
+        logger.info('Пробуємо знайти користувача за telegramChatId:', {
+          chatIdString,
+          chatId
+        });
+
+        user = await User.findOne({
+          $or: [
+            { telegramChatId: chatIdString },
+            { telegramChatId: String(chatId) }
+          ]
+        })
+          .populate('position', 'name')
+          .populate('city', 'name');
+
+        if (user) {
+          logger.info('Знайдено користувача за telegramChatId, оновлюємо дані Telegram:', {
+            userId: user._id,
+            email: user.email,
+            oldTelegramId: user.telegramId,
+            newTelegramId: userIdString,
+            oldTelegramChatId: user.telegramChatId,
+            newTelegramChatId: chatIdString
+          });
+
+          user.telegramId = userIdString;
+          user.telegramChatId = chatIdString;
+          if (usernameFromMsg && user.telegramUsername !== usernameFromMsg) {
+            user.telegramUsername = usernameFromMsg;
+          }
+          await user.save();
+        }
+      }
+
       // Якщо досі не знайдено, пробуємо знайти за telegramUsername
       if (!user && usernameFromMsg) {
         logger.info('Пробуємо знайти користувача за telegramUsername:', {
@@ -355,11 +390,12 @@ class TelegramService {
             "telegramId with '@' prefix / spaces",
             'telegramChatId as String',
             'telegramChatId as Number',
-            'telegramUsername (case-insensitive)'
+            'telegramUsername (case-insensitive)',
+            'test user auto-update (admin/test.com)'
           ]
         });
         
-        // Додаткова діагностика: перевіряємо всіх користувачів з email kultup@test.com
+        // Додаткова діагностика: перевіряємо тестового користувача та автоматично оновлюємо telegramId
         try {
           const testUser = await User.findOne({ email: 'kultup@test.com' });
           if (testUser) {
@@ -373,26 +409,78 @@ class TelegramService {
               expectedTelegramId: userIdString,
               usernameFromMsg
             });
+            
+            // Автоматично оновлюємо telegramId для тестового користувача, якщо він не співпадає
+            if (testUser.telegramId !== userIdString && (testUser.role === 'admin' || testUser.email === 'kultup@test.com')) {
+              logger.info('Автоматично оновлюємо telegramId для тестового/адмін користувача:', {
+                email: testUser.email,
+                oldTelegramId: testUser.telegramId,
+                newTelegramId: userIdString,
+                oldTelegramChatId: testUser.telegramChatId,
+                newTelegramChatId: chatIdString
+              });
+              
+              testUser.telegramId = userIdString;
+              testUser.telegramChatId = chatIdString;
+              if (usernameFromMsg) {
+                testUser.telegramUsername = usernameFromMsg;
+              }
+              await testUser.save();
+              
+              // Використовуємо оновленого користувача
+              user = await User.findById(testUser._id)
+                .populate('position', 'name')
+                .populate('city', 'name');
+            }
           }
         } catch (diagError) {
           logger.error('Помилка діагностики:', diagError);
         }
         
-        await this.sendMessage(chatId, 
-          `🚫 *Доступ обмежено*\n\n` +
-          `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📞 *Зверніться до адміністратора для отримання доступу:* [@Kultup](https://t.me/Kultup)`,
-          {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
-                [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
-              ]
-            }
+        // Якщо користувача знайдено після автоматичного оновлення, обробляємо його
+        if (user) {
+          // Оновлюємо telegramChatId якщо він відрізняється або відсутній
+          if (user.telegramChatId !== chatIdString) {
+            logger.info('Оновлюємо telegramChatId для користувача (після auto-update):', {
+              userId: user._id,
+              email: user.email,
+              oldChatId: user.telegramChatId,
+              newChatId: chatIdString
+            });
+            user.telegramChatId = chatIdString;
+            await user.save();
           }
-        );
+          
+          // Перевіряємо, чи користувач активний
+          if (!user.isActive) {
+            await this.sendMessage(chatId, 
+              `🚫 *Доступ обмежено*\n\n` +
+              `Ваш обліковий запис поки не активований.\n\n` +
+              `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
+              { parse_mode: 'Markdown' }
+            );
+            return;
+          }
+          
+          await this.showUserDashboard(chatId, user);
+        } else {
+          // Якщо користувача все ще не знайдено, показуємо повідомлення про реєстрацію
+          await this.sendMessage(chatId, 
+            `🚫 *Доступ обмежено*\n\n` +
+            `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `📞 *Зверніться до адміністратора для отримання доступу:* [@Kultup](https://t.me/Kultup)`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
+                  [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
+                ]
+              }
+            }
+          );
+        }
       }
     } catch (error) {
       logger.error('Помилка обробки команди /start:', {
