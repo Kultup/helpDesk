@@ -419,14 +419,14 @@ class ApiService {
     limit?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }): Promise<ApiResponse<{ docs: User[], pagination: any }>> {
+  }): Promise<ApiResponse<User[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-    const response: AxiosResponse<ApiResponse<{ docs: User[], pagination: any }>> = 
+    const response: AxiosResponse<ApiResponse<User[]>> = 
       await this.api.get(`/users/pending-registrations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
   }

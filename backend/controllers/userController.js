@@ -1258,6 +1258,10 @@ exports.getPendingRegistrations = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
+    // Перевіряємо, чи є користувачі з pending статусом
+    const totalPendingCount = await User.countDocuments({ registrationStatus: 'pending' });
+    logger.info(`📊 Total pending registrations count: ${totalPendingCount}`);
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -1274,9 +1278,18 @@ exports.getPendingRegistrations = async (req, res) => {
       options
     );
 
+    logger.info(`✅ Found ${pendingUsers.docs.length} pending users on page ${pendingUsers.page}`);
+    logger.info(`📄 Total pages: ${pendingUsers.totalPages}, Total docs: ${pendingUsers.totalDocs}`);
+
+    // Перетворюємо документи в об'єкти для правильної серіалізації
+    const usersData = pendingUsers.docs.map(user => {
+      const userObj = user.toObject ? user.toObject() : user;
+      return userObj;
+    });
+
     res.json({
       success: true,
-      data: pendingUsers.docs,
+      data: usersData,
       pagination: {
         currentPage: pendingUsers.page,
         totalPages: pendingUsers.totalPages,
@@ -1287,6 +1300,7 @@ exports.getPendingRegistrations = async (req, res) => {
     });
   } catch (error) {
     logger.error('Error fetching pending registrations:', error);
+    logger.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні списку заявок на реєстрацію',

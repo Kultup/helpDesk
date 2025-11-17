@@ -65,9 +65,12 @@ const PendingRegistrations: React.FC = () => {
     try {
       const response = await apiService.get(`/users/pending-registrations?page=${pagination.currentPage}&limit=10`);
       if (response.success) {
-        const uniqueUsers = removeDuplicateUsers(response.data);
+        const usersData = Array.isArray(response.data) ? response.data : [];
+        const uniqueUsers = removeDuplicateUsers(usersData);
         setPendingUsers(uniqueUsers);
-        setPagination(response.pagination);
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
         setLastUpdated(new Date());
         setError(null);
       }
@@ -96,18 +99,50 @@ const PendingRegistrations: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
+      console.log('🔍 Fetching pending registrations, page:', page);
       const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`);
       
+      console.log('📥 Response received:', {
+        success: response.success,
+        dataLength: response.data?.length,
+        pagination: response.pagination
+      });
+      
       if (response.success) {
+        // Перевіряємо, чи дані є масивом
+        const usersData = Array.isArray(response.data) ? response.data : [];
+        console.log('👥 Users data:', usersData.length, 'users');
+        
         // Видаляємо можливі дублікати
-        const uniqueUsers = removeDuplicateUsers(response.data);
+        const uniqueUsers = removeDuplicateUsers(usersData);
+        console.log('✅ Unique users after deduplication:', uniqueUsers.length);
+        
         setPendingUsers(uniqueUsers);
-        setPagination(response.pagination);
+        
+        // Перевіряємо, чи є pagination в відповіді
+        if (response.pagination) {
+          setPagination(response.pagination);
+        } else {
+          // Якщо pagination відсутня, створюємо дефолтну
+          setPagination({
+            currentPage: page,
+            totalPages: 1,
+            totalItems: uniqueUsers.length,
+            hasNextPage: false,
+            hasPrevPage: false
+          });
+        }
       } else {
+        console.error('❌ API returned error:', response.message);
         setError(response.message || t('pendingRegistrations.errorLoading'));
       }
     } catch (err: any) {
-      console.error('Error fetching pending registrations:', err);
+      console.error('❌ Error fetching pending registrations:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
       setError(err.message || t('pendingRegistrations.errorLoading'));
     } finally {
       setIsLoading(false);
