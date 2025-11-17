@@ -528,7 +528,7 @@ const Dashboard: React.FC = () => {
                     </Button>
 
                     <Button
-                      onClick={() => navigate('/analytics')}
+                      onClick={() => navigate(`${basePath}/analytics`)}
                       variant="outline"
                       className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
                       style={{
