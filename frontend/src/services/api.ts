@@ -1443,6 +1443,10 @@ class ApiService {
     return this.delete(`/zabbix/groups/${id}`);
   }
 
+  async testZabbixAlert(data: { groupId?: string; alertId?: string }): Promise<ApiResponse<any>> {
+    return this.post('/zabbix/test-alert', data);
+  }
+
 
 }
 

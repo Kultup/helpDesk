@@ -733,6 +733,217 @@ exports.testAlert = async (req, res) => {
 };
 
 /**
+ * Діагностика алерту - перевірка, чому сповіщення не надійшло
+ */
+exports.checkAlert = async (req, res) => {
+  try {
+    const { host, triggerName, eventTime, alertId } = req.body;
+
+    if (!host && !alertId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Host name or alertId is required',
+        error: 'Please provide either host+triggerName+eventTime or alertId'
+      });
+    }
+
+    let alert;
+
+    // Знаходимо алерт за ID або за параметрами
+    if (alertId) {
+      alert = await ZabbixAlert.findOne({ 
+        $or: [
+          { _id: alertId },
+          { alertId: alertId }
+        ]
+      });
+    } else {
+      // Шукаємо за параметрами
+      const query = { host: host };
+      
+      if (triggerName) {
+        query.triggerName = triggerName;
+      }
+      
+      if (eventTime) {
+        // Шукаємо алерт з eventTime в межах ±5 хвилин від вказаного часу
+        const searchTime = new Date(eventTime);
+        const timeRange = 5 * 60 * 1000; // 5 хвилин в мілісекундах
+        query.eventTime = {
+          $gte: new Date(searchTime.getTime() - timeRange),
+          $lte: new Date(searchTime.getTime() + timeRange)
+        };
+      }
+
+      // Спочатку шукаємо найближчий за часом
+      alert = await ZabbixAlert.findOne(query).sort({ eventTime: -1 });
+      
+      // Якщо не знайшли точно, шукаємо всі алерти для цього хоста
+      if (!alert && host) {
+        const allAlerts = await ZabbixAlert.find({ host: host })
+          .sort({ eventTime: -1 })
+          .limit(10)
+          .select('alertId host triggerName eventTime status severity notificationSent');
+        
+        return res.json({
+          success: true,
+          message: 'Alert not found with exact parameters, but found recent alerts for this host',
+          data: {
+            alert: null,
+            foundAlerts: allAlerts,
+            diagnostics: {
+              searched: { host, triggerName, eventTime },
+              foundCount: allAlerts.length
+            }
+          }
+        });
+      }
+    }
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alert not found in database',
+        error: 'The alert might not have been fetched from Zabbix yet, or the search parameters are incorrect',
+        searched: { host, triggerName, eventTime, alertId }
+      });
+    }
+
+    // Перевіряємо чи є групи для цього алерту
+    const groups = await zabbixAlertService.getAlertGroupsForAlert(alert);
+
+    // Отримуємо детальну інформацію про групи
+    const groupDetails = [];
+    for (const group of groups) {
+      const admins = await group.getAdminsWithTelegram();
+      groupDetails.push({
+        id: group._id,
+        name: group.name,
+        enabled: group.enabled,
+        hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
+        hasBotToken: !!(group.telegram && group.telegram.botToken),
+        adminCount: group.adminIds?.length || 0,
+        adminsWithTelegramCount: admins.length,
+        adminsWithTelegram: admins.map(a => ({
+          email: a.email,
+          telegramId: a.telegramId,
+          telegramUsername: a.telegramUsername
+        })),
+        canSendNotification: group.canSendNotification(),
+        lastNotificationAt: group.stats?.lastNotificationAt,
+        minNotificationInterval: group.settings?.minNotificationInterval
+      });
+    }
+
+    // Перевіряємо чи працює Telegram сервіс
+    const telegramStatus = {
+      isInitialized: telegramService.isInitialized || false,
+      hasBot: !!telegramService.bot,
+      botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN
+    };
+
+    // Визначаємо причину, чому сповіщення могло не надійти
+    const diagnostics = {
+      alertFound: true,
+      alertId: alert.alertId,
+      alertStatus: alert.status,
+      alertResolved: alert.resolved,
+      notificationSent: alert.notificationSent,
+      eventTime: alert.eventTime,
+      severity: alert.severity,
+      groupsFound: groups.length,
+      groupsDetails: groupDetails,
+      telegramStatus: telegramStatus,
+      issues: []
+    };
+
+    // Перевіряємо проблеми
+    if (alert.notificationSent) {
+      diagnostics.issues.push({
+        type: 'info',
+        message: 'Notification was marked as sent. Check Telegram logs if message was not received.'
+      });
+    } else {
+      diagnostics.issues.push({
+        type: 'warning',
+        message: 'Notification was not sent. Possible reasons:'
+      });
+    }
+
+    if (groups.length === 0) {
+      diagnostics.issues.push({
+        type: 'error',
+        message: 'No matching alert groups found for this alert. Check group filters (severity, host patterns, trigger IDs).',
+        solution: 'Create or update an alert group that matches this alert\'s criteria'
+      });
+    }
+
+    for (const group of groupDetails) {
+      if (!group.enabled) {
+        diagnostics.issues.push({
+          type: 'warning',
+          message: `Group "${group.name}" is disabled`
+        });
+      }
+
+      if (!group.hasTelegramGroup && group.adminsWithTelegramCount === 0) {
+        diagnostics.issues.push({
+          type: 'error',
+          message: `Group "${group.name}" has no Telegram group ID and no admins with Telegram IDs`,
+          solution: 'Either add a Telegram group ID to the group, or ensure admins have Telegram IDs in their profiles'
+        });
+      }
+
+      if (!group.hasTelegramGroup && !telegramStatus.isInitialized) {
+        diagnostics.issues.push({
+          type: 'error',
+          message: `Group "${group.name}" sends to individual admins, but Telegram service is not initialized`,
+          solution: 'Initialize Telegram service or configure a Telegram group ID for the group'
+        });
+      }
+
+      if (!group.canSendNotification) {
+        diagnostics.issues.push({
+          type: 'warning',
+          message: `Group "${group.name}" cannot send notification due to min notification interval`,
+          details: {
+            lastNotificationAt: group.lastNotificationAt,
+            minInterval: group.minNotificationInterval
+          }
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Alert diagnostics completed',
+      data: {
+        alert: {
+          id: alert._id,
+          alertId: alert.alertId,
+          host: alert.host,
+          triggerName: alert.triggerName,
+          severity: alert.severity,
+          status: alert.status,
+          resolved: alert.resolved,
+          notificationSent: alert.notificationSent,
+          eventTime: alert.eventTime,
+          createdAt: alert.createdAt
+        },
+        diagnostics
+      }
+    });
+  } catch (error) {
+    logger.error('Error checking alert:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking alert',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Отримати статус інтеграції Zabbix та Telegram
  */
 exports.getStatus = async (req, res) => {

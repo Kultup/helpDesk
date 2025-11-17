@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Server, Save, Eye, EyeOff, CheckCircle, XCircle, RefreshCw,
   Users, Plus, Edit, Trash2, AlertTriangle, Settings, Play,
-  X, Check
+  X, Check, Send
 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -92,6 +92,7 @@ const ZabbixSettings: React.FC = () => {
   const [editingGroup, setEditingGroup] = useState<ZabbixAlertGroup | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [pollingNow, setPollingNow] = useState(false);
+  const [testingGroup, setTestingGroup] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; groupId: string | null }>({ show: false, groupId: null });
 
   // Форма групи
@@ -361,6 +362,85 @@ const ZabbixSettings: React.FC = () => {
   const handleCloseGroupModal = () => {
     setShowGroupModal(false);
     setEditingGroup(null);
+  };
+
+  const handleTestGroup = async () => {
+    try {
+      setTestingGroup(true);
+      setMessage(null);
+
+      // Якщо редагуємо групу, використовуємо її ID
+      // Якщо створюємо нову, спочатку збережемо тимчасово для тестування
+      let groupIdForTest: string | undefined;
+
+      if (editingGroup) {
+        // Використовуємо існуючий ID
+        groupIdForTest = editingGroup._id;
+      } else {
+        // Створюємо тимчасову групу для тестування
+        const groupData = {
+          name: groupForm.name || 'Test Group',
+          description: groupForm.description,
+          adminIds: groupForm.adminIds,
+          triggerIds: groupForm.triggerIds.filter(id => id.trim() !== ''),
+          hostPatterns: groupForm.hostPatterns.filter(pattern => pattern.trim() !== ''),
+          severityLevels: groupForm.severityLevels,
+          enabled: groupForm.enabled,
+          priority: groupForm.priority,
+          telegram: {
+            botToken: groupForm.telegram.botToken?.trim() || null,
+            groupId: groupForm.telegram.groupId?.trim() || null
+          },
+          settings: groupForm.settings
+        };
+
+        const createResponse = await apiService.createZabbixGroup(groupData);
+        
+        if (!createResponse.success || !createResponse.data?._id) {
+          throw new Error(createResponse.message || 'Не вдалося створити тимчасову групу для тестування');
+        }
+
+        groupIdForTest = createResponse.data._id;
+      }
+
+      // Тестуємо відправку алерту
+      const response = await apiService.testZabbixAlert({ groupId: groupIdForTest });
+
+      if (response.success) {
+        const result = response.data?.result;
+        const sentCount = result?.sent || 0;
+        const failedCount = result?.failed || 0;
+        
+        setMessage({
+          type: sentCount > 0 ? 'success' : 'error',
+          text: sentCount > 0
+            ? `Тестове сповіщення успішно відправлено! Відправлено: ${sentCount}, Помилок: ${failedCount}`
+            : `Тестове сповіщення не відправлено. Помилок: ${failedCount}. Перевірте налаштування групи та Telegram.`
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: response.message || 'Помилка відправки тестового сповіщення'
+        });
+      }
+
+      // Якщо це була тимчасова група, видаляємо її після тесту
+      if (!editingGroup && groupIdForTest) {
+        try {
+          await apiService.deleteZabbixGroup(groupIdForTest);
+        } catch (deleteError) {
+          console.error('Помилка видалення тимчасової групи:', deleteError);
+        }
+      }
+    } catch (error: any) {
+      console.error('Помилка тестування групи:', error);
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.message || error.message || 'Помилка тестування групи'
+      });
+    } finally {
+      setTestingGroup(false);
+    }
   };
 
   const handleSaveGroup = async () => {
@@ -1370,9 +1450,6 @@ const ZabbixSettings: React.FC = () => {
                       <span>Додати</span>
                     </Button>
                   </div>
-                  <p className="mb-2 text-xs text-gray-500">
-                    Фільтрація алертів за конкретними тригерами. Якщо вказано - група отримає сповіщення тільки для цих тригерів. Якщо не вказано - для всіх тригерів.
-                  </p>
                   <div className="space-y-2">
                     {groupForm.triggerIds.map((triggerId, index) => (
                       <div key={index} className="flex space-x-2">
@@ -1393,11 +1470,6 @@ const ZabbixSettings: React.FC = () => {
                         </Button>
                       </div>
                     ))}
-                    {groupForm.triggerIds.length === 0 && (
-                      <p className="text-sm text-gray-500">
-                        Якщо не вказано жодного тригера, будуть оброблятися всі тригери.
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -1416,9 +1488,6 @@ const ZabbixSettings: React.FC = () => {
                       <span>Додати</span>
                     </Button>
                   </div>
-                  <p className="mb-2 text-xs text-gray-500">
-                    Фільтрація алертів за назвами хостів. Підтримуються регулярні вирази (наприклад: <code className="text-xs bg-gray-100 px-1 rounded">prod-.*</code> для всіх хостів, що починаються з "prod-"). Якщо не вказано - для всіх хостів.
-                  </p>
                   <div className="space-y-2">
                     {groupForm.hostPatterns.map((pattern, index) => (
                       <div key={index} className="flex space-x-2">
@@ -1439,11 +1508,6 @@ const ZabbixSettings: React.FC = () => {
                         </Button>
                       </div>
                     ))}
-                    {groupForm.hostPatterns.length === 0 && (
-                      <p className="text-sm text-gray-500">
-                        Якщо не вказано жодного патерну, будуть оброблятися всі хости. Можна використовувати регулярні вирази.
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -1585,6 +1649,15 @@ const ZabbixSettings: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleTestGroup}
+                    disabled={testingGroup || isSaving}
+                    className="flex items-center space-x-2"
+                  >
+                    <Send className={`h-4 w-4 ${testingGroup ? 'animate-pulse' : ''}`} />
+                    <span>{testingGroup ? 'Тестування...' : 'Тестувати'}</span>
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={handleCloseGroupModal}

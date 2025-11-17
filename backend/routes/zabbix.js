@@ -135,5 +135,23 @@ router.post(
  */
 router.get('/status', authenticateToken, adminAuth, zabbixController.getStatus);
 
+/**
+ * @route   POST /api/zabbix/alerts/check
+ * @desc    Діагностика алерту - перевірка, чому сповіщення не надійшло
+ * @access  Private (Admin only)
+ */
+router.post(
+  '/alerts/check',
+  authenticateToken,
+  adminAuth,
+  [
+    body('host').optional().isString().withMessage('Host must be a string'),
+    body('triggerName').optional().isString().withMessage('Trigger name must be a string'),
+    body('eventTime').optional().isISO8601().withMessage('Event time must be a valid ISO 8601 date'),
+    body('alertId').optional().isString().withMessage('Alert ID must be a string').trim()
+  ],
+  zabbixController.checkAlert
+);
+
 module.exports = router;
 
