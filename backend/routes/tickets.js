@@ -127,18 +127,37 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Пошук по заголовку та опису
     if (search) {
-      filters.$or = [
+      const searchConditions = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } }
       ];
-    }
-    
-    // Обмеження доступу для звичайних користувачів
-    if (req.user.role !== 'admin') {
-      filters.$or = [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ];
+      
+      // Якщо є обмеження доступу, об'єднуємо їх з пошуком
+      if (req.user.role !== 'admin') {
+        // Для не-адмінів пошук має працювати тільки для їх тікетів
+        filters.$and = [
+          {
+            $or: [
+              { createdBy: req.user._id },
+              { assignedTo: req.user._id }
+            ]
+          },
+          {
+            $or: searchConditions
+          }
+        ];
+      } else {
+        // Для адмінів просто додаємо пошук
+        filters.$or = searchConditions;
+      }
+    } else {
+      // Обмеження доступу для звичайних користувачів (якщо немає пошуку)
+      if (req.user.role !== 'admin') {
+        filters.$or = [
+          { createdBy: req.user._id },
+          { assignedTo: req.user._id }
+        ];
+      }
     }
 
     const options = {

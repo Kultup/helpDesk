@@ -70,7 +70,7 @@ const Tickets: React.FC = () => {
     if (isAdmin) {
       updatePagination({ page: 1, limit: 50 });
     }
-  }, [isAdmin]);
+  }, [isAdmin, updatePagination]);
 
   useEffect(() => {
     refetch();

@@ -41,11 +41,39 @@ exports.getTickets = async (req, res) => {
     
     // Пошук по тексту
     if (search) {
-      filters.$or = [
+      const searchConditions = [
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { ticketNumber: { $regex: search, $options: 'i' } }
       ];
+      
+      // Якщо є обмеження доступу, об'єднуємо їх з пошуком
+      if (req.user.role !== 'admin') {
+        // Для не-адмінів пошук має працювати тільки для їх тікетів
+        filters.$and = [
+          {
+            $or: [
+              { createdBy: req.user._id },
+              { assignedTo: req.user._id }
+            ]
+          },
+          {
+            $or: searchConditions
+          }
+        ];
+      } else {
+        // Для адмінів просто додаємо пошук
+        filters.$or = searchConditions;
+      }
+    } else {
+      // Перевірка прав доступу (якщо немає пошуку)
+      if (req.user.role !== 'admin') {
+        // Звичайні користувачі бачать тільки свої тикети або призначені їм
+        filters.$or = [
+          { createdBy: req.user._id },
+          { assignedTo: req.user._id }
+        ];
+      }
     }
     
     // Фільтр по датах
@@ -57,15 +85,6 @@ exports.getTickets = async (req, res) => {
 
     logger.info('Filters before access check:', JSON.stringify(filters));
     logger.info('User:', { role: req.user.role, id: req.user._id.toString() });
-
-    // Перевірка прав доступу
-    if (req.user.role !== 'admin') {
-      // Звичайні користувачі бачать тільки свої тикети або призначені їм
-      filters.$or = [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ];
-    }
 
     const options = {
       page: parseInt(page),
