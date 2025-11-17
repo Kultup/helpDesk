@@ -665,6 +665,9 @@ class TelegramService {
         await this.handleAddMorePhotosCallback(chatId, user);
       } else if (data === 'finish_ticket') {
         await this.handleFinishTicketCallback(chatId, user);
+      } else if (data === 'cancel_ticket') {
+        await this.handleCancelTicketCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data.startsWith('category_')) {
         const categoryId = data.replace('category_', '');
         await this.handleDynamicCategoryCallback(chatId, user, categoryId);
@@ -677,6 +680,10 @@ class TelegramService {
          } else if (data.startsWith('template_')) {
            const templateId = data.replace('template_', '');
            await this.handleTemplateSelectionCallback(chatId, user, templateId);
+        } else if (data === 'template_add_photo') {
+          await this.handleTemplateAddPhotoCallback(chatId, user);
+        } else if (data === 'template_create_without_photo') {
+          await this.handleTemplateCreateWithoutPhotoCallback(chatId, user);
         } else if (data === 'create_from_template') {
           await this.handleCreateFromTemplateCallback(chatId, user);
         } else {
@@ -1536,16 +1543,10 @@ class TelegramService {
   }
 
   async handleCancelTicketCallback(chatId, user) {
+    // Видаляємо сесію створення тікету
     this.userSessions.delete(chatId);
-    await this.sendMessage(chatId, 
-      `❌ *Створення тікету скасовано*\n\n` +
-      `🔄 Повертаємося до головного меню`,
-      {
-        reply_markup: {
-          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
-        }
-      }
-    );
+    
+    // Показуємо головне меню
     await this.showUserDashboard(chatId, user);
   }
 
