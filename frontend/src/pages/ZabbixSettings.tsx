@@ -404,7 +404,23 @@ const ZabbixSettings: React.FC = () => {
       }
 
       // Тестуємо відправку алерту
-      const response = await apiService.testZabbixAlert({ groupId: groupIdForTest });
+      let response;
+      try {
+        response = await apiService.testZabbixAlert({ groupId: groupIdForTest });
+      } catch (testError: any) {
+        console.error('Помилка тестування алерту:', testError);
+        throw testError;
+      }
+
+      // Якщо це була тимчасова група, видаляємо її після тесту (навіть якщо була помилка)
+      if (!editingGroup && groupIdForTest) {
+        try {
+          await apiService.deleteZabbixGroup(groupIdForTest);
+        } catch (deleteError) {
+          console.error('Помилка видалення тимчасової групи:', deleteError);
+          // Не кидаємо помилку, щоб не перекрити результат тестування
+        }
+      }
 
       if (response.success) {
         const result = response.data?.result;
@@ -413,7 +429,7 @@ const ZabbixSettings: React.FC = () => {
         const errors = result?.errors || [];
         
         if (sentCount > 0) {
-          let messageText = `Тестове сповіщення успішно відправлено! Відправлено: ${sentCount}`;
+          let messageText = `✅ Тестове сповіщення успішно відправлено! Відправлено: ${sentCount}`;
           if (failedCount > 0) {
             messageText += `, Помилок: ${failedCount}`;
           }
@@ -422,7 +438,7 @@ const ZabbixSettings: React.FC = () => {
             text: messageText
           });
         } else {
-          let errorText = `Тестове сповіщення не відправлено. Помилок: ${failedCount}.`;
+          let errorText = `❌ Тестове сповіщення не відправлено. Помилок: ${failedCount}.`;
           
           if (errors.length > 0) {
             const errorDetails = errors.map((err: any) => {
@@ -459,17 +475,8 @@ const ZabbixSettings: React.FC = () => {
       } else {
         setMessage({
           type: 'error',
-          text: response.message || 'Помилка відправки тестового сповіщення'
+          text: response.message || response.error || 'Помилка відправки тестового сповіщення'
         });
-      }
-
-      // Якщо це була тимчасова група, видаляємо її після тесту
-      if (!editingGroup && groupIdForTest) {
-        try {
-          await apiService.deleteZabbixGroup(groupIdForTest);
-        } catch (deleteError) {
-          console.error('Помилка видалення тимчасової групи:', deleteError);
-        }
       }
     } catch (error: any) {
       console.error('Помилка тестування групи:', error);
