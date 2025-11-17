@@ -697,7 +697,11 @@ class TelegramService {
            await this.handlePriorityCallback(chatId, user, 'medium');
          } else if (data === 'priority_high') {
            await this.handlePriorityCallback(chatId, user, 'high');
-         } else if (data.startsWith('template_helped_')) {
+         } else if (data === 'template_add_photo') {
+          await this.handleTemplateAddPhotoCallback(chatId, user);
+        } else if (data === 'template_create_without_photo') {
+          await this.handleTemplateCreateWithoutPhotoCallback(chatId, user);
+        } else if (data.startsWith('template_helped_')) {
            const templateId = data.replace('template_helped_', '');
            await this.handleTemplateHelpedCallback(chatId, user, templateId);
            await this.answerCallbackQuery(callbackQuery.id);
@@ -708,10 +712,6 @@ class TelegramService {
         } else if (data.startsWith('template_')) {
            const templateId = data.replace('template_', '');
            await this.handleTemplateSelectionCallback(chatId, user, templateId);
-        } else if (data === 'template_add_photo') {
-          await this.handleTemplateAddPhotoCallback(chatId, user);
-        } else if (data === 'template_create_without_photo') {
-          await this.handleTemplateCreateWithoutPhotoCallback(chatId, user);
         } else if (data === 'create_from_template') {
           await this.handleCreateFromTemplateCallback(chatId, user);
         } else {
