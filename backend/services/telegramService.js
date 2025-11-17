@@ -415,6 +415,10 @@ class TelegramService {
           });
           user.telegramChatId = chatIdString;
           await user.save();
+          // Перезавантажуємо користувача з populate після збереження
+          user = await User.findById(user._id)
+            .populate('position', 'name')
+            .populate('city', 'name');
         }
         
         // Перевіряємо, чи користувач активний
@@ -533,6 +537,10 @@ class TelegramService {
             });
             user.telegramChatId = chatIdString;
             await user.save();
+            // Перезавантажуємо користувача з populate після збереження
+            user = await User.findById(user._id)
+              .populate('position', 'name')
+              .populate('city', 'name');
           }
           
           // Перевіряємо, чи користувач активний
@@ -583,13 +591,25 @@ class TelegramService {
   }
 
   async showUserDashboard(chatId, user) {
+    // Перезавантажуємо користувача з populate, якщо дані не завантажені
+    if (!user.position || !user.city || typeof user.position === 'string' || typeof user.city === 'string') {
+      user = await User.findById(user._id)
+        .populate('position', 'name')
+        .populate('city', 'name');
+    }
+    
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Не вказано';
+    const positionName = (user.position && typeof user.position === 'object' ? user.position.name : user.position) || 'Не вказано';
+    const cityName = (user.city && typeof user.city === 'object' ? user.city.name : user.city) || 'Не вказано';
+    
     const welcomeText = 
       `🎉 *Вітаємо в системі підтримки!*\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `👤 *Профіль користувача:*\n` +
+      `👤 Ім'я: *${fullName}*\n` +
       `📧 Email: \`${user.email}\`\n` +
-      `💼 Посада: *${user.position?.name || 'Не вказано'}*\n` +
-      `🏙️ Місто: *${user.city?.name || 'Не вказано'}*\n\n` +
+      `💼 Посада: *${positionName}*\n` +
+      `🏙️ Місто: *${cityName}*\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🎯 *Оберіть дію:*`;
 
@@ -2567,25 +2587,30 @@ class TelegramService {
       user.lastLogin = new Date();
       await user.save();
 
+      // Перезавантажуємо користувача з populate після збереження
+      const updatedUser = await User.findById(user._id)
+        .populate('position', 'name')
+        .populate('city', 'name');
+
       // Очищуємо сесію
       this.userSessions.delete(chatId);
 
       logger.info('✅ Користувач успішно авторизований через Telegram:', {
-        userId: user._id,
-        email: user.email,
-        login: user.login,
-        telegramId: user.telegramId
+        userId: updatedUser._id,
+        email: updatedUser.email,
+        login: updatedUser.login,
+        telegramId: updatedUser.telegramId
       });
 
       await this.sendMessage(chatId, 
         `✅ *Авторизація успішна!*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🎉 Вітаємо, ${user.firstName}!\n\n` +
+        `🎉 Вітаємо, ${updatedUser.firstName}!\n\n` +
         `Ваш обліковий запис успішно підключено до Telegram бота.`
       );
 
       // Показуємо dashboard
-      await this.showUserDashboard(chatId, user);
+      await this.showUserDashboard(chatId, updatedUser);
     } catch (error) {
       logger.error('Помилка завершення авторизації:', error);
       await this.sendMessage(chatId, 
