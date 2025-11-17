@@ -406,18 +406,31 @@ class TelegramService {
               telegramChatId: testUser.telegramChatId,
               telegramChatIdType: typeof testUser.telegramChatId,
               isActive: testUser.isActive,
+              role: testUser.role,
               expectedTelegramId: userIdString,
+              telegramIdMatch: testUser.telegramId === userIdString,
               usernameFromMsg
             });
             
-            // Автоматично оновлюємо telegramId для тестового користувача, якщо він не співпадає
-            if (testUser.telegramId !== userIdString && (testUser.role === 'admin' || testUser.email === 'kultup@test.com')) {
+            // Автоматично оновлюємо telegramId для тестового/адмін користувача, якщо:
+            // 1. telegramId відсутній (null/undefined) АБО
+            // 2. telegramId не співпадає з поточним userId АБО
+            // 3. користувач має роль admin
+            const shouldUpdate = !testUser.telegramId || 
+                                 testUser.telegramId !== userIdString || 
+                                 testUser.role === 'admin';
+            
+            if (shouldUpdate && (testUser.role === 'admin' || testUser.email === 'kultup@test.com')) {
               logger.info('Автоматично оновлюємо telegramId для тестового/адмін користувача:', {
                 email: testUser.email,
-                oldTelegramId: testUser.telegramId,
+                role: testUser.role,
+                oldTelegramId: testUser.telegramId || 'відсутній',
                 newTelegramId: userIdString,
-                oldTelegramChatId: testUser.telegramChatId,
-                newTelegramChatId: chatIdString
+                oldTelegramChatId: testUser.telegramChatId || 'відсутній',
+                newTelegramChatId: chatIdString,
+                reason: !testUser.telegramId ? 'telegramId відсутній' : 
+                        testUser.telegramId !== userIdString ? 'telegramId не співпадає' : 
+                        'роль admin'
               });
               
               testUser.telegramId = userIdString;
@@ -427,11 +440,27 @@ class TelegramService {
               }
               await testUser.save();
               
+              logger.info('✅ Дані Telegram оновлено для користувача:', {
+                email: testUser.email,
+                telegramId: testUser.telegramId,
+                telegramChatId: testUser.telegramChatId
+              });
+              
               // Використовуємо оновленого користувача
               user = await User.findById(testUser._id)
                 .populate('position', 'name')
                 .populate('city', 'name');
+            } else {
+              logger.info('Не оновлюємо telegramId для користувача:', {
+                email: testUser.email,
+                reason: 'умова не виконана',
+                shouldUpdate,
+                isAdmin: testUser.role === 'admin',
+                isTestEmail: testUser.email === 'kultup@test.com'
+              });
             }
+          } else {
+            logger.warn('Тестовий користувач kultup@test.com не знайдено в базі даних');
           }
         } catch (diagError) {
           logger.error('Помилка діагностики:', diagError);
