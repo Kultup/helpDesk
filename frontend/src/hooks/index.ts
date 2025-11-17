@@ -445,7 +445,7 @@ export const useLocalStorage = <T>(key: string, initialValue: T): [T, (value: T 
     }
   }, [key, initialValue]);
 
-  return [storedValue, setValue, removeValue] as const;
+  return [storedValue, setValue, removeValue];
 };
 
 // Хук для відстеження розміру вікна

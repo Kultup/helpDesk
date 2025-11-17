@@ -164,7 +164,7 @@ const Tickets: React.FC = () => {
             <Download className="h-4 w-4 mr-2" />
             {t('common.export')}
           </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Button onClick={(): void => setIsCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t('tickets.createTicket')}
           </Button>
@@ -267,7 +267,7 @@ const Tickets: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                              onClick={() => handleDelete(ticket._id, ticket.title)}
+                              onClick={(): void => { void handleDelete(ticket._id, ticket.title); }}
                             >
                               <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-error" />
                             </Button>
@@ -437,7 +437,7 @@ const Tickets: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(ticket._id, ticket.title)}
+                              onClick={(): void => { void handleDelete(ticket._id, ticket.title); }}
                               className="text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />
