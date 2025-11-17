@@ -250,28 +250,6 @@ const CreateTicket: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Категорія */}
-                <div>
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('createTicketPage.form.categoryLabel')}
-                  </label>
-                  <select
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value={TicketCategory.TECHNICAL}>{t('createTicketPage.categories.technical')}</option>
-                    <option value={TicketCategory.ACCOUNT}>{t('createTicketPage.categories.account')}</option>
-                    <option value={TicketCategory.BILLING}>{t('createTicketPage.categories.billing')}</option>
-                    <option value={TicketCategory.GENERAL}>{t('createTicketPage.categories.general')}</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t('createTicketPage.form.categoryHint')}
-                  </p>
-                </div>
-
                 {/* Місто */}
                 <div>
                   <label htmlFor="cityId" className="block text-sm font-medium text-gray-700 mb-2">

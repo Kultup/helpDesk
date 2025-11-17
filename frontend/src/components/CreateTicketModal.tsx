@@ -453,27 +453,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
               {t('createTicketModal.priorityHint')}
             </p>
           </div>
-          
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('createTicketModal.categoryLabel')}
-            </label>
-            <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value as TicketCategory }))}>
-              <SelectTrigger>
-                <span className="block truncate">{getCategoryLabel(formData.category)}</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TicketCategory.TECHNICAL}>{t('createTicketModal.categories.technical')}</SelectItem>
-                <SelectItem value={TicketCategory.ACCOUNT}>{t('createTicketModal.categories.account')}</SelectItem>
-                <SelectItem value={TicketCategory.BILLING}>{t('createTicketModal.categories.billing')}</SelectItem>
-                <SelectItem value={TicketCategory.GENERAL}>{t('createTicketModal.categories.general')}</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500 mt-1">
-              {t('createTicketModal.categoryHint')}
-            </p>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
