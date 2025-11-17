@@ -697,7 +697,15 @@ class TelegramService {
            await this.handlePriorityCallback(chatId, user, 'medium');
          } else if (data === 'priority_high') {
            await this.handlePriorityCallback(chatId, user, 'high');
-         } else if (data.startsWith('template_')) {
+         } else if (data.startsWith('template_helped_')) {
+           const templateId = data.replace('template_helped_', '');
+           await this.handleTemplateHelpedCallback(chatId, user, templateId);
+           await this.answerCallbackQuery(callbackQuery.id);
+        } else if (data.startsWith('template_send_ticket_')) {
+           const templateId = data.replace('template_send_ticket_', '');
+           await this.handleTemplateSendTicketCallback(chatId, user, templateId);
+           await this.answerCallbackQuery(callbackQuery.id);
+        } else if (data.startsWith('template_')) {
            const templateId = data.replace('template_', '');
            await this.handleTemplateSelectionCallback(chatId, user, templateId);
         } else if (data === 'template_add_photo') {
@@ -962,7 +970,8 @@ class TelegramService {
 
   async handleTemplateSelectionCallback(chatId, user, templateId) {
     try {
-      const template = await TicketTemplate.findById(templateId).populate('category', 'name');
+      const template = await TicketTemplate.findById(templateId)
+        .populate('category', 'name icon color');
       
       if (!template || !template.isActive) {
         await this.sendMessage(chatId, 
@@ -978,11 +987,11 @@ class TelegramService {
         return;
       }
 
+      // Зберігаємо templateId в сесії для подальшого використання
       let session = this.userSessions.get(chatId);
       if (!session) {
-        // Якщо сесії немає (наприклад, користувач зайшов напряму у шаблони) — створюємо її
         session = {
-          step: 'template_select',
+          step: 'template_detail',
           ticketData: {
             title: '',
             description: '',
@@ -994,24 +1003,53 @@ class TelegramService {
         };
         this.userSessions.set(chatId, session);
       }
+      session.templateId = template._id;
 
-      if (session) {
-        // Зберігаємо ID шаблону та переходимо до кроку фото, пропускаючи вибір пріоритету
-        session.templateId = template._id;
-        session.step = 'photo';
-
-        await this.sendMessage(chatId,
-          '📷 Хочете додати фото до тікету? (необов\'язково)', {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
-                [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
-                [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-              ]
-            }
-          }
-        );
+      // Форматуємо категорію
+      const categoryName = template.category && typeof template.category === 'object' 
+        ? template.category.name 
+        : await this.getCategoryText(template.category) || 'Невідома категорія';
+      
+      // Форматуємо пріоритет
+      const priorityText = this.getPriorityText(template.priority);
+      
+      // Форматуємо instructions як нумерований список
+      const formattedInstructions = this.formatInstructionsAsList(template.instructions);
+      
+      // Формуємо текст повідомлення
+      let messageText = 
+        `📋 *${template.title}*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📝 *Опис:*\n${template.description}\n\n`;
+      
+      // Додаємо instructions, якщо вони є
+      if (formattedInstructions) {
+        messageText += 
+          `🔧 *Кроки для вирішення:*\n${formattedInstructions}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      } else {
+        messageText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
       }
+      
+      messageText += 
+        `🏷️ Категорія: *${categoryName}*\n` +
+        `⚡ Пріоритет: *${priorityText}*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      // Формуємо кнопки
+      const keyboard = [
+        [
+          { text: '✅ Допомогло', callback_data: `template_helped_${template._id}` },
+          { text: '📤 Відправити тікет', callback_data: `template_send_ticket_${template._id}` }
+        ],
+        [{ text: '🔙 Назад до шаблонів', callback_data: 'create_from_template' }]
+      ];
+
+      await this.sendMessage(chatId, messageText, {
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
     } catch (error) {
       logger.error('Помилка обробки шаблону:', error);
       await this.sendMessage(chatId, 'Помилка обробки шаблону. Спробуйте ще раз.');
@@ -1753,6 +1791,85 @@ class TelegramService {
   
 
    // Обробники для шаблонів
+   async handleTemplateHelpedCallback(chatId, user, templateId) {
+     try {
+       // Очищаємо сесію
+       this.userSessions.delete(chatId);
+       
+       // Показуємо повідомлення про те, що інформація допомогла
+       await this.sendMessage(chatId,
+         `✅ *Дякуємо за відгук!*\n\n` +
+         `Ми раді, що інформація допомогла вам вирішити проблему.\n\n` +
+         `Якщо у вас виникнуть інші питання, звертайтеся до нас!`
+       );
+       
+       // Повертаємо користувача на дашборд
+       await this.showUserDashboard(chatId, user);
+     } catch (error) {
+       logger.error('Помилка обробки "Допомогло":', error);
+       await this.sendMessage(chatId, 'Виникла помилка. Спробуйте ще раз.');
+     }
+   }
+
+   async handleTemplateSendTicketCallback(chatId, user, templateId) {
+     try {
+       // Завантажуємо шаблон з бази
+       const template = await TicketTemplate.findById(templateId)
+         .populate('category', 'name');
+       
+       if (!template || !template.isActive) {
+         await this.sendMessage(chatId,
+           `❌ *Шаблон недоступний*\n\n` +
+           `Шаблон не знайдено або неактивний.`
+         );
+         return;
+       }
+
+       // Створюємо або оновлюємо сесію
+       let session = this.userSessions.get(chatId);
+       if (!session) {
+         session = {
+           step: 'photo',
+           ticketData: {
+             title: '',
+             description: '',
+             priority: 'medium',
+             categoryId: null,
+             photos: []
+           },
+           isTemplate: true
+         };
+         this.userSessions.set(chatId, session);
+       }
+
+       // Зберігаємо дані шаблону в сесію
+       session.templateId = template._id;
+       session.ticketData.title = template.title;
+       session.ticketData.description = template.description;
+       session.ticketData.priority = template.priority;
+       session.ticketData.categoryId = template.category?._id || template.category;
+       session.step = 'photo';
+       session.isTemplate = true;
+
+       // Переходимо до кроку додавання фото
+       await this.sendMessage(chatId,
+         `📷 *Хочете додати фото до тікету?* (необов'язково)\n\n` +
+         `Фото допоможе краще зрозуміти проблему.`, {
+           reply_markup: {
+             inline_keyboard: [
+               [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
+               [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
+               [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+             ]
+           }
+         }
+       );
+     } catch (error) {
+       logger.error('Помилка обробки "Відправити тікет":', error);
+       await this.sendMessage(chatId, 'Виникла помилка. Спробуйте ще раз.');
+     }
+   }
+
    async handleTemplateAddPhotoCallback(chatId, user) {
      const session = this.userSessions.get(chatId);
      if (session && session.isTemplate) {
@@ -1939,6 +2056,24 @@ class TelegramService {
 
   getCancelButtonText() {
     return '❌ Скасувати';
+  }
+
+  formatInstructionsAsList(instructions) {
+    if (!instructions || !instructions.trim()) {
+      return null;
+    }
+    
+    // Розбиваємо по рядках та фільтруємо порожні
+    const lines = instructions.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    if (lines.length === 0) {
+      return null;
+    }
+    
+    // Додаємо нумерацію
+    return lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
   }
 
   async generateCategoryButtons() {

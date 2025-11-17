@@ -391,21 +391,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           </p>
         </div>
 
-        {/* Quick Tips */}
-        {selectedTemplateData && selectedTemplateData.quickTips && (
-          <Card className="bg-green-50 border-green-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="h-4 w-4 text-green-600" />
-              <h4 className="font-medium text-green-800">{t('createTicketModal.quickTipsTitle')}</h4>
-            </div>
-            <ul className="list-disc list-inside space-y-1">
-              {selectedTemplateData.quickTips.map((tip, index) => (
-                <li key={index} className="text-sm text-green-700">{tip}</li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
         {/* Title */}
         <div>
           <Input
