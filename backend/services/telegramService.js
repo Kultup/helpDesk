@@ -1335,9 +1335,6 @@ class TelegramService {
      }
    }
 
-  get isInitialized() {
-    return this.bot !== null;
-  }
 
   /**
    * Відправка сповіщення про новий тікет в групу
