@@ -282,10 +282,23 @@ class TelegramService {
         userTelegramChatIdType: typeof user?.telegramChatId,
         isActive: user?.isActive,
         registrationStatus: user?.registrationStatus,
-        email: user?.email
+        email: user?.email,
+        userId_db: user?._id
       });
       
       if (user) {
+        // Оновлюємо telegramChatId якщо він відрізняється або відсутній
+        if (user.telegramChatId !== chatIdString) {
+          logger.info('Оновлюємо telegramChatId для користувача:', {
+            userId: user._id,
+            email: user.email,
+            oldChatId: user.telegramChatId,
+            newChatId: chatIdString
+          });
+          user.telegramChatId = chatIdString;
+          await user.save();
+        }
+        
         // Перевіряємо, чи користувач активний
         if (!user.isActive) {
           await this.sendMessage(chatId, 
@@ -299,6 +312,33 @@ class TelegramService {
         
         await this.showUserDashboard(chatId, user);
       } else {
+        // Логуємо, що користувач не знайдений
+        logger.warn('Користувача не знайдено в базі даних:', {
+          userId,
+          userIdString,
+          chatId,
+          chatIdString,
+          searchAttempts: ['telegramId as String', 'telegramId as Number', 'telegramChatId as String', 'telegramChatId as Number']
+        });
+        
+        // Додаткова діагностика: перевіряємо всіх користувачів з email kultup@test.com
+        try {
+          const testUser = await User.findOne({ email: 'kultup@test.com' });
+          if (testUser) {
+            logger.info('Знайдено тестового користувача kultup@test.com:', {
+              userId_db: testUser._id,
+              telegramId: testUser.telegramId,
+              telegramIdType: typeof testUser.telegramId,
+              telegramChatId: testUser.telegramChatId,
+              telegramChatIdType: typeof testUser.telegramChatId,
+              isActive: testUser.isActive,
+              expectedTelegramId: userIdString
+            });
+          }
+        } catch (diagError) {
+          logger.error('Помилка діагностики:', diagError);
+        }
+        
         await this.sendMessage(chatId, 
           `🚫 *Доступ обмежено*\n\n` +
           `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
