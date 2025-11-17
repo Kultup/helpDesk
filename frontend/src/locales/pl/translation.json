@@ -1558,6 +1558,9 @@
     "selectCity": "Wybierz miasto",
     "telegramPlaceholder": "@nazwa_użytkownika lub nazwa_użytkownika",
     "telegramFormat": "Format: @nazwa_użytkownika lub nazwa_użytkownika (5-32 znaki)",
+    "telegramPlaceholderNumeric": "Wprowadź numeryczne ID Telegram",
+    "telegramFormatNumeric": "Tylko cyfry (np. 6070910226). ID można pobrać przez @userinfobot",
+    "telegramUsernameCurrent": "Aktualna nazwa użytkownika: {{username}} (pozostanie bez zmian)",
     "showPassword": "Pokaż",
     "hidePassword": "Ukryj",
     "save": "Zapisz",
@@ -1571,7 +1574,8 @@
     "positionRequired": "Stanowisko jest wymagane",
     "departmentRequired": "Dział jest wymagany",
     "cityRequired": "Miasto jest wymagane",
-    "telegramInvalid": "Nieprawidłowy format ID Telegram"
+    "telegramInvalid": "Nieprawidłowy format ID Telegram",
+    "invalidTelegramNumeric": "ID Telegram musi zawierać tylko cyfry (5-20 znaków)"
   },
   "notifications": {
     "title": "Powiadomienia",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Lock, MapPin, Briefcase, Shield, AlertCircle, MessageSquare } from 'lucide-react';
+import { X, User, Mail, Lock, MapPin, Briefcase, Shield, AlertCircle, MessageSquare, AtSign } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Button from './UI/Button';
 import Input from './UI/Input';
@@ -100,8 +100,11 @@ const UserForm: React.FC<UserFormProps> = ({
   };
 
   const validateTelegramId = (telegramId: string): string | undefined => {
-    if (telegramId && !/^@?[a-zA-Z0-9_]{5,32}$/.test(telegramId)) {
-      return t('users.invalidTelegramFormat');
+    if (!telegramId) return undefined;
+
+    const cleaned = telegramId.replace(/\s+/g, '').replace(/^@/, '');
+    if (!/^\d{5,20}$/.test(cleaned)) {
+      return t('users.invalidTelegramNumeric');
     }
     return undefined;
   };
@@ -118,7 +121,7 @@ const UserForm: React.FC<UserFormProps> = ({
         position: typeof user.position === 'object' ? user.position?._id || '' : user.position || '',
         department: user.department || '',
         city: typeof user.city === 'string' ? user.city : user.city?._id || '',
-        telegramId: user.telegramUsername ? `@${user.telegramUsername}` : (user.telegramId || ''),
+        telegramId: user.telegramId ? String(user.telegramId) : '',
         isActive: user.isActive !== undefined ? user.isActive : true
       };
       console.log('UserForm: Setting form data:', JSON.stringify(formDataToSet, null, 2));
@@ -202,9 +205,14 @@ const UserForm: React.FC<UserFormProps> = ({
   };
 
   const handleInputChange = (field: keyof UserFormData, value: string) => {
+    let newValue = value;
+    if (field === 'telegramId') {
+      newValue = value.replace(/\s+/g, '').replace(/^@/, '');
+    }
+
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: newValue
     }));
     
     // Позначаємо поле як торкнуте
@@ -281,6 +289,12 @@ const UserForm: React.FC<UserFormProps> = ({
 
     try {
       const submitData = { ...formData };
+      if (submitData.telegramId) {
+        submitData.telegramId = submitData.telegramId.replace(/\s+/g, '').replace(/^@/, '');
+        if (!submitData.telegramId) {
+          delete submitData.telegramId;
+        }
+      }
       if (user && !submitData.password) {
         delete submitData.password;
       }
@@ -525,22 +539,29 @@ const UserForm: React.FC<UserFormProps> = ({
           {/* Telegram ID */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              <MessageSquare className="h-4 w-4 inline mr-1" />
+              <AtSign className="h-4 w-4 inline mr-1" />
               {t('users.telegramId')} ({t('users.optional')})
             </label>
             <Input
               type="text"
               value={formData.telegramId || ''}
               onChange={(e) => handleInputChange('telegramId', e.target.value)}
-              placeholder={t('users.telegramPlaceholder')}
+              placeholder={t('users.telegramPlaceholderNumeric')}
               className={cn(errors.telegramId && 'border-error')}
             />
             {errors.telegramId && (
               <p className="mt-1 text-sm text-error">{errors.telegramId}</p>
             )}
-            <p className="mt-1 text-xs text-text-secondary">
-              {t('users.telegramFormat')}
-            </p>
+            {!errors.telegramId && (
+              <p className="mt-1 text-sm text-gray-500">
+                {t('users.telegramFormatNumeric')}
+              </p>
+            )}
+            {user?.telegramUsername && (
+              <p className="mt-1 text-sm text-gray-500">
+                {t('users.telegramUsernameCurrent', { username: `@${user.telegramUsername}` })}
+              </p>
+            )}
           </div>
 
           {/* Кнопки */}

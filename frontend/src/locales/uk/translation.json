@@ -955,7 +955,7 @@
         "tags": ["комп'ютер", "апаратне забезпечення", "продуктивність"],
         "quickTips": [
           "Переконайтеся, що комп'ютер підключено до живлення",
-          "Спробуйте перезавантажити комп’ютер",
+          "Спробуйте перезавантажити комп'ютер",
           "Перевірте, чи всі кабелі надійно підключені",
           "Зверніть увагу на повідомлення про помилки"
         ]
@@ -1522,6 +1522,9 @@
     "selectCity": "Оберіть місто",
     "telegramPlaceholder": "@username або username",
     "telegramFormat": "Формат: @username або username (5-32 символи)",
+    "telegramPlaceholderNumeric": "Введіть числовий Telegram ID",
+    "telegramFormatNumeric": "Використовуйте лише цифри (наприклад, 6070910226). Отримати ID можна через @userinfobot",
+    "telegramUsernameCurrent": "Поточне ім'я користувача: {{username}} (залишиться без змін)",
     "showPassword": "Показати",
     "hidePassword": "Приховати",
     "save": "Зберегти",
@@ -1535,7 +1538,8 @@
     "positionRequired": "Посада є обов'язковою",
     "departmentRequired": "Відділ є обов'язковим",
     "cityRequired": "Місто є обов'язковим",
-    "telegramInvalid": "Невірний формат Telegram ID"
+    "telegramInvalid": "Невірний формат Telegram ID",
+    "invalidTelegramNumeric": "Telegram ID має містити лише цифри (5-20 символів)"
   },
   "notifications": {
     "title": "Сповіщення",
