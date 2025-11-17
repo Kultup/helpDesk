@@ -652,8 +652,11 @@ exports.testAlert = async (req, res) => {
       }
     } else {
       // Створюємо тестовий алерт
+      const testTimestamp = Date.now();
       alert = new ZabbixAlert({
-        alertId: `test_${Date.now()}`,
+        alertId: `test_${testTimestamp}`,
+        triggerId: `test_trigger_${testTimestamp}`,
+        hostId: `test_host_${testTimestamp}`,
         host: 'Test Host',
         triggerName: 'Test Trigger',
         severity: 4, // Disaster
