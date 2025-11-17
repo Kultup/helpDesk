@@ -595,10 +595,14 @@ class TelegramService {
 
     const keyboard = {
       inline_keyboard: [
-        [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
-        [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
-        [{ text: '📄 Створити з шаблону', callback_data: 'create_from_template' }],
-        [{ text: '📊 Статистика', callback_data: 'statistics' }]
+        [
+          { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+          { text: '📋 Мої тікети', callback_data: 'my_tickets' }
+        ],
+        [
+          { text: '📄 Створити з шаблону', callback_data: 'create_from_template' },
+          { text: '📊 Статистика', callback_data: 'statistics' }
+        ]
       ]
     };
 
@@ -733,7 +737,7 @@ class TelegramService {
           `📄 У вас поки що немає тікетів\n\n` +
           `💡 Створіть новий тікет, щоб отримати допомогу!`, {
           reply_markup: {
-            inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'back' }]]
+            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
           }
         });
         return;
@@ -758,7 +762,7 @@ class TelegramService {
       });
 
       text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-      keyboard.push([{ text: '🔙 Назад', callback_data: 'back' }]);
+      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
         reply_markup: { inline_keyboard: keyboard }
@@ -831,7 +835,7 @@ class TelegramService {
           `👨‍💼 Зверніться до адміністратора для створення шаблонів: [@Kultup](https://t.me/Kultup)`, {
           parse_mode: 'Markdown',
             reply_markup: {
-              inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'back' }]]
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
             }
           }
         );
@@ -913,7 +917,7 @@ class TelegramService {
       }
 
       text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-      keyboard.push([{ text: '🔙 Назад', callback_data: 'back' }]);
+      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
         reply_markup: { inline_keyboard: keyboard }
@@ -1519,7 +1523,12 @@ class TelegramService {
     this.userSessions.delete(chatId);
     await this.sendMessage(chatId, 
       `❌ *Створення тікету скасовано*\n\n` +
-      `🔄 Повертаємося до головного меню`
+      `🔄 Повертаємося до головного меню`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+        }
+      }
     );
     await this.showUserDashboard(chatId, user);
   }
@@ -1548,7 +1557,7 @@ class TelegramService {
 
       await this.sendMessage(chatId, text, {
         reply_markup: {
-          inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'back' }]]
+          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
         }
       });
     } catch (error) {
