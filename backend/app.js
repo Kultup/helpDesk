@@ -196,7 +196,18 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Статичні файли
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const uploadsPath = path.join(__dirname, 'uploads');
+logger.info(`📁 Статичні файли доступні за шляхом: /uploads -> ${uploadsPath}`);
+app.use('/uploads', express.static(uploadsPath, {
+  maxAge: '1d', // Кешування на 1 день
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // Дозволяємо CORS для статичних файлів
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET');
+  }
+}));
 
 // Маршрути API
 app.use('/api/swagger', require('./routes/swagger')); // Swagger документація

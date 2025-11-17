@@ -266,12 +266,8 @@ const Categories: React.FC = () => {
         const baseURL = apiUrl.replace('/api', '') || 'http://localhost:5000';
         return `${baseURL}${icon}`;
       }
-      // У production режимі, якщо REACT_APP_API_URL встановлено, використовуємо його
-      if (process.env.REACT_APP_API_URL) {
-        const baseURL = process.env.REACT_APP_API_URL.replace('/api', '') || '';
-        return baseURL ? `${baseURL}${icon}` : icon;
-      }
-      // Інакше використовуємо відносний URL (працює якщо фронтенд і бекенд на одному домені)
+      // У production режимі використовуємо відносний URL
+      // (фронтенд і бекенд на одному домені, express.static обслуговує /uploads)
       return icon;
     }
     // Абсолютні URL повертаємо як є
