@@ -103,7 +103,13 @@ class TelegramService {
       });
 
       // Перевірка, чи користувач вже зареєстрований
-      const existingUser = await User.findOne({ telegramId: userId })
+      // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
+      const existingUser = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      })
         .populate('position', 'name')
         .populate('city', 'name');
       
@@ -177,7 +183,13 @@ class TelegramService {
     const command = msg.text.split(' ')[0];
 
     try {
-      const user = await User.findOne({ telegramId: userId });
+      // Конвертуємо userId в рядок для пошуку
+      const user = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
 
       switch (command) {
         case '/start':
@@ -211,7 +223,13 @@ class TelegramService {
 
   async handleStartCommand(chatId, userId) {
     try {
-      const user = await User.findOne({ telegramId: userId })
+      // Конвертуємо userId в рядок для пошуку
+      const user = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      })
         .populate('position', 'name')
         .populate('city', 'name');
       
@@ -276,7 +294,13 @@ class TelegramService {
       logger.info('Обробка callback query:', { userId, data, chatId, messageId });
 
       // Спочатку перевіряємо, чи користувач вже зареєстрований
-      const user = await User.findOne({ telegramId: userId })
+      // Конвертуємо userId в рядок для пошуку
+      const user = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      })
         .populate('position', 'name')
         .populate('city', 'name');
       
@@ -632,7 +656,13 @@ class TelegramService {
     const session = this.userSessions.get(chatId);
 
     // Перевіряємо, чи користувач вже зареєстрований
-    const existingUser = await User.findOne({ telegramId: userId })
+    // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
+    const existingUser = await User.findOne({ 
+      $or: [
+        { telegramId: String(userId) },
+        { telegramId: userId }
+      ]
+    })
       .populate('position', 'name')
       .populate('city', 'name');
     
@@ -659,7 +689,13 @@ class TelegramService {
     }
 
     // Перевіряємо, чи користувач в процесі реєстрації
-    const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
+    // Конвертуємо userId в рядок для пошуку
+    const pendingRegistration = await PendingRegistration.findOne({ 
+      $or: [
+        { telegramId: String(userId) },
+        { telegramId: userId }
+      ]
+    });
     if (pendingRegistration) {
       await this.handleRegistrationTextInput(chatId, userId, text, pendingRegistration);
       return;
@@ -964,7 +1000,13 @@ class TelegramService {
 
     try {
       // Перевіряємо, чи користувач вже зареєстрований
-      const existingUser = await User.findOne({ telegramId: userId })
+      // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
+      const existingUser = await User.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      })
         .populate('position', 'name')
         .populate('city', 'name');
       
@@ -975,7 +1017,13 @@ class TelegramService {
       }
 
       // Перевіряємо, чи користувач в процесі реєстрації на етапі phone
-      const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
+      // Конвертуємо userId в рядок для пошуку
+      const pendingRegistration = await PendingRegistration.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
       
       if (!pendingRegistration) {
         await this.sendMessage(chatId, 'Ви не в процесі реєстрації. Використайте /start для початку.');
@@ -2007,7 +2055,13 @@ class TelegramService {
   async handleUserRegistrationCallback(chatId, userId) {
     try {
       // Перевіряємо, чи є вже активна реєстрація для цього користувача
-      let pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
+      // Конвертуємо userId в рядок для пошуку
+      let pendingRegistration = await PendingRegistration.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
       
       if (!pendingRegistration) {
         // Отримуємо інформацію про користувача з Telegram
@@ -2015,7 +2069,7 @@ class TelegramService {
         
         // Створюємо нову запис для покрокової реєстрації
         pendingRegistration = new PendingRegistration({
-          telegramId: userId,
+          telegramId: String(userId), // Конвертуємо в рядок, оскільки в схемі String
           step: 'firstName',
           telegramInfo: {
             firstName: chatInfo.first_name || '',
@@ -2327,7 +2381,7 @@ class TelegramService {
       
       // Створюємо нового користувача
       const newUser = new User({
-        telegramId: userId,
+        telegramId: String(userId), // Конвертуємо в рядок, оскільки в схемі String
         login: login,
         firstName: pendingRegistration.data.firstName,
         lastName: pendingRegistration.data.lastName,
@@ -2434,7 +2488,13 @@ class TelegramService {
     try {
       logger.info('Обробка callback для реєстрації:', { userId, data, chatId });
       
-      const pendingRegistration = await PendingRegistration.findOne({ telegramId: userId });
+      // Конвертуємо userId в рядок для пошуку
+      const pendingRegistration = await PendingRegistration.findOne({ 
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
       
       if (!pendingRegistration) {
         logger.warn('Сесія реєстрації не знайдена для callback:', { userId, data });
