@@ -267,7 +267,7 @@ const Categories: React.FC = () => {
     return icon;
   };
 
-  const renderCategoryIcon = (icon: string | undefined, color: string) => {
+  const renderCategoryIcon = (icon: string | undefined, color?: string) => {
     // Якщо немає іконки, не показуємо нічого
     if (!icon) {
       return null;
