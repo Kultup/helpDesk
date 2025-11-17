@@ -857,7 +857,6 @@ class TelegramService {
 
       // Отримуємо шаблони для Telegram
       const templates = await TicketTemplate.find({ isActive: true })
-        .populate('category', 'name icon color')
         .sort({ title: 1 })
         .limit(10)
         .lean();
@@ -877,73 +876,13 @@ class TelegramService {
         return;
       }
 
-      // Збираємо всі category IDs для одного запиту (якщо populate не спрацював)
-      const categoryIds = new Set();
-      templates.forEach(template => {
-        if (template.category && typeof template.category === 'object' && !template.category.name && template.category._id) {
-          categoryIds.add(template.category._id.toString());
-        } else if (!template.category || (typeof template.category === 'object' && !template.category.name)) {
-          // Якщо category - це ObjectId рядок
-          const catId = typeof template.category === 'string' ? template.category : (template.category?._id?.toString() || null);
-          if (catId) {
-            categoryIds.add(catId);
-          }
-        }
-      });
-
-      // Завантажуємо категорії одним запитом, якщо є такі, що не популюються
-      const categoriesMap = new Map();
-      if (categoryIds.size > 0) {
-        const categories = await Category.find({ _id: { $in: Array.from(categoryIds).map(id => new mongoose.Types.ObjectId(id)) } })
-          .select('name icon color')
-          .lean();
-        categories.forEach(cat => {
-          categoriesMap.set(cat._id.toString(), cat);
-        });
-      }
-
       let text = 
         `📄 *Оберіть шаблон для створення тікету*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
       const keyboard = [];
 
       for (const [index, template] of templates.entries()) {
-        text += `${index + 1}. 📋 *${template.title}*\n`;
-        if (template.description) {
-          text += `   📝 ${template.description.substring(0, 50)}...\n`;
-        }
-        // Перевіряємо чи існує категорія та чи вона популюється
-        let categoryText = 'Невідома категорія';
-        if (template.category) {
-          // Якщо категорія вже популюється з полями name, icon, color
-          if (template.category.name) {
-            const icon = template.category.icon && template.category.icon.trim() !== '' ? template.category.icon : '';
-            categoryText = icon ? `${icon} ${template.category.name}` : template.category.name;
-          } else if (template.category._id) {
-            // Якщо populate не спрацював, використовуємо мапу категорій
-            const catId = template.category._id.toString();
-            const category = categoriesMap.get(catId);
-            if (category) {
-              const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
-              categoryText = icon ? `${icon} ${category.name}` : category.name;
-            } else {
-              // Якщо не знайдено в мапі, пробуємо через getCategoryText
-              categoryText = await this.getCategoryText(catId);
-            }
-          } else if (typeof template.category === 'string') {
-            // Якщо category зберігається як рядок (ObjectId)
-            const category = categoriesMap.get(template.category);
-            if (category) {
-              const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
-              categoryText = icon ? `${icon} ${category.name}` : category.name;
-            } else {
-              categoryText = await this.getCategoryText(template.category);
-            }
-          }
-        } else {
-          logger.warn(`Категорія не знайдена для шаблону ${template._id}`);
-        }
-        text += `   🏷️ ${categoryText} | ⚡ *${this.getPriorityText(template.priority)}*\n\n`;
+        text += `${index + 1}. 📋 *${template.title}*\n\n`;
         
         keyboard.push([{
           text: `📄 ${template.title}`,
