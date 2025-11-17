@@ -300,8 +300,51 @@ class TelegramService {
       }
 
       // Якщо досі не знайдено, пробуємо знайти за telegramUsername
+      // Перевіряємо, чи в telegramUsername зберігається ID у форматі @1234567890
+      if (!user) {
+        logger.info('Пробуємо знайти користувача за telegramUsername (може містити ID):');
+        
+        // Шукаємо безпосередньо за значенням @userIdString
+        const idInUsername = `@${userIdString}`;
+        user = await User.findOne({
+          telegramUsername: idInUsername
+        })
+          .populate('position', 'name')
+          .populate('city', 'name');
+
+        if (user) {
+          logger.info('Знайдено користувача за telegramUsername, де зберігається ID:', {
+            userId: user._id,
+            email: user.email,
+            telegramUsername: user.telegramUsername,
+            extractedId: userIdString,
+            expectedId: userIdString
+          });
+
+          logger.info('Оновлюємо дані Telegram для користувача (ID був в telegramUsername):', {
+            userId: user._id,
+            email: user.email,
+            oldTelegramId: user.telegramId,
+            newTelegramId: userIdString,
+            oldTelegramChatId: user.telegramChatId,
+            newTelegramChatId: chatIdString,
+            oldTelegramUsername: user.telegramUsername
+          });
+
+          user.telegramId = userIdString;
+          user.telegramChatId = chatIdString;
+          // Оновлюємо telegramUsername на правильний username, якщо він є
+          if (usernameFromMsg && user.telegramUsername !== usernameFromMsg) {
+            user.telegramUsername = usernameFromMsg;
+          }
+          // Якщо username відсутній, залишаємо ID в telegramUsername (для сумісності)
+          await user.save();
+        }
+      }
+
+      // Якщо досі не знайдено і є usernameFromMsg, пробуємо знайти за звичайним telegramUsername
       if (!user && usernameFromMsg) {
-        logger.info('Пробуємо знайти користувача за telegramUsername:', {
+        logger.info('Пробуємо знайти користувача за telegramUsername (звичайний пошук):', {
           usernameFromMsg,
           originalUsername: msg.from.username
         });
@@ -390,6 +433,7 @@ class TelegramService {
             "telegramId with '@' prefix / spaces",
             'telegramChatId as String',
             'telegramChatId as Number',
+            'telegramUsername containing ID (@1234567890)',
             'telegramUsername (case-insensitive)',
             'test user auto-update (admin/test.com)'
           ]
