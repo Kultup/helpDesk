@@ -1079,9 +1079,10 @@ const ZabbixSettings: React.FC = () => {
                                   }
                                   return (() => {
                                     // Перевіряємо, чи telegramUsername є числовим ID
-                                    const isUsernameNumeric = admin.telegramUsername && /^\d+$/.test(admin.telegramUsername);
-                                    const actualTelegramId = admin.telegramId || (isUsernameNumeric ? admin.telegramUsername : null);
-                                    const actualTelegramUsername = admin.telegramUsername && !isUsernameNumeric ? admin.telegramUsername : null;
+                                    const telegramUsernameStr = admin.telegramUsername ? String(admin.telegramUsername) : null;
+                                    const isUsernameNumeric = telegramUsernameStr && /^\d+$/.test(telegramUsernameStr);
+                                    const actualTelegramId = admin.telegramId || (isUsernameNumeric ? telegramUsernameStr : null);
+                                    const actualTelegramUsername = telegramUsernameStr && !isUsernameNumeric ? telegramUsernameStr : null;
                                     
                                     return (
                                       <span
@@ -1408,9 +1409,10 @@ const ZabbixSettings: React.FC = () => {
                       <div className="space-y-2">
                         {admins.map((admin) => {
                           // Перевіряємо, чи telegramUsername є числовим ID
-                          const isUsernameNumeric = admin.telegramUsername && /^\d+$/.test(admin.telegramUsername);
-                          const actualTelegramId = admin.telegramId || (isUsernameNumeric ? admin.telegramUsername : null);
-                          const actualTelegramUsername = admin.telegramUsername && !isUsernameNumeric ? admin.telegramUsername : null;
+                          const telegramUsernameStr = admin.telegramUsername ? String(admin.telegramUsername) : null;
+                          const isUsernameNumeric = telegramUsernameStr && /^\d+$/.test(telegramUsernameStr);
+                          const actualTelegramId = admin.telegramId || (isUsernameNumeric ? telegramUsernameStr : null);
+                          const actualTelegramUsername = telegramUsernameStr && !isUsernameNumeric ? telegramUsernameStr : null;
                           const hasTelegramId = !!actualTelegramId;
                           const hasTelegramUsername = !!actualTelegramUsername;
                           const canReceiveNotifications = hasTelegramId;
