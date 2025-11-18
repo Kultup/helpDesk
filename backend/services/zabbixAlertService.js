@@ -807,9 +807,31 @@ async sendNotifications(alert, groups) {
         status: 'PROBLEM'
       });
 
-      // Відправляємо сповіщення для нових алертів
+      // Також перевіряємо оновлені алерти, які могли змінити статус на PROBLEM
+      // і ще не мають відправлених сповіщень
+      const updatedAlertIds = saveResult.updated > 0 ? 
+        await ZabbixAlert.find({
+          alertId: { $in: alertsData.map(a => a.alertId) },
+          _id: { $nin: newAlerts.map(a => a._id) }, // Виключаємо вже знайдені нові
+          notificationSent: false,
+          resolved: false,
+          status: 'PROBLEM'
+        }).distinct('alertId') : [];
+      
+      const updatedAlerts = updatedAlertIds.length > 0 ?
+        await ZabbixAlert.find({
+          alertId: { $in: updatedAlertIds },
+          notificationSent: false,
+          resolved: false,
+          status: 'PROBLEM'
+        }) : [];
+
+      // Об'єднуємо нові та оновлені алерти для сповіщень
+      const alertsToNotify = [...newAlerts, ...updatedAlerts];
+      
+      // Відправляємо сповіщення для нових та оновлених алертів
       let totalNotificationsSent = 0;
-      for (const alert of newAlerts) {
+      for (const alert of alertsToNotify) {
         const groups = await this.getAlertGroupsForAlert(alert);
         
         if (groups.length > 0) {
@@ -820,6 +842,12 @@ async sendNotifications(alert, groups) {
 
           const notificationResult = await this.sendNotifications(alert, groups);
           totalNotificationsSent += notificationResult.sent;
+        } else {
+          logger.warn(`No matching groups found for alert ${alert.alertId}`, {
+            host: alert.host,
+            severity: alert.severity,
+            triggerName: alert.triggerName
+          });
         }
       }
 

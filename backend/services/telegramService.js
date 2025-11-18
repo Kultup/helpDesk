@@ -55,6 +55,48 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправка сповіщення користувачу через Telegram
+   * @param {String} telegramId - Telegram ID користувача
+   * @param {Object} notification - Об'єкт сповіщення {title, message, type}
+   * @returns {Promise}
+   */
+  async sendNotification(telegramId, notification) {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення');
+        return;
+      }
+
+      if (!telegramId) {
+        logger.warn('Telegram ID не вказано для відправки сповіщення');
+        return;
+      }
+
+      const { title = '', message = '', type = 'notification' } = notification;
+      
+      // Форматуємо повідомлення
+      let formattedMessage = '';
+      if (title) {
+        formattedMessage += `*${title}*\n\n`;
+      }
+      formattedMessage += message;
+
+      // Відправляємо повідомлення
+      await this.sendMessage(String(telegramId), formattedMessage, {
+        parse_mode: 'Markdown'
+      });
+
+      logger.info(`✅ Сповіщення відправлено користувачу ${telegramId}`, {
+        type,
+        hasTitle: !!title
+      });
+    } catch (error) {
+      logger.error(`Помилка відправки сповіщення користувачу ${telegramId}:`, error);
+      throw error;
+    }
+  }
+
   async sendMessage(chatId, text, options = {}) {
     try {
       if (!this.bot) {
@@ -946,7 +988,7 @@ class TelegramService {
         `\`${originalTicket.description || 'Без опису'}\`\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
         `✏️ Ви можете змінити заголовок або описати нову проблему.\n\n` +
-        `📋 *Крок 1/5:* Введіть заголовок тікету\n\n` +
+        `📋 *Крок 1/4:* Введіть заголовок тікету\n\n` +
         `💡 Опишіть коротко суть проблеми`;
 
       await this.sendMessage(chatId, message, {
@@ -987,7 +1029,7 @@ class TelegramService {
         `✅ *Заголовок використано*\n\n` +
         `📋 Заголовок: *${session.ticketData.title}*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📝 *Крок 2/5:* Введіть опис проблеми\n\n` +
+        `📝 *Крок 2/4:* Введіть опис проблеми\n\n` +
         `💡 Опишіть детально вашу проблему.`, {
           reply_markup: {
             inline_keyboard: [
@@ -1027,7 +1069,7 @@ class TelegramService {
         `✅ *Опис використано*\n\n` +
         `📝 Опис: *${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📷 *Крок 3/5:* Прикріпіть фото (необов'язково)\n\n` +
+        `📷 *Крок 3/4:* Прикріпіть фото (необов'язково)\n\n` +
         `💡 Ви можете прикріпити фото для кращого опису проблеми.`, {
           reply_markup: {
             inline_keyboard: [
@@ -1063,7 +1105,7 @@ class TelegramService {
     await this.sendMessage(chatId, 
       `📝 *Створення нового тікету*\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📋 *Крок 1/5:* Введіть заголовок тікету\n\n` +
+      `📋 *Крок 1/4:* Введіть заголовок тікету\n\n` +
       `💡 Опишіть коротко суть проблеми`, {
         reply_markup: {
           inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
@@ -1452,7 +1494,7 @@ class TelegramService {
           session.ticketData.title = text;
           session.step = 'description';
           await this.sendMessage(chatId, 
-            'Крок 2/5: Введіть опис проблеми:', {
+            'Крок 2/4: Введіть опис проблеми:', {
               reply_markup: {
                 inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
               }
@@ -1464,7 +1506,7 @@ class TelegramService {
           session.ticketData.description = text;
           session.step = 'photo';
           await this.sendMessage(chatId, 
-            'Крок 3/5: Прикріпіть фото (необов\'язково)\n\n' +
+            'Крок 3/4: Прикріпіть фото (необов\'язково)\n\n' +
             'Ви можете прикріпити фото для кращого опису проблеми.', {
               reply_markup: {
                 inline_keyboard: [
@@ -1478,7 +1520,7 @@ class TelegramService {
           break;
 
         case 'category':
-           // Логіка для категорії - очікуємо callback
+           // Логіка для категорії - пропущено, не використовується
            break;
 
          case 'priority':
@@ -1728,24 +1770,22 @@ class TelegramService {
   async handleSkipPhotoCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      session.step = 'category';
-      // Оновлюємо кеш категорій перед показом
-      await this.loadCategories();
-      const categoryButtons = await this.generateCategoryButtons();
-      const categoriesCount = this.getAllCategories().length;
-      const promptText = categoriesCount > 0 ? this.getCategoryPromptText() : 'Немає активних категорій. Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)';
+      // Пропускаємо вибір категорії, переходимо одразу на пріоритет
+      session.step = 'priority';
+      session.ticketData.categoryId = null; // Категорія не обов'язкова
       
-      // Додаємо кнопку скасування
-      if (categoryButtons.length > 0) {
-        categoryButtons.push([{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]);
-      }
-      
-      await this.sendMessage(chatId, promptText, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: categoryButtons
+      await this.sendMessage(chatId, 
+        this.getPriorityPromptText(), {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
+              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
+              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
         }
-      });
+      );
     }
   }
 
@@ -1758,24 +1798,22 @@ class TelegramService {
   async handleFinishTicketCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      session.step = 'category';
-      // Оновлюємо кеш категорій перед показом
-      await this.loadCategories();
-      const categoryButtons = await this.generateCategoryButtons();
-      const categoriesCount = this.getAllCategories().length;
-      const promptText = categoriesCount > 0 ? this.getCategoryPromptText() : 'Немає активних категорій. Зверніться до адміністратора: [@Kultup](https://t.me/Kultup)';
+      // Пропускаємо вибір категорії, переходимо одразу на пріоритет
+      session.step = 'priority';
+      session.ticketData.categoryId = null; // Категорія не обов'язкова
       
-      // Додаємо кнопку скасування
-      if (categoryButtons.length > 0) {
-        categoryButtons.push([{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]);
-      }
-      
-      await this.sendMessage(chatId, promptText, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: categoryButtons
+      await this.sendMessage(chatId, 
+        this.getPriorityPromptText(), {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
+              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
+              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
         }
-      });
+      );
     }
   }
 
@@ -1866,10 +1904,20 @@ class TelegramService {
 
    async completeTicketCreation(chatId, user, session) {
      try {
+       // Якщо категорія не вказана, використовуємо дефолтну або першу доступну
+       let categoryId = session.ticketData.categoryId;
+       if (!categoryId) {
+         // Шукаємо першу активну категорію як дефолтну
+         const defaultCategory = await Category.findOne({ isActive: true }).sort({ name: 1 });
+         if (defaultCategory) {
+           categoryId = defaultCategory._id;
+         }
+       }
+       
        const ticketData = {
          title: session.ticketData.title,
          description: session.ticketData.description,
-         category: session.ticketData.categoryId,
+         category: categoryId,
          priority: session.ticketData.priority,
          createdBy: user._id,
          city: user.city,
