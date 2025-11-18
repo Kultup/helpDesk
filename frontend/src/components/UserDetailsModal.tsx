@@ -122,21 +122,32 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                 <p className="text-sm font-medium text-gray-500">Telegram</p>
                 {(user.telegramId || user.telegramUsername) ? (
                   <div className="space-y-1 mt-1">
-                    {user.telegramUsername && (
-                      <p className="text-sm text-gray-900">
-                        <span className="font-medium">Username:</span> @{user.telegramUsername}
-                      </p>
-                    )}
-                    {user.telegramId && (
-                      <p className="text-sm text-gray-900">
-                        <span className="font-medium">ID:</span> {user.telegramId}
-                      </p>
-                    )}
-                    {!user.telegramId && user.telegramUsername && (
-                      <p className="text-xs text-yellow-600 mt-1">
-                        ⚠️ Для відправки сповіщень потрібен числовий Telegram ID. Додайте Telegram ID в налаштуваннях користувача.
-                      </p>
-                    )}
+                    {/* Визначаємо, чи telegramUsername є числовим ID */}
+                    {(() => {
+                      const isUsernameNumeric = user.telegramUsername && /^\d+$/.test(user.telegramUsername);
+                      const actualTelegramId = user.telegramId || (isUsernameNumeric ? user.telegramUsername : null);
+                      const actualTelegramUsername = user.telegramUsername && !isUsernameNumeric ? user.telegramUsername : null;
+                      
+                      return (
+                        <>
+                          {actualTelegramId && (
+                            <p className="text-sm text-gray-900">
+                              <span className="font-medium">ID:</span> {actualTelegramId}
+                            </p>
+                          )}
+                          {actualTelegramUsername && (
+                            <p className="text-sm text-gray-900">
+                              <span className="font-medium">Username:</span> @{actualTelegramUsername}
+                            </p>
+                          )}
+                          {!actualTelegramId && !actualTelegramUsername && (
+                            <p className="text-xs text-yellow-600 mt-1">
+                              ⚠️ Для відправки сповіщень потрібен числовий Telegram ID. Додайте Telegram ID в налаштуваннях користувача.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400 mt-1">
