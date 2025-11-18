@@ -248,11 +248,37 @@ class ZabbixAlertService {
       const groups = await ZabbixAlertGroup.findActive();
       const matchingGroups = [];
 
+      logger.debug(`Checking alert ${alert.alertId} against ${groups.length} groups`, {
+        alertId: alert.alertId,
+        host: alert.host,
+        severity: alert.severity,
+        triggerId: alert.triggerId,
+        groupsCount: groups.length
+      });
+
       for (const group of groups) {
-        if (group.checkAlertMatch(alert)) {
+        const matches = group.checkAlertMatch(alert);
+        logger.debug(`Group ${group.name} match result: ${matches}`, {
+          groupId: group._id,
+          groupName: group.name,
+          enabled: group.enabled,
+          severityLevels: group.severityLevels,
+          hostPatterns: group.hostPatterns,
+          triggerIds: group.triggerIds,
+          alertSeverity: alert.severity,
+          alertHost: alert.host,
+          alertTriggerId: alert.triggerId
+        });
+        
+        if (matches) {
           matchingGroups.push(group);
         }
       }
+
+      logger.info(`Found ${matchingGroups.length} matching groups for alert ${alert.alertId}`, {
+        alertId: alert.alertId,
+        matchingGroups: matchingGroups.map(g => g.name)
+      });
 
       return matchingGroups;
     } catch (error) {
@@ -751,8 +777,30 @@ async sendNotifications(alert, groups) {
         }
       }
 
-      // Отримуємо проблеми з деталями (тільки критичні)
-      const problemsResult = await zabbixService.getProblemsWithDetails([3, 4], 1000);
+      // Отримуємо всі активні групи для визначення потрібних severity levels
+      const activeGroups = await ZabbixAlertGroup.find({ enabled: true });
+      const requiredSeverities = new Set();
+      
+      // Збираємо всі severity levels з активних груп
+      activeGroups.forEach(group => {
+        if (group.severityLevels && group.severityLevels.length > 0) {
+          group.severityLevels.forEach(sev => requiredSeverities.add(sev));
+        }
+      });
+      
+      // Якщо немає груп з вказаними severity levels, використовуємо всі (0-4)
+      // Якщо є групи, але вони не вказали severity levels, також використовуємо всі
+      const severitiesToFetch = requiredSeverities.size > 0 
+        ? Array.from(requiredSeverities) 
+        : [0, 1, 2, 3, 4];
+      
+      logger.info(`Fetching Zabbix problems with severities: ${severitiesToFetch.join(', ')}`, {
+        activeGroupsCount: activeGroups.length,
+        requiredSeverities: Array.from(requiredSeverities)
+      });
+      
+      // Отримуємо проблеми з деталями для потрібних severity levels
+      const problemsResult = await zabbixService.getProblemsWithDetails(severitiesToFetch, 1000);
 
       if (!problemsResult.success) {
         logger.error('Failed to get problems from Zabbix:', {
@@ -774,10 +822,17 @@ async sendNotifications(alert, groups) {
         };
       }
 
-      // Фільтруємо критичні алерти (якщо ще не відфільтровані)
-      const criticalProblems = this.filterCriticalAlerts(problems);
+      // Фільтруємо алерти за severity levels (якщо потрібно)
+      // Якщо є групи з вказаними severity levels, фільтруємо тільки їх
+      let filteredProblems = problems;
+      if (requiredSeverities.size > 0) {
+        filteredProblems = problems.filter(problem => {
+          const severity = parseInt(problem.severity) || 0;
+          return requiredSeverities.has(severity);
+        });
+      }
 
-      if (criticalProblems.length === 0) {
+      if (filteredProblems.length === 0) {
         await config.recordSuccess(0);
         return {
           success: true,
@@ -788,7 +843,7 @@ async sendNotifications(alert, groups) {
       }
 
       // Перетворюємо проблеми в алерти
-      const alertsData = criticalProblems.map(problem => {
+      const alertsData = filteredProblems.map(problem => {
         return this.transformProblemToAlert(
           problem,
           problem.trigger || null,
@@ -856,7 +911,7 @@ async sendNotifications(alert, groups) {
 
       return {
         success: true,
-        alertsProcessed: criticalProblems.length,
+        alertsProcessed: filteredProblems.length,
         alertsSaved: saveResult.saved,
         alertsUpdated: saveResult.updated,
         notificationsSent: totalNotificationsSent,
