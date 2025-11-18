@@ -1077,24 +1077,34 @@ const ZabbixSettings: React.FC = () => {
                                       </span>
                                     );
                                   }
-                                  return (
-                                    <span
-                                      key={admin._id || index}
-                                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
-                                      title={admin.telegramId ? `Telegram ID: ${admin.telegramId}` : undefined}
-                                    >
-                                      {admin.firstName} {admin.lastName} ({admin.email})
-                                      {admin.telegramUsername && (
-                                        <span className="ml-1 text-blue-600" title="Telegram username">[@{admin.telegramUsername}]</span>
-                                      )}
-                                      {admin.telegramId && !admin.telegramUsername && (
-                                        <span className="ml-1 text-gray-600" title="Telegram ID">[ID: {admin.telegramId}]</span>
-                                      )}
-                                      {!admin.telegramId && !admin.telegramUsername && (
-                                        <span className="ml-1 text-red-500" title="Немає Telegram ID">[Немає Telegram]</span>
-                                      )}
-                                    </span>
-                                  );
+                                  return (() => {
+                                    // Перевіряємо, чи telegramUsername є числовим ID
+                                    const isUsernameNumeric = admin.telegramUsername && /^\d+$/.test(admin.telegramUsername);
+                                    const actualTelegramId = admin.telegramId || (isUsernameNumeric ? admin.telegramUsername : null);
+                                    const actualTelegramUsername = admin.telegramUsername && !isUsernameNumeric ? admin.telegramUsername : null;
+                                    
+                                    return (
+                                      <span
+                                        key={admin._id || index}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                                        title={actualTelegramId ? `Telegram ID: ${actualTelegramId}` : undefined}
+                                      >
+                                        {admin.firstName} {admin.lastName} ({admin.email})
+                                        {actualTelegramUsername && (
+                                          <span className="ml-1 text-blue-600" title="Telegram username">[@{actualTelegramUsername}]</span>
+                                        )}
+                                        {actualTelegramId && !actualTelegramUsername && (
+                                          <span className="ml-1 text-gray-600" title="Telegram ID">[ID: {actualTelegramId}]</span>
+                                        )}
+                                        {actualTelegramId && actualTelegramUsername && (
+                                          <span className="ml-1 text-gray-600" title="Telegram ID">[ID: {actualTelegramId}]</span>
+                                        )}
+                                        {!actualTelegramId && !actualTelegramUsername && (
+                                          <span className="ml-1 text-red-500" title="Немає Telegram ID">[Немає Telegram]</span>
+                                        )}
+                                      </span>
+                                    );
+                                  })();
                                 })
                               ) : (
                                 <span className="text-sm text-gray-500">Не призначено</span>
@@ -1397,8 +1407,12 @@ const ZabbixSettings: React.FC = () => {
                     ) : (
                       <div className="space-y-2">
                         {admins.map((admin) => {
-                          const hasTelegramId = !!admin.telegramId;
-                          const hasTelegramUsername = !!admin.telegramUsername;
+                          // Перевіряємо, чи telegramUsername є числовим ID
+                          const isUsernameNumeric = admin.telegramUsername && /^\d+$/.test(admin.telegramUsername);
+                          const actualTelegramId = admin.telegramId || (isUsernameNumeric ? admin.telegramUsername : null);
+                          const actualTelegramUsername = admin.telegramUsername && !isUsernameNumeric ? admin.telegramUsername : null;
+                          const hasTelegramId = !!actualTelegramId;
+                          const hasTelegramUsername = !!actualTelegramUsername;
                           const canReceiveNotifications = hasTelegramId;
                           
                           return (
@@ -1429,12 +1443,12 @@ const ZabbixSettings: React.FC = () => {
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {hasTelegramUsername && (
                                     <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded" title="Telegram username">
-                                      @{admin.telegramUsername}
+                                      @{actualTelegramUsername}
                                     </span>
                                   )}
                                   {hasTelegramId && (
                                     <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded" title="Telegram ID (може отримувати сповіщення)">
-                                      ID: {admin.telegramId} ✓
+                                      ID: {actualTelegramId} ✓
                                     </span>
                                   )}
                                   {!canReceiveNotifications && (
