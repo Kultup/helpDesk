@@ -46,7 +46,7 @@
 ## Структура проекту
 
 ```
-helpdesk-system/
+helpDesk/
 ├── backend/                    # Node.js API сервер
 │   ├── controllers/           # Контролери API
 │   ├── models/               # Mongoose моделі
@@ -55,7 +55,10 @@ helpdesk-system/
 │   ├── services/             # Бізнес логіка
 │   ├── scripts/              # Утилітні скрипти
 │   ├── jobs/                 # Фонові завдання
-│   └── utils/                # Допоміжні функції
+│   ├── utils/                # Допоміжні функції
+│   ├── config/               # Конфігурація
+│   ├── tests/                # Тести
+│   └── swagger.yaml          # Swagger документація API
 ├── frontend/                  # React додаток
 │   ├── src/
 │   │   ├── components/       # React компоненти
@@ -68,6 +71,8 @@ helpdesk-system/
 │   │   ├── i18n/            # Інтернаціоналізація
 │   │   └── locales/         # Переклади
 │   └── public/              # Статичні файли
+├── docs/                      # Додаткова документація
+├── mobile_flutter/            # Flutter мобільний додаток
 ├── docker-compose.prod.yml    # Docker Compose для продакшну
 ├── docker-compose.local-mongo.yml # Docker з локальною MongoDB
 ├── deploy.sh                  # Скрипт автоматичного розгортання
@@ -76,6 +81,9 @@ helpdesk-system/
 ├── PRODUCTION_DEPLOYMENT.md   # Документація розгортання
 ├── PRODUCTION_TEST_RESULTS.md # Результати тестування
 ├── DEPENDENCIES.md           # Документація залежностей
+├── API_DOCUMENTATION.md      # Документація API
+├── PRESENTATION.md           # Презентація системи
+├── PROJECT_DESCRIPTION.md    # Опис проекту
 └── package.json             # Головний package.json
 ```
 
