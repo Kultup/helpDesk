@@ -36,22 +36,32 @@ import {
   InstitutionType,
 } from '../types';
 
-// Fallback для development режиму
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '');
+// У development режимі використовуємо відносний шлях /api (проксується через setupProxy)
+// У production використовуємо REACT_APP_API_URL або відносний шлях
+const getApiBaseUrl = () => {
+  if (process.env.NODE_ENV === 'development') {
+    // У development завжди використовуємо відносний шлях, який буде проксуватися
+    return '/api';
+  }
+  // У production використовуємо змінну середовища або відносний шлях
+  return process.env.REACT_APP_API_URL || '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   private api: AxiosInstance;
 
   constructor() {
     // Перевірка налаштування API URL
-    if (!API_BASE_URL && process.env.NODE_ENV === 'development') {
-      console.warn('[API SERVICE] REACT_APP_API_URL не встановлено, використовується fallback: http://localhost:5000/api');
-      console.warn('[API SERVICE] Для production встановіть REACT_APP_API_URL в .env файлі');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API SERVICE] Development режим: використовується відносний шлях /api (проксується через setupProxy)');
+    } else if (!process.env.REACT_APP_API_URL) {
+      console.warn('[API SERVICE] REACT_APP_API_URL не встановлено, використовується відносний шлях /api');
     }
     
     this.api = axios.create({
-      baseURL: API_BASE_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api'),
+      baseURL: API_BASE_URL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

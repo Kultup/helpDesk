@@ -1,14 +1,21 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  // Fallback для development режиму
-  const defaultTarget = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
-  const target = process.env.PROXY_TARGET || 
-    (process.env.REACT_APP_API_URL || defaultTarget).replace(/\/api\/?$/, '');
+  // У development режимі завжди використовуємо localhost, навіть якщо REACT_APP_API_URL встановлено
+  let target;
+  if (process.env.NODE_ENV === 'development') {
+    // У development режимі завжди використовуємо localhost:5000
+    target = process.env.PROXY_TARGET || 'http://localhost:5000';
+    console.log('[PROXY SETUP] Development режим: використовується localhost:5000');
+  } else {
+    // У production використовуємо змінну середовища або fallback
+    const defaultTarget = '';
+    target = process.env.PROXY_TARGET || 
+      (process.env.REACT_APP_API_URL || defaultTarget).replace(/\/api\/?$/, '');
+  }
   
   if (!target) {
     console.warn('[PROXY SETUP] PROXY_TARGET/REACT_APP_API_URL не задані. Проксі для /api не буде налаштовано.');
-    console.warn('[PROXY SETUP] Для development режиму використовується http://localhost:5000');
     return;
   }
 
