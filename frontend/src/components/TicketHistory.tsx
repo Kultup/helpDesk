@@ -175,15 +175,16 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
     }
     
     // Обробка об'єктів
-    if (typeof value === 'object') {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
       // Якщо це об'єкт з полями, які можна показати
-      if (value._id || value.email || value.name) {
-        return value.email || value.name || value._id || JSON.stringify(value);
+      if (obj._id || obj.email || obj.name) {
+        return String(obj.email || obj.name || obj._id || JSON.stringify(value));
       }
       // Для складних об'єктів показуємо структурований вигляд
-      const keys = Object.keys(value);
+      const keys = Object.keys(obj);
       if (keys.length <= 3) {
-        return keys.map(key => `${key}: ${formatValue(value[key], field)}`).join(', ');
+        return keys.map(key => `${key}: ${formatValue(obj[key] as HistoryValue, field)}`).join(', ');
       }
       // Для великих об'єктів - JSON, але з форматуванням
       return JSON.stringify(value, null, 2);
