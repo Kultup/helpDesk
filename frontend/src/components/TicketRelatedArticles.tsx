@@ -31,17 +31,13 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadRelatedArticles();
-  }, [ticketId, categoryId, tags]);
-
-  const loadRelatedArticles = async () => {
+  const loadRelatedArticles = async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
       
       // Пошук статей по категорії та тегах
-      const searchParams: any = {
+      const searchParams: Record<string, string | number> = {
         status: 'published',
         page: 1,
         limit: 5,
@@ -63,19 +59,24 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
       } else {
         setError('Помилка завантаження пов\'язаних статей');
       }
-    } catch (err: any) {
-      setError(err.message || 'Помилка завантаження пов\'язаних статей');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Помилка завантаження пов\'язаних статей';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadRelatedArticles();
+  }, [ticketId, categoryId, tags, loadRelatedArticles]);
 
   if (isLoading) {
     return (
       <Card>
         <div className="p-6 text-center">
           <LoadingSpinner />
-          <p className="mt-2 text-sm text-gray-600">Завантаження пов'язаних статей...</p>
+          <p className="mt-2 text-sm text-gray-600">Завантаження пов&apos;язаних статей...</p>
         </div>
       </Card>
     );
@@ -90,7 +91,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
       <div className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Пов'язані статті KB</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Пов&apos;язані статті KB</h3>
         </div>
 
         <div className="space-y-3">

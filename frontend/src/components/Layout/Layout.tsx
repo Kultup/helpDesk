@@ -18,7 +18,7 @@ const Layout: React.FC = () => {
 
   // Завантаження подій для системи сповіщень
   useEffect(() => {
-    const loadEvents = async () => {
+    const loadEvents = async (): Promise<void> => {
       try {
         const today = new Date();
         const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -33,6 +33,7 @@ const Layout: React.FC = () => {
         
         setEvents((response as unknown as { data?: CalendarEvent[] }).data || []);
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Помилка завантаження подій для сповіщень:', error);
       }
     };
@@ -50,7 +51,7 @@ const Layout: React.FC = () => {
       {/* Sidebar */}
       <Sidebar 
         isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)}
+        onClose={(): void => setSidebarOpen(false)}
         isMobile={isMobile}
       />
       
@@ -58,7 +59,7 @@ const Layout: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <Header 
-          onMenuClick={() => setSidebarOpen(true)}
+          onMenuClick={(): void => setSidebarOpen(true)}
           isMobile={isMobile}
         />
         
@@ -74,7 +75,15 @@ const Layout: React.FC = () => {
       {isMobile && sidebarOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black bg-opacity-50"
-          onClick={() => setSidebarOpen(false)}
+          onClick={(): void => setSidebarOpen(false)}
+          onKeyDown={(e): void => {
+            if (e.key === 'Escape') {
+              setSidebarOpen(false);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-label="Закрити меню"
         />
       )}
       

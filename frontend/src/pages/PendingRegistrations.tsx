@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { CheckCircle, XCircle, User, Mail, MapPin, Briefcase, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import Card, { CardContent, CardHeader } from '../components/UI/Card';
+import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { apiService } from '../services/api';
-import { cn } from '../utils';
 
 interface PendingUser {
   _id: string;
@@ -61,7 +60,7 @@ const PendingRegistrations: React.FC = () => {
   
   const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (): Promise<void> => {
     try {
       const response = await apiService.get(`/users/pending-registrations?page=${pagination.currentPage}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext: boolean; hasPrev: boolean } };
       if (response.success) {
@@ -82,6 +81,7 @@ const PendingRegistrations: React.FC = () => {
         setError(null);
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error refreshing data:', err);
       // Don't show error for background refresh
     }
@@ -93,6 +93,7 @@ const PendingRegistrations: React.FC = () => {
     return users.filter(user => {
       const key = `${user._id}-${user.email}`;
       if (seen.has(key)) {
+        // eslint-disable-next-line no-console
         console.warn('Знайдено дублікат користувача:', user.email);
         return false;
       }
@@ -101,28 +102,19 @@ const PendingRegistrations: React.FC = () => {
     });
   };
 
-  const fetchPendingRegistrations = async (page = 1) => {
+  const fetchPendingRegistrations = useCallback(async (page = 1): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔍 Fetching pending registrations, page:', page);
       const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext?: boolean; hasPrev?: boolean; hasNextPage?: boolean; hasPrevPage?: boolean }; message?: string };
-      
-      console.log('📥 Response received:', {
-        success: response.success,
-        dataLength: Array.isArray(response.data) ? response.data.length : 0,
-        pagination: response.pagination
-      });
       
       if (response.success) {
         // Перевіряємо, чи дані є масивом
         const usersData = Array.isArray(response.data) ? response.data : [];
-        console.log('👥 Users data:', usersData.length, 'users');
         
         // Видаляємо можливі дублікати
         const uniqueUsers = removeDuplicateUsers(usersData);
-        console.log('✅ Unique users after deduplication:', uniqueUsers.length);
         
         setPendingUsers(uniqueUsers);
         
@@ -147,25 +139,23 @@ const PendingRegistrations: React.FC = () => {
           });
         }
       } else {
+        // eslint-disable-next-line no-console
         console.error('❌ API returned error:', response.message);
         setError(response.message || t('pendingRegistrations.errorLoading'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error('❌ Error fetching pending registrations:', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status
-      });
-      setError(err.message || t('pendingRegistrations.errorLoading'));
+      const errorMessage = err instanceof Error ? err.message : t('pendingRegistrations.errorLoading');
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchPendingRegistrations();
-  }, []);
+  }, [fetchPendingRegistrations]);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -194,16 +184,13 @@ const PendingRegistrations: React.FC = () => {
     });
   };
 
-  const approveRegistration = async (userId: string) => {
+  const approveRegistration = async (userId: string): Promise<void> => {
     try {
       setProcessingUserId(userId);
       
       const response = await apiService.patch(`/users/${userId}/approve-registration`) as { success: boolean; message?: string };
       
       if (response.success) {
-        // Видаляємо користувача зі списку pending
-        const userToRemove = pendingUsers.find(user => user._id === userId);
-        
         setPendingUsers(prev => {
           const filtered = prev.filter(user => user._id !== userId);
           return filtered;
@@ -217,25 +204,28 @@ const PendingRegistrations: React.FC = () => {
           return updated;
         });
       } else {
+        // eslint-disable-next-line no-console
         console.error('❌ Помилка від сервера:', response.message);
         setError(response.message || t('pendingRegistrations.errorApproving'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error('❌ Помилка при підтвердженні реєстрації:', err);
-      setError(err.message || t('pendingRegistrations.errorApproving'));
+      const errorMessage = err instanceof Error ? err.message : t('pendingRegistrations.errorApproving');
+      setError(errorMessage);
     } finally {
       setProcessingUserId(null);
       hideConfirmation();
     }
   };
 
-  const handleReject = (user: PendingUser) => {
+  const handleReject = (user: PendingUser): void => {
     setUserToReject(user);
     setRejectionReason('');
     setShowRejectModal(true);
   };
 
-  const rejectRegistration = async () => {
+  const rejectRegistration = async (): Promise<void> => {
     if (!userToReject) return;
 
     try {
@@ -246,9 +236,6 @@ const PendingRegistrations: React.FC = () => {
       }) as { success: boolean; message?: string };
       
       if (response.success) {
-        // Видаляємо користувача зі списку pending
-        const userToRemove = pendingUsers.find(user => user._id === userToReject._id);
-        
         setPendingUsers(prev => {
           const filtered = prev.filter(user => user._id !== userToReject._id);
           return filtered;
@@ -266,18 +253,21 @@ const PendingRegistrations: React.FC = () => {
         setUserToReject(null);
         setRejectionReason('');
       } else {
+        // eslint-disable-next-line no-console
         console.error('❌ Помилка від сервера (reject):', response.message);
         setError(response.message || t('pendingRegistrations.errorRejecting'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error('❌ Помилка при відхиленні реєстрації:', err);
-      setError(err.message || t('pendingRegistrations.errorRejecting'));
+      const errorMessage = err instanceof Error ? err.message : t('pendingRegistrations.errorRejecting');
+      setError(errorMessage);
     } finally {
       setProcessingUserId(null);
     }
   };
 
-  const handleApproveAll = () => {
+  const handleApproveAll = (): void => {
     if (pendingUsers.length === 0) return;
     
     showConfirmation({
@@ -288,7 +278,7 @@ const PendingRegistrations: React.FC = () => {
     });
   };
 
-  const approveAllRegistrations = async () => {
+  const approveAllRegistrations = async (): Promise<void> => {
     try {
       setIsApprovingAll(true);
       
@@ -327,16 +317,18 @@ const PendingRegistrations: React.FC = () => {
         }));
       }
       
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error('❌ Помилка при масовому підтвердженні:', err);
-      setError(err.message || t('pendingRegistrations.errorBulkApproval'));
+      const errorMessage = err instanceof Error ? err.message : t('pendingRegistrations.errorBulkApproval');
+      setError(errorMessage);
     } finally {
       setIsApprovingAll(false);
       hideConfirmation();
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('uk-UA', {
       year: 'numeric',
       month: 'long',
@@ -596,7 +588,7 @@ const PendingRegistrations: React.FC = () => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => {
+                onClick={(): void => {
                   setShowRejectModal(false);
                   setUserToReject(null);
                   setRejectionReason('');

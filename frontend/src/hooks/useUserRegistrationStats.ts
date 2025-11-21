@@ -49,7 +49,7 @@ export const useUserRegistrationStats = (): UseUserRegistrationStatsReturn => {
   const [userStatsLoading, setUserStatsLoading] = useState<boolean>(true);
   const [userStatsError, setUserStatsError] = useState<string | null>(null);
 
-  const fetchUserStats = async () => {
+  const fetchUserStats = async (): Promise<void> => {
     try {
       setUserStatsLoading(true);
       setUserStatsError(null);
@@ -62,9 +62,11 @@ export const useUserRegistrationStats = (): UseUserRegistrationStatsReturn => {
       } else {
         setUserStatsError((response as { message?: string }).message || 'Помилка при отриманні статистики користувачів');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // eslint-disable-next-line no-console
       console.error('Error fetching user registration stats:', err);
-      setUserStatsError(err.message || 'Помилка при отриманні статистики користувачів');
+      const errorMessage = err instanceof Error ? err.message : 'Помилка при отриманні статистики користувачів';
+      setUserStatsError(errorMessage);
     } finally {
       setUserStatsLoading(false);
     }
@@ -74,7 +76,7 @@ export const useUserRegistrationStats = (): UseUserRegistrationStatsReturn => {
     fetchUserStats();
   }, []);
 
-  const refetchUserStats = () => {
+  const refetchUserStats = (): void => {
     fetchUserStats();
   };
 
