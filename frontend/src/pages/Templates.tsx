@@ -98,21 +98,6 @@ const Templates: React.FC = () => {
       };
 
       const response = await apiService.getTicketTemplates(params);
-      interface TicketTemplate {
-        _id: string;
-        title: string;
-        description: string;
-        category?: unknown;
-        priority?: string;
-        estimatedResolutionTime?: number;
-        tags?: string[];
-        fields?: unknown[];
-        instructions?: string;
-        isActive?: boolean;
-        usageCount?: number;
-        createdAt?: string;
-        updatedAt?: string;
-      }
       const data = response.data as unknown as TicketTemplate[];
       setTemplates(data || []);
       const pagination = (response as { pagination?: { pages?: number } }).pagination;

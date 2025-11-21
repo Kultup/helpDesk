@@ -63,7 +63,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
           }
         } else if (Array.isArray(response.data)) {
           // Якщо response.data вже є масивом
-          setHistory(response.data);
+          setHistory(response.data as unknown as TicketHistoryEntry[]);
         } else {
           setHistory([]);
         }

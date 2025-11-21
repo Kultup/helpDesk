@@ -69,7 +69,14 @@ const PendingRegistrations: React.FC = () => {
         const uniqueUsers = removeDuplicateUsers(usersData);
         setPendingUsers(uniqueUsers);
         if (response.pagination) {
-          setPagination(response.pagination);
+          const pag = response.pagination as { currentPage: number; totalPages: number; totalItems: number; hasNext?: boolean; hasPrev?: boolean; hasNextPage?: boolean; hasPrevPage?: boolean };
+          setPagination({
+            currentPage: pag.currentPage,
+            totalPages: pag.totalPages,
+            totalItems: pag.totalItems,
+            hasNextPage: !!(pag.hasNext ?? pag.hasNextPage),
+            hasPrevPage: !!(pag.hasPrev ?? pag.hasPrevPage)
+          });
         }
         setLastUpdated(new Date());
         setError(null);
