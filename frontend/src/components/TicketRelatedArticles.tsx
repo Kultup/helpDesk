@@ -65,7 +65,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [ticketId, categoryId, tags]);
+  }, [categoryId, tags]);
 
   useEffect(() => {
     loadRelatedArticles();

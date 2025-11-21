@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { Plus, Edit2, Save, X, Trash2, Settings, Clock } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 
 interface SLAPolicy {
   _id: string;
@@ -380,18 +378,19 @@ const SLASettings: React.FC = () => {
               <Input
                 label="Назва політики"
                 value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                onChange={(e): void => setEditForm({ ...editForm, name: e.target.value })}
                 placeholder="Наприклад: Стандартна SLA політика"
                 required
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="policy-description" className="block text-sm font-medium text-gray-700 mb-2">
                   Опис
                 </label>
                 <textarea
+                  id="policy-description"
                   value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  onChange={(e): void => setEditForm({ ...editForm, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   placeholder="Опис політики..."
@@ -399,12 +398,13 @@ const SLASettings: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="policy-category" className="block text-sm font-medium text-gray-700 mb-2">
                   Категорія (опціонально)
                 </label>
                 <select
+                  id="policy-category"
                   value={editForm.category}
-                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  onChange={(e): void => setEditForm({ ...editForm, category: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Всі категорії</option>
@@ -622,7 +622,7 @@ const SLASettings: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEdit(policy)}
+                        onClick={(): void => handleEdit(policy)}
                         disabled={isCreating || editingPolicy !== null}
                       >
                         <Edit2 className="w-4 h-4" />
@@ -630,7 +630,7 @@ const SLASettings: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(policy._id)}
+                        onClick={(): void => handleDelete(policy._id)}
                         disabled={isCreating || editingPolicy !== null}
                         className="text-red-600 hover:bg-red-50"
                       >
