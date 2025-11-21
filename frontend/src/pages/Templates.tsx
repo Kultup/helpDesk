@@ -19,7 +19,7 @@ import {
   Eye,
   Search
 } from 'lucide-react';
-import Card, { CardContent, CardHeader, CardTitle } from '../components/UI/Card';
+import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Badge from '../components/UI/Badge';
 import Input from '../components/UI/Input';
@@ -114,17 +114,18 @@ const Templates: React.FC = () => {
     loadCategories();
   }, [searchTerm, selectedCategory, sortBy, currentPage, loadTemplates]);
 
-  const loadCategories = async () => {
+  const loadCategories = async (): Promise<void> => {
     try {
       const response = await apiService.getCategories(true); // Завантажуємо всі категорії, включно з неактивними
       setCategories(response.data || []);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading categories:', error);
       setCategories([]);
     }
   };
 
-  const handleDeleteTemplate = async () => {
+  const handleDeleteTemplate = async (): Promise<void> => {
     if (!deleteModal.template) return;
 
     try {
@@ -132,11 +133,12 @@ const Templates: React.FC = () => {
       setTemplates(prev => prev.filter(t => t._id !== deleteModal.template!._id));
       setDeleteModal({ isOpen: false, template: null });
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting template:', error);
     }
   };
 
-  const handleUseTemplate = (template: TicketTemplate) => {
+  const handleUseTemplate = (template: TicketTemplate): void => {
     const targetRoute = isAdmin ? '/admin/tickets/create' : '/tickets/create';
     navigate(targetRoute, { 
       state: { 
@@ -153,7 +155,7 @@ const Templates: React.FC = () => {
 
 
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string): string => {
     switch (priority) {
       case 'high': return 'text-red-600 bg-red-50 border-red-200';
       case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
@@ -162,7 +164,7 @@ const Templates: React.FC = () => {
     }
   };
 
-  const getPriorityIcon = (priority: string) => {
+  const getPriorityIcon = (priority: string): React.ReactElement => {
     switch (priority) {
       case 'high': return <AlertTriangle className="w-4 h-4" />;
       case 'medium': return <Clock className="w-4 h-4" />;
@@ -171,11 +173,11 @@ const Templates: React.FC = () => {
     }
   };
 
-  const getPriorityLabel = (priority: string) => {
+  const getPriorityLabel = (priority: string): string => {
     return t(`templates.priority.${priority}`, { defaultValue: t('templates.priority.medium') });
   };
 
-  const getCategoryIcon = (categoryName: string) => {
+  const getCategoryIcon = (categoryName: string): React.ReactElement => {
     const name = categoryName.toLowerCase();
     // Check for various translations of category types
     const technical = ['технічн', 'апарат', 'technical', 'techniczne', 'urządzenie'];
@@ -221,7 +223,7 @@ const Templates: React.FC = () => {
           </div>
           {isAdmin && (
             <Button
-              onClick={() => navigate('/templates/new')}
+              onClick={(): void => navigate('/templates/new')}
               className="flex items-center justify-center space-x-2 w-full sm:w-auto text-xs sm:text-sm"
             >
               <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -239,14 +241,14 @@ const Templates: React.FC = () => {
                 type="text"
                 placeholder={t('templates.searchPlaceholder')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e): void => setSearchTerm(e.target.value)}
                 className="pl-8 sm:pl-10 text-sm sm:text-base"
               />
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select value={selectedCategory} onValueChange={(value): void => setSelectedCategory(value)}>
               <SelectTrigger className="w-full sm:w-48 text-sm sm:text-base">
                 <SelectValue placeholder={t('templates.allCategories')} />
               </SelectTrigger>
@@ -266,7 +268,7 @@ const Templates: React.FC = () => {
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={(value): void => setSortBy(value)}>
               <SelectTrigger className="w-full sm:w-48 text-sm sm:text-base">
                 <SelectValue />
               </SelectTrigger>
@@ -293,7 +295,7 @@ const Templates: React.FC = () => {
               }
             </p>
             {isAdmin && (
-              <Button onClick={() => navigate('/templates/new')} className="text-xs sm:text-sm">
+              <Button onClick={(): void => navigate('/templates/new')} className="text-xs sm:text-sm">
                 {t('templates.createFirstTemplate')}
               </Button>
             )}
@@ -384,7 +386,7 @@ const Templates: React.FC = () => {
                     {/* Дії */}
                     <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end sm:justify-start">
                       <Button
-                        onClick={() => handleUseTemplate(template)}
+                        onClick={(): void => handleUseTemplate(template)}
                         size="sm"
                         className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
@@ -396,7 +398,7 @@ const Templates: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/templates/${template._id}/edit`)}
+                            onClick={(): void => navigate(`/templates/${template._id}/edit`)}
                             className="p-1.5 sm:p-2"
                             title={t('templates.edit')}
                           >
@@ -405,7 +407,7 @@ const Templates: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDeleteModal({ isOpen: true, template })}
+                            onClick={(): void => setDeleteModal({ isOpen: true, template })}
                             className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                             title={t('templates.delete')}
                           >
@@ -428,7 +430,7 @@ const Templates: React.FC = () => {
           <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
             <Button
               variant="outline"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={(): void => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               className="text-xs sm:text-sm px-2 sm:px-3"
             >
@@ -454,7 +456,7 @@ const Templates: React.FC = () => {
                 <Button
                   key={i + 1}
                   variant={currentPage === i + 1 ? "primary" : "outline"}
-                  onClick={() => setCurrentPage(i + 1)}
+                  onClick={(): void => setCurrentPage(i + 1)}
                   className="w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm"
                 >
                   {i + 1}
@@ -464,7 +466,7 @@ const Templates: React.FC = () => {
             
             <Button
               variant="outline"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={(): void => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               className="text-xs sm:text-sm px-2 sm:px-3"
             >
@@ -477,7 +479,7 @@ const Templates: React.FC = () => {
       {/* Модальне вікно підтвердження видалення */}
       <ConfirmationModal
         isOpen={deleteModal.isOpen}
-        onCancel={() => setDeleteModal({ isOpen: false, template: null })}
+        onCancel={(): void => setDeleteModal({ isOpen: false, template: null })}
         onConfirm={handleDeleteTemplate}
         title={t('templates.deleteModal.title')}
         message={t('templates.deleteModal.message', { title: deleteModal.template?.title })}
