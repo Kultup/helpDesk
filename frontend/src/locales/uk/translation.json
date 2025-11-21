@@ -497,7 +497,8 @@
       "inProgressTickets": "В роботі",
       "resolvedTickets": "Вирішені",
       "closedTickets": "Закриті",
-      "highPriorityTickets": "Високий пріоритет"
+      "highPriorityTickets": "Високий пріоритет",
+      "users": "Користувачі"
     },
     "charts": {
       "weeklyTickets": "Заявки за тиждень",

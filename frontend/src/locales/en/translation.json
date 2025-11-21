@@ -433,7 +433,8 @@
       "inProgressTickets": "In progress",
       "resolvedTickets": "Resolved",
       "closedTickets": "Closed",
-      "highPriorityTickets": "High priority"
+      "highPriorityTickets": "High priority",
+      "users": "Users"
     },
     "charts": {
       "weeklyTickets": "Weekly tickets",

@@ -738,6 +738,15 @@ router.get('/user-registration-stats',
   analyticsController.getUserRegistrationStats
 );
 
+// @route   GET /api/analytics/user-monthly-stats
+// @desc    Статистика користувачів за місяць з приростом
+// @access  Private
+router.get('/user-monthly-stats', 
+  authenticateToken,
+  requirePermission('view_analytics'),
+  analyticsController.getUserMonthlyStats
+);
+
 // @route   GET /api/analytics/charts/weekly-tickets
 // @desc    Дані для міні-графіка тикетів за тиждень
 // @access  Private

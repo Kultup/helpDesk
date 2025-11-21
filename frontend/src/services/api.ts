@@ -563,6 +563,23 @@ class ApiService {
     return response.data;
   }
 
+  async getUserMonthlyStats(): Promise<ApiResponse<{
+    currentMonth: { count: number; name: string; start: string; end: string };
+    previousMonth: { count: number; name: string; start: string; end: string };
+    totalUsers: number;
+    growth: number;
+    growthAbsolute: number;
+  }>> {
+    const response: AxiosResponse<ApiResponse<{
+      currentMonth: { count: number; name: string; start: string; end: string };
+      previousMonth: { count: number; name: string; start: string; end: string };
+      totalUsers: number;
+      growth: number;
+      growthAbsolute: number;
+    }>> = await this.api.get('/analytics/user-monthly-stats');
+    return response.data;
+  }
+
   async getHeatMapData(
     dateFrom?: string,
     dateTo?: string

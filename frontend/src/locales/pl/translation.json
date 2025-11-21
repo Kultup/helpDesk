@@ -451,7 +451,8 @@
       "inProgressTickets": "W trakcie",
       "resolvedTickets": "Rozwiązane",
       "closedTickets": "Zamknięte",
-      "highPriorityTickets": "Wysoki priorytet"
+      "highPriorityTickets": "Wysoki priorytet",
+      "users": "Użytkownicy"
     },
     "charts": {
       "weeklyTickets": "Zgłoszenia tygodniowe",

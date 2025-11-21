@@ -148,6 +148,14 @@ const Dashboard: React.FC = () => {
   const [adStatsLoading, setAdStatsLoading] = useState<boolean>(false);
   const [adStatsError, setAdStatsError] = useState<string | null>(null);
   
+  // User monthly stats
+  const [userMonthlyStats, setUserMonthlyStats] = useState<{
+    currentMonth: { count: number; name: string };
+    totalUsers: number;
+    growth: number;
+  } | null>(null);
+  const [userStatsLoading, setUserStatsLoading] = useState<boolean>(false);
+  
   // Create Ticket Modal state
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
 
@@ -180,8 +188,28 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const loadUserMonthlyStats = React.useCallback(async () => {
+    if (!isAdmin) return;
+    setUserStatsLoading(true);
+    try {
+      const response = await apiService.getUserMonthlyStats();
+      if (response?.success && response.data) {
+        setUserMonthlyStats({
+          currentMonth: response.data.currentMonth,
+          totalUsers: response.data.totalUsers,
+          growth: response.data.growth
+        });
+      }
+    } catch (error) {
+      console.error('Помилка завантаження статистики користувачів:', error);
+    } finally {
+      setUserStatsLoading(false);
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     loadAdStats();
+    loadUserMonthlyStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
@@ -216,13 +244,13 @@ const Dashboard: React.FC = () => {
   const refreshData = React.useCallback(async () => {
     try {
       saveScrollPosition();
-      await Promise.all([refetchTickets(), refetchStats()]);
+      await Promise.all([refetchTickets(), refetchStats(), loadUserMonthlyStats()]);
       setLastUpdated(new Date());
       restoreScrollPosition();
     } catch (error) {
       console.error(t('dashboard.errors.updateError'), error);
     }
-  }, [refetchTickets, refetchStats, saveScrollPosition, restoreScrollPosition]);
+  }, [refetchTickets, refetchStats, loadUserMonthlyStats, saveScrollPosition, restoreScrollPosition]);
 
   // Функція для обробки оновлення
   const handleRefresh = React.useCallback(async () => {
@@ -353,7 +381,15 @@ const Dashboard: React.FC = () => {
       color: 'bg-gradient-to-br from-gray-500 to-gray-600',
       trend: stats.trends.closed,
       onClick: () => navigate(`${basePath}/tickets?status=closed`)
-    }
+    },
+    ...(isAdmin && userMonthlyStats ? [{ 
+      title: `${t('dashboard.stats.users')} (${userMonthlyStats.currentMonth.name})`,
+      value: userMonthlyStats.currentMonth.count,
+      icon: Users,
+      color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
+      trend: userMonthlyStats.growth,
+      onClick: () => navigate(`${basePath}/users`)
+    }] : [])
   ];
 
   // ========================================

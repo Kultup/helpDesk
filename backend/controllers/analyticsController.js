@@ -683,6 +683,79 @@ exports.getWorkloadByDayOfWeek = async (req, res) => {
 };
 
 // Експорт звіту за минулий місяць з діаграмами
+// Статистика користувачів за місяць
+exports.getUserMonthlyStats = async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Поточний місяць
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    // Попередній місяць
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    
+    // Кількість користувачів за поточний місяць
+    const currentMonthUsers = await User.countDocuments({
+      createdAt: {
+        $gte: currentMonthStart,
+        $lte: currentMonthEnd
+      }
+    });
+    
+    // Кількість користувачів за попередній місяць
+    const previousMonthUsers = await User.countDocuments({
+      createdAt: {
+        $gte: previousMonthStart,
+        $lte: previousMonthEnd
+      }
+    });
+    
+    // Загальна кількість користувачів
+    const totalUsers = await User.countDocuments();
+    
+    // Розрахунок приросту
+    let growth = 0;
+    if (previousMonthUsers > 0) {
+      growth = ((currentMonthUsers - previousMonthUsers) / previousMonthUsers) * 100;
+    } else if (currentMonthUsers > 0) {
+      growth = 100; // Якщо попереднього місяця не було, а зараз є
+    }
+    
+    // Форматування назв місяців
+    const currentMonthName = currentMonthStart.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+    const previousMonthName = previousMonthStart.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+    
+    res.json({
+      success: true,
+      data: {
+        currentMonth: {
+          count: currentMonthUsers,
+          name: currentMonthName,
+          start: currentMonthStart.toISOString(),
+          end: currentMonthEnd.toISOString()
+        },
+        previousMonth: {
+          count: previousMonthUsers,
+          name: previousMonthName,
+          start: previousMonthStart.toISOString(),
+          end: previousMonthEnd.toISOString()
+        },
+        totalUsers,
+        growth: Math.round(growth * 100) / 100, // Округлення до 2 знаків після коми
+        growthAbsolute: currentMonthUsers - previousMonthUsers
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка отримання статистики користувачів за місяць:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка отримання статистики користувачів'
+    });
+  }
+};
+
 exports.exportMonthlyReport = async (req, res) => {
   try {
     const now = new Date();
