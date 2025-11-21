@@ -3,7 +3,7 @@ import { twMerge } from 'tailwind-merge';
 import { TicketStatus, TicketPriority } from '../types';
 
 // Утиліта для об'єднання класів Tailwind
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
@@ -97,7 +97,7 @@ export const getPriorityColor = (priority: TicketPriority): string => {
 };
 
 // Утиліта для дебаунсу
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {

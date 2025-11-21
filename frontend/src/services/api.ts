@@ -38,7 +38,7 @@ import {
 
 // У development режимі використовуємо відносний шлях /api (проксується через setupProxy)
 // У production використовуємо REACT_APP_API_URL або відносний шлях
-const getApiBaseUrl = () => {
+const getApiBaseUrl = (): string => {
   if (process.env.NODE_ENV === 'development') {
     // У development завжди використовуємо відносний шлях, який буде проксуватися
     return '/api';
@@ -55,8 +55,10 @@ class ApiService {
   constructor() {
     // Перевірка налаштування API URL
     if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
       console.log('[API SERVICE] Development режим: використовується відносний шлях /api (проксується через setupProxy)');
     } else if (!process.env.REACT_APP_API_URL) {
+      // eslint-disable-next-line no-console
       console.warn('[API SERVICE] REACT_APP_API_URL не встановлено, використовується відносний шлях /api');
     }
     
@@ -85,13 +87,16 @@ class ApiService {
       (response) => {
         return response;
       },
-      (error) => {
-        console.error('API: Помилка запиту до:', error.config?.url, 'статус:', error.response?.status);
-        console.error('API: Деталі помилки:', error.response?.data);
+      (error: unknown) => {
+        const err = error as { config?: { url?: string }; response?: { status?: number; data?: unknown } };
+        // eslint-disable-next-line no-console
+        console.error('API: Помилка запиту до:', err.config?.url, 'статус:', err.response?.status);
+        // eslint-disable-next-line no-console
+        console.error('API: Деталі помилки:', err.response?.data);
         
         // Видаляємо автоматичне перенаправлення на логін
         // Дозволяємо AuthContext обробити 401 помилки
-        if (error.response?.status === 401) {
+        if (err.response?.status === 401) {
           // Тільки логуємо помилку, не перенаправляємо автоматично
         }
         return Promise.reject(error);
@@ -100,27 +105,27 @@ class ApiService {
   }
 
   // Загальні HTTP методи
-  async get<T = any>(url: string, config?: any): Promise<T> {
+  async get<T = unknown>(url: string, config?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.api.get(url, config);
     return response.data;
   }
 
-  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async post<T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.api.post(url, data, config);
     return response.data;
   }
 
-  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async put<T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.api.put(url, data, config);
     return response.data;
   }
 
-  async delete<T = any>(url: string, config?: any): Promise<T> {
+  async delete<T = unknown>(url: string, config?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.api.delete(url, config);
     return response.data;
   }
 
-  async patch<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  async patch<T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>): Promise<T> {
     const response: AxiosResponse<T> = await this.api.patch(url, data, config);
     return response.data;
   }
@@ -201,8 +206,10 @@ class ApiService {
       throw new Error('Опис є обов\'язковим полем');
     }
     
+    // eslint-disable-next-line no-console
     console.log('📤 Відправляю дані для створення тикету:', JSON.stringify(ticketData, null, 2));
     if (files && files.length > 0) {
+      // eslint-disable-next-line no-console
       console.log('📎 Файли для відправки:', files.map(f => f.name));
     }
     
@@ -228,18 +235,24 @@ class ApiService {
         // Axios автоматично встановлює Content-Type для FormData з правильним boundary
         // Не встановлюємо Content-Type вручну, щоб axios міг додати boundary
         const response: AxiosResponse<ApiResponse<Ticket>> = await this.api.post('/tickets', formData);
+        // eslint-disable-next-line no-console
         console.log('✅ Тикет успішно створено з файлами:', response.data);
         return response.data;
       } else {
         // Якщо немає файлів, використовуємо JSON
         const response: AxiosResponse<ApiResponse<Ticket>> = await this.api.post('/tickets', ticketData);
+        // eslint-disable-next-line no-console
         console.log('✅ Тикет успішно створено:', response.data);
         return response.data;
       }
-    } catch (error: any) {
-      console.error('❌ Помилка створення тикету:', error.response?.data || error.message);
-      console.error('❌ Деталі помилки:', JSON.stringify(error.response?.data, null, 2));
-      console.error('❌ Статус помилки:', error.response?.status);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: unknown; status?: number }; message?: string };
+      // eslint-disable-next-line no-console
+      console.error('❌ Помилка створення тикету:', err.response?.data || err.message);
+      // eslint-disable-next-line no-console
+      console.error('❌ Деталі помилки:', JSON.stringify(err.response?.data, null, 2));
+      // eslint-disable-next-line no-console
+      console.error('❌ Статус помилки:', err.response?.status);
       throw error;
     }
   }
@@ -277,7 +290,7 @@ class ApiService {
 
 
   // Методи для міст
-  async getCities(params?: { page?: number; limit?: number; search?: string; region?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<ApiResponse<City[]> & { pagination?: any }> {
+  async getCities(params?: { page?: number; limit?: number; search?: string; region?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<ApiResponse<City[]> & { pagination?: Record<string, unknown> }> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -287,7 +300,7 @@ class ApiService {
     if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     
     const url = queryParams.toString() ? `/cities?${queryParams.toString()}` : '/cities';
-    const response: AxiosResponse<ApiResponse<City[]> & { pagination?: any }> = await this.api.get(url);
+    const response: AxiosResponse<ApiResponse<City[]> & { pagination?: Record<string, unknown> }> = await this.api.get(url);
     return response.data;
   }
 
@@ -498,14 +511,14 @@ class ApiService {
     return response.data;
   }
 
-  async bulkToggleUsers(userIds: string[], action: 'activate' | 'deactivate'): Promise<ApiResponse<{ updated: number; errors: any[] }>> {
-    const response: AxiosResponse<ApiResponse<{ updated: number; errors: any[] }>> = 
+  async bulkToggleUsers(userIds: string[], action: 'activate' | 'deactivate'): Promise<ApiResponse<{ updated: number; errors: Array<Record<string, unknown>> }>> {
+    const response: AxiosResponse<ApiResponse<{ updated: number; errors: Array<Record<string, unknown>> }>> = 
       await this.api.patch('/users/bulk/toggle-active', { userIds, action });
     return response.data;
   }
 
   // Методи для Active Directory
-  async testADConnection(): Promise<ApiResponse<any>> {
+  async testADConnection(): Promise<ApiResponse<Record<string, unknown>>> {
     const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/active-directory/test');
     return response.data;
   }
@@ -520,7 +533,7 @@ class ApiService {
     return response.data;
   }
 
-  async getADStatistics(): Promise<ApiResponse<any>> {
+  async getADStatistics(): Promise<ApiResponse<Record<string, unknown>>> {
     const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/active-directory/statistics');
     return response.data;
   }
@@ -542,7 +555,7 @@ class ApiService {
     return response.data;
   }
 
-  async getDashboardStats(): Promise<ApiResponse<any>> {
+  async getDashboardStats(): Promise<ApiResponse<Record<string, unknown>>> {
     const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/analytics/dashboard');
     return response.data;
   }
@@ -550,7 +563,7 @@ class ApiService {
   async getHeatMapData(
     dateFrom?: string,
     dateTo?: string
-  ): Promise<ApiResponse<any>> {
+  ): Promise<ApiResponse<Record<string, unknown>>> {
     const params = new URLSearchParams();
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
@@ -599,7 +612,7 @@ class ApiService {
     return response.data;
   }
 
-  async getTicketHistoryStats(ticketId: string): Promise<ApiResponse<any>> {
+  async getTicketHistoryStats(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response: AxiosResponse<ApiResponse<any>> = 
       await this.api.get(`/tickets/${ticketId}/history/stats`);
     return response.data;
@@ -609,11 +622,11 @@ class ApiService {
     action: string;
     description: string;
     field?: string;
-    oldValue?: any;
-    newValue?: any;
-    metadata?: any;
-  }): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = 
+    oldValue?: unknown;
+    newValue?: unknown;
+    metadata?: Record<string, unknown>;
+  }): Promise<ApiResponse<Record<string, unknown>>> {
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = 
       await this.api.post(`/tickets/${ticketId}/history`, data);
     return response.data;
   }
@@ -851,8 +864,8 @@ class ApiService {
   }
 
   // Масові критичні сповіщення через Telegram
-  async sendTelegramNotification(payload: { message: string; type?: 'info' | 'warning' | 'error' | 'success'; userIds?: string[] }): Promise<ApiResponse<{ results: { total: number; sent: number; failed: number; details: any[] } }>> {
-    const response: AxiosResponse<ApiResponse<{ results: { total: number; sent: number; failed: number; details: any[] } }>> =
+  async sendTelegramNotification(payload: { message: string; type?: 'info' | 'warning' | 'error' | 'success'; userIds?: string[] }): Promise<ApiResponse<{ results: { total: number; sent: number; failed: number; details: Array<Record<string, unknown>> } }>> {
+    const response: AxiosResponse<ApiResponse<{ results: { total: number; sent: number; failed: number; details: Array<Record<string, unknown>> } }>> =
       await this.api.post('/telegram/send-notification', payload);
     return response.data;
   }
@@ -876,12 +889,12 @@ class ApiService {
     return response.data;
   }
 
-  async createTicketTemplate(data: any) {
+  async createTicketTemplate(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post('/ticket-templates', data);
     return response.data;
   }
 
-  async updateTicketTemplate(id: string, data: any) {
+  async updateTicketTemplate(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.put(`/ticket-templates/${id}`, data);
     return response.data;
   }
@@ -978,7 +991,7 @@ class ApiService {
     return response.data;
   }
 
-  async getNotesStatistics(): Promise<ApiResponse<any>> {
+  async getNotesStatistics(): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.get('/admin-notes/statistics');
     return response.data;
   }
@@ -1083,7 +1096,7 @@ class ApiService {
     endDate?: string;
     city?: string;
     institutionType?: InstitutionType;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const queryParams = new URLSearchParams();
     
     if (params) {
@@ -1151,7 +1164,7 @@ class ApiService {
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<{
-    data: any[];
+    data: Array<Record<string, unknown>>;
     pagination: {
       page: number;
       limit: number;
@@ -1171,15 +1184,15 @@ class ApiService {
     return this.get(`/sla/policies${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getSLAPolicy(id: string): Promise<ApiResponse<any>> {
+  async getSLAPolicy(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/sla/policies/${id}`);
   }
 
-  async createSLAPolicy(data: any): Promise<ApiResponse<any>> {
+  async createSLAPolicy(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/sla/policies', data);
   }
 
-  async updateSLAPolicy(id: string, data: any): Promise<ApiResponse<any>> {
+  async updateSLAPolicy(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put(`/sla/policies/${id}`, data);
   }
 
@@ -1187,7 +1200,7 @@ class ApiService {
     return this.delete(`/sla/policies/${id}`);
   }
 
-  async getTicketSLAStatus(ticketId: string): Promise<ApiResponse<any>> {
+  async getTicketSLAStatus(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/sla/tickets/${ticketId}/status`);
   }
 
@@ -1197,7 +1210,7 @@ class ApiService {
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<{
-    data: any[];
+    data: Array<Record<string, unknown>>;
     pagination: {
       page: number;
       limit: number;
@@ -1242,7 +1255,7 @@ class ApiService {
     limit?: number;
     sortBy?: string;
   }): Promise<ApiResponse<{
-    data: any[];
+    data: Array<Record<string, unknown>>;
     pagination: {
       page: number;
       limit: number;
@@ -1262,15 +1275,15 @@ class ApiService {
     return this.get(`/kb/articles${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getKBArticle(id: string): Promise<ApiResponse<any>> {
+  async getKBArticle(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/kb/articles/${id}`);
   }
 
-  async createKBArticle(data: any): Promise<ApiResponse<any>> {
+  async createKBArticle(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/kb/articles', data);
   }
 
-  async updateKBArticle(id: string, data: any): Promise<ApiResponse<any>> {
+  async updateKBArticle(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put(`/kb/articles/${id}`, data);
   }
 
@@ -1287,7 +1300,7 @@ class ApiService {
     limit?: number;
     sortBy?: string;
   }): Promise<ApiResponse<{
-    data: any[];
+    data: Array<Record<string, unknown>>;
     pagination: {
       page: number;
       limit: number;
@@ -1307,11 +1320,11 @@ class ApiService {
     return this.get(`/kb/search${queryString ? `?${queryString}` : ''}`);
   }
 
-  async markKBArticleHelpful(id: string): Promise<ApiResponse<any>> {
+  async markKBArticleHelpful(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/kb/articles/${id}/helpful`);
   }
 
-  async markKBArticleNotHelpful(id: string): Promise<ApiResponse<any>> {
+  async markKBArticleNotHelpful(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/kb/articles/${id}/not-helpful`);
   }
 
@@ -1319,7 +1332,7 @@ class ApiService {
     return this.get('/kb/categories');
   }
 
-  async generateKBArticleFromTicket(ticketId: string): Promise<ApiResponse<any>> {
+  async generateKBArticleFromTicket(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
   }
 
@@ -1331,9 +1344,9 @@ class ApiService {
     text?: string;
     cc?: string;
     bcc?: string;
-    attachments?: any[];
+    attachments?: Array<Record<string, unknown>>;
     replyTo?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/email/send', data);
   }
 
@@ -1342,7 +1355,7 @@ class ApiService {
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<{
-    data: any[];
+    data: Array<Record<string, unknown>>;
     pagination: {
       page: number;
       limit: number;
@@ -1362,54 +1375,54 @@ class ApiService {
     return this.get(`/email/threads${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getEmailThread(id: string): Promise<ApiResponse<any>> {
+  async getEmailThread(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/email/threads/${id}`);
   }
 
-  async testEmailConnection(): Promise<ApiResponse<any>> {
+  async testEmailConnection(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/email/test-connection');
   }
 
   // Налаштування Telegram
-  async getTelegramSettings(): Promise<ApiResponse<any>> {
+  async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/telegram');
   }
 
-  async updateTelegramSettings(data: any): Promise<ApiResponse<any>> {
+  async updateTelegramSettings(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put('/settings/telegram', data);
   }
 
-  async setupTelegramWebhook(baseUrl: string): Promise<ApiResponse<any>> {
+  async setupTelegramWebhook(baseUrl: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/settings/telegram/webhook', { baseUrl });
   }
 
-  async getTelegramWebhookInfo(): Promise<ApiResponse<any>> {
+  async getTelegramWebhookInfo(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/telegram/webhook');
   }
 
   // Налаштування Active Directory
-  async getActiveDirectorySettings(): Promise<ApiResponse<any>> {
+  async getActiveDirectorySettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/active-directory');
   }
 
-  async updateActiveDirectorySettings(data: any): Promise<ApiResponse<any>> {
+  async updateActiveDirectorySettings(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put('/settings/active-directory', data);
   }
 
   // Методи для Zabbix
-  async getZabbixConfig(): Promise<ApiResponse<any>> {
+  async getZabbixConfig(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/zabbix/config');
   }
 
-  async updateZabbixConfig(data: any): Promise<ApiResponse<any>> {
+  async updateZabbixConfig(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put('/zabbix/config', data);
   }
 
-  async testZabbixConnection(): Promise<ApiResponse<any>> {
+  async testZabbixConnection(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/zabbix/test-connection');
   }
 
-  async pollZabbixNow(): Promise<ApiResponse<any>> {
+  async pollZabbixNow(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/zabbix/poll-now');
   }
 
@@ -1420,7 +1433,7 @@ class ApiService {
     status?: string;
     resolved?: boolean;
     host?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -1433,27 +1446,27 @@ class ApiService {
     return this.get(`/zabbix/alerts${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getZabbixAlert(id: string): Promise<ApiResponse<any>> {
+  async getZabbixAlert(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/zabbix/alerts/${id}`);
   }
 
-  async getZabbixGroups(): Promise<ApiResponse<any>> {
+  async getZabbixGroups(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/zabbix/groups');
   }
 
-  async createZabbixGroup(data: any): Promise<ApiResponse<any>> {
+  async createZabbixGroup(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/zabbix/groups', data);
   }
 
-  async updateZabbixGroup(id: string, data: any): Promise<ApiResponse<any>> {
+  async updateZabbixGroup(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put(`/zabbix/groups/${id}`, data);
   }
 
-  async deleteZabbixGroup(id: string): Promise<ApiResponse<any>> {
+  async deleteZabbixGroup(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.delete(`/zabbix/groups/${id}`);
   }
 
-  async testZabbixAlert(data: { groupId?: string; alertId?: string }): Promise<ApiResponse<any>> {
+  async testZabbixAlert(data: { groupId?: string; alertId?: string }): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/zabbix/test-alert', data);
   }
 
