@@ -1,3 +1,30 @@
+// Обробка deprecation warnings від залежностей
+// Приховуємо попередження про util._extend від залежностей (yamljs, imap, тощо)
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = function(warning, type, code, ctor) {
+  if (type === 'DeprecationWarning' && 
+      (warning && warning.includes && warning.includes('util._extend'))) {
+    return; // Ігноруємо це попередження
+  }
+  if (typeof warning === 'string' && warning.includes('util._extend')) {
+    return; // Ігноруємо це попередження
+  }
+  return originalEmitWarning.apply(process, arguments);
+};
+
+// Також обробляємо через process.on('warning')
+process.on('warning', (warning) => {
+  // Ігноруємо попередження про util._extend від залежностей
+  if (warning.name === 'DeprecationWarning' && 
+      (warning.message && warning.message.includes('util._extend'))) {
+    return; // Не показуємо це попередження
+  }
+  // Показуємо інші попередження
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(warning.name, warning.message);
+  }
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const compression = require('compression');

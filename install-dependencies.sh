@@ -122,7 +122,8 @@ install_backend_dependencies() {
 install_frontend_dependencies() {
     log_info "Встановлення залежностей frontend..."
     cd frontend
-    npm install
+    # Використовуємо --legacy-peer-deps для обходу конфлікту TypeScript версій
+    npm install --legacy-peer-deps
     log_success "Залежності frontend встановлено"
     cd ..
 }

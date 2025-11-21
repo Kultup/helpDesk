@@ -14,6 +14,7 @@
 ## Технологічний стек
 
 ### Frontend
+
 - **React 18+** (TypeScript) - основний фреймворк
 - **Tailwind CSS** - стилізація
 - **React Router** - маршрутизація
@@ -23,6 +24,7 @@
 - **i18next** - інтернаціоналізація
 
 ### Backend
+
 - **Node.js + Express** - API сервер
 - **MongoDB + Mongoose** - база даних
 - **JWT** - аутентифікація
@@ -32,6 +34,7 @@
 - **Redis** - кешування (опціонально)
 
 ### DevOps & Моніторинг
+
 - **Docker & Docker Compose** - контейнеризація
 - **Nginx** - веб-сервер та проксі
 - **Prometheus** - метрики
@@ -39,6 +42,7 @@
 - **Loki** - централізоване логування
 
 ### Інтеграції
+
 - **Telegram Bot API** - бот підтримка
 - **Active Directory** - корпоративна аутентифікація
 - **json2csv, xlsx** - експорт даних
@@ -92,26 +96,22 @@ helpDesk/
 ### Розробка
 
 1. **Встановити залежності:**
+
 ```bash
 npm run install-all
 ```
 
 2. **Налаштувати змінні середовища:**
+
 ```bash
-# Linux/macOS
 # Backend
 cp backend/.env.example backend/.env
 # Frontend
 cp frontend/.env.example frontend/.env
-
-# Windows (PowerShell)
-# Backend
-Copy-Item backend\.env.example backend\.env
-# Frontend
-Copy-Item frontend\.env.example frontend\.env
 ```
 
 3. **Запустити в режимі розробки:**
+
 ```bash
 npm run dev
 ```
@@ -119,12 +119,14 @@ npm run dev
 ### Продакшн розгортання
 
 1. **Автоматичне розгортання (рекомендовано):**
+
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
 2. **Ручне розгортання з Docker:**
+
 ```bash
 # З контейнеризованою MongoDB
 docker-compose -f docker-compose.prod.yml up -d
@@ -134,6 +136,7 @@ docker-compose -f docker-compose.local-mongo.yml up -d
 ```
 
 3. **Встановлення залежностей на сервері:**
+
 ```bash
 # Linux/macOS
 chmod +x install-dependencies.sh
@@ -141,11 +144,20 @@ chmod +x install-dependencies.sh
 
 # Windows
 .\install-dependencies.ps1
+
+# Або вручну з урахуванням конфлікту peer dependencies:
+cd frontend
+npm install --legacy-peer-deps
+cd ../backend
+npm install
 ```
+
+**Примітка:** Якщо виникає помилка ERESOLVE з TypeScript, використовуйте `--legacy-peer-deps` або файл `.npmrc` вже налаштований у frontend директорії.
 
 ## Функціональність
 
 ### Основні можливості
+
 - ✅ **Система аутентифікації** з рівнями доступу (користувач, адміністратор, супер-адміністратор)
 - ✅ **Керування тикетами** (CRUD операції, статуси, пріоритети)
 - ✅ **Інтеграція з Telegram ботом** для створення та відстеження тикетів
@@ -160,6 +172,7 @@ chmod +x install-dependencies.sh
 - ✅ **Багатомовність** (українська, англійська)
 
 ### Розширені функції
+
 - ✅ **Система коментарів** та історія змін тикетів
 - ✅ **Завантаження файлів** та вкладень
 - ✅ **Система тегів** та категорій
@@ -179,6 +192,7 @@ chmod +x install-dependencies.sh
 - ✅ **Аналітика та звіти** з візуалізацією даних
 
 ### Адміністративні функції
+
 - ✅ **Управління користувачами** та ролями
 - ✅ **Інтеграція з Active Directory**
 - ✅ **Система логування** та аудиту
@@ -189,12 +203,14 @@ chmod +x install-dependencies.sh
 ## Системні вимоги
 
 ### Мінімальні вимоги
+
 - **Node.js**: v18.0+
 - **MongoDB**: v5.0+
 - **RAM**: 2GB
 - **Диск**: 10GB вільного місця
 
 ### Рекомендовані для продакшну
+
 - **Node.js**: v20.0+
 - **MongoDB**: v6.0+ (локальна установка на сервері)
 - **RAM**: 4GB+
@@ -222,17 +238,20 @@ chmod +x install-dependencies.sh
 ## API Endpoints
 
 ### Аутентифікація
+
 - `POST /api/auth/login` - Вхід в систему
 - `POST /api/auth/register` - Реєстрація
 - `POST /api/auth/refresh` - Оновлення токену
 
 ### Тикети
+
 - `GET /api/tickets` - Список тикетів
 - `POST /api/tickets` - Створення тикету
 - `PUT /api/tickets/:id` - Оновлення тикету
 - `DELETE /api/tickets/:id` - Видалення тикету
 
 ### Аналітика
+
 - `GET /api/analytics/dashboard` - Дані для дашборду
 - `GET /api/analytics/reports` - Звіти
 - `GET /api/analytics/heatmap` - Дані теплової карти
@@ -257,11 +276,13 @@ chmod +x install-dependencies.sh
 Для початку роботи з системою необхідно створити адміністратора. Виконайте наступні кроки:
 
 1. **Перейдіть до директорії backend:**
+
 ```bash
 cd backend
 ```
 
 2. **Запустіть скрипт створення адміністратора:**
+
 ```bash
 node scripts/createAdmin.js
 ```

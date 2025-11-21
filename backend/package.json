@@ -11,7 +11,7 @@
     "stop:pm2": "pm2 stop helpdesk-backend",
     "restart:pm2": "pm2 restart helpdesk-backend",
     "logs:pm2": "pm2 logs helpdesk-backend",
-    "dev": "cross-env NODE_ENV=development nodemon app.js",
+    "dev": "cross-env NODE_ENV=development NODE_OPTIONS=--no-deprecation nodemon app.js",
     "dev:ngrok": "node scripts/startNgrok.js",
     "ngrok": "node scripts/startNgrok.js",
     "test": "jest",
