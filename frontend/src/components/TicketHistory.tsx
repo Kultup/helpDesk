@@ -141,7 +141,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
           <div className="space-y-1">
             {value.map((item: any, index: number) => {
               if (typeof item === 'object' && item.status) {
-                const statusLabel = t(`common.statuses.${item.status}`, item.status);
+                const statusLabel = String(t(`common.statuses.${item.status}`, item.status));
                 const changedAt = item.changedAt ? formatDate(item.changedAt) : '';
                 return (
                   <div key={index} className="text-sm">
