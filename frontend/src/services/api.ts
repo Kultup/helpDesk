@@ -36,6 +36,9 @@ import {
   InstitutionType,
 } from '../types';
 
+// Реекспорт для зручності
+export type { ApiResponse } from '../types';
+
 // У development режимі використовуємо відносний шлях /api (проксується через setupProxy)
 // У production використовуємо REACT_APP_API_URL або відносний шлях
 const getApiBaseUrl = (): string => {

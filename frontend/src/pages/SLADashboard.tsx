@@ -125,7 +125,7 @@ const SLADashboard: React.FC = () => {
         endDate: dateRange.end
       });
       if (response.success && response.data) {
-        setStatistics(response.data);
+        setStatistics(response.data as unknown as SLAStatistics);
       }
     } catch (error) {
       console.error('Error loading SLA statistics:', error);
@@ -141,7 +141,7 @@ const SLADashboard: React.FC = () => {
         limit: 20
       });
       if (response.success && response.data) {
-        const data = response.data as { data?: SLABreach[] };
+        const data = response.data as unknown as { data?: SLABreach[] };
         setBreaches(data.data || []);
       }
     } catch (error) {

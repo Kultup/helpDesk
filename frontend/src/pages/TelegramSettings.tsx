@@ -37,7 +37,7 @@ const TelegramSettings: React.FC = () => {
       setIsLoading(true);
       const response = await apiService.getTelegramSettings();
       if (response.success && response.data) {
-        setSettings(response.data as TelegramSettings);
+        setSettings(response.data as unknown as TelegramSettings);
       }
     } catch (error: any) {
       console.error('Помилка завантаження налаштувань Telegram:', error);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { apiService, ApiResponse } from '../services/api';
+import { apiService } from '../services/api';
+import type { ApiResponse } from '../types';
 
 interface RegistrationSource {
   _id: string;

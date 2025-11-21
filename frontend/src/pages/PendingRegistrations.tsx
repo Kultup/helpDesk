@@ -100,7 +100,7 @@ const PendingRegistrations: React.FC = () => {
       setError(null);
       
       console.log('🔍 Fetching pending registrations, page:', page);
-      const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext: boolean; hasPrev: boolean }; message?: string };
+      const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext?: boolean; hasPrev?: boolean; hasNextPage?: boolean; hasPrevPage?: boolean }; message?: string };
       
       console.log('📥 Response received:', {
         success: response.success,
@@ -121,7 +121,14 @@ const PendingRegistrations: React.FC = () => {
         
         // Перевіряємо, чи є pagination в відповіді
         if (response.pagination) {
-          setPagination(response.pagination);
+          const pag = response.pagination;
+          setPagination({
+            currentPage: pag.currentPage,
+            totalPages: pag.totalPages,
+            totalItems: pag.totalItems,
+            hasNextPage: pag.hasNext ?? pag.hasNextPage ?? false,
+            hasPrevPage: pag.hasPrev ?? pag.hasPrevPage ?? false
+          });
         } else {
           // Якщо pagination відсутня, створюємо дефолтну
           setPagination({

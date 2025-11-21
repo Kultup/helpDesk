@@ -158,7 +158,7 @@ const ZabbixSettings: React.FC = () => {
     try {
       const response = await apiService.getZabbixConfig();
       if (response.success && response.data) {
-        const data = response.data as ZabbixConfig;
+        const data = response.data as unknown as ZabbixConfig;
         setConfig({
           ...data,
           apiToken: ''

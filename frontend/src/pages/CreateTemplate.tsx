@@ -99,10 +99,10 @@ const CreateTemplate: React.FC = () => {
           title: template.title || '',
           description: template.description || '',
           category: categoryId || '',
-          priority: template.priority || 'medium',
+          priority: (template.priority as 'low' | 'medium' | 'high') || 'medium',
           estimatedResolutionTime: template.estimatedResolutionTime || 24,
           tags: template.tags || [],
-          fields: template.fields || [],
+          fields: (template.fields || []) as TemplateField[],
           instructions: template.instructions || '',
           isActive: template.isActive !== undefined ? template.isActive : true
         });

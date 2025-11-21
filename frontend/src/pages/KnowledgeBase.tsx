@@ -66,7 +66,7 @@ const KnowledgeBase: React.FC = () => {
         sortBy
       });
       if (response.success && response.data) {
-        const data = response.data as { data?: KBArticle[]; pagination?: typeof pagination };
+        const data = response.data as unknown as { data?: KBArticle[]; pagination?: typeof pagination };
         setArticles(data.data || []);
         setPagination(data.pagination || pagination);
       } else {

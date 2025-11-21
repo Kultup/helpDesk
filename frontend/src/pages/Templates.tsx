@@ -98,8 +98,10 @@ const Templates: React.FC = () => {
       };
 
       const response = await apiService.getTicketTemplates(params);
-      setTemplates(response.data || []);
-      setTotalPages(response.pagination?.pages || 1);
+      const data = response.data as unknown as Array<Record<string, unknown>>;
+      setTemplates(data || []);
+      const pagination = (response as { pagination?: { pages?: number } }).pagination;
+      setTotalPages(pagination?.pages || 1);
     } catch (error) {
       console.error('Error loading templates:', error);
     } finally {
