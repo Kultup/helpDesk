@@ -13,20 +13,17 @@ async function createUsers() {
     
     console.log('✅ Підключено до MongoDB');
     
-    // Видаляємо існуючих адміністраторів за email або login
+    // Видаляємо існуючого адміністратора за email або login
     const deleteResult = await mongoose.connection.db.collection('users').deleteMany({ 
       $or: [
-        { email: 'kenny@test.com' },
-        { email: 'kultup@test.com' },
-        { login: 'kenny' },
-        { login: 'kultup' }
+        { email: 'admin@test.com' },
+        { login: 'admin' }
       ]
     });
-    console.log(`🗑️ Старих адміністраторів видалено: ${deleteResult.deletedCount}`);
+    console.log(`🗑️ Старого адміністратора видалено: ${deleteResult.deletedCount}`);
     
-    // Хешуємо паролі
-    const kennyHashedPassword = await bcrypt.hash('Xedfxtkkj!', 12);
-    const kultupHashedPassword = await bcrypt.hash('Qa123456', 12);
+    // Хешуємо пароль
+    const adminHashedPassword = await bcrypt.hash('admin123', 12);
     
     // Знаходимо або створюємо місто та посаду
     let city = await mongoose.connection.db.collection('cities').findOne({ name: 'Київ' });
@@ -69,13 +66,13 @@ async function createUsers() {
     console.log('🏙️ Знайдено місто:', city.name, '- ID:', city._id);
     console.log('💼 Знайдено посаду адміністратора:', adminPosition.title || adminPosition.name, '- ID:', adminPosition._id);
     
-    // Створюємо першого адміністратора (kenny)
-    const kennyData = {
-      email: 'kenny@test.com',
-      login: 'kenny',
-      password: kennyHashedPassword,
-      firstName: 'Kenny',
-      lastName: 'Admin',
+    // Створюємо тестового адміністратора
+    const adminData = {
+      email: 'admin@test.com',
+      login: 'admin',
+      password: adminHashedPassword,
+      firstName: 'Admin',
+      lastName: 'Test',
       role: 'admin',
       department: 'IT відділ',
       city: city._id,
@@ -100,85 +97,37 @@ async function createUsers() {
       updatedAt: new Date()
     };
     
-    // Створюємо другого адміністратора (kultup)
-    const kultupData = {
-      email: 'kultup@test.com',
-      login: 'kultup',
-      password: kultupHashedPassword,
-      firstName: 'Kultup',
-      lastName: 'Admin',
-      role: 'admin',
-      department: 'IT відділ',
-      city: city._id,
-      position: adminPosition._id,
-      isActive: true,
-      isEmailVerified: true,
-      registrationStatus: 'approved',
-      statistics: {
-        ticketsCreated: 0,
-        ticketsResolved: 0,
-        averageResolutionTime: 0,
-        totalRatings: 0
-      },
-      preferences: {
-        theme: 'light',
-        language: 'uk',
-        timezone: 'Europe/Kiev',
-        dateFormat: 'DD/MM/YYYY',
-        timeFormat: '24h'
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    // Додаємо або оновлюємо адміністраторів у базі даних (використовуємо upsert)
-    const kennyResult = await mongoose.connection.db.collection('users').updateOne(
-      { $or: [{ email: 'kenny@test.com' }, { login: 'kenny' }] },
-      { $set: kennyData },
+    // Додаємо або оновлюємо адміністратора у базі даних (використовуємо upsert)
+    const adminResult = await mongoose.connection.db.collection('users').updateOne(
+      { $or: [{ email: 'admin@test.com' }, { login: 'admin' }] },
+      { $set: adminData },
       { upsert: true }
     );
-    console.log('✅ Адміністратора kenny створено/оновлено');
-    
-    const kultupResult = await mongoose.connection.db.collection('users').updateOne(
-      { $or: [{ email: 'kultup@test.com' }, { login: 'kultup' }] },
-      { $set: kultupData },
-      { upsert: true }
-    );
-    console.log('✅ Адміністратора kultup створено/оновлено');
+    console.log('✅ Адміністратора admin створено/оновлено');
     
     // Перевіряємо створення
     const User = require('../models/User');
     
-    // Знаходимо користувачів за email або login
-    const newKenny = await User.findOne({ 
-      $or: [{ email: 'kenny@test.com' }, { login: 'kenny' }] 
+    // Знаходимо користувача за email або login
+    const newAdmin = await User.findOne({ 
+      $or: [{ email: 'admin@test.com' }, { login: 'admin' }] 
     }).select('+password');
-    if (newKenny) {
-      console.log('\n📊 Інформація про адміністратора kenny:');
-      console.log('📧 Email:', newKenny.email);
-      console.log('👤 Ім\'я:', newKenny.firstName, newKenny.lastName);
-      console.log('🔑 Роль:', newKenny.role);
-      console.log('🔐 Пароль присутній:', !!newKenny.password);
+    if (newAdmin) {
+      console.log('\n📊 Інформація про адміністратора:');
+      console.log('📧 Email:', newAdmin.email);
+      console.log('👤 Login:', newAdmin.login);
+      console.log('👤 Ім\'я:', newAdmin.firstName, newAdmin.lastName);
+      console.log('🔑 Роль:', newAdmin.role);
+      console.log('🔐 Пароль присутній:', !!newAdmin.password);
       
       // Тестуємо пароль
-      const isValid = await newKenny.comparePassword('Xedfxtkkj!');
+      const isValid = await newAdmin.comparePassword('admin123');
       console.log('🔍 Пароль валідний:', isValid ? '✅ Так' : '❌ Ні');
-    }
-    
-    // Перевіряємо другого адміністратора (kultup)
-    const newKultup = await User.findOne({ 
-      $or: [{ email: 'kultup@test.com' }, { login: 'kultup' }] 
-    }).select('+password');
-    if (newKultup) {
-      console.log('\n📊 Інформація про адміністратора kultup:');
-      console.log('📧 Email:', newKultup.email);
-      console.log('👤 Ім\'я:', newKultup.firstName, newKultup.lastName);
-      console.log('🔑 Роль:', newKultup.role);
-      console.log('🔐 Пароль присутній:', !!newKultup.password);
-      
-      // Тестуємо пароль
-      const isValid = await newKultup.comparePassword('Qa123456');
-      console.log('🔍 Пароль валідний:', isValid ? '✅ Так' : '❌ Ні');
+      console.log('\n📝 Облікові дані для входу:');
+      console.log('   Login: admin');
+      console.log('   Password: admin123');
+    } else {
+      console.log('❌ Помилка: Адміністратор не знайдений після створення');
     }
     
   } catch (error) {
