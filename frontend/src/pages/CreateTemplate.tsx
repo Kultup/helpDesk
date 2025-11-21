@@ -80,15 +80,25 @@ const CreateTemplate: React.FC = () => {
       setInitialLoading(true);
       const response = await apiService.getTicketTemplateById(templateId);
       // API повертає { success: true, data: template }
-      const template = response.data || response;
+      const template = (response.data || response) as {
+        category?: { _id?: string } | string;
+        title?: string;
+        description?: string;
+        priority?: string;
+        estimatedResolutionTime?: number;
+        tags?: string[];
+        fields?: unknown[];
+        instructions?: string;
+        isActive?: boolean;
+      };
       console.log('Loaded template:', template);
       if (template) {
-        const categoryId = template.category?._id || template.category || '';
+        const categoryId = typeof template.category === 'object' ? template.category?._id : template.category || '';
         console.log('Category ID:', categoryId, 'Category object:', template.category);
         setFormData({
           title: template.title || '',
           description: template.description || '',
-          category: categoryId,
+          category: categoryId || '',
           priority: template.priority || 'medium',
           estimatedResolutionTime: template.estimatedResolutionTime || 24,
           tags: template.tags || [],
