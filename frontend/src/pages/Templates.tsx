@@ -128,9 +128,10 @@ const Templates: React.FC = () => {
   const handleDeleteTemplate = async (): Promise<void> => {
     if (!deleteModal.template) return;
 
+    const templateId = deleteModal.template._id;
     try {
-      await apiService.deleteTicketTemplate(deleteModal.template._id);
-      setTemplates(prev => prev.filter(t => t._id !== deleteModal.template!._id));
+      await apiService.deleteTicketTemplate(templateId);
+      setTemplates(prev => prev.filter(t => t._id !== templateId));
       setDeleteModal({ isOpen: false, template: null });
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -223,7 +224,9 @@ const Templates: React.FC = () => {
           </div>
           {isAdmin && (
             <Button
-              onClick={(): void => navigate('/templates/new')}
+              onClick={(): void => {
+                void navigate('/templates/new');
+              }}
               className="flex items-center justify-center space-x-2 w-full sm:w-auto text-xs sm:text-sm"
             >
               <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -295,7 +298,9 @@ const Templates: React.FC = () => {
               }
             </p>
             {isAdmin && (
-              <Button onClick={(): void => navigate('/templates/new')} className="text-xs sm:text-sm">
+              <Button onClick={(): void => {
+                void navigate('/templates/new');
+              }} className="text-xs sm:text-sm">
                 {t('templates.createFirstTemplate')}
               </Button>
             )}
@@ -398,7 +403,9 @@ const Templates: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(): void => navigate(`/templates/${template._id}/edit`)}
+                            onClick={(): void => {
+                              void navigate(`/templates/${template._id}/edit`);
+                            }}
                             className="p-1.5 sm:p-2"
                             title={t('templates.edit')}
                           >

@@ -630,7 +630,9 @@ const SLASettings: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={(): void => handleDelete(policy._id)}
+                        onClick={(): void => {
+                          void handleDelete(policy._id);
+                        }}
                         disabled={isCreating || editingPolicy !== null}
                         className="text-red-600 hover:bg-red-50"
                       >
