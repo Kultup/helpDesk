@@ -22,6 +22,7 @@ module.exports = function(app) {
   console.log(`[PROXY SETUP] Налаштовую проксі для /api -> ${target}`);
   
   // Проксі для API
+  // Використовуємо функцію для перевірки, щоб зберегти повний шлях
   app.use(
     '/api',
     createProxyMiddleware({
@@ -29,17 +30,26 @@ module.exports = function(app) {
       changeOrigin: true,
       secure: false,
       logLevel: 'debug',
+      // Використовуємо pathRewrite, щоб не видаляти /api
+      // Але насправді нам потрібно додати /api назад, оскільки Express його видаляє
+      pathRewrite: function (path, req) {
+        // path вже без /api (наприклад, /auth/login)
+        // Повертаємо шлях з /api
+        return '/api' + path;
+      },
       onProxyReq: (proxyReq, req, res) => {
-        console.log(`[PROXY REQ] ${req.method} ${req.url} -> ${proxyReq.protocol}//${proxyReq.host}${proxyReq.path}`);
-        console.log(`[PROXY REQ] Headers:`, req.headers);
+        // Логуємо для діагностики
+        console.log(`[PROXY REQ] ${req.method} ${req.originalUrl || req.url}`);
+        console.log(`[PROXY REQ] req.url: ${req.url}, proxyReq.path: ${proxyReq.path}`);
       },
       onProxyRes: (proxyRes, req, res) => {
-        console.log(`[PROXY RES] ${proxyRes.statusCode} for ${req.method} ${req.url}`);
-        console.log(`[PROXY RES] Headers:`, proxyRes.headers);
+        console.log(`[PROXY RES] ${proxyRes.statusCode} for ${req.method} ${req.originalUrl || req.url}`);
       },
       onError: (err, req, res) => {
-        console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
-        console.error(`[PROXY ERROR] Stack:`, err.stack);
+        console.error(`[PROXY ERROR] ${req.method} ${req.originalUrl || req.url}:`, err.message);
+        if (err.stack) {
+          console.error(`[PROXY ERROR] Stack:`, err.stack);
+        }
       }
     })
   );

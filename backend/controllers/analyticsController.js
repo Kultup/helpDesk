@@ -524,19 +524,75 @@ exports.getCategoryDistribution = async (req, res) => {
 
     // Отримуємо назви категорій
     const categoryIds = categoryDistribution.map(item => item._id).filter(Boolean);
-    const categories = await Category.find({ _id: { $in: categoryIds } }).select('_id name');
-    const categoryMap = {};
-    categories.forEach(cat => {
-      categoryMap[cat._id.toString()] = cat.name;
+    
+    // Розділяємо на валідні ObjectId та рядки
+    const mongoose = require('mongoose');
+    const validObjectIds = [];
+    const stringCategories = [];
+    
+    categoryIds.forEach(catId => {
+      if (mongoose.Types.ObjectId.isValid(catId) && typeof catId !== 'string') {
+        validObjectIds.push(catId);
+      } else if (mongoose.Types.ObjectId.isValid(catId) && typeof catId === 'string' && catId.length === 24) {
+        validObjectIds.push(new mongoose.Types.ObjectId(catId));
+      } else {
+        // Це рядок (наприклад, "technical", "general", "billing")
+        stringCategories.push(catId);
+      }
     });
+    
+    // Отримуємо категорії з бази даних для валідних ObjectId
+    const categoryMap = {};
+    if (validObjectIds.length > 0) {
+      const categories = await Category.find({ _id: { $in: validObjectIds } }).select('_id name');
+      categories.forEach(cat => {
+        categoryMap[cat._id.toString()] = cat.name;
+      });
+    }
+    
+    // Для рядкових категорій намагаємося знайти їх за назвою або використовуємо як є
+    if (stringCategories.length > 0) {
+      const categoriesByName = await Category.find({ 
+        $or: [
+          { name: { $in: stringCategories } },
+          { slug: { $in: stringCategories } }
+        ]
+      }).select('_id name slug');
+      
+      categoriesByName.forEach(cat => {
+        // Мапінг за назвою
+        if (stringCategories.includes(cat.name)) {
+          categoryMap[cat.name] = cat.name;
+        }
+        // Мапінг за slug
+        if (cat.slug && stringCategories.includes(cat.slug)) {
+          categoryMap[cat.slug] = cat.name;
+        }
+      });
+      
+      // Для рядків, які не знайдені в базі, використовуємо їх як назви
+      stringCategories.forEach(strCat => {
+        if (!categoryMap[strCat]) {
+          // Капіталізуємо першу літеру для кращого відображення
+          categoryMap[strCat] = strCat.charAt(0).toUpperCase() + strCat.slice(1);
+        }
+      });
+    }
 
     // Формуємо результат з назвами категорій та відсотками
     const totalTickets = categoryDistribution.reduce((sum, item) => sum + item.count, 0);
-    const result = categoryDistribution.map(item => ({
-      category: categoryMap[item._id?.toString()] || item._id?.toString() || 'Невідома категорія',
-      count: item.count,
-      percentage: totalTickets > 0 ? Math.round((item.count / totalTickets) * 100) : 0
-    }));
+    const result = categoryDistribution.map(item => {
+      const categoryId = item._id?.toString() || item._id;
+      const categoryName = categoryMap[categoryId] || 
+                          categoryMap[item._id] || 
+                          (typeof item._id === 'string' ? item._id.charAt(0).toUpperCase() + item._id.slice(1) : 'Невідома категорія');
+      
+      return {
+        category: categoryName,
+        count: item.count,
+        percentage: totalTickets > 0 ? Math.round((item.count / totalTickets) * 100) : 0
+      };
+    });
 
     res.json({
       success: true,

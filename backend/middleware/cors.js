@@ -13,6 +13,15 @@ const corsOptions = {
     // Дозволяємо запити без origin (наприклад, мобільні додатки)
     if (!origin) return callback(null, true);
     
+    // Дозволяємо localhost для локальної розробки навіть у production
+    const isLocalhost = origin.startsWith('http://localhost:') || 
+                       origin.startsWith('http://127.0.0.1:') ||
+                       origin.includes('localhost');
+    
+    if (isLocalhost) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {

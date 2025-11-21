@@ -323,7 +323,7 @@ function Main {
             Write-Info "Наступні кроки:"
             Write-Host "1. Налаштуйте змінні середовища в backend\.env"
             Write-Host "2. Налаштуйте змінні середовища в frontend\.env"
-            Write-Host "3. Запустіть систему командою: .\deploy.sh staging"
+            Write-Host "3. Запустіть систему командою: npm run dev"
             Write-Host ""
         }
         else {

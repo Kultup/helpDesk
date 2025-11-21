@@ -39,28 +39,40 @@ const CategoryDistributionChart: React.FC<CategoryDistributionChartProps> = ({ s
   const fetchCategoryData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL || 
-        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
+      setError(null);
+      
+      // Використовуємо відносний шлях, який буде проксуватися через setupProxy
+      const baseURL = '/api';
       
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       
       const url = `${baseURL}/analytics/charts/category-distribution${params.toString() ? '?' + params.toString() : ''}`;
+      const token = localStorage.getItem('token');
       const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
         // Бекенд тепер повертає дані з назвами категорій та відсотками
         setData(response.data.data);
+        setError(null);
+      } else if (response.data.success && (!response.data.data || response.data.data.length === 0)) {
+        // Немає даних - це не помилка
+        setData([]);
+        setError(null);
       } else {
+        console.error('Invalid data format or unsuccessful response:', response.data);
         setError('Помилка завантаження даних');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Помилка завантаження розподілу за категоріями:', err);
-      setError('Помилка завантаження даних');
+      const errorMessage = err?.response?.data?.message || err?.message || 'Помилка завантаження даних';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

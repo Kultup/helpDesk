@@ -82,38 +82,39 @@ const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <Card 
-      className={`group relative overflow-hidden backdrop-blur-sm bg-surface/80 border border-border shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 ${
+      className={`group relative overflow-hidden bg-white border border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
         onClick ? 'cursor-pointer' : ''
       }`} 
       onClick={onClick}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-surface/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <CardContent className="relative p-4 sm:p-6 lg:p-8">
-        <div className="flex items-center justify-between gap-3 sm:gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-text-secondary mb-2 sm:mb-3 tracking-wider uppercase opacity-80">
-              {title}
-            </p>
-            <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground mb-2 sm:mb-4 tracking-tight">
-              {value.toLocaleString()}
-            </p>
-            {trend !== undefined && (
-              <div className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs font-bold ${trendColor} bg-gradient-to-r ${
-                isPositiveTrend 
-                  ? 'from-emerald-50 to-emerald-100 border border-emerald-200/50' 
-                  : 'from-rose-50 to-rose-100 border border-rose-200/50'
-              } shadow-sm`}>
-                <TrendingUp className={`h-3 w-3 mr-1 sm:mr-1.5 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`} />
-                <span>{trendSign}{trend}%</span>
-              </div>
-            )}
-          </div>
-          <div className="ml-2 sm:ml-6 flex-shrink-0">
-            <div className={`p-2 sm:p-3 lg:p-4 rounded-xl sm:rounded-2xl ${color} shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
-              <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-white" />
-            </div>
+      {/* Декоративний градієнтний фон */}
+      <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-br from-gray-50/50 to-transparent opacity-50" />
+      
+      <CardContent className="relative p-5 sm:p-6 flex flex-col items-center text-center">
+        {/* Іконка вгорі по центру */}
+        <div className="mb-4 relative">
+          <div className={`p-3 sm:p-4 rounded-xl ${color} shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+            <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
           </div>
         </div>
+        
+        {/* Заголовок під іконкою */}
+        <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-3 sm:mb-4 tracking-wider uppercase">
+          {title}
+        </p>
+        
+        {/* Велике число */}
+        <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-4 tracking-tight leading-none">
+          {value.toLocaleString()}
+        </p>
+        
+        {/* Тренд внизу */}
+        {trend !== undefined && (
+          <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${trendColor} bg-emerald-50 border border-emerald-100/50 shadow-sm`}>
+            <TrendingUp className={`h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`} />
+            <span>{trendSign}{trend}%</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -435,11 +436,17 @@ const Dashboard: React.FC = () => {
 
           {/* Key Metrics Section */}
           <div className="mb-6 sm:mb-8 lg:mb-12">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
-              <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
-              {t('dashboard.keyMetrics')}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+            <div className="mb-5 sm:mb-6 flex items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
+                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                </div>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                  {t('dashboard.keyMetrics')}
+                </h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
               {statsArray.map((stat, index) => (
                 <StatCard key={index} {...stat} />
               ))}

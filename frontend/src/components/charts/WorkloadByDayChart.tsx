@@ -44,11 +44,16 @@ const WorkloadByDayChart: React.FC = () => {
   const fetchWorkloadData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Використовуємо відносний шлях, який буде проксуватися через setupProxy
+      const baseURL = '/api';
       const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL || 
-        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
       const response = await axios.get(`${baseURL}/analytics/charts/workload-by-day`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
@@ -61,12 +66,19 @@ const WorkloadByDayChart: React.FC = () => {
         );
         
         setData(uniqueData);
+        setError(null);
+      } else if (response.data.success && (!response.data.data || response.data.data.length === 0)) {
+        // Немає даних - це не помилка
+        setData([]);
+        setError(null);
       } else {
+        console.error('Invalid data format or unsuccessful response:', response.data);
         setError(t('dashboard.charts.noData'));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Помилка завантаження навантаження по днях:', err);
-      setError(t('dashboard.charts.noData'));
+      const errorMessage = err?.response?.data?.message || err?.message || t('dashboard.charts.noData');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

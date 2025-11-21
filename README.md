@@ -98,10 +98,17 @@ npm run install-all
 
 2. **Налаштувати змінні середовища:**
 ```bash
+# Linux/macOS
 # Backend
 cp backend/.env.example backend/.env
 # Frontend
 cp frontend/.env.example frontend/.env
+
+# Windows (PowerShell)
+# Backend
+Copy-Item backend\.env.example backend\.env
+# Frontend
+Copy-Item frontend\.env.example frontend\.env
 ```
 
 3. **Запустити в режимі розробки:**

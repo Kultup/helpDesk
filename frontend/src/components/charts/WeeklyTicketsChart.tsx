@@ -50,17 +50,22 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
   const fetchWeeklyData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const baseURL = process.env.REACT_APP_API_URL || 
-        (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : '/api');
+      setError(null);
+      
+      // Використовуємо відносний шлях, який буде проксуватися через setupProxy
+      const baseURL = '/api';
       
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       
       const url = `${baseURL}/analytics/charts/weekly-tickets${params.toString() ? '?' + params.toString() : ''}`;
+      const token = localStorage.getItem('token');
       const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
@@ -82,13 +87,19 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
         });
         
         setData(processedData);
+        setError(null);
+      } else if (response.data.success && (!response.data.data || response.data.data.length === 0)) {
+        // Немає даних - це не помилка
+        setData([]);
+        setError(null);
       } else {
-        console.error('Invalid data format or unsuccessful response');
+        console.error('Invalid data format or unsuccessful response:', response.data);
         setError('Помилка завантаження даних');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Помилка завантаження тижневої статистики:', err);
-      setError('Помилка завантаження даних');
+      const errorMessage = err?.response?.data?.message || err?.message || 'Помилка завантаження даних';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -227,7 +238,28 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
               onClick={fetchWeeklyData}
               className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
             >
-              Спробувати знову
+              {t('dashboard.charts.tryAgain')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.weeklyTickets')}</h3>
+        </div>
+        <div className="h-40 sm:h-48 flex items-center justify-center">
+          <div className="text-gray-500 text-center px-2">
+            <p className="text-sm sm:text-base">{t('dashboard.charts.noData')}</p>
+            <button 
+              onClick={fetchWeeklyData}
+              className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
+            >
+              {t('dashboard.charts.tryAgain')}
             </button>
           </div>
         </div>
