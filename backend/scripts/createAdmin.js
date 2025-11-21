@@ -13,14 +13,16 @@ async function createUsers() {
     
     console.log('✅ Підключено до MongoDB');
     
-    // Видаляємо існуючих адміністраторів
-    await mongoose.connection.db.collection('users').deleteMany({ 
+    // Видаляємо існуючих адміністраторів за email або login
+    const deleteResult = await mongoose.connection.db.collection('users').deleteMany({ 
       $or: [
         { email: 'kenny@test.com' },
-        { email: 'kultup@test.com' }
+        { email: 'kultup@test.com' },
+        { login: 'kenny' },
+        { login: 'kultup' }
       ]
     });
-    console.log('🗑️ Старих адміністраторів видалено');
+    console.log(`🗑️ Старих адміністраторів видалено: ${deleteResult.deletedCount}`);
     
     // Хешуємо паролі
     const kennyHashedPassword = await bcrypt.hash('Xedfxtkkj!', 12);
@@ -129,18 +131,28 @@ async function createUsers() {
       updatedAt: new Date()
     };
     
-    // Додаємо адміністраторів до бази даних
-    const kennyResult = await mongoose.connection.db.collection('users').insertOne(kennyData);
-    console.log('✅ Адміністратора kenny створено');
+    // Додаємо або оновлюємо адміністраторів у базі даних (використовуємо upsert)
+    const kennyResult = await mongoose.connection.db.collection('users').updateOne(
+      { $or: [{ email: 'kenny@test.com' }, { login: 'kenny' }] },
+      { $set: kennyData },
+      { upsert: true }
+    );
+    console.log('✅ Адміністратора kenny створено/оновлено');
     
-    const kultupResult = await mongoose.connection.db.collection('users').insertOne(kultupData);
-    console.log('✅ Адміністратора kultup створено');
+    const kultupResult = await mongoose.connection.db.collection('users').updateOne(
+      { $or: [{ email: 'kultup@test.com' }, { login: 'kultup' }] },
+      { $set: kultupData },
+      { upsert: true }
+    );
+    console.log('✅ Адміністратора kultup створено/оновлено');
     
     // Перевіряємо створення
     const User = require('../models/User');
     
-    // Перевіряємо першого адміністратора (kenny)
-    const newKenny = await User.findById(kennyResult.insertedId).select('+password');
+    // Знаходимо користувачів за email або login
+    const newKenny = await User.findOne({ 
+      $or: [{ email: 'kenny@test.com' }, { login: 'kenny' }] 
+    }).select('+password');
     if (newKenny) {
       console.log('\n📊 Інформація про адміністратора kenny:');
       console.log('📧 Email:', newKenny.email);
@@ -154,7 +166,9 @@ async function createUsers() {
     }
     
     // Перевіряємо другого адміністратора (kultup)
-    const newKultup = await User.findById(kultupResult.insertedId).select('+password');
+    const newKultup = await User.findOne({ 
+      $or: [{ email: 'kultup@test.com' }, { login: 'kultup' }] 
+    }).select('+password');
     if (newKultup) {
       console.log('\n📊 Інформація про адміністратора kultup:');
       console.log('📧 Email:', newKultup.email);
