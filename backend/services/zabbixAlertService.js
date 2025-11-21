@@ -248,17 +248,18 @@ class ZabbixAlertService {
       const groups = await ZabbixAlertGroup.findActive();
       const matchingGroups = [];
 
-      logger.debug(`Checking alert ${alert.alertId} against ${groups.length} groups`, {
+      logger.info(`🔍 Checking alert ${alert.alertId} against ${groups.length} groups`, {
         alertId: alert.alertId,
         host: alert.host,
         severity: alert.severity,
         triggerId: alert.triggerId,
+        triggerName: alert.triggerName,
         groupsCount: groups.length
       });
 
       for (const group of groups) {
         const matches = group.checkAlertMatch(alert);
-        logger.debug(`Group ${group.name} match result: ${matches}`, {
+        logger.info(`🔍 Group "${group.name}" match result: ${matches}`, {
           groupId: group._id,
           groupName: group.name,
           enabled: group.enabled,
@@ -267,11 +268,14 @@ class ZabbixAlertService {
           triggerIds: group.triggerIds,
           alertSeverity: alert.severity,
           alertHost: alert.host,
-          alertTriggerId: alert.triggerId
+          alertTriggerId: alert.triggerId,
+          hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
+          telegramGroupId: group.telegram?.groupId
         });
         
         if (matches) {
           matchingGroups.push(group);
+          logger.info(`✅ Alert ${alert.alertId} matches group "${group.name}"`);
         }
       }
 
@@ -353,13 +357,23 @@ class ZabbixAlertService {
    */
   async sendMessageToGroup(botToken, groupId, message) {
     try {
+      logger.info(`📤 Attempting to send message to Telegram group ${groupId}`, {
+        groupId,
+        hasBotToken: !!(botToken && botToken.trim()),
+        telegramServiceInitialized: telegramService.isInitialized,
+        hasGlobalBot: !!telegramService.bot,
+        messageLength: message ? message.length : 0
+      });
+      
       let bot = null;
       
       // Якщо вказано кастомний токен бота, створюємо новий екземпляр бота
       if (botToken && botToken.trim()) {
+        logger.info(`Creating new Telegram bot instance with custom token`);
         bot = new TelegramBot(botToken.trim(), { polling: false });
       } else if (telegramService.bot) {
         // Використовуємо глобальний бот, якщо він ініціалізований
+        logger.info(`Using global Telegram bot instance`);
         bot = telegramService.bot;
       }
       
@@ -367,14 +381,23 @@ class ZabbixAlertService {
         const errorMsg = botToken 
           ? 'Failed to create Telegram bot with provided token' 
           : 'Telegram bot not initialized and no bot token provided';
-        logger.error(errorMsg, { groupId, hasBotToken: !!botToken });
+        logger.error(`❌ ${errorMsg}`, { groupId, hasBotToken: !!botToken });
         return { success: false, error: errorMsg };
       }
       
+      logger.info(`✅ Telegram bot ready, sending message to group ${groupId}`);
+      
       // Спробуємо відправити з Markdown форматуванням
       try {
+        logger.info(`📨 Sending message with Markdown formatting to group ${groupId}`);
         const result = await bot.sendMessage(groupId, message, {
           parse_mode: 'Markdown'
+        });
+        
+        logger.info(`✅ Message successfully sent to Telegram group ${groupId}`, {
+          messageId: result.message_id,
+          chatId: result.chat?.id,
+          chatTitle: result.chat?.title
         });
         
         return { success: true, messageId: result.message_id };
@@ -747,9 +770,35 @@ async sendNotifications(alert, groups) {
       if (!this.isInitialized) {
         const initialized = await this.initialize();
         if (!initialized) {
+          // Перевіряємо конфігурацію для більш детального повідомлення
+          let config = await ZabbixConfig.getActive();
+          if (!config || !config.enabled) {
+            return {
+              success: false,
+              error: 'Zabbix integration is disabled. Please enable it in settings.'
+            };
+          }
+          
+          if (!config.url || !config.url.trim()) {
+            return {
+              success: false,
+              error: 'Zabbix URL is not configured. Please configure Zabbix URL in settings.'
+            };
+          }
+          
+          const hasToken = !!(config.apiTokenEncrypted && config.apiTokenIV);
+          const hasCredentials = !!(config.username && config.username.trim() && config.passwordEncrypted && config.passwordIV);
+          
+          if (!hasToken && !hasCredentials) {
+            return {
+              success: false,
+              error: 'Zabbix credentials are required. Please configure Zabbix API token or username/password in settings.'
+            };
+          }
+          
           return {
             success: false,
-            error: 'Zabbix Alert Service is not initialized'
+            error: 'Zabbix Alert Service is not initialized. Please check Zabbix configuration and credentials.'
           };
         }
       }
@@ -884,12 +933,33 @@ async sendNotifications(alert, groups) {
       // Об'єднуємо нові та оновлені алерти для сповіщень
       const alertsToNotify = [...newAlerts, ...updatedAlerts];
       
+      logger.info(`📬 Processing ${alertsToNotify.length} alerts for notifications`, {
+        newAlerts: newAlerts.length,
+        updatedAlerts: updatedAlerts.length
+      });
+      
       // Відправляємо сповіщення для нових та оновлених алертів
       let totalNotificationsSent = 0;
       for (const alert of alertsToNotify) {
+        logger.info(`📨 Processing alert ${alert.alertId} for notifications`, {
+          alertId: alert.alertId,
+          host: alert.host,
+          severity: alert.severity,
+          triggerName: alert.triggerName,
+          notificationSent: alert.notificationSent
+        });
+        
         const groups = await this.getAlertGroupsForAlert(alert);
         
         if (groups.length > 0) {
+          logger.info(`✅ Found ${groups.length} matching groups for alert ${alert.alertId}`, {
+            groups: groups.map(g => ({
+              name: g.name,
+              hasTelegramGroup: !!(g.telegram && g.telegram.groupId),
+              telegramGroupId: g.telegram?.groupId
+            }))
+          });
+          
           // Оновлюємо статистику груп
           for (const group of groups) {
             await group.recordMatch();
@@ -897,11 +967,20 @@ async sendNotifications(alert, groups) {
 
           const notificationResult = await this.sendNotifications(alert, groups);
           totalNotificationsSent += notificationResult.sent;
+          
+          logger.info(`📊 Notification result for alert ${alert.alertId}:`, {
+            sent: notificationResult.sent,
+            failed: notificationResult.failed,
+            total: notificationResult.total,
+            errors: notificationResult.errors
+          });
         } else {
-          logger.warn(`No matching groups found for alert ${alert.alertId}`, {
+          logger.warn(`⚠️ No matching groups found for alert ${alert.alertId}`, {
+            alertId: alert.alertId,
             host: alert.host,
             severity: alert.severity,
-            triggerName: alert.triggerName
+            triggerName: alert.triggerName,
+            triggerId: alert.triggerId
           });
         }
       }

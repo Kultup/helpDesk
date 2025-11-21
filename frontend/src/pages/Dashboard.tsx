@@ -367,14 +367,6 @@ const Dashboard: React.FC = () => {
       onClick: () => navigate(`${basePath}/tickets?status=in_progress`)
     },
     {
-      title: t('dashboard.stats.resolvedTickets'),
-      value: stats.resolved,
-      icon: CheckCircle,
-      color: 'bg-gradient-to-br from-emerald-500 to-green-600',
-      trend: stats.trends.resolved,
-      onClick: () => navigate(`${basePath}/tickets?status=resolved`)
-    },
-    {
       title: t('dashboard.stats.closedTickets'),
       value: stats.closed,
       icon: XCircle,

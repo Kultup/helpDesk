@@ -339,11 +339,18 @@ exports.pollNow = async (req, res) => {
         data: result
       });
     } else {
-      // Якщо помилка через вимкнену інтеграцію, повертаємо 400
-      if (result.error && result.error.includes('disabled')) {
+      // Якщо помилка через вимкнену інтеграцію або відсутні креденшіали, повертаємо 400
+      if (result.error && (
+        result.error.includes('disabled') ||
+        result.error.includes('credentials') ||
+        result.error.includes('URL') ||
+        result.error.includes('not configured')
+      )) {
         return res.status(400).json({
           success: false,
-          message: 'Zabbix integration is disabled',
+          message: result.error.includes('disabled') 
+            ? 'Zabbix integration is disabled'
+            : 'Zabbix configuration is incomplete',
           error: result.error
         });
       }
@@ -352,7 +359,7 @@ exports.pollNow = async (req, res) => {
       res.status(500).json({
         success: false,
         message: 'Zabbix polling failed',
-        error: result.error
+        error: result.error || 'Unknown error occurred'
       });
     }
   } catch (error) {
