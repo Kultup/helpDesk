@@ -13,6 +13,16 @@ const ensureLogsDir = async () => {
   }
 };
 
+// Функція для отримання локальної дати у форматі YYYY-MM-DD
+const getLocalDateString = () => {
+  const now = new Date();
+  // Отримуємо локальну дату з урахуванням часового поясу
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Функція для логування дій користувачів
 const logAction = (action) => {
   return async (req, res, next) => {
@@ -39,7 +49,7 @@ const logAction = (action) => {
 
         try {
           await ensureLogsDir();
-          const auditFile = path.join(logsDir, `audit-${new Date().toISOString().split('T')[0]}.log`);
+          const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
           await fs.appendFile(auditFile, JSON.stringify(logEntry) + '\n');
         } catch (error) {
           logger.error('Помилка запису audit log:', error);

@@ -13,6 +13,16 @@ const ensureLogsDir = async () => {
   }
 };
 
+// Функція для отримання локальної дати у форматі YYYY-MM-DD
+const getLocalDateString = () => {
+  const now = new Date();
+  // Отримуємо локальну дату з урахуванням часового поясу
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Middleware для детального логування HTTP запитів
 const requestLogger = (req, res, next) => {
   const start = Date.now();
@@ -67,7 +77,7 @@ const auditLogger = (action, details = {}) => {
         
         try {
           await ensureLogsDir();
-          const logFile = path.join(logsDir, `audit-${new Date().toISOString().split('T')[0]}.log`);
+          const logFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
           await fs.appendFile(logFile, JSON.stringify(logEntry) + '\n');
         } catch (error) {
           logger.error('Помилка запису в audit log:', error);
@@ -108,7 +118,7 @@ const errorLogger = (err, req, res, next) => {
   (async () => {
     try {
       await ensureLogsDir();
-      const errorFile = path.join(logsDir, `errors-${new Date().toISOString().split('T')[0]}.log`);
+      const errorFile = path.join(logsDir, `errors-${getLocalDateString()}.log`);
       await fs.appendFile(errorFile, JSON.stringify(errorLog) + '\n');
     } catch (writeError) {
       logger.error('Помилка запису error log:', writeError);
@@ -138,7 +148,7 @@ const securityLogger = (event, severity = 'medium') => {
     
     try {
       await ensureLogsDir();
-      const securityFile = path.join(logsDir, `security-${new Date().toISOString().split('T')[0]}.log`);
+      const securityFile = path.join(logsDir, `security-${getLocalDateString()}.log`);
       await fs.appendFile(securityFile, JSON.stringify(securityLog) + '\n');
     } catch (error) {
       logger.error('Помилка запису security log:', error);
@@ -165,7 +175,7 @@ const telegramLogger = (action) => {
     
     try {
       await ensureLogsDir();
-      const telegramFile = path.join(logsDir, `telegram-${new Date().toISOString().split('T')[0]}.log`);
+      const telegramFile = path.join(logsDir, `telegram-${getLocalDateString()}.log`);
       await fs.appendFile(telegramFile, JSON.stringify(telegramLog) + '\n');
     } catch (error) {
       logger.error('Помилка запису telegram log:', error);
