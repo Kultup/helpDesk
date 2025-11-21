@@ -1,22 +1,27 @@
 module.exports = {
-  apps : [{
-    script: 'index.js',
-    watch: '.'
-  }, {
-    script: './service-worker/',
-    watch: ['./service-worker']
-  }],
-
-  deploy : {
-    production : {
-      user : 'SSH_USERNAME',
-      host : 'SSH_HOSTMACHINE',
-      ref  : 'origin/master',
-      repo : 'GIT_REPOSITORY',
-      path : 'DESTINATION_PATH',
-      'pre-deploy-local': '',
-      'post-deploy' : 'npm install && pm2 reload ecosystem.config.js --env production',
-      'pre-setup': ''
-    }
-  }
+  apps: [{
+    name: 'helpdesk-backend',
+    script: 'app.js',
+    instances: 1,
+    exec_mode: 'fork',
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'development',
+      PORT: 5000
+    },
+    env_production: {
+      NODE_ENV: 'production',
+      PORT: 5000
+    },
+    error_file: './logs/pm2-error.log',
+    out_file: './logs/pm2-out.log',
+    log_file: './logs/pm2-combined.log',
+    time: true,
+    merge_logs: true,
+    autorestart: true,
+    max_restarts: 10,
+    min_uptime: '10s',
+    restart_delay: 4000
+  }]
 };

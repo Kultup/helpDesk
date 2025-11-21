@@ -172,6 +172,36 @@ CORS_ORIGIN=https://your-domain.com,https://www.your-domain.com,https://admin.yo
 - Підтримуються піддомени автоматично (якщо дозволено `example.com`, то `app.example.com` теж дозволено)
 - Після зміни `.env` перезапустіть сервер
 
+### Запуск через PM2
+
+**Перший запуск:**
+```bash
+cd backend
+npm run start:pm2:prod  # для production
+# або
+npm run start:pm2        # для development
+```
+
+**Якщо процес не знайдено (перший запуск):**
+```bash
+cd /srv/helpDesk/backend
+pm2 start ecosystem.config.js --env production
+```
+
+**Перезапуск існуючого процесу:**
+```bash
+pm2 restart helpdesk-backend
+# або
+cd backend && npm run restart:pm2
+```
+
+**Перевірка статусу:**
+```bash
+pm2 status
+pm2 logs helpdesk-backend
+pm2 monit
+```
+
 ## Функціональність
 
 ### Основні можливості
