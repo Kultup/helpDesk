@@ -202,6 +202,43 @@ pm2 logs helpdesk-backend
 pm2 monit
 ```
 
+### Діагностика Telegram Webhook
+
+Якщо виникає помилка 503 Service Unavailable від Telegram webhook:
+
+1. **Перевірте, чи працює backend:**
+```bash
+pm2 status
+pm2 logs helpdesk-backend --lines 50
+```
+
+2. **Перевірте доступність webhook endpoint:**
+```bash
+curl -X GET https://helpdesk.krainamriy.fun/api/telegram/webhook
+curl -X POST https://helpdesk.krainamriy.fun/api/telegram/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"update_id": 1}'
+```
+
+3. **Перевірте Nginx конфігурацію:**
+```bash
+# Перевірте, чи правильно налаштований proxy_pass до backend
+sudo nginx -t
+sudo systemctl status nginx
+```
+
+4. **Перевірте логи Nginx:**
+```bash
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+```
+
+5. **Перезапустіть сервіси:**
+```bash
+pm2 restart helpdesk-backend --update-env
+sudo systemctl restart nginx
+```
+
 ## Функціональність
 
 ### Основні можливості

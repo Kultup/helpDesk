@@ -43,52 +43,63 @@ router.post('/webhook', (req, res, next) => {
     body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'empty'
   });
   next();
-}, async (req, res) => {
+}, (req, res) => {
   // Відповідаємо одразу, щоб Telegram отримав швидку відповідь
   // Це запобігає таймаутам та 503 помилкам
-  res.status(200).json({ success: true, received: true });
-  
+  // Використовуємо try-catch для гарантії відповіді
   try {
+    res.status(200).json({ success: true, received: true });
+    
     // Обробка webhook від Telegram (асинхронно, після відповіді)
-    const update = req.body;
-    
-    if (!update) {
-      logger.warn('⚠️ Webhook отримано без body');
-      return;
-    }
-    
-    logger.info('📥 Отримано webhook від Telegram', { update_id: update.update_id });
-    
-    if (update.message) {
-      // Логування отриманого повідомлення
-      logger.telegram('Отримано повідомлення від Telegram', {
-        chatId: update.message.chat.id,
-        messageId: update.message.message_id,
-        text: update.message.text?.substring(0, 100)
-      });
+    setImmediate(async () => {
+      try {
+        const update = req.body;
+        
+        if (!update) {
+          logger.warn('⚠️ Webhook отримано без body');
+          return;
+        }
+        
+        logger.info('📥 Отримано webhook від Telegram', { update_id: update.update_id });
+        
+        if (update.message) {
+          // Логування отриманого повідомлення
+          logger.telegram('Отримано повідомлення від Telegram', {
+            chatId: update.message.chat.id,
+            messageId: update.message.message_id,
+            text: update.message.text?.substring(0, 100)
+          });
 
-      // Передаємо повідомлення до telegramService для обробки
-      // Не чекаємо завершення, щоб Telegram отримав швидку відповідь
-      telegramService.handleMessage(update.message).catch(err => {
-        logger.error('Помилка обробки повідомлення:', err);
-      });
-    }
+          // Передаємо повідомлення до telegramService для обробки
+          // Не чекаємо завершення, щоб Telegram отримав швидку відповідь
+          telegramService.handleMessage(update.message).catch(err => {
+            logger.error('Помилка обробки повідомлення:', err);
+          });
+        }
 
-    if (update.callback_query) {
-      // Логування callback query
-      logger.telegram('Отримано callback query від Telegram', {
-        chatId: update.callback_query.message?.chat?.id,
-        data: update.callback_query.data
-      });
+        if (update.callback_query) {
+          // Логування callback query
+          logger.telegram('Отримано callback query від Telegram', {
+            chatId: update.callback_query.message?.chat?.id,
+            data: update.callback_query.data
+          });
 
-      // Передаємо callback query до telegramService для обробки
-      telegramService.handleCallbackQuery(update.callback_query).catch(err => {
-        logger.error('Помилка обробки callback query:', err);
-      });
-    }
+          // Передаємо callback query до telegramService для обробки
+          telegramService.handleCallbackQuery(update.callback_query).catch(err => {
+            logger.error('Помилка обробки callback query:', err);
+          });
+        }
+      } catch (error) {
+        logger.error('Помилка обробки Telegram webhook:', error);
+      }
+    });
   } catch (error) {
-    logger.error('Помилка обробки Telegram webhook:', error);
-    // Помилка вже залогована, але відповідь вже відправлена
+    // Якщо навіть відповідь не вдалося відправити, логуємо помилку
+    logger.error('Критична помилка при відправці відповіді webhook:', error);
+    // Спробуємо відправити відповідь ще раз
+    if (!res.headersSent) {
+      res.status(200).json({ success: true, error: 'Internal error logged' });
+    }
   }
 });
 
