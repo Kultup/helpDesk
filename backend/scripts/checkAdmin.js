@@ -14,13 +14,13 @@ async function checkAdmin() {
     
     const User = require('../models/User');
     
-    // Шукаємо адміністратора
+    // Шукаємо адміністратора (без populate, оскільки моделі можуть бути не зареєстровані)
     const admin = await User.findOne({ 
       $or: [
         { email: 'admin@test.com' },
         { login: 'admin' }
       ]
-    }).select('+password').populate('position').populate('city');
+    }).select('+password');
     
     if (!admin) {
       console.log('❌ Адміністратор не знайдений!');
@@ -33,6 +33,9 @@ async function checkAdmin() {
     console.log('👤 Login:', admin.login);
     console.log('👤 Ім\'я:', admin.firstName, admin.lastName);
     console.log('🔑 Роль:', admin.role);
+    console.log('🏢 Відділ:', admin.department || 'не вказано');
+    console.log('📍 Місто ID:', admin.city || 'не вказано');
+    console.log('💼 Посада ID:', admin.position || 'не вказано');
     console.log('✅ isActive:', admin.isActive);
     console.log('✅ registrationStatus:', admin.registrationStatus);
     console.log('✅ isEmailVerified:', admin.isEmailVerified);
