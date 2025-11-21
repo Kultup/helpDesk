@@ -44,9 +44,18 @@ router.post('/webhook', (req, res, next) => {
   });
   next();
 }, async (req, res) => {
+  // Відповідаємо одразу, щоб Telegram отримав швидку відповідь
+  // Це запобігає таймаутам та 503 помилкам
+  res.status(200).json({ success: true, received: true });
+  
   try {
-    // Обробка webhook від Telegram
+    // Обробка webhook від Telegram (асинхронно, після відповіді)
     const update = req.body;
+    
+    if (!update) {
+      logger.warn('⚠️ Webhook отримано без body');
+      return;
+    }
     
     logger.info('📥 Отримано webhook від Telegram', { update_id: update.update_id });
     
@@ -68,7 +77,7 @@ router.post('/webhook', (req, res, next) => {
     if (update.callback_query) {
       // Логування callback query
       logger.telegram('Отримано callback query від Telegram', {
-        chatId: update.callback_query.message.chat.id,
+        chatId: update.callback_query.message?.chat?.id,
         data: update.callback_query.data
       });
 
@@ -77,16 +86,9 @@ router.post('/webhook', (req, res, next) => {
         logger.error('Помилка обробки callback query:', err);
       });
     }
-
-    // Швидко відповідаємо Telegram, щоб він не вважав запит невдалим
-    res.status(200).json({ success: true });
   } catch (error) {
     logger.error('Помилка обробки Telegram webhook:', error);
-    // Все одно відповідаємо 200, щоб Telegram не повторював запит
-    res.status(200).json({ 
-      success: false, 
-      message: 'Помилка обробки webhook' 
-    });
+    // Помилка вже залогована, але відповідь вже відправлена
   }
 });
 
