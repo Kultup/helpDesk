@@ -58,7 +58,7 @@ export const useUserRegistrationStats = (): UseUserRegistrationStatsReturn => {
       const response = await apiService.get<ApiResponse<unknown>>('/analytics/user-registration-stats') as ApiResponse<unknown>;
       
       if (response.success && response.data) {
-        setUserStats(response.data);
+        setUserStats(response.data as unknown as UserRegistrationStats);
       } else {
         setUserStatsError((response as { message?: string }).message || 'Помилка при отриманні статистики користувачів');
       }

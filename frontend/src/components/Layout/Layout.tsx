@@ -31,7 +31,7 @@ const Layout: React.FC = () => {
           }
         });
         
-        setEvents((response as unknown as { data?: unknown[] }).data || []);
+        setEvents((response as unknown as { data?: CalendarEvent[] }).data || []);
       } catch (error) {
         console.error('Помилка завантаження подій для сповіщень:', error);
       }

@@ -126,8 +126,8 @@ const PendingRegistrations: React.FC = () => {
             currentPage: pag.currentPage,
             totalPages: pag.totalPages,
             totalItems: pag.totalItems,
-            hasNextPage: pag.hasNext ?? pag.hasNextPage ?? false,
-            hasPrevPage: pag.hasPrev ?? pag.hasPrevPage ?? false
+            hasNextPage: (pag.hasNext ?? pag.hasNextPage ?? false) as boolean,
+            hasPrevPage: (pag.hasPrev ?? pag.hasPrevPage ?? false) as boolean
           });
         } else {
           // Якщо pagination відсутня, створюємо дефолтну
