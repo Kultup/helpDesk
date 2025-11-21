@@ -519,22 +519,22 @@ class ApiService {
 
   // Методи для Active Directory
   async testADConnection(): Promise<ApiResponse<Record<string, unknown>>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/active-directory/test');
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.api.get('/active-directory/test');
     return response.data;
   }
 
-  async getADUsers(): Promise<ApiResponse<any[]>> {
-    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/active-directory/users');
+  async getADUsers(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get('/active-directory/users');
     return response.data;
   }
 
-  async getADComputers(): Promise<ApiResponse<any[]>> {
-    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/active-directory/computers');
+  async getADComputers(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get('/active-directory/computers');
     return response.data;
   }
 
   async getADStatistics(): Promise<ApiResponse<Record<string, unknown>>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/active-directory/statistics');
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.api.get('/active-directory/statistics');
     return response.data;
   }
 
@@ -556,7 +556,7 @@ class ApiService {
   }
 
   async getDashboardStats(): Promise<ApiResponse<Record<string, unknown>>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/analytics/dashboard');
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.api.get('/analytics/dashboard');
     return response.data;
   }
 
@@ -568,7 +568,7 @@ class ApiService {
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
 
-    const response: AxiosResponse<ApiResponse<any>> = 
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = 
       await this.api.get(`/analytics/heatmap?${params.toString()}`);
     return response.data;
   }
@@ -606,14 +606,14 @@ class ApiService {
   }
 
   // Методи для історії тікетів
-  async getTicketHistory(ticketId: string): Promise<ApiResponse<any[]>> {
-    const response: AxiosResponse<ApiResponse<any[]>> = 
+  async getTicketHistory(ticketId: string): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = 
       await this.api.get(`/tickets/${ticketId}/history`);
     return response.data;
   }
 
   async getTicketHistoryStats(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
-    const response: AxiosResponse<ApiResponse<any>> = 
+    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = 
       await this.api.get(`/tickets/${ticketId}/history/stats`);
     return response.data;
   }
@@ -720,7 +720,7 @@ class ApiService {
   // ===== TIME TRACKING METHODS =====
   
   // Отримати записи часу для тікету
-  async getTimeEntries(ticketId: string) {
+  async getTimeEntries(ticketId: string): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get(`/tickets/${ticketId}/time-entries`);
     return response.data;
   }
@@ -732,7 +732,7 @@ class ApiService {
     duration?: number;
     description?: string;
     isActive?: boolean;
-  }) {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post(`/tickets/${ticketId}/time-entries`, data);
     return response.data;
   }
@@ -743,25 +743,25 @@ class ApiService {
     duration?: number;
     description?: string;
     isActive?: boolean;
-  }) {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.put(`/tickets/${ticketId}/time-entries/${entryId}`, data);
     return response.data;
   }
 
   // Видалити запис часу
-  async deleteTimeEntry(ticketId: string, entryId: string) {
+  async deleteTimeEntry(ticketId: string, entryId: string): Promise<ApiResponse<null>> {
     const response = await this.api.delete(`/tickets/${ticketId}/time-entries/${entryId}`);
     return response.data;
   }
 
   // Отримати активну сесію відстеження часу
-  async getActiveTimeSession(ticketId: string) {
+  async getActiveTimeSession(ticketId: string): Promise<ApiResponse<Record<string, unknown> | null>> {
     const response = await this.api.get(`/tickets/${ticketId}/time-entries/active`);
     return response.data;
   }
 
   // Запустити відстеження часу
-  async startTimeTracking(ticketId: string, description?: string) {
+  async startTimeTracking(ticketId: string, description?: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post(`/tickets/${ticketId}/time-entries/start`, {
       description
     });
@@ -769,13 +769,13 @@ class ApiService {
   }
 
   // Зупинити відстеження часу
-  async stopTimeTracking(ticketId: string, entryId: string) {
+  async stopTimeTracking(ticketId: string, entryId: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post(`/tickets/${ticketId}/time-entries/${entryId}/stop`);
     return response.data;
   }
 
   // Отримати статистику часу для тікету
-  async getTimeStatistics(ticketId: string) {
+  async getTimeStatistics(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.get(`/tickets/${ticketId}/time-statistics`);
     return response.data;
   }
@@ -783,43 +783,43 @@ class ApiService {
   // ===== TAGS METHODS =====
   
   // Отримати всі доступні теги
-  async getTags() {
+  async getTags(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get('/tags');
     return response.data;
   }
 
   // Створити новий тег
-  async createTag(data: { name: string; color: string; description?: string }) {
+  async createTag(data: { name: string; color: string; description?: string }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post('/tags', data);
     return response.data;
   }
 
   // Оновити тег
-  async updateTag(tagId: string, data: { name?: string; color?: string; description?: string }) {
+  async updateTag(tagId: string, data: { name?: string; color?: string; description?: string }): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.put(`/tags/${tagId}`, data);
     return response.data;
   }
 
   // Видалити тег
-  async deleteTag(tagId: string) {
+  async deleteTag(tagId: string): Promise<ApiResponse<null>> {
     const response = await this.api.delete(`/tags/${tagId}`);
     return response.data;
   }
 
   // Додати тег до тікету
-  async addTagToTicket(ticketId: string, tagId: string) {
+  async addTagToTicket(ticketId: string, tagId: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post(`/tickets/${ticketId}/tags/${tagId}`);
     return response.data;
   }
 
   // Видалити тег з тікету
-  async removeTagFromTicket(ticketId: string, tagId: string) {
+  async removeTagFromTicket(ticketId: string, tagId: string): Promise<ApiResponse<null>> {
     const response = await this.api.delete(`/tickets/${ticketId}/tags/${tagId}`);
     return response.data;
   }
 
   // Отримати теги тікету
-  async getTicketTags(ticketId: string) {
+  async getTicketTags(ticketId: string): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get(`/tickets/${ticketId}/tags`);
     return response.data;
   }
@@ -879,12 +879,12 @@ class ApiService {
     page?: number;
     limit?: number;
     sortBy?: string;
-  }) {
+  }): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get('/ticket-templates', { params });
     return response.data;
   }
 
-  async getTicketTemplateById(id: string) {
+  async getTicketTemplateById(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.get(`/ticket-templates/${id}`);
     return response.data;
   }
@@ -899,24 +899,24 @@ class ApiService {
     return response.data;
   }
 
-  async deleteTicketTemplate(id: string) {
+  async deleteTicketTemplate(id: string): Promise<ApiResponse<null>> {
     const response = await this.api.delete(`/ticket-templates/${id}`);
     return response.data;
   }
 
-  async useTicketTemplate(id: string) {
+  async useTicketTemplate(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     const response = await this.api.post(`/ticket-templates/${id}/use`);
     return response.data;
   }
 
-  async getPopularTicketTemplates(limit?: number) {
+  async getPopularTicketTemplates(limit?: number): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get('/ticket-templates/popular', { 
       params: { limit } 
     });
     return response.data;
   }
 
-  async getTicketTemplatesByCategory(categoryId: string, limit?: number) {
+  async getTicketTemplatesByCategory(categoryId: string, limit?: number): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     const response = await this.api.get(`/ticket-templates/category/${categoryId}`, { 
       params: { limit } 
     });
@@ -1232,7 +1232,7 @@ class ApiService {
   async getSLAStatistics(params?: {
     startDate?: string;
     endDate?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<Record<string, unknown>>> {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -1328,7 +1328,7 @@ class ApiService {
     return this.post(`/kb/articles/${id}/not-helpful`);
   }
 
-  async getKBCategories(): Promise<ApiResponse<any[]>> {
+  async getKBCategories(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
     return this.get('/kb/categories');
   }
 
