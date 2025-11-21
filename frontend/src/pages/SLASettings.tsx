@@ -34,7 +34,7 @@ interface SLAPolicy {
     enabled: boolean;
     levels: Array<{
       percentage: number;
-      notifyUsers: any[];
+      notifyUsers: string[];
       notifyChannels: string[];
     }>;
   };
@@ -44,14 +44,51 @@ interface SLAPolicy {
   updatedAt: string;
 }
 
+interface EditFormData {
+  name: string;
+  description: string;
+  category: string;
+  priorities: {
+    low: { responseTime: number; resolutionTime: number; enabled: boolean };
+    medium: { responseTime: number; resolutionTime: number; enabled: boolean };
+    high: { responseTime: number; resolutionTime: number; enabled: boolean };
+    urgent: { responseTime: number; resolutionTime: number; enabled: boolean };
+  };
+  escalationLevels: Array<{
+    level: number;
+    name: string;
+    percentage: number;
+    action: string;
+  }>;
+  autoEscalation: {
+    enabled: boolean;
+    onResponseBreach: boolean;
+    onResolutionBreach: boolean;
+  };
+  warnings: {
+    enabled: boolean;
+    levels: Array<{
+      percentage: number;
+      notifyUsers: string[];
+      notifyChannels: string[];
+    }>;
+  };
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  color?: string;
+}
+
 const SLASettings: React.FC = () => {
-  const { user } = useAuth();
-  const { t } = useTranslation();
   const [policies, setPolicies] = useState<SLAPolicy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingPolicy, setEditingPolicy] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [editForm, setEditForm] = useState<any>({
+  const [editForm, setEditForm] = useState<EditFormData>({
     name: '',
     description: '',
     category: '',
@@ -79,7 +116,7 @@ const SLASettings: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     loadPolicies();
@@ -100,7 +137,7 @@ const SLASettings: React.FC = () => {
     }
   }, [error]);
 
-  const loadPolicies = async () => {
+  const loadPolicies = async (): Promise<void> => {
     try {
       setIsLoading(true);
       const response = await apiService.getSLAPolicies({ active: true });
@@ -109,6 +146,7 @@ const SLASettings: React.FC = () => {
         setPolicies(resData.data || []);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading SLA policies:', error);
       setError('Помилка завантаження SLA політик');
     } finally {
@@ -116,18 +154,19 @@ const SLASettings: React.FC = () => {
     }
   };
 
-  const loadCategories = async () => {
+  const loadCategories = async (): Promise<void> => {
     try {
       const response = await apiService.getCategories(true);
       if (response.data) {
-        setCategories(response.data);
+        setCategories(response.data as Category[]);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error loading categories:', error);
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = (): void => {
     setIsCreating(true);
     setEditingPolicy(null);
     setEditForm({
@@ -158,7 +197,7 @@ const SLASettings: React.FC = () => {
     });
   };
 
-  const handleEdit = (policy: SLAPolicy) => {
+  const handleEdit = (policy: SLAPolicy): void => {
     setEditingPolicy(policy._id);
     setIsCreating(false);
     setEditForm({
@@ -174,11 +213,11 @@ const SLASettings: React.FC = () => {
     });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     try {
       setError(null);
       if (isCreating) {
-        const response = await apiService.createSLAPolicy(editForm);
+        const response = await apiService.createSLAPolicy(editForm as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('SLA політика успішно створена');
           await loadPolicies();
@@ -213,7 +252,7 @@ const SLASettings: React.FC = () => {
           setError(response.message || 'Помилка створення SLA політики');
         }
       } else if (editingPolicy) {
-        const response = await apiService.updateSLAPolicy(editingPolicy, editForm);
+        const response = await apiService.updateSLAPolicy(editingPolicy, editForm as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('SLA політика успішно оновлена');
           await loadPolicies();
@@ -222,12 +261,15 @@ const SLASettings: React.FC = () => {
           setError(response.message || 'Помилка оновлення SLA політики');
         }
       }
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Помилка збереження SLA політики');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error && 'response' in error && typeof error.response === 'object' && error.response !== null && 'data' in error.response && typeof error.response.data === 'object' && error.response.data !== null && 'message' in error.response.data && typeof error.response.data.message === 'string'
+        ? error.response.data.message
+        : 'Помилка збереження SLA політики';
+      setError(errorMessage);
     }
   };
 
-  const handleDelete = async (policyId: string) => {
+  const handleDelete = async (policyId: string): Promise<void> => {
     if (!window.confirm('Ви впевнені, що хочете видалити цю SLA політику?')) {
       return;
     }
@@ -240,12 +282,15 @@ const SLASettings: React.FC = () => {
       } else {
         setError(response.message || 'Помилка видалення SLA політики');
       }
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Помилка видалення SLA політики');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error && 'response' in error && typeof error.response === 'object' && error.response !== null && 'data' in error.response && typeof error.response.data === 'object' && error.response.data !== null && 'message' in error.response.data && typeof error.response.data.message === 'string'
+        ? error.response.data.message
+        : 'Помилка видалення SLA політики';
+      setError(errorMessage);
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (): void => {
     setIsCreating(false);
     setEditingPolicy(null);
     setEditForm({
@@ -276,7 +321,7 @@ const SLASettings: React.FC = () => {
     });
   };
 
-  const updatePriority = (priority: string, field: string, value: any) => {
+  const updatePriority = (priority: 'low' | 'medium' | 'high' | 'urgent', field: 'responseTime' | 'resolutionTime' | 'enabled', value: number | boolean): void => {
     setEditForm({
       ...editForm,
       priorities: {
@@ -378,30 +423,40 @@ const SLASettings: React.FC = () => {
                   {['low', 'medium', 'high', 'urgent'].map((priority) => (
                     <div key={priority} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center justify-between mb-3">
-                        <label className="flex items-center gap-2">
+                        <label htmlFor={`priority-${priority}-enabled`} className="flex items-center gap-2">
                           <input
+                            id={`priority-${priority}-enabled`}
                             type="checkbox"
-                            checked={editForm.priorities[priority].enabled}
-                            onChange={(e) => updatePriority(priority, 'enabled', e.target.checked)}
+                            checked={editForm.priorities[priority as keyof typeof editForm.priorities].enabled}
+                            onChange={(e): void => {
+                              const priorityKey = priority as 'low' | 'medium' | 'high' | 'urgent';
+                              updatePriority(priorityKey, 'enabled', e.target.checked);
+                            }}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="font-medium text-gray-900 capitalize">{priority}</span>
                         </label>
                       </div>
-                      {editForm.priorities[priority].enabled && (
+                      {editForm.priorities[priority as keyof typeof editForm.priorities].enabled && (
                         <div className="grid grid-cols-2 gap-4">
                           <Input
                             label="Час відповіді (години)"
                             type="number"
-                            value={editForm.priorities[priority].responseTime}
-                            onChange={(e) => updatePriority(priority, 'responseTime', parseInt(e.target.value))}
+                            value={editForm.priorities[priority as keyof typeof editForm.priorities].responseTime}
+                            onChange={(e): void => {
+                              const priorityKey = priority as 'low' | 'medium' | 'high' | 'urgent';
+                              updatePriority(priorityKey, 'responseTime', parseInt(e.target.value, 10));
+                            }}
                             min="0"
                           />
                           <Input
                             label="Час вирішення (години)"
                             type="number"
-                            value={editForm.priorities[priority].resolutionTime}
-                            onChange={(e) => updatePriority(priority, 'resolutionTime', parseInt(e.target.value))}
+                            value={editForm.priorities[priority as keyof typeof editForm.priorities].resolutionTime}
+                            onChange={(e): void => {
+                              const priorityKey = priority as 'low' | 'medium' | 'high' | 'urgent';
+                              updatePriority(priorityKey, 'resolutionTime', parseInt(e.target.value, 10));
+                            }}
                             min="0"
                           />
                         </div>
@@ -415,11 +470,12 @@ const SLASettings: React.FC = () => {
               <div className="border-t pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Автоматична ескалація</h3>
                 <div className="space-y-3">
-                  <label className="flex items-center gap-2">
+                  <label htmlFor="auto-escalation-enabled" className="flex items-center gap-2">
                     <input
+                      id="auto-escalation-enabled"
                       type="checkbox"
                       checked={editForm.autoEscalation.enabled}
-                      onChange={(e) =>
+                      onChange={(e): void =>
                         setEditForm({
                           ...editForm,
                           autoEscalation: { ...editForm.autoEscalation, enabled: e.target.checked }
@@ -431,11 +487,12 @@ const SLASettings: React.FC = () => {
                   </label>
                   {editForm.autoEscalation.enabled && (
                     <div className="ml-6 space-y-2">
-                      <label className="flex items-center gap-2">
+                      <label htmlFor="auto-escalation-response-breach" className="flex items-center gap-2">
                         <input
+                          id="auto-escalation-response-breach"
                           type="checkbox"
                           checked={editForm.autoEscalation.onResponseBreach}
-                          onChange={(e) =>
+                          onChange={(e): void =>
                             setEditForm({
                               ...editForm,
                               autoEscalation: {
@@ -448,11 +505,12 @@ const SLASettings: React.FC = () => {
                         />
                         <span className="text-sm text-gray-700">Ескалювати при порушенні часу відповіді</span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label htmlFor="auto-escalation-resolution-breach" className="flex items-center gap-2">
                         <input
+                          id="auto-escalation-resolution-breach"
                           type="checkbox"
                           checked={editForm.autoEscalation.onResolutionBreach}
-                          onChange={(e) =>
+                          onChange={(e): void =>
                             setEditForm({
                               ...editForm,
                               autoEscalation: {
@@ -472,11 +530,12 @@ const SLASettings: React.FC = () => {
 
               {/* Дефолтна політика */}
               <div className="border-t pt-4 mt-4">
-                <label className="flex items-center gap-2">
+                <label htmlFor="is-default-policy" className="flex items-center gap-2">
                   <input
+                    id="is-default-policy"
                     type="checkbox"
                     checked={editForm.isDefault}
-                    onChange={(e) => setEditForm({ ...editForm, isDefault: e.target.checked })}
+                    onChange={(e): void => setEditForm({ ...editForm, isDefault: e.target.checked })}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-gray-700">Встановити як політику за замовчуванням</span>

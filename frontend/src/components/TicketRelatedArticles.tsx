@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BookOpen, ExternalLink } from 'lucide-react';
 import { apiService } from '../services/api';
 import Card from './UI/Card';
@@ -31,7 +31,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRelatedArticles = async (): Promise<void> => {
+  const loadRelatedArticles = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -65,11 +65,11 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [ticketId, categoryId, tags]);
 
   useEffect(() => {
     loadRelatedArticles();
-  }, [ticketId, categoryId, tags, loadRelatedArticles]);
+  }, [loadRelatedArticles]);
 
   if (isLoading) {
     return (

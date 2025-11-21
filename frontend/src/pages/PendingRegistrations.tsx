@@ -172,7 +172,7 @@ const PendingRegistrations: React.FC = () => {
     };
   }, [refreshData]);
 
-  const handleApprove = async (user: PendingUser) => {
+  const handleApprove = async (user: PendingUser): Promise<void> => {
     showConfirmation({
       title: t('pendingRegistrations.confirmRegistration'),
       message: t('pendingRegistrations.confirmRegistrationMessage', { 
@@ -476,7 +476,7 @@ const PendingRegistrations: React.FC = () => {
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => handleApprove(user)}
+                      onClick={(): void => { handleApprove(user); }}
                       disabled={processingUserId === user._id}
                       className="bg-green-600 hover:bg-green-700 focus:ring-green-500 flex items-center space-x-1"
                     >
@@ -487,7 +487,7 @@ const PendingRegistrations: React.FC = () => {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => handleReject(user)}
+                      onClick={(): void => handleReject(user)}
                       disabled={processingUserId === user._id}
                       className="flex items-center space-x-1"
                     >
@@ -508,7 +508,7 @@ const PendingRegistrations: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchPendingRegistrations(pagination.currentPage - 1)}
+            onClick={(): void => { fetchPendingRegistrations(pagination.currentPage - 1); }}
             disabled={!pagination.hasPrevPage || isLoading}
           >
             {t('pendingRegistrations.previous')}
@@ -524,7 +524,7 @@ const PendingRegistrations: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchPendingRegistrations(pagination.currentPage + 1)}
+            onClick={(): void => { fetchPendingRegistrations(pagination.currentPage + 1); }}
             disabled={!pagination.hasNextPage || isLoading}
           >
             {t('pendingRegistrations.next')}
@@ -563,7 +563,7 @@ const PendingRegistrations: React.FC = () => {
               </label>
               <textarea
                 value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
+                onChange={(e): void => setRejectionReason(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 placeholder={t('pendingRegistrations.rejectionPlaceholder')}
