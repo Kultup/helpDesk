@@ -203,7 +203,7 @@ export const useCities = (page = 1, limit = 20, search?: string): {
         setCities(Array.isArray(response.data) ? response.data : []);
         // Оновлюємо пагінацію з відповіді
         if (response.pagination) {
-          setPagination(response.pagination);
+          setPagination(response.pagination as { currentPage: number; totalPages: number; totalItems: number; hasNext: boolean; hasPrev: boolean });
         }
       } else {
         setError(response.message || 'Помилка завантаження міст');

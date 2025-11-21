@@ -65,7 +65,7 @@ const KnowledgeArticleView: React.FC = () => {
       setError(null);
       const response = await apiService.getKBArticle(articleId);
       if (response.success && response.data) {
-        setArticle(response.data);
+        setArticle(response.data as KBArticle);
       } else {
         setError(response.message || 'Помилка завантаження статті');
       }

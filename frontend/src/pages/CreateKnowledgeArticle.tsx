@@ -67,14 +67,14 @@ const CreateKnowledgeArticle: React.FC = () => {
       setInitialLoading(true);
       const response = await apiService.getKBArticle(articleId);
       if (response.success && response.data) {
-        const article = response.data;
+        const article = response.data as { title?: string; content?: string; category?: { _id?: string }; subcategory?: string; tags?: string[]; status?: string; isPublic?: boolean };
         setFormData({
           title: article.title || '',
           content: article.content || '',
           category: article.category?._id || '',
           subcategory: article.subcategory || '',
           tags: article.tags || [],
-          status: article.status || 'draft',
+          status: (article.status || 'draft') as 'published' | 'draft' | 'archived',
           isPublic: article.isPublic !== undefined ? article.isPublic : true
         });
       }
@@ -95,13 +95,13 @@ const CreateKnowledgeArticle: React.FC = () => {
       setLoading(true);
       const response = await apiService.generateKBArticleFromTicket(ticketId);
       if (response.success && response.data) {
-        const article = response.data;
+        const article = response.data as { title?: string; content?: string; category?: string; tags?: string[] };
         setFormData({
           ...formData,
           title: article.title || formData.title,
           content: article.content || formData.content,
           category: article.category || formData.category,
-          tags: article.tags || formData.tags
+          tags: (article.tags || formData.tags) as string[]
         });
         setSuccess('Статтю згенеровано з тикету');
         setTicketId(null);
@@ -140,7 +140,7 @@ const CreateKnowledgeArticle: React.FC = () => {
       setSuccess('');
 
       if (isEditMode && id) {
-        const response = await apiService.updateKBArticle(id, formData);
+        const response = await apiService.updateKBArticle(id, formData as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('Статтю успішно оновлено');
           setTimeout(() => navigate('/admin/knowledge-base'), 2000);
@@ -148,7 +148,7 @@ const CreateKnowledgeArticle: React.FC = () => {
           setError(response.message || 'Помилка оновлення статті');
         }
       } else {
-        const response = await apiService.createKBArticle(formData);
+        const response = await apiService.createKBArticle(formData as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('Статтю успішно створено');
           setTimeout(() => navigate('/admin/knowledge-base'), 2000);

@@ -37,7 +37,7 @@ const TelegramSettings: React.FC = () => {
       setIsLoading(true);
       const response = await apiService.getTelegramSettings();
       if (response.success && response.data) {
-        setSettings(response.data);
+        setSettings(response.data as TelegramSettings);
       }
     } catch (error: any) {
       console.error('Помилка завантаження налаштувань Telegram:', error);
@@ -136,9 +136,10 @@ const TelegramSettings: React.FC = () => {
           text: 'Webhook успішно налаштовано!'
         });
         if (settings) {
+          const data = response.data as { webhookUrl?: string };
           setSettings({
             ...settings,
-            webhookUrl: response.data?.webhookUrl || settings.webhookUrl
+            webhookUrl: data.webhookUrl || settings.webhookUrl
           });
         }
         await loadWebhookInfo();

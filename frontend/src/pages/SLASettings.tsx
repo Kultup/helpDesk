@@ -105,7 +105,8 @@ const SLASettings: React.FC = () => {
       setIsLoading(true);
       const response = await apiService.getSLAPolicies({ active: true });
       if (response.success && response.data) {
-        setPolicies(response.data.data || []);
+        const data = response.data as { data?: SLAPolicy[] };
+        setPolicies(data.data || []);
       }
     } catch (error) {
       console.error('Error loading SLA policies:', error);

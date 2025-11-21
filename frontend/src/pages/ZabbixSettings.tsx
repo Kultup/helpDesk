@@ -158,8 +158,9 @@ const ZabbixSettings: React.FC = () => {
     try {
       const response = await apiService.getZabbixConfig();
       if (response.success && response.data) {
+        const data = response.data as ZabbixConfig;
         setConfig({
-          ...response.data,
+          ...data,
           apiToken: ''
         });
         setTokenChanged(false);
@@ -181,7 +182,8 @@ const ZabbixSettings: React.FC = () => {
     try {
       const response = await apiService.getZabbixGroups();
       if (response.success && response.data) {
-        setGroups(response.data);
+        const data = response.data as { data?: ZabbixAlertGroup[] };
+        setGroups(Array.isArray(data) ? data : (data.data || []));
       }
     } catch (error: any) {
       console.error('Помилка завантаження груп:', error);
@@ -198,7 +200,8 @@ const ZabbixSettings: React.FC = () => {
         ...alertsFilters
       });
       if (response.success && response.data) {
-        setAlerts(response.data.alerts || []);
+        const data = response.data as { alerts?: unknown[] };
+        setAlerts((data.alerts || []) as unknown[]);
       }
     } catch (error: any) {
       console.error('Помилка завантаження алертів:', error);
@@ -400,7 +403,7 @@ const ZabbixSettings: React.FC = () => {
           throw new Error(createResponse.message || 'Не вдалося створити тимчасову групу для тестування');
         }
 
-        groupIdForTest = createResponse.data._id;
+        groupIdForTest = (createResponse.data as { _id?: string })._id || '';
       }
 
       // Тестуємо відправку алерту
@@ -423,7 +426,8 @@ const ZabbixSettings: React.FC = () => {
       }
 
       if (response.success) {
-        const result = response.data?.result;
+        const data = response.data as { result?: { sent?: number; failed?: number; errors?: unknown[] } };
+        const result = data.result;
         const sentCount = result?.sent || 0;
         const failedCount = result?.failed || 0;
         const errors = result?.errors || [];

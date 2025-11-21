@@ -24,14 +24,14 @@ const Layout: React.FC = () => {
         const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7); // Наступні 7 днів
         
-        const response = await apiService.get('/events', {
+        const response = await apiService.get<{ data: unknown[] }>('/events', {
           params: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()
           }
         });
         
-        setEvents(response.data || []);
+        setEvents((response as { data?: unknown[] }).data || []);
       } catch (error) {
         console.error('Помилка завантаження подій для сповіщень:', error);
       }

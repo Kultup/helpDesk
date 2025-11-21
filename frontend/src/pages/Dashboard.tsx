@@ -157,8 +157,9 @@ const Dashboard: React.FC = () => {
       if (!isAdmin) return;
       const response = await apiService.getADStatistics();
       if (response?.success && response.data) {
-        const usersTotal = response.data?.users?.total ?? null;
-        const computersTotal = response.data?.computers?.total ?? null;
+        const data = response.data as { users?: { total?: number }; computers?: { total?: number } };
+        const usersTotal = data.users?.total ?? null;
+        const computersTotal = data.computers?.total ?? null;
         setAdUsersTotal(usersTotal);
         setAdComputersTotal(computersTotal);
       } else {

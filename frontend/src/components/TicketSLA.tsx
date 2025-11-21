@@ -71,7 +71,7 @@ const TicketSLA: React.FC<TicketSLAProps> = ({ ticketId }) => {
       setError(null);
       const response = await apiService.getTicketSLAStatus(ticketId);
       if (response.success && response.data) {
-        setSlaStatus(response.data);
+        setSlaStatus(response.data as unknown as SLAStatus);
       } else {
         setError(response.message || 'Помилка завантаження SLA статусу');
       }

@@ -58,7 +58,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
 
       const response = await apiService.searchKBArticles(searchParams);
       if (response.success && response.data) {
-        setArticles(response.data.data || []);
+        setArticles((response.data as { data?: KBArticle[] }).data || []);
       } else {
         setError('Помилка завантаження пов\'язаних статей');
       }

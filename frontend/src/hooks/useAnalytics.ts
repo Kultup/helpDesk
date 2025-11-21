@@ -101,8 +101,8 @@ export const useAnalytics = (startDate?: string, endDate?: string) => {
 
       if (dashboardResponse.success && dashboardResponse.data) {
         console.log('📊 Dashboard data loaded:', dashboardResponse.data);
-        console.log('📊 Top cities:', dashboardResponse.data.topCities);
-        setDashboardData(dashboardResponse.data);
+        console.log('📊 Top cities:', (dashboardResponse.data as unknown as DashboardData).topCities);
+        setDashboardData(dashboardResponse.data as unknown as DashboardData);
       } else {
         throw new Error(dashboardResponse.message || 'Помилка завантаження даних дашборду');
       }

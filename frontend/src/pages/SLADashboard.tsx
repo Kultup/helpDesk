@@ -141,7 +141,8 @@ const SLADashboard: React.FC = () => {
         limit: 20
       });
       if (response.success && response.data) {
-        setBreaches(response.data.data || []);
+        const data = response.data as { data?: SLABreach[] };
+        setBreaches(data.data || []);
       }
     } catch (error) {
       console.error('Error loading SLA breaches:', error);

@@ -66,8 +66,9 @@ const KnowledgeBase: React.FC = () => {
         sortBy
       });
       if (response.success && response.data) {
-        setArticles(response.data.data || []);
-        setPagination(response.data.pagination || pagination);
+        const data = response.data as { data?: KBArticle[]; pagination?: typeof pagination };
+        setArticles(data.data || []);
+        setPagination(data.pagination || pagination);
       } else {
         setError(response.message || 'Помилка завантаження статей');
       }

@@ -63,7 +63,7 @@ const PendingRegistrations: React.FC = () => {
 
   const refreshData = useCallback(async () => {
     try {
-      const response = await apiService.get(`/users/pending-registrations?page=${pagination.currentPage}&limit=10`);
+      const response = await apiService.get(`/users/pending-registrations?page=${pagination.currentPage}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext: boolean; hasPrev: boolean } };
       if (response.success) {
         const usersData = Array.isArray(response.data) ? response.data : [];
         const uniqueUsers = removeDuplicateUsers(usersData);
@@ -100,11 +100,11 @@ const PendingRegistrations: React.FC = () => {
       setError(null);
       
       console.log('🔍 Fetching pending registrations, page:', page);
-      const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`);
+      const response = await apiService.get(`/users/pending-registrations?page=${page}&limit=10`) as { success: boolean; data?: unknown; pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext: boolean; hasPrev: boolean }; message?: string };
       
       console.log('📥 Response received:', {
         success: response.success,
-        dataLength: response.data?.length,
+        dataLength: Array.isArray(response.data) ? response.data.length : 0,
         pagination: response.pagination
       });
       
@@ -184,7 +184,7 @@ const PendingRegistrations: React.FC = () => {
     try {
       setProcessingUserId(userId);
       
-      const response = await apiService.patch(`/users/${userId}/approve-registration`);
+      const response = await apiService.patch(`/users/${userId}/approve-registration`) as { success: boolean; message?: string };
       
       if (response.success) {
         // Видаляємо користувача зі списку pending
@@ -229,7 +229,7 @@ const PendingRegistrations: React.FC = () => {
       
       const response = await apiService.patch(`/users/${userToReject._id}/reject-registration`, {
         reason: rejectionReason.trim() || t('common.notSpecified')
-      });
+      }) as { success: boolean; message?: string };
       
       if (response.success) {
         // Видаляємо користувача зі списку pending
@@ -287,7 +287,7 @@ const PendingRegistrations: React.FC = () => {
       
       // Підраховуємо успішні та неуспішні операції
       const successful = results.filter(result => 
-        result.status === 'fulfilled' && result.value.success
+        result.status === 'fulfilled' && (result.value as { success?: boolean }).success
       ).length;
       
       const failed = results.length - successful;

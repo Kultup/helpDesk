@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiService } from '../services/api';
+import { apiService, ApiResponse } from '../services/api';
 
 interface RegistrationSource {
   _id: string;
@@ -54,12 +54,12 @@ export const useUserRegistrationStats = (): UseUserRegistrationStatsReturn => {
       setUserStatsError(null);
       
       // Отримуємо статистику користувачів
-      const response = await apiService.get('/analytics/user-registration-stats');
+      const response = await apiService.get<ApiResponse<unknown>>('/analytics/user-registration-stats') as ApiResponse<unknown>;
       
       if (response.success && response.data) {
         setUserStats(response.data);
       } else {
-        setUserStatsError(response.message || 'Помилка при отриманні статистики користувачів');
+        setUserStatsError((response as { message?: string }).message || 'Помилка при отриманні статистики користувачів');
       }
     } catch (err: any) {
       console.error('Error fetching user registration stats:', err);

@@ -43,8 +43,9 @@ const ActiveDirectorySettings: React.FC = () => {
       if (response.success && response.data) {
         // Якщо пароль є, встановлюємо порожній рядок, щоб користувач міг ввести новий
         // Якщо пароль не змінюється (залишається порожнім), він не буде оновлений на сервері
-        const settingsData = {
-          ...response.data,
+        const data = response.data as unknown as ActiveDirectorySettings;
+        const settingsData: ActiveDirectorySettings = {
+          ...data,
           adminPassword: '' // Завжди встановлюємо порожній рядок, щоб користувач міг ввести новий пароль
         };
         setSettings(settingsData);

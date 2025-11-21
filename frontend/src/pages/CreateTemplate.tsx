@@ -176,9 +176,9 @@ const CreateTemplate: React.FC = () => {
 
     try {
       if (isEditMode && id) {
-        await apiService.updateTicketTemplate(id, formData);
+        await apiService.updateTicketTemplate(id, formData as unknown as Record<string, unknown>);
       } else {
-        await apiService.createTicketTemplate(formData);
+        await apiService.createTicketTemplate(formData as unknown as Record<string, unknown>);
       }
       navigate('/templates');
     } catch (error: any) {
