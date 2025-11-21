@@ -115,16 +115,16 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   };
 
   const formatValue = (value: HistoryValue, field?: string): string | React.ReactNode => {
-    if (value === null || value === undefined) return t('common.notSpecified', 'Не вказано');
+    if (value === null || value === undefined) return String(t('common.notSpecified', 'Не вказано'));
     
     // Спеціальна обробка для статусів
     if (field === 'status' || field === 'statusHistory') {
       if (typeof value === 'string') {
         const statusMap: { [key: string]: string } = {
-          'open': t('common.statuses.open'),
-          'in_progress': t('common.statuses.inProgress'),
-          'resolved': t('common.statuses.resolved'),
-          'closed': t('common.statuses.closed')
+          'open': String(t('common.statuses.open')),
+          'in_progress': String(t('common.statuses.inProgress')),
+          'resolved': String(t('common.statuses.resolved')),
+          'closed': String(t('common.statuses.closed'))
         };
         return statusMap[value] || value;
       }
@@ -134,9 +134,9 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
     if (field === 'priority') {
       if (typeof value === 'string') {
         const priorityMap: { [key: string]: string } = {
-          'low': t('common.priorities.low'),
-          'medium': t('common.priorities.medium'),
-          'high': t('common.priorities.high')
+          'low': String(t('common.priorities.low')),
+          'medium': String(t('common.priorities.medium')),
+          'high': String(t('common.priorities.high'))
         };
         return priorityMap[value] || value;
       }
@@ -167,7 +167,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
       }
       // Для інших масивів показуємо як список
       if (value.length === 0) {
-        return t('common.none', 'Жодного');
+        return String(t('common.none', 'Жодного'));
       }
       return value.map((item: unknown, index: number) => (
         <div key={index} className="text-sm">• {formatValue(item as HistoryValue, field)}</div>
@@ -195,22 +195,22 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
 
   const getFieldLabel = (field: string): string => {
     const labels: { [key: string]: string } = {
-      status: t('common.status', 'Статус'),
-      statusHistory: t('tickets.history', 'Історія статусів'),
-      priority: t('common.priority', 'Пріоритет'),
-      title: t('common.title', 'Заголовок'),
-      description: t('common.description', 'Опис'),
-      assignedTo: t('tickets.assignedTo', 'Призначено'),
-      city: t('common.city', 'Місто'),
-      category: t('common.category', 'Категорія'),
-      subcategory: t('tickets.subcategory', 'Підкатегорія'),
-      type: t('common.type', 'Тип'),
-      department: t('users.department', 'Відділ'),
-      location: t('common.location', 'Місцезнаходження'),
-      dueDate: t('tickets.dueDate', 'Термін виконання'),
-      estimatedHours: t('tickets.estimatedTime', 'Очікуваний час'),
-      actualHours: t('tickets.actualTime', 'Фактичний час'),
-      tags: t('tickets.tags', 'Теги')
+      status: String(t('common.status', 'Статус')),
+      statusHistory: String(t('tickets.history', 'Історія статусів')),
+      priority: String(t('common.priority', 'Пріоритет')),
+      title: String(t('common.title', 'Заголовок')),
+      description: String(t('common.description', 'Опис')),
+      assignedTo: String(t('tickets.assignedTo', 'Призначено')),
+      city: String(t('common.city', 'Місто')),
+      category: String(t('common.category', 'Категорія')),
+      subcategory: String(t('tickets.subcategory', 'Підкатегорія')),
+      type: String(t('common.type', 'Тип')),
+      department: String(t('users.department', 'Відділ')),
+      location: String(t('common.location', 'Місцезнаходження')),
+      dueDate: String(t('tickets.dueDate', 'Термін виконання')),
+      estimatedHours: String(t('tickets.estimatedTime', 'Очікуваний час')),
+      actualHours: String(t('tickets.actualTime', 'Фактичний час')),
+      tags: String(t('tickets.tags', 'Теги'))
     };
     return labels[field] || field;
   };
@@ -233,14 +233,14 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
           let displayValue: React.ReactNode;
           
           if (value === null || value === undefined) {
-            displayValue = <span className="text-gray-400">{t('common.notSpecified', 'Не вказано')}</span>;
+            displayValue = <span className="text-gray-400">{String(t('common.notSpecified', 'Не вказано'))}</span>;
           } else if (typeof value === 'object') {
             if (Array.isArray(value)) {
               displayValue = value.length > 0 
                 ? <div className="space-y-1">{value.map((item: unknown, idx: number) => (
                     <div key={idx} className="text-xs">• {typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item)}</div>
                   ))}</div>
-                : <span className="text-gray-400">{t('common.none', 'Жодного')}</span>;
+                : <span className="text-gray-400">{String(t('common.none', 'Жодного'))}</span>;
             } else {
               displayValue = <pre className="text-xs bg-gray-50 p-2 rounded overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>;
             }
@@ -334,7 +334,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                            {entry.oldValue !== undefined && (
                              <div>
-                               <span className="text-red-600 font-semibold">{t('common.was', 'Було')}:</span>
+                               <span className="text-red-600 font-semibold">{String(t('common.was', 'Було'))}:</span>
                                <div className="text-gray-900 bg-red-50 p-2 rounded mt-1 font-medium">
                                  {typeof formatValue(entry.oldValue, entry.field) === 'string' 
                                    ? formatValue(entry.oldValue, entry.field) 
@@ -344,7 +344,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                            )}
                            {entry.newValue !== undefined && (
                              <div>
-                               <span className="text-green-600 font-semibold">{t('common.became', 'Стало')}:</span>
+                               <span className="text-green-600 font-semibold">{String(t('common.became', 'Стало'))}:</span>
                                <div className="text-gray-900 bg-green-50 p-2 rounded mt-1 font-medium">
                                  {typeof formatValue(entry.newValue, entry.field) === 'string' 
                                    ? formatValue(entry.newValue, entry.field) 
@@ -360,7 +360,7 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                        <div className="mt-2 text-sm text-gray-700">
                          <details className="cursor-pointer">
                            <summary className="hover:text-gray-900 font-medium text-gray-900">
-                             • {t('common.additionalInfo', 'Додаткова інформація')}
+                             • {String(t('common.additionalInfo', 'Додаткова інформація'))}
                            </summary>
                            <div className="mt-2 bg-gray-50 p-3 rounded border border-gray-200">
                              {formatMetadata(entry.metadata)}
