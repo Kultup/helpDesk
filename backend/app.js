@@ -65,19 +65,68 @@ const server = createServer(app);
 app.set('trust proxy', 1); // Довіряємо першому проксі
 
 // Socket.IO конфігурація
+// Використовуємо ту саму логіку для origins, що й для HTTP CORS
+const parseOrigins = (originString) => {
+  if (!originString) return [];
+  return originString
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+};
+
+// Додаткові завжди дозволені origins (локальні мережі та production домени)
+const additionalSocketOrigins = [
+  'http://192.168.100.15:3000',
+  'https://helpdesk.krainamriy.fun'
+];
+
 const allowedSocketOrigins = [
   process.env.FRONTEND_URL,
-  process.env.CORS_ORIGIN
+  ...parseOrigins(process.env.CORS_ORIGIN),
+  ...additionalSocketOrigins
 ].filter(Boolean);
+
+const isSocketOriginAllowed = (origin) => {
+  if (!origin) return true;
+  
+  // Дозволяємо localhost
+  const isLocalhost = origin.startsWith('http://localhost:') || 
+                     origin.startsWith('http://127.0.0.1:') ||
+                     origin.includes('localhost');
+  if (isLocalhost) return true;
+  
+  // Точна відповідність
+  if (allowedSocketOrigins.includes(origin)) return true;
+  
+  // Перевірка на піддомени
+  for (const allowedOrigin of allowedSocketOrigins) {
+    try {
+      const allowedUrl = new URL(allowedOrigin);
+      const originUrl = new URL(origin);
+      if (originUrl.hostname === allowedUrl.hostname || 
+          originUrl.hostname.endsWith('.' + allowedUrl.hostname)) {
+        return true;
+      }
+    } catch (e) {
+      if (origin.includes(allowedOrigin) || allowedOrigin.includes(origin)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
 
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedSocketOrigins.length === 0) return callback(null, true);
-      if (allowedSocketOrigins.includes(origin)) return callback(null, true);
-      logger.warn(`🚫 [Socket.IO] CORS заблокував запит з домену: ${origin}`);
-      callback(new Error('Заборонено CORS політикою'));
+      if (isSocketOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`🚫 [Socket.IO] CORS заблокував запит з домену: ${origin}`);
+        logger.warn(`   Дозволені origins: ${allowedSocketOrigins.join(', ') || 'не налаштовані'}`);
+        callback(new Error('Заборонено CORS політикою'));
+      }
     },
     methods: ['GET', 'POST'],
     credentials: true

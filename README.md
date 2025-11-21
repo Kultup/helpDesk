@@ -154,6 +154,24 @@ npm install
 
 **Примітка:** Якщо виникає помилка ERESOLVE з TypeScript, використовуйте `--legacy-peer-deps` або файл `.npmrc` вже налаштований у frontend директорії.
 
+### Налаштування CORS для production
+
+Якщо виникає помилка "Заборонено CORS політикою" на сервері, налаштуйте змінні середовища в `backend/.env`:
+
+```bash
+# Основний URL frontend (обов'язково)
+FRONTEND_URL=https://your-domain.com
+
+# Додаткові CORS origins (через кому, якщо потрібно кілька)
+CORS_ORIGIN=https://your-domain.com,https://www.your-domain.com,https://admin.your-domain.com
+```
+
+**Важливо:**
+- Вказуйте повний URL з протоколом (http:// або https://)
+- Для кількох origins розділяйте їх комою
+- Підтримуються піддомени автоматично (якщо дозволено `example.com`, то `app.example.com` теж дозволено)
+- Після зміни `.env` перезапустіть сервер
+
 ## Функціональність
 
 ### Основні можливості

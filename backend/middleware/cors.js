@@ -1,31 +1,85 @@
 const cors = require('cors');
 const logger = require('../utils/logger');
 
+// Функція для парсингу origins з рядка (підтримка кількох через кому)
+const parseOrigins = (originString) => {
+  if (!originString) return [];
+  return originString
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+};
+
 // Список дозволених доменів (керується змінними середовища)
+// Підтримує кілька origins через кому в CORS_ORIGIN
+// Додаткові завжди дозволені origins (локальні мережі та production домени)
+const additionalAllowedOrigins = [
+  'http://192.168.100.15:3000',
+  'https://helpdesk.krainamriy.fun'
+];
+
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.CORS_ORIGIN
+  ...parseOrigins(process.env.CORS_ORIGIN),
+  ...additionalAllowedOrigins
 ].filter(Boolean);
+
+// Логування налаштованих origins при старті
+if (allowedOrigins.length > 0) {
+  logger.info(`🌐 Дозволені CORS origins: ${allowedOrigins.join(', ')}`);
+} else {
+  logger.warn('⚠️ CORS origins не налаштовані. Перевірте FRONTEND_URL та CORS_ORIGIN в .env');
+}
+
+// Функція для перевірки, чи origin дозволений
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Дозволяємо запити без origin
+  
+  // Дозволяємо localhost для локальної розробки навіть у production
+  const isLocalhost = origin.startsWith('http://localhost:') || 
+                     origin.startsWith('http://127.0.0.1:') ||
+                     origin.includes('localhost');
+  
+  if (isLocalhost) {
+    return true;
+  }
+  
+  // Точна відповідність
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+  
+  // Перевірка на піддомени (якщо origin закінчується на дозволений домен)
+  // Наприклад, якщо дозволено example.com, то піддомен.example.com теж дозволено
+  for (const allowedOrigin of allowedOrigins) {
+    try {
+      const allowedUrl = new URL(allowedOrigin);
+      const originUrl = new URL(origin);
+      
+      // Якщо домени співпадають або origin є піддоменом
+      if (originUrl.hostname === allowedUrl.hostname || 
+          originUrl.hostname.endsWith('.' + allowedUrl.hostname)) {
+        return true;
+      }
+    } catch (e) {
+      // Якщо не вдалося розпарсити URL, використовуємо просту перевірку
+      if (origin.includes(allowedOrigin) || allowedOrigin.includes(origin)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
 
 // Налаштування CORS
 const corsOptions = {
   origin: (origin, callback) => {
-    // Дозволяємо запити без origin (наприклад, мобільні додатки)
-    if (!origin) return callback(null, true);
-    
-    // Дозволяємо localhost для локальної розробки навіть у production
-    const isLocalhost = origin.startsWith('http://localhost:') || 
-                       origin.startsWith('http://127.0.0.1:') ||
-                       origin.includes('localhost');
-    
-    if (isLocalhost) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       logger.warn(`🚫 CORS заблокував запит з домену: ${origin}`);
+      logger.warn(`   Дозволені origins: ${allowedOrigins.join(', ') || 'не налаштовані'}`);
       callback(new Error('Заборонено CORS політикою'));
     }
   },
@@ -66,10 +120,17 @@ const developmentCors = cors({
     }
     
     // Перевіряємо дозволені origins
-    if (allowedOrigins.length === 0) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.length === 0) {
+      logger.info(`[DEV] CORS: дозволено будь-який origin (origins не налаштовані)`);
+      return callback(null, true);
+    }
+    
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
     
     logger.warn(`🚫 [DEV] CORS заблокував запит з домену: ${origin}`);
+    logger.warn(`   Дозволені origins: ${allowedOrigins.join(', ')}`);
     callback(new Error('Заборонено CORS політикою'));
   },
   credentials: true,
