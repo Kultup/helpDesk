@@ -13,14 +13,21 @@ const logger = require('../utils/logger');
 router.get('/webhook', (req, res) => {
   logger.info('✅ Webhook endpoint доступний (GET тест)', {
     url: req.url,
-    headers: req.headers
+    headers: req.headers,
+    ip: req.ip,
+    forwarded: req.get('x-forwarded-for')
   });
   res.status(200).json({
     success: true,
     message: 'Webhook endpoint доступний',
     timestamp: new Date().toISOString(),
     url: req.url,
-    method: req.method
+    method: req.method,
+    server: {
+      uptime: process.uptime(),
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV
+    }
   });
 });
 

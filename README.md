@@ -239,6 +239,43 @@ pm2 restart helpdesk-backend --update-env
 sudo systemctl restart nginx
 ```
 
+6. **Якщо backend не запущений на production сервері:**
+```bash
+# Перевірте статус PM2
+pm2 status
+
+# Якщо процес не запущений, запустіть його:
+cd /srv/helpDesk/backend
+pm2 start ecosystem.config.js --env production
+
+# Або використайте npm скрипт:
+npm run start:pm2:prod
+
+# Перевірте, чи працює:
+pm2 logs helpdesk-backend --lines 20
+```
+
+7. **Перевірте доступність webhook ззовні:**
+```bash
+# З сервера
+curl -X GET https://helpdesk.krainamriy.fun/api/telegram/webhook
+
+# Має повернути JSON з success: true
+```
+
+8. **Якщо все ще 503, перевірте Nginx конфігурацію:**
+```bash
+# Перевірте, чи правильно налаштований proxy_pass
+sudo nginx -t
+sudo cat /etc/nginx/sites-available/helpdesk
+
+# Має бути щось на кшталт:
+# location /api/ {
+#   proxy_pass http://localhost:5000;
+#   ...
+# }
+```
+
 ## Функціональність
 
 ### Основні можливості
