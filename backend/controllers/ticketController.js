@@ -139,10 +139,14 @@ exports.getTicketById = async (req, res) => {
     }
 
     const ticket = await Ticket.findById(id)
-      .populate('createdBy', 'firstName lastName email position avatar')
-      .populate('assignedTo', 'firstName lastName email position avatar')
+      .populate('createdBy', 'firstName lastName email position city avatar')
+      .populate('assignedTo', 'firstName lastName email position city avatar')
       .populate('city', 'name region coordinates')
-      .populate('watchers', 'firstName lastName email');
+      .populate('watchers', 'firstName lastName email')
+      .populate('createdBy.position', 'title')
+      .populate('createdBy.city', 'name')
+      .populate('assignedTo.position', 'title')
+      .populate('assignedTo.city', 'name');
 
     if (!ticket) {
       return res.status(404).json({

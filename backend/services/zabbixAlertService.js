@@ -6,9 +6,172 @@ const telegramService = require('./telegramServiceInstance');
 const TelegramBot = require('node-telegram-bot-api');
 const logger = require('../utils/logger');
 
+/**
+ * Утиліта для retry з exponential backoff
+ */
+class RetryUtils {
+  static async withRetry(operation, options = {}) {
+    const {
+      maxRetries = 3,
+      baseDelay = 1000,
+      maxDelay = 30000,
+      exponentialBase = 2,
+      timeout = 30000, // Timeout для однієї спроби
+      retryCondition = (error) => true // За замовчуванням повторювати всі помилки
+    } = options;
+
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Додаємо timeout для операції
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Operation timeout')), timeout);
+        });
+
+        return await Promise.race([operation(), timeoutPromise]);
+      } catch (error) {
+        lastError = error;
+
+        // Якщо це остання спроба або помилка не підлягає повтору
+        if (attempt === maxRetries || !retryCondition(error)) {
+          throw error;
+        }
+
+        // Розраховуємо затримку з exponential backoff + jitter
+        const delay = Math.min(
+          baseDelay * Math.pow(exponentialBase, attempt) + Math.random() * 1000,
+          maxDelay
+        );
+
+        logger.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`, {
+          error: error.message,
+          operation: operation.name || 'anonymous',
+          timeout
+        });
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError;
+  }
+
+  static isRetryableError(error) {
+    // Повторювати помилки мережі, таймаути, але не бізнес-логіку
+    const retryableCodes = ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EPIPE'];
+    const retryableMessages = ['timeout', 'network', 'connection', 'socket'];
+
+    if (error.code && retryableCodes.includes(error.code)) {
+      return true;
+    }
+
+    if (error.message) {
+      const message = error.message.toLowerCase();
+      return retryableMessages.some(keyword => message.includes(keyword));
+    }
+
+    return false;
+  }
+}
+
+/**
+ * Circuit Breaker для захисту від постійних помилок
+ */
+class CircuitBreaker {
+  constructor(options = {}) {
+    this.failureThreshold = options.failureThreshold || 5; // Кількість помилок для відкриття
+    this.recoveryTimeout = options.recoveryTimeout || 60000; // Час на відновлення (мс)
+    this.monitoringPeriod = options.monitoringPeriod || 60000; // Період моніторингу (мс)
+
+    this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+    this.failureCount = 0;
+    this.lastFailureTime = null;
+    this.successCount = 0;
+    this.nextAttemptTime = null;
+  }
+
+  async execute(operation) {
+    if (this.state === 'OPEN') {
+      if (Date.now() < this.nextAttemptTime) {
+        throw new Error('Circuit breaker is OPEN - service unavailable');
+      }
+      // Переходимо в HALF_OPEN для тестування
+      this.state = 'HALF_OPEN';
+      logger.info('Circuit breaker moving to HALF_OPEN state for testing');
+    }
+
+    try {
+      const result = await operation();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+
+  onSuccess() {
+    this.failureCount = 0;
+    this.successCount++;
+
+    if (this.state === 'HALF_OPEN') {
+      // Якщо успішно, повертаємося до CLOSED
+      this.state = 'CLOSED';
+      logger.info('Circuit breaker recovered, moving to CLOSED state');
+    }
+  }
+
+  onFailure() {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.state === 'HALF_OPEN' || this.failureCount >= this.failureThreshold) {
+      this.state = 'OPEN';
+      this.nextAttemptTime = Date.now() + this.recoveryTimeout;
+      logger.warn(`Circuit breaker opened after ${this.failureCount} failures, next attempt at ${new Date(this.nextAttemptTime)}`);
+    }
+  }
+
+  getState() {
+    return {
+      state: this.state,
+      failureCount: this.failureCount,
+      successCount: this.successCount,
+      lastFailureTime: this.lastFailureTime,
+      nextAttemptTime: this.nextAttemptTime
+    };
+  }
+
+  // Періодичне скидання лічильників
+  resetCounters() {
+    if (this.state === 'CLOSED' && Date.now() - (this.lastFailureTime || 0) > this.monitoringPeriod) {
+      this.failureCount = 0;
+      this.successCount = 0;
+    }
+  }
+}
+
 class ZabbixAlertService {
   constructor() {
     this.isInitialized = false;
+    this.circuitBreaker = new CircuitBreaker({
+      failureThreshold: 5,
+      recoveryTimeout: 60000, // 1 хвилина
+      monitoringPeriod: 300000 // 5 хвилин
+    });
+
+    // Таймер для періодичного скидання лічильників circuit breaker
+    this.circuitBreakerResetTimer = setInterval(() => {
+      this.circuitBreaker.resetCounters();
+    }, 60000); // Кожну хвилину
+  }
+
+  /**
+   * Отримати стан circuit breaker
+   */
+  getCircuitBreakerStatus() {
+    return this.circuitBreaker.getState();
   }
 
   /**
@@ -848,13 +1011,23 @@ async sendNotifications(alert, groups) {
         requiredSeverities: Array.from(requiredSeverities)
       });
       
-      // Отримуємо проблеми з деталями для потрібних severity levels
-      const problemsResult = await zabbixService.getProblemsWithDetails(severitiesToFetch, 1000);
+      // Отримуємо проблеми з деталями для потрібних severity levels з retry та circuit breaker
+      const problemsResult = await this.circuitBreaker.execute(() =>
+        RetryUtils.withRetry(
+          () => zabbixService.getProblemsWithDetails(severitiesToFetch, 1000),
+          {
+            maxRetries: 3,
+            baseDelay: 2000,
+            retryCondition: RetryUtils.isRetryableError
+          }
+        )
+      );
 
       if (!problemsResult.success) {
-        logger.error('Failed to get problems from Zabbix:', {
+        logger.error('Failed to get problems from Zabbix after retries:', {
           error: problemsResult.error,
-          code: problemsResult.code
+          code: problemsResult.code,
+          circuitBreakerState: this.circuitBreaker.getState()
         });
         throw new Error(problemsResult.error || 'Failed to get problems from Zabbix');
       }

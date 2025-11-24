@@ -669,7 +669,14 @@
     "processing": "Przetwarzanie żądania...",
     "connecting": "Łączenie...",
     "disconnected": "Połączenie utracone.",
-    "reconnecting": "Ponowne łączenie..."
+    "reconnecting": "Ponowne łączenie...",
+    "websocket": {
+      "connectedToTickets": "🔌 WebSocket połączony dla zgłoszeń",
+      "connectedToRegistrations": "🔌 WebSocket połączony dla rejestracji",
+      "disconnectedFromTickets": "🔌 WebSocket rozłączony dla zgłoszeń",
+      "connectedToErrorNotifications": "Połączono z powiadomieniami o błędach",
+      "connectedToRegistrationUpdates": "Połączono z WebSocket dla aktualizacji liczby rejestracji"
+    }
   },
   "notificationSystem": {
     "reminderMessage": "Przypomnienie: \"{{title}}\" rozpocznie się za 15 minut",
@@ -1576,7 +1583,20 @@
     "departmentRequired": "Dział jest wymagany",
     "cityRequired": "Miasto jest wymagane",
     "telegramInvalid": "Nieprawidłowy format ID Telegram",
-    "invalidTelegramNumeric": "ID Telegram musi zawierać tylko cyfry (5-20 znaków)"
+    "invalidTelegramNumeric": "ID Telegram musi zawierać tylko cyfry (5-20 znaków)",
+    "status": "Status",
+    "actions": "Akcje",
+    "enterFirstName": "Wprowadź imię",
+    "enterLastName": "Wprowadź nazwisko",
+    "enterEmail": "Wprowadź email",
+    "login": "Login",
+    "enterLogin": "Wprowadź login",
+    "loginFormat": "Format: tylko litery, cyfry i podkreślenia (3-50 znaków)",
+    "enterPassword": "Wprowadź hasło",
+    "show": "Pokaż",
+    "enterDepartmentName": "Wprowadź nazwę działu",
+    "optional": "Opcjonalne",
+    "invalidLoginFormat": "Nieprawidłowy format loginu. Użyj tylko liter, cyfr i podkreśleń (3-50 znaków)"
   },
   "notifications": {
     "title": "Powiadomienia",

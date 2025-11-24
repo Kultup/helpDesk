@@ -384,11 +384,21 @@ const TicketDetails: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.assignedTo')}</span>
-                  <p className="text-gray-900">{ticket.assignedTo?.email || t('tickets.notAssigned')}</p>
+                  <p className="text-gray-900">
+                    {ticket.assignedTo
+                      ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}${ticket.assignedTo.position && typeof ticket.assignedTo.position === 'object' && 'title' in ticket.assignedTo.position ? ` (${ticket.assignedTo.position.title})` : ''}${ticket.assignedTo.city && typeof ticket.assignedTo.city === 'object' && 'name' in ticket.assignedTo.city ? `, ${ticket.assignedTo.city.name}` : ''}`
+                      : t('tickets.notAssigned')
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdBy')}</span>
-                  <p className="text-gray-900">{ticket.createdBy?.email || t('tickets.unknown')}</p>
+                  <p className="text-gray-900">
+                    {ticket.createdBy
+                      ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}${ticket.createdBy.position && typeof ticket.createdBy.position === 'object' && 'title' in ticket.createdBy.position ? ` (${ticket.createdBy.position.title})` : ''}${ticket.createdBy.city && typeof ticket.createdBy.city === 'object' && 'name' in ticket.createdBy.city ? `, ${ticket.createdBy.city.name}` : ''}`
+                      : t('tickets.unknown')
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdAt')}</span>

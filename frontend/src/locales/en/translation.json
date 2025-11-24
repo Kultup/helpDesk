@@ -652,7 +652,14 @@
     "processing": "Processing request...",
     "connecting": "Connecting...",
     "disconnected": "Connection lost.",
-    "reconnecting": "Reconnecting..."
+    "reconnecting": "Reconnecting...",
+    "websocket": {
+      "connectedToTickets": "🔌 WebSocket connected for tickets",
+      "connectedToRegistrations": "🔌 WebSocket connected for registrations",
+      "disconnectedFromTickets": "🔌 WebSocket disconnected for tickets",
+      "connectedToErrorNotifications": "Connected to error notifications",
+      "connectedToRegistrationUpdates": "Connected to WebSocket for registration count updates"
+    }
   },
   "notificationSystem": {
     "reminderMessage": "Reminder: \"{{title}}\" will start in 15 minutes",
@@ -1629,7 +1636,20 @@
     "departmentRequired": "Department is required",
     "cityRequired": "City is required",
     "telegramInvalid": "Invalid Telegram ID format",
-    "invalidTelegramNumeric": "Telegram ID must contain only digits (5-20 characters)"
+    "invalidTelegramNumeric": "Telegram ID must contain only digits (5-20 characters)",
+    "status": "Status",
+    "actions": "Actions",
+    "enterFirstName": "Enter first name",
+    "enterLastName": "Enter last name",
+    "enterEmail": "Enter email",
+    "login": "Login",
+    "enterLogin": "Enter login",
+    "loginFormat": "Format: letters, numbers and underscores only (3-50 characters)",
+    "enterPassword": "Enter password",
+    "show": "Show",
+    "enterDepartmentName": "Enter department name",
+    "optional": "Optional",
+    "invalidLoginFormat": "Invalid login format. Use only letters, numbers and underscores (3-50 characters)"
   },
   "notifications": {
     "title": "Notifications",
