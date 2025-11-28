@@ -113,6 +113,121 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправити сповіщення про підтвердження реєстрації
+   * @param {Object} user - Об'єкт користувача з полями firstName, lastName, email, telegramId
+   * @returns {Promise}
+   */
+  async sendRegistrationApprovedNotification(user) {
+    try {
+      logger.info('sendRegistrationApprovedNotification called:', {
+        userId: user._id,
+        email: user.email,
+        telegramId: user.telegramId,
+        hasTelegramId: !!user.telegramId,
+        botInitialized: this.isInitialized
+      });
+
+      if (!this.bot || !this.isInitialized) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про підтвердження реєстрації');
+        return;
+      }
+
+      if (!user.telegramId) {
+        logger.warn('Telegram ID не вказано для користувача:', {
+          email: user.email,
+          userId: user._id,
+          userData: {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            telegramId: user.telegramId
+          }
+        });
+        return;
+      }
+
+      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      
+      const message = `🎉 *Реєстрацію підтверджено!*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✅ Ваш обліковий запис було активовано адміністратором.\n\n` +
+        `👤 *Користувач:* ${userName}\n` +
+        `📧 *Email:* \`${user.email}\`\n\n` +
+        `Тепер ви можете використовувати всі функції системи.\n\n` +
+        `Використайте /start для початку роботи.`;
+
+      await this.sendMessage(String(user.telegramId), message, {
+        parse_mode: 'Markdown'
+      });
+
+      logger.info(`✅ Сповіщення про підтвердження реєстрації відправлено користувачу ${user.email} (${user.telegramId})`);
+    } catch (error) {
+      logger.error(`Помилка відправки сповіщення про підтвердження реєстрації користувачу ${user.email}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Відправити сповіщення про відхилення реєстрації
+   * @param {Object} user - Об'єкт користувача з полями firstName, lastName, email, telegramId
+   * @param {String} reason - Причина відхилення (необов'язково)
+   * @returns {Promise}
+   */
+  async sendRegistrationRejectedNotification(user, reason = null) {
+    try {
+      logger.info('sendRegistrationRejectedNotification called:', {
+        userId: user._id,
+        email: user.email,
+        telegramId: user.telegramId,
+        hasTelegramId: !!user.telegramId,
+        reason: reason,
+        botInitialized: this.isInitialized
+      });
+
+      if (!this.bot || !this.isInitialized) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про відхилення реєстрації');
+        return;
+      }
+
+      if (!user.telegramId) {
+        logger.warn('Telegram ID не вказано для користувача:', {
+          email: user.email,
+          userId: user._id,
+          userData: {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            telegramId: user.telegramId
+          }
+        });
+        return;
+      }
+
+      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      
+      let message = `❌ *Реєстрацію відхилено*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `Ваш запит на реєстрацію було відхилено адміністратором.\n\n` +
+        `👤 *Користувач:* ${userName}\n` +
+        `📧 *Email:* \`${user.email}\`\n\n`;
+      
+      if (reason && reason.trim()) {
+        message += `📝 *Причина відхилення:*\n${reason}\n\n`;
+      }
+      
+      message += `Якщо ви вважаєте, що це помилка, зверніться до адміністратора: [@Kultup](https://t.me/Kultup)\n\n` +
+        `Використайте /start для перегляду доступних опцій.`;
+
+      await this.sendMessage(String(user.telegramId), message, {
+        parse_mode: 'Markdown'
+      });
+
+      logger.info(`✅ Сповіщення про відхилення реєстрації відправлено користувачу ${user.email} (${user.telegramId})`);
+    } catch (error) {
+      logger.error(`Помилка відправки сповіщення про відхилення реєстрації користувачу ${user.email}:`, error);
+      throw error;
+    }
+  }
+
   async sendMessage(chatId, text, options = {}) {
     if (!this.bot) {
       logger.error('Telegram бот не ініціалізовано');
