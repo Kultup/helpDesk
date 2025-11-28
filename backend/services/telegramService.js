@@ -815,9 +815,9 @@ class TelegramService {
         return;
       }
 
-      // Обробка callback-запитів для реєстрації (вибір міста та посади)
-      if (data.startsWith('city_') || data.startsWith('position_')) {
-        logger.info('Виявлено callback для реєстрації (місто/посада):', { userId, data });
+      // Обробка callback-запитів для реєстрації (вибір міста, посади та закладу)
+      if (data.startsWith('city_') || data.startsWith('position_') || data.startsWith('institution_') || data === 'skip_institution') {
+        logger.info('Виявлено callback для реєстрації:', { userId, data });
         await this.handleRegistrationCallback(chatId, userId, data);
         await this.answerCallbackQuery(callbackQuery.id);
         return;
@@ -2645,6 +2645,8 @@ class TelegramService {
 
   async handleRegistrationCallback(chatId, userId, data) {
     try {
+      logger.info('handleRegistrationCallback called:', { userId, data, chatId });
+      
       const pendingRegistration = await PendingRegistration.findOne({ 
         $or: [
           { telegramId: String(userId) },
@@ -2653,21 +2655,30 @@ class TelegramService {
       });
 
       if (!pendingRegistration) {
+        logger.warn('PendingRegistration not found for userId:', userId);
         await this.sendMessage(chatId, 'Ви не в процесі реєстрації. Використайте /start для початку.');
         return;
       }
+
+      logger.info('PendingRegistration found:', { 
+        step: pendingRegistration.step, 
+        hasData: !!pendingRegistration.data 
+      });
 
       if (data.startsWith('city_')) {
         const cityId = data.replace('city_', '');
         pendingRegistration.data.cityId = cityId;
         pendingRegistration.step = 'position';
         await pendingRegistration.save();
+        logger.info('City selected, moving to position step');
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data.startsWith('position_')) {
         const positionId = data.replace('position_', '');
+        logger.info('Position selected:', positionId);
         pendingRegistration.data.positionId = positionId;
         pendingRegistration.step = 'institution';
         await pendingRegistration.save();
+        logger.info('Position saved, moving to institution step');
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data.startsWith('institution_')) {
         const institutionId = data.replace('institution_', '');
