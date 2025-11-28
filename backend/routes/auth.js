@@ -40,6 +40,9 @@ const registerSchema = Joi.object({
   }),
   telegramId: Joi.string().optional().messages({
     'string.base': 'Telegram ID повинен бути рядком'
+  }),
+  institution: Joi.string().optional().messages({
+    'string.base': 'Institution ID повинен бути рядком'
   })
 });
 
@@ -90,7 +93,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const { email, password, firstName, lastName, position, department, city, phone, telegramId } = value;
+    const { email, password, firstName, lastName, position, department, city, phone, telegramId, institution } = value;
 
     // Перевірка чи користувач вже існує (включаючи неактивних та pending)
     const existingUser = await User.findOne({ 
@@ -155,6 +158,7 @@ router.post('/register', async (req, res) => {
       city,
       phone,
       telegramId,
+      institution: institution || undefined,
       registrationStatus: 'pending',
       isActive: false
     });

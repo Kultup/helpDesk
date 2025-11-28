@@ -76,6 +76,11 @@ const userSchema = new mongoose.Schema({
     ref: 'City',
     required: [true, 'City is required']
   },
+  institution: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Institution',
+    required: false
+  },
   employeeId: {
     type: String,
     unique: true,
