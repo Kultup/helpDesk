@@ -759,6 +759,12 @@ class TelegramService {
         await this.handleStatisticsCallback(chatId, user);
       } else if (data === 'back') {
         await this.showUserDashboard(chatId, user);
+      } else if (data.startsWith('rate_ticket_')) {
+        const parts = data.split('_');
+        const ticketId = parts[2];
+        const rating = parseInt(parts[3], 10);
+        await this.handleRateTicketCallback(chatId, user, ticketId, rating);
+        await this.answerCallbackQuery(callbackQuery.id, 'Дякуємо за оцінку');
       } else if (data === 'attach_photo') {
         await this.handleAttachPhotoCallback(chatId, user);
       } else if (data === 'skip_photo') {
@@ -1072,6 +1078,72 @@ class TelegramService {
         `❌ *Помилка завантаження деталей*\n\n` +
         `Не вдалося завантажити дані тікету.`
       );
+    }
+  }
+
+  async sendQualityRatingRequest(ticket) {
+    try {
+      const user = await User.findById(ticket.createdBy).select('telegramId firstName lastName email');
+      if (!user || !user.telegramId) {
+        return;
+      }
+
+      const emoji = this.getStatusEmoji(ticket.status);
+      const statusText = this.getStatusText(ticket.status);
+      const title = this.truncateButtonText(ticket.title, 60);
+      const message =
+        `📊 *Оцініть якість вирішення*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 *Тікет:* ${title}\n` +
+        `📊 *Статус:* ${emoji} ${statusText}\n\n` +
+        `Оберіть оцінку від 1 до 5:`;
+
+      const keyboard = [
+        [
+          { text: '⭐ 1', callback_data: `rate_ticket_${ticket._id}_1` },
+          { text: '⭐⭐ 2', callback_data: `rate_ticket_${ticket._id}_2` },
+          { text: '⭐⭐⭐ 3', callback_data: `rate_ticket_${ticket._id}_3` }
+        ],
+        [
+          { text: '⭐⭐⭐⭐ 4', callback_data: `rate_ticket_${ticket._id}_4` },
+          { text: '⭐⭐⭐⭐⭐ 5', callback_data: `rate_ticket_${ticket._id}_5` }
+        ],
+        [{ text: '🏠 Головне меню', callback_data: 'back' }]
+      ];
+
+      await this.sendMessage(String(user.telegramId), message, {
+        reply_markup: { inline_keyboard: keyboard },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка відправки запиту на оцінку:', error);
+    }
+  }
+
+  async handleRateTicketCallback(chatId, user, ticketId, rating) {
+    try {
+      const ticket = await Ticket.findById(ticketId);
+      if (!ticket) {
+        await this.sendMessage(chatId, `❌ *Тікет не знайдено*`);
+        return;
+      }
+
+      if (String(ticket.createdBy) !== String(user._id)) {
+        await this.sendMessage(chatId, `❌ *Доступ заборонено*`);
+        return;
+      }
+
+      ticket.qualityRating.hasRating = true;
+      ticket.qualityRating.rating = Math.max(1, Math.min(5, parseInt(rating, 10) || 0));
+      ticket.qualityRating.ratedAt = new Date();
+      ticket.qualityRating.ratedBy = user._id;
+      await ticket.save();
+
+      const stars = '★★★★★'.slice(0, ticket.qualityRating.rating);
+      await this.sendMessage(chatId, `✅ *Дякуємо за вашу оцінку!*\n\nВаша оцінка: ${stars}`);
+    } catch (error) {
+      logger.error('Помилка обробки оцінки якості:', error);
+      await this.sendMessage(chatId, `❌ *Помилка збереження оцінки*`);
     }
   }
 
