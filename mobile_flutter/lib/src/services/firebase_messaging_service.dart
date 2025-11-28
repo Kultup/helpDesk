@@ -72,6 +72,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
     enableLights: true,
     ledColor: const Color.fromARGB(255, 255, 0, 0),
+    ledOnMs: 1000, // Час увімкнення LED (мс)
+    ledOffMs: 500, // Час вимкнення LED (мс)
     category: AndroidNotificationCategory.message,
     fullScreenIntent: false,
     styleInformation: bigTextStyle, // Додаємо BigTextStyle для розгортання
@@ -83,7 +85,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     channelShowBadge: true, // Показувати бейдж
     setAsGroupSummary: false,
     groupKey: 'helDesKM_group', // Групування сповіщень
-    setOnlyAlertOnce: false, // Показувати кожне сповіщення
   );
 
   final NotificationDetails platformChannelSpecifics = NotificationDetails(
@@ -274,6 +275,66 @@ class FirebaseMessagingService {
     }
   }
 
+  /// Показ системного сповіщення з даних (для Socket повідомлень)
+  Future<void> showSystemNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    final BigTextStyleInformation bigTextStyle = BigTextStyleInformation(
+      body,
+      htmlFormatBigText: false,
+      contentTitle: title,
+      htmlFormatContentTitle: false,
+      summaryText: '',
+      htmlFormatSummaryText: false,
+    );
+    
+    final AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'helDesKM_channel',
+      'HelDesKM Notifications',
+      channelDescription: 'Сповіщення від HelDesKM',
+      importance: Importance.max, // Максимальна важливість для звуку та heads-up
+      priority: Priority.max, // Максимальний пріоритет
+      showWhen: true,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+      enableLights: true,
+      ledColor: const Color.fromARGB(255, 255, 0, 0),
+      ledOnMs: 1000, // Час увімкнення LED (мс)
+      ledOffMs: 500, // Час вимкнення LED (мс)
+      category: AndroidNotificationCategory.message,
+      fullScreenIntent: false,
+      styleInformation: bigTextStyle,
+      icon: '@mipmap/ic_launcher',
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      autoCancel: true,
+      ongoing: false,
+      ticker: title,
+      channelShowBadge: true,
+      setAsGroupSummary: false,
+      groupKey: 'helDesKM_group',
+    );
+
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    final payload = data != null && data.isNotEmpty 
+        ? data.toString() 
+        : 'type=notification';
+
+    await _localNotifications.show(
+      title.hashCode,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: payload,
+    );
+  }
+
   /// Показ локального сповіщення
   Future<void> _showLocalNotification(RemoteMessage message) async {
       // Використовуємо BigTextStyle для розгортання сповіщень (як у Telegram)
@@ -300,6 +361,8 @@ class FirebaseMessagingService {
       vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
       enableLights: true,
       ledColor: const Color.fromARGB(255, 255, 0, 0),
+      ledOnMs: 1000, // Час увімкнення LED (мс)
+      ledOffMs: 500, // Час вимкнення LED (мс)
       category: AndroidNotificationCategory.message,
       fullScreenIntent: false,
       styleInformation: bigTextStyle, // Додаємо BigTextStyle для розгортання
@@ -311,7 +374,6 @@ class FirebaseMessagingService {
       channelShowBadge: true, // Показувати бейдж
       setAsGroupSummary: false,
       groupKey: 'helDesKM_group', // Групування сповіщень
-      setOnlyAlertOnce: false, // Показувати кожне сповіщення
     );
 
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
