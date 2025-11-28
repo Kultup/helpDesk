@@ -108,7 +108,8 @@ class FCMService {
             defaultSound: true,
             defaultVibrateTimings: true,
             visibility: 'public',
-            notificationPriority: 'high'
+            notificationPriority: 'max', // Максимальний пріоритет для звуку
+            importance: 'high' // Високий рівень важливості
           }
         },
         apns: {

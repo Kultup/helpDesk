@@ -30,34 +30,42 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await localNotifications.initialize(initializationSettings);
   
   // Створюємо notification channel зі звуком
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+  final AndroidNotificationChannel channel = AndroidNotificationChannel(
     'helDesKM_channel',
     'HelDesKM Notifications',
     description: 'Сповіщення від HelDesKM',
-    importance: Importance.high,
+    importance: Importance.max, // Максимальна важливість для звуку навіть коли екран заблоковано
     playSound: true,
     enableVibration: true,
     vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+    showBadge: true,
   );
   
-  await localNotifications
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
+  final androidImplementation = localNotifications
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  if (androidImplementation != null) {
+    await androidImplementation.createNotificationChannel(channel);
+  }
+  
+  final AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
     'helDesKM_channel',
     'HelDesKM Notifications',
     channelDescription: 'Сповіщення від HelDesKM',
-    importance: Importance.high,
-    priority: Priority.high,
+    importance: Importance.max, // Максимальна важливість для звуку
+    priority: Priority.max, // Максимальний пріоритет
     showWhen: true,
     playSound: true,
     enableVibration: true,
     vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+    enableLights: true,
+    ledColor: const Color.fromARGB(255, 255, 0, 0),
+    category: AndroidNotificationCategory.message,
+    fullScreenIntent: false,
   );
 
-  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+  final NotificationDetails platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
   );
 
@@ -197,37 +205,48 @@ class FirebaseMessagingService {
   
   /// Створення notification channel зі звуком
   Future<void> _createNotificationChannel() async {
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    final AndroidNotificationChannel channel = AndroidNotificationChannel(
       'helDesKM_channel',
       'HelDesKM Notifications',
       description: 'Сповіщення від HelDesKM',
-      importance: Importance.high,
+      importance: Importance.max, // Максимальна важливість для звуку навіть коли екран заблоковано
       playSound: true,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+      showBadge: true,
     );
     
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final androidImplementation = _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    
+    if (androidImplementation != null) {
+      await androidImplementation.createNotificationChannel(channel);
+      if (kDebugMode) {
+        print('✅ Notification channel створено зі звуком');
+      }
+    }
   }
 
   /// Показ локального сповіщення
   Future<void> _showLocalNotification(RemoteMessage message) async {
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'helDesKM_channel',
       'HelDesKM Notifications',
       channelDescription: 'Сповіщення від HelDesKM',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max, // Максимальна важливість для звуку
+      priority: Priority.max, // Максимальний пріоритет
       showWhen: true,
       playSound: true,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+      enableLights: true,
+      ledColor: const Color.fromARGB(255, 255, 0, 0),
+      category: AndroidNotificationCategory.message,
+      fullScreenIntent: false,
     );
 
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
     );
 
