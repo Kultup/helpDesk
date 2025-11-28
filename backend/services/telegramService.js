@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
 const Position = require('../models/Position');
+const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
 const logger = require('../utils/logger');
 const fs = require('fs');
@@ -2406,7 +2407,7 @@ class TelegramService {
           await this.sendMessage(chatId, 
             `📝 *Реєстрація в системі*\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 *Крок 1/7:* Введіть ваше ім'я\n\n` +
+            `👤 *Крок 1/8:* Введіть ваше ім'я\n\n` +
             `💡 Ім'я повинно містити тільки літери та бути довжиною від 2 до 50 символів.`
           );
           break;
@@ -2416,7 +2417,7 @@ class TelegramService {
             `✅ *Ім'я прийнято!*\n\n` +
             `👤 *Ім'я:* ${pendingRegistration.data.firstName}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 *Крок 2/7:* Введіть ваше прізвище\n\n` +
+            `👤 *Крок 2/8:* Введіть ваше прізвище\n\n` +
             `💡 Прізвище повинно містити тільки літери та бути довжиною від 2 до 50 символів.`
           );
           break;
@@ -2426,7 +2427,7 @@ class TelegramService {
             `✅ *Прізвище прийнято!*\n\n` +
             `👤 *Прізвище:* ${pendingRegistration.data.lastName}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📧 *Крок 3/7:* Введіть вашу електронну адресу\n\n` +
+            `📧 *Крок 3/8:* Введіть вашу електронну адресу\n\n` +
             `💡 *Приклад:* user@example.com`
           );
           break;
@@ -2436,7 +2437,7 @@ class TelegramService {
             `✅ *Email прийнято!*\n\n` +
             `📧 *Email:* \`${pendingRegistration.data.email}\`\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📱 *Крок 4/7:* Введіть ваш номер телефону\n\n` +
+            `📱 *Крок 4/8:* Введіть ваш номер телефону\n\n` +
             `💡 *Приклад:* +380501234567\n\n` +
             `Або натисніть кнопку нижче, щоб поділитися номером:`,
             {
@@ -2459,7 +2460,7 @@ class TelegramService {
             `✅ *Номер телефону прийнято!*\n\n` +
             `📱 *Номер:* ${pendingRegistration.data.phone}\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `🔐 *Крок 5/7:* Введіть пароль\n\n` +
+            `🔐 *Крок 5/8:* Введіть пароль\n\n` +
             `💡 Пароль повинен містити:\n` +
             `• Мінімум 6 символів\n` +
             `• Принаймні одну літеру\n` +
@@ -2474,6 +2475,10 @@ class TelegramService {
           
         case 'position':
           await this.sendPositionSelection(chatId, userId);
+          break;
+          
+        case 'institution':
+          await this.sendInstitutionSelection(chatId, userId, pendingRegistration);
           break;
           
         case 'completed':
@@ -2521,7 +2526,7 @@ class TelegramService {
         `✅ *Пароль прийнято!*\n\n` +
         `🔐 *Пароль:* \`********\`\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🏙️ *Крок 6/7:* Оберіть ваше місто`,
+        `🏙️ *Крок 6/8:* Оберіть ваше місто`,
         {
           reply_markup: {
             inline_keyboard: keyboard
@@ -2537,8 +2542,8 @@ class TelegramService {
   async sendPositionSelection(chatId, userId) {
     try {
       const positions = await Position.find({ isActive: true })
-        .select('name')
-        .sort({ name: 1 })
+        .select('title')
+        .sort({ title: 1 })
         .limit(50)
         .lean();
 
@@ -2554,7 +2559,7 @@ class TelegramService {
       const keyboard = [];
       positions.forEach(position => {
         keyboard.push([{
-          text: `💼 ${position.name}`,
+          text: `💼 ${position.title || position.name}`,
           callback_data: `position_${position._id}`
         }]);
       });
@@ -2562,7 +2567,7 @@ class TelegramService {
       await this.sendMessage(chatId, 
         `✅ *Місто обрано!*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `💼 *Крок 7/7:* Оберіть вашу посаду`,
+        `💼 *Крок 7/8:* Оберіть вашу посаду`,
         {
           reply_markup: {
             inline_keyboard: keyboard
@@ -2572,6 +2577,61 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка отримання списку посад:', error);
       await this.sendMessage(chatId, 'Помилка завантаження списку посад. Спробуйте ще раз.');
+    }
+  }
+
+  async sendInstitutionSelection(chatId, userId, pendingRegistration) {
+    try {
+      const cityId = pendingRegistration.data.cityId;
+      
+      // Отримуємо заклади для вибраного міста (якщо місто вибрано)
+      const filter = { isActive: true, isPublic: true };
+      if (cityId) {
+        filter['address.city'] = cityId;
+      }
+      
+      const institutions = await Institution.find(filter)
+        .select('name type')
+        .sort({ name: 1 })
+        .limit(50)
+        .lean();
+
+      const keyboard = [];
+      
+      // Додаємо кнопку "Пропустити"
+      keyboard.push([{
+        text: '⏭️ Пропустити (необов\'язково)',
+        callback_data: 'skip_institution'
+      }]);
+      
+      if (institutions.length > 0) {
+        institutions.forEach(institution => {
+          keyboard.push([{
+            text: `🏢 ${institution.name}${institution.type ? ` (${institution.type})` : ''}`,
+            callback_data: `institution_${institution._id}`
+          }]);
+        });
+      }
+
+      await this.sendMessage(chatId, 
+        `✅ *Посада обрана!*\n\n` +
+        `💼 *Посада:* ${pendingRegistration.data.positionId ? 'Обрано' : 'Не обрано'}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🏢 *Крок 8/8:* Оберіть заклад (необов'язково)\n\n` +
+        `💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`,
+        {
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        }
+      );
+    } catch (error) {
+      logger.error('Помилка отримання списку закладів:', error);
+      // Якщо помилка, пропускаємо крок закладу
+      pendingRegistration.data.institutionId = null;
+      pendingRegistration.step = 'completed';
+      await pendingRegistration.save();
+      await this.completeRegistration(chatId, userId, pendingRegistration);
     }
   }
 
@@ -2591,13 +2651,24 @@ class TelegramService {
 
       if (data.startsWith('city_')) {
         const cityId = data.replace('city_', '');
-        pendingRegistration.data.city = cityId;
+        pendingRegistration.data.cityId = cityId;
         pendingRegistration.step = 'position';
         await pendingRegistration.save();
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data.startsWith('position_')) {
         const positionId = data.replace('position_', '');
-        pendingRegistration.data.position = positionId;
+        pendingRegistration.data.positionId = positionId;
+        pendingRegistration.step = 'institution';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      } else if (data.startsWith('institution_')) {
+        const institutionId = data.replace('institution_', '');
+        pendingRegistration.data.institutionId = institutionId;
+        pendingRegistration.step = 'completed';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      } else if (data === 'skip_institution') {
+        pendingRegistration.data.institutionId = null;
         pendingRegistration.step = 'completed';
         await pendingRegistration.save();
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
@@ -2610,41 +2681,54 @@ class TelegramService {
 
   async completeRegistration(chatId, userId, pendingRegistration) {
     try {
-      const { firstName, lastName, email, phone, password, city, position } = pendingRegistration.data;
+      const axios = require('axios');
+      const { firstName, lastName, email, phone, password, cityId, positionId, institutionId } = pendingRegistration.data;
 
-      // Створюємо нового користувача
-      const user = new User({
-        firstName,
-        lastName,
-        email,
-        phone,
-        password, // В реальному проекті потрібно хешувати
-        city,
-        position,
+      // Використовуємо API endpoint для реєстрації, як у мобільному додатку
+      const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5000/api';
+      const registerData = {
+        email: email.toLowerCase().trim(),
+        password: password,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        position: positionId,
+        department: '', // Відділ не обов'язковий в боті
+        city: cityId,
+        phone: phone ? phone.trim() : undefined,
         telegramId: String(userId),
-        telegramChatId: String(chatId),
-        telegramUsername: pendingRegistration.telegramUsername,
-        isActive: false, // Потребує активації адміністратором
-        registrationStatus: 'pending'
-      });
+        institution: institutionId || undefined
+      };
 
-      await user.save();
-      
-      // Видаляємо тимчасову реєстрацію
-      await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
+      try {
+        const response = await axios.post(`${apiBaseUrl}/auth/register`, registerData);
+        
+        if (response.data.success) {
+          // Видаляємо тимчасову реєстрацію
+          await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
 
-      await this.sendMessage(chatId, 
-        `🎉 *Реєстрація завершена!*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `✅ Ваш обліковий запис створено.\n\n` +
-        `⏳ *Очікуйте активації*\n\n` +
-        `Ваш обліковий запис потребує активації адміністратором.\n\n` +
-        `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        { parse_mode: 'Markdown' }
-      );
+          await this.sendMessage(chatId, 
+            `🎉 *Реєстрація завершена!*\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+            `✅ Ваш обліковий запис створено.\n\n` +
+            `⏳ *Очікуйте активації*\n\n` +
+            `Ваш обліковий запис потребує активації адміністратором.\n\n` +
+            `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+            { parse_mode: 'Markdown' }
+          );
 
-      logger.info(`Нова реєстрація через Telegram: ${email} (${userId})`);
+          logger.info(`Нова реєстрація через Telegram: ${email} (${userId})`);
+        } else {
+          throw new Error(response.data.message || 'Помилка реєстрації');
+        }
+      } catch (apiError) {
+        const errorMessage = apiError.response?.data?.message || apiError.message || 'Помилка реєстрації';
+        logger.error('Помилка API реєстрації:', apiError);
+        await this.sendMessage(chatId, 
+          `❌ *Помилка реєстрації*\n\n${errorMessage}\n\nСпробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          { parse_mode: 'Markdown' }
+        );
+      }
     } catch (error) {
       logger.error('Помилка завершення реєстрації:', error);
       await this.sendMessage(chatId, 
@@ -2656,7 +2740,7 @@ class TelegramService {
 
   async askForPassword(chatId) {
     await this.sendMessage(chatId, 
-      `🔐 *Крок 5/7:* Введіть пароль\n\n` +
+      `🔐 *Крок 5/8:* Введіть пароль\n\n` +
       `💡 Пароль повинен містити:\n` +
       `• Мінімум 6 символів\n` +
       `• Принаймні одну літеру\n` +
