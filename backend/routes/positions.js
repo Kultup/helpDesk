@@ -557,7 +557,15 @@ router.get('/permissions/list',
 // Простий ендпоінт для отримання списку посад (для Telegram бота та фронтенду)
 router.get('/simple/list', async (req, res) => {
   try {
-    const positions = await Position.find({ isActive: { $ne: false } })
+    // Виключаємо посаду "адміністратор системи"
+    const positions = await Position.find({ 
+      isActive: { $ne: false },
+      title: {
+        $not: {
+          $regex: /адміністратор системи|администратор системы|system administrator/i
+        }
+      }
+    })
       .select('_id title department')
       .sort({ title: 1 })
       .lean();

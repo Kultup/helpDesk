@@ -2541,7 +2541,15 @@ class TelegramService {
 
   async sendPositionSelection(chatId, userId) {
     try {
-      const positions = await Position.find({ isActive: true })
+      // Виключаємо посаду "адміністратор системи"
+      const positions = await Position.find({ 
+        isActive: true,
+        title: {
+          $not: {
+            $regex: /адміністратор системи|администратор системы|system administrator/i
+          }
+        }
+      })
         .select('title')
         .sort({ title: 1 })
         .limit(50)
