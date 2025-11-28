@@ -847,18 +847,15 @@ class TelegramService {
       const keyboard = [];
 
       tickets.forEach((ticket, index) => {
-        const status = this.getStatusEmoji(ticket.status);
-        text += `${index + 1}. ${status} *${ticket.title}*\n`;
-        text += `   📊 Статус: *${this.getStatusText(ticket.status)}*\n`;
-        text += `   📅 Створено: \`${ticket.createdAt.toLocaleDateString('uk-UA')}\`\n\n`;
-        
-        keyboard.push([{
-          text: this.truncateButtonText(`📄 ${ticket.title}`),
-          callback_data: `view_ticket_${ticket._id}`
-        }]);
+        const emoji = this.getStatusEmoji(ticket.status);
+        const statusText = this.getStatusText(ticket.status);
+        const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const title = this.truncateButtonText(ticket.title, 50);
+        text += `${index + 1}. ${emoji} *${title}* — ${statusText}, \`${date}\`\n`;
+        keyboard.push([{ text: '🔎 Деталі', callback_data: `view_ticket_${ticket._id}` }]);
       });
 
-      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
       keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
