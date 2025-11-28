@@ -182,10 +182,15 @@ class FirebaseMessagingService {
         print('Title: ${message.notification?.title}');
         print('Body: ${message.notification?.body}');
         print('Data: ${message.data}');
+        print('Type: ${message.data['type']}');
       }
 
       // Показуємо локальне сповіщення
-      _showLocalNotification(message);
+      _showLocalNotification(message).catchError((error) {
+        if (kDebugMode) {
+          print('❌ Помилка показу локального сповіщення: $error');
+        }
+      });
     });
 
     // Обробка кліку по сповіщенню, коли додаток був закритий
