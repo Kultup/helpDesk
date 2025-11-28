@@ -892,56 +892,6 @@ class ApiService {
 
 
 
-  // Методи для шаблонів тікетів
-  async getTicketTemplates(params?: {
-    category?: string;
-    active?: boolean;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-  }): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    const response = await this.api.get('/ticket-templates', { params });
-    return response.data;
-  }
-
-  async getTicketTemplateById(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.get(`/ticket-templates/${id}`);
-    return response.data;
-  }
-
-  async createTicketTemplate(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.post('/ticket-templates', data);
-    return response.data;
-  }
-
-  async updateTicketTemplate(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.put(`/ticket-templates/${id}`, data);
-    return response.data;
-  }
-
-  async deleteTicketTemplate(id: string): Promise<ApiResponse<null>> {
-    const response = await this.api.delete(`/ticket-templates/${id}`);
-    return response.data;
-  }
-
-  async useTicketTemplate(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.post(`/ticket-templates/${id}/use`);
-    return response.data;
-  }
-
-  async getPopularTicketTemplates(limit?: number): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    const response = await this.api.get('/ticket-templates/popular', { 
-      params: { limit } 
-    });
-    return response.data;
-  }
-
-  async getTicketTemplatesByCategory(categoryId: string, limit?: number): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    const response = await this.api.get(`/ticket-templates/category/${categoryId}`, { 
-      params: { limit } 
-    });
-    return response.data;
-  }
 
   // Методи для особистих нотаток адміністратора
   async getAdminNotes(filters?: NoteFilters): Promise<ApiResponse<AdminNote[]>> {

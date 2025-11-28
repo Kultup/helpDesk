@@ -171,3 +171,35 @@ exports.getCollectionDocuments = async (req, res) => {
   }
 };
 
+/**
+ * Видалити колекцію з бази даних (адмін)
+ */
+exports.deleteCollection = async (req, res) => {
+  try {
+    const { collectionName } = req.params;
+    const db = mongoose.connection.db;
+
+    const collections = await db.listCollections({ name: collectionName }).toArray();
+    if (collections.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Колекцію не знайдено'
+      });
+    }
+
+    await db.collection(collectionName).drop();
+
+    res.json({
+      success: true,
+      message: `Колекцію "${collectionName}" видалено`
+    });
+  } catch (error) {
+    logger.error('Помилка видалення колекції:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка видалення колекції',
+      error: error.message
+    });
+  }
+};
+

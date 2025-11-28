@@ -84,8 +84,10 @@ const clearDatabase = async () => {
  * Створення тестового користувача
  */
 const createTestUser = async (overrides = {}) => {
-  // Генеруємо унікальний email якщо не передано
   const uniqueEmail = overrides.email || `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
+  const baseLogin = (overrides.login || uniqueEmail.split('@')[0]).toLowerCase();
+  const sanitizedLogin = baseLogin.replace(/[^a-z0-9_]/gi, '');
+  const uniqueLogin = (sanitizedLogin && sanitizedLogin.length >= 3) ? sanitizedLogin : `testuser_${Math.random().toString(36).substr(2,5)}`;
   
   // Якщо пароль передано, використовуємо його як є (модель сама захешує якщо потрібно)
   // Якщо пароль не передано, використовуємо дефолтний
@@ -93,6 +95,7 @@ const createTestUser = async (overrides = {}) => {
   
   const defaultUser = {
     email: uniqueEmail,
+    login: uniqueLogin,
     password: password,
     firstName: 'Test',
     lastName: 'User',
@@ -111,49 +114,65 @@ const createTestUser = async (overrides = {}) => {
   let city = await City.findOne({ name: 'Київ' });
   if (!city) {
     try {
-      city = await City.create({
-        name: 'Київ',
-        region: 'Київська область',
-        coordinates: { lat: 50.4501, lng: 30.5234 }
-      });
-    } catch (error) {
-      // Якщо city вже існує (duplicate key), знаходимо його
-      if (error.code === 11000) {
-        city = await City.findOne({ name: 'Київ' });
-      } else {
-        throw error;
+      await City.updateOne(
+        { name: 'Київ' },
+        {
+          $setOnInsert: {
+            name: 'Київ',
+            region: 'Київська область',
+            coordinates: { lat: 50.4501, lng: 30.5234 }
+          }
+        },
+        { upsert: true }
+      );
+      city = await City.findOne({ name: 'Київ' });
+      if (!city) {
+        city = await City.create({
+          name: 'Київ',
+          region: 'Київська область',
+          coordinates: { lat: 50.4501, lng: 30.5234 }
+        });
       }
+    } catch (error) {
+      city = await City.findOne({ name: 'Київ' });
+      if (!city) throw error;
     }
   }
 
   let position = await Position.findOne({ title: 'Test Position' });
   if (!position) {
-    // Створюємо position через прямій insert для обходу валідації createdBy
-    // Оскільки User потребує position, а Position потребує createdBy (User) - циклічна залежність
-    const positionsCollection = mongoose.connection.collection('positions');
-    const positionDoc = {
-      title: 'Test Position',
-      department: 'IT',
-      isActive: true,
-      isPublic: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
     try {
-      const result = await positionsCollection.insertOne(positionDoc);
-      position = await Position.findById(result.insertedId);
-      if (!position) {
-        // Якщо не знайшли, чекаємо трохи і шукаємо знову
-        await new Promise(resolve => setTimeout(resolve, 100));
-        position = await Position.findById(result.insertedId);
-      }
+      position = await Position.create({
+        title: 'Test Position',
+        department: 'IT',
+        isActive: true,
+        isPublic: true,
+        createdBy: new mongoose.Types.ObjectId()
+      });
     } catch (error) {
-      // Якщо position вже існує (duplicate key), знаходимо його
-      if (error.code === 11000) {
+      try {
+        await mongoose.connection.collection('positions').updateOne(
+          { title: 'Test Position' },
+          {
+            $setOnInsert: {
+              title: 'Test Position',
+              department: 'IT',
+              isActive: true,
+              isPublic: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              createdBy: new mongoose.Types.ObjectId()
+            }
+          },
+          { upsert: true }
+        );
         position = await Position.findOne({ title: 'Test Position' });
-      } else {
-        throw error;
+      } catch (e) {
+        if (error.code === 11000) {
+          position = await Position.findOne({ title: 'Test Position' });
+        } else {
+          throw error;
+        }
       }
     }
   }
@@ -182,8 +201,9 @@ const createTestUser = async (overrides = {}) => {
  * Створення тестового адміністратора
  */
 const createTestAdmin = async (overrides = {}) => {
+  const adminEmail = overrides.email || `admin-${Date.now()}-${Math.random().toString(36).substr(2,5)}@example.com`;
   return await createTestUser({
-    email: 'admin@example.com',
+    email: adminEmail,
     firstName: 'Admin',
     lastName: 'User',
     role: 'admin',
@@ -240,11 +260,28 @@ const createTestTicket = async (user, overrides = {}) => {
 
   let city = await City.findOne();
   if (!city) {
-    city = await City.create({
-      name: 'Київ',
-      region: 'Київська область',
-      coordinates: { lat: 50.4501, lng: 30.5234 }
-    });
+    await City.updateOne(
+      { name: 'Київ' },
+      {
+        $setOnInsert: {
+          name: 'Київ',
+          region: 'Київська область',
+          coordinates: { lat: 50.4501, lng: 30.5234 }
+        }
+      },
+      { upsert: true }
+    );
+    city = await City.findOne({ name: 'Київ' });
+  }
+
+  let ticketNumber = overrides.ticketNumber;
+  if (!ticketNumber) {
+    const year = new Date().getFullYear();
+    for (let i = 0; i < 5; i++) {
+      const candidate = `TK-${year}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
+      const existing = await Ticket.findOne({ ticketNumber: candidate });
+      if (!existing) { ticketNumber = candidate; break; }
+    }
   }
 
   const defaultTicket = {
@@ -255,6 +292,7 @@ const createTestTicket = async (user, overrides = {}) => {
     category: category._id,
     city: city._id,
     createdBy: user._id,
+    ticketNumber,
     ...overrides
   };
 

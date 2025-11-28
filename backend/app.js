@@ -310,7 +310,6 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/tags', require('./routes/tags'));
 app.use('/api/quick-tips', require('./routes/quickTips'));
 
-app.use('/api/ticket-templates', require('./routes/ticketTemplates'));
 app.use('/api/events', require('./routes/events')); // Календар подій
 app.use('/api/admin-notes', require('./routes/adminNotes')); // Особисті нотатки адміністратора
 

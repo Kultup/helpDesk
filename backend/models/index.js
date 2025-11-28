@@ -8,7 +8,6 @@ const Position = require('./Position');
 const Comment = require('./Comment');
 const Category = require('./Category');
 const TimeEntry = require('./TimeEntry');
-const TicketTemplate = require('./TicketTemplate');
 const NotificationTemplate = require('./NotificationTemplate');
 const QuickTip = require('./QuickTip');
 const Event = require('./Event');
@@ -35,7 +34,6 @@ module.exports = {
   Comment,
   Category,
   TimeEntry,
-  TicketTemplate,
   NotificationTemplate,
   QuickTip,
   Event,

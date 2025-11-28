@@ -4,7 +4,6 @@ const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
 const Position = require('../models/Position');
-const TicketTemplate = require('../models/TicketTemplate');
 const PendingRegistration = require('../models/PendingRegistration');
 const logger = require('../utils/logger');
 const fs = require('fs');
@@ -662,7 +661,6 @@ class TelegramService {
           { text: '📋 Мої тікети', callback_data: 'my_tickets' }
         ],
         [
-          { text: '📄 Створити з шаблону', callback_data: 'create_from_template' },
           { text: '📜 Історія тікетів', callback_data: 'ticket_history' }
         ],
         [
@@ -727,8 +725,6 @@ class TelegramService {
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'create_ticket') {
         await this.handleCreateTicketCallback(chatId, user);
-      } else if (data === 'create_from_template') {
-        await this.handleCreateFromTemplateCallback(chatId, user);
       } else if (data === 'statistics') {
         await this.handleStatisticsCallback(chatId, user);
       } else if (data === 'back') {
@@ -753,23 +749,6 @@ class TelegramService {
            await this.handlePriorityCallback(chatId, user, 'medium');
          } else if (data === 'priority_high') {
            await this.handlePriorityCallback(chatId, user, 'high');
-         } else if (data === 'template_add_photo') {
-          await this.handleTemplateAddPhotoCallback(chatId, user);
-        } else if (data === 'template_create_without_photo') {
-          await this.handleTemplateCreateWithoutPhotoCallback(chatId, user);
-        } else if (data.startsWith('template_helped_')) {
-           const templateId = data.replace('template_helped_', '');
-           await this.handleTemplateHelpedCallback(chatId, user, templateId);
-           await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('template_send_ticket_')) {
-           const templateId = data.replace('template_send_ticket_', '');
-           await this.handleTemplateSendTicketCallback(chatId, user, templateId);
-           await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('template_')) {
-           const templateId = data.replace('template_', '');
-           await this.handleTemplateSelectionCallback(chatId, user, templateId);
-        } else if (data === 'create_from_template') {
-          await this.handleCreateFromTemplateCallback(chatId, user);
         } else {
           await this.answerCallbackQuery(callbackQuery.id, 'Невідома команда');
         }
@@ -1114,168 +1093,6 @@ class TelegramService {
     );
   }
 
-  async handleCreateFromTemplateCallback(chatId, user) {
-    try {
-      // Створюємо або відновлюємо сесію для шаблонного потоку
-      let session = this.userSessions.get(chatId);
-      if (!session) {
-        session = {
-          step: 'template_select',
-          ticketData: {
-            title: '',
-            description: '',
-            priority: 'medium',
-            categoryId: null,
-            photos: []
-          },
-          isTemplate: true
-        };
-        this.userSessions.set(chatId, session);
-      }
-
-      // Отримуємо шаблони для Telegram
-      const templates = await TicketTemplate.find({ isActive: true })
-        .sort({ title: 1 })
-        .limit(10)
-        .lean();
-
-      if (templates.length === 0) {
-        await this.sendMessage(chatId, 
-          `❌ *Немає доступних шаблонів*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 Наразі немає активних шаблонів тікетів\n\n` +
-          `👨‍💼 Зверніться до адміністратора для створення шаблонів: [@Kultup](https://t.me/Kultup)`, {
-          parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
-            }
-          }
-        );
-        return;
-      }
-
-      let text = 
-        `📄 *Оберіть шаблон для створення тікету*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      const keyboard = [];
-
-      for (const [index, template] of templates.entries()) {
-        text += `${index + 1}. 📋 *${template.title}*\n\n`;
-        
-        // Обрізаємо текст кнопки, якщо він занадто довгий
-        // Використовуємо більшу довжину для шаблонів, щоб показати більше тексту
-        const buttonText = this.truncateButtonText(`📄 ${template.title}`, 55);
-        
-        keyboard.push([{
-          text: buttonText,
-          callback_data: `template_${template._id}`
-        }]);
-      }
-
-      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
-
-      await this.sendMessage(chatId, text, {
-        reply_markup: { inline_keyboard: keyboard }
-      });
-    } catch (error) {
-      logger.error('Помилка отримання шаблонів:', error);
-      await this.sendMessage(chatId, 
-        `❌ *Помилка завантаження шаблонів*\n\n` +
-        `Не вдалося завантажити список шаблонів.\n\n` +
-        `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-  }
-
-  async handleTemplateSelectionCallback(chatId, user, templateId) {
-    try {
-      const template = await TicketTemplate.findById(templateId)
-        .populate('category', 'name icon color');
-      
-      if (!template || !template.isActive) {
-        await this.sendMessage(chatId, 
-          `❌ *Шаблон недоступний*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 Шаблон не знайдено або неактивний\n\n` +
-          `🔄 Оберіть інший шаблон зі списку`, {
-            reply_markup: {
-              inline_keyboard: [[{ text: '🔙 Назад до шаблонів', callback_data: 'create_from_template' }]]
-            }
-          }
-        );
-        return;
-      }
-
-      // Зберігаємо templateId в сесії для подальшого використання
-      let session = this.userSessions.get(chatId);
-      if (!session) {
-        session = {
-          step: 'template_detail',
-          ticketData: {
-            title: '',
-            description: '',
-            priority: 'medium',
-            categoryId: null,
-            photos: []
-          },
-          isTemplate: true
-        };
-        this.userSessions.set(chatId, session);
-      }
-      session.templateId = template._id;
-
-      // Форматуємо категорію
-      const categoryName = template.category && typeof template.category === 'object' 
-        ? template.category.name 
-        : await this.getCategoryText(template.category) || 'Невідома категорія';
-      
-      // Форматуємо пріоритет
-      const priorityText = this.getPriorityText(template.priority);
-      
-      // Форматуємо instructions як нумерований список
-      const formattedInstructions = this.formatInstructionsAsList(template.instructions);
-      
-      // Формуємо текст повідомлення
-      let messageText = 
-        `📋 *${template.title}*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📝 *Опис:*\n${template.description}\n\n`;
-      
-      // Додаємо instructions, якщо вони є
-      if (formattedInstructions) {
-        messageText += 
-          `🔧 *Кроки для вирішення:*\n${formattedInstructions}\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      } else {
-        messageText += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-      }
-      
-      messageText += 
-        `🏷️ Категорія: *${categoryName}*\n` +
-        `⚡ Пріоритет: *${priorityText}*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-      // Формуємо кнопки
-      const keyboard = [
-        [
-          { text: '✅ Допомогло', callback_data: `template_helped_${template._id}` },
-          { text: '📤 Відправити тікет', callback_data: `template_send_ticket_${template._id}` }
-        ],
-        [{ text: '🔙 Назад до шаблонів', callback_data: 'create_from_template' }]
-      ];
-
-      await this.sendMessage(chatId, messageText, {
-        reply_markup: {
-          inline_keyboard: keyboard
-        }
-      });
-    } catch (error) {
-      logger.error('Помилка обробки шаблону:', error);
-      await this.sendMessage(chatId, 'Помилка обробки шаблону. Спробуйте ще раз.');
-    }
-  }
   async handleTextMessage(msg) {
     const chatId = msg.chat.id;
     const text = msg.text;
@@ -2017,177 +1834,7 @@ class TelegramService {
 
   
 
-   // Обробники для шаблонів
-   async handleTemplateHelpedCallback(chatId, user, templateId) {
-     try {
-       // Очищаємо сесію
-       this.userSessions.delete(chatId);
-       
-       // Показуємо повідомлення про те, що інформація допомогла
-       await this.sendMessage(chatId,
-         `✅ *Дякуємо за відгук!*\n\n` +
-         `Ми раді, що інформація допомогла вам вирішити проблему.\n\n` +
-         `Якщо у вас виникнуть інші питання, звертайтеся до нас!`
-       );
-       
-       // Повертаємо користувача на дашборд
-       await this.showUserDashboard(chatId, user);
-     } catch (error) {
-       logger.error('Помилка обробки "Допомогло":', error);
-       await this.sendMessage(chatId, 'Виникла помилка. Спробуйте ще раз.');
-     }
-   }
-
-   async handleTemplateSendTicketCallback(chatId, user, templateId) {
-     try {
-       // Завантажуємо шаблон з бази
-       const template = await TicketTemplate.findById(templateId)
-         .populate('category', 'name');
-       
-       if (!template || !template.isActive) {
-         await this.sendMessage(chatId,
-           `❌ *Шаблон недоступний*\n\n` +
-           `Шаблон не знайдено або неактивний.`
-         );
-         return;
-       }
-
-       // Створюємо або оновлюємо сесію
-       let session = this.userSessions.get(chatId);
-       if (!session) {
-         session = {
-           step: 'photo',
-           ticketData: {
-             title: '',
-             description: '',
-             priority: 'medium',
-             categoryId: null,
-             photos: []
-           },
-           isTemplate: true
-         };
-         this.userSessions.set(chatId, session);
-       }
-
-       // Зберігаємо дані шаблону в сесію
-       session.templateId = template._id;
-       session.ticketData.title = template.title;
-       session.ticketData.description = template.description;
-       session.ticketData.priority = template.priority;
-       session.ticketData.categoryId = template.category?._id || template.category;
-       session.step = 'photo';
-       session.isTemplate = true;
-
-       // Переходимо до кроку додавання фото
-       await this.sendMessage(chatId,
-         `📷 *Хочете додати фото до тікету?* (необов'язково)\n\n` +
-         `Фото допоможе краще зрозуміти проблему.`, {
-           reply_markup: {
-             inline_keyboard: [
-               [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
-               [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
-               [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-             ]
-           }
-         }
-       );
-     } catch (error) {
-       logger.error('Помилка обробки "Відправити тікет":', error);
-       await this.sendMessage(chatId, 'Виникла помилка. Спробуйте ще раз.');
-     }
-   }
-
-   async handleTemplateAddPhotoCallback(chatId, user) {
-     const session = this.userSessions.get(chatId);
-     if (session && session.isTemplate) {
-       session.step = 'photo';
-       await this.sendMessage(chatId, 
-         '📷 Надішліть фото для прикріплення до тікету з шаблону.\n\n' +
-         'Ви можете додати підпис до фото для додаткової інформації.'
-       );
-     }
-   }
-
-   async handleTemplateCreateWithoutPhotoCallback(chatId, user) {
-     const session = this.userSessions.get(chatId);
-     if (session && session.isTemplate) {
-       await this.completeTemplateTicketCreation(chatId, user, session);
-     }
-   }
-
-   async completeTemplateTicketCreation(chatId, user, session) {
-     try {
-       const ticketData = {
-         title: session.ticketData.title,
-         description: session.ticketData.description,
-         category: session.ticketData.categoryId,
-         priority: session.ticketData.priority,
-         createdBy: user._id,
-         city: user.city,
-         status: 'open',
-         metadata: {
-           source: 'telegram',
-           templateId: session.templateId
-         },
-         attachments: session.ticketData.photos.map(photo => {
-           let fileSize = 0;
-           try {
-             const stats = fs.statSync(photo.path);
-             fileSize = stats.size;
-           } catch (error) {
-             logger.error(`Помилка отримання розміру файлу ${photo.path}:`, error);
-           }
-           
-           return {
-             filename: path.basename(photo.path),
-             originalName: photo.caption || path.basename(photo.path),
-             mimetype: 'image/jpeg',
-             size: fileSize,
-             path: photo.path,
-             uploadedBy: user._id,
-             caption: photo.caption
-           };
-         })
-       };
-
-       // Додаємо кастомні поля з шаблону
-       if (session.ticketData.customFields && session.ticketData.customFields.length > 0) {
-         ticketData.customFields = session.ticketData.customFields;
-       }
-
-       // Debug logging
-       logger.info('Ticket data before creation:', JSON.stringify(ticketData, null, 2));
-       logger.info('Session data:', JSON.stringify(session, null, 2));
-
-       const ticket = new Ticket(ticketData);
-       await ticket.save();
-
-       // Очищуємо сесію
-       this.userSessions.delete(chatId);
-
-       let confirmText = `✅ Тікет з шаблону успішно створено!\n\n` +
-         `📋 Заголовок: ${ticket.title}\n` +
-         `📝 Опис: ${ticket.description}\n` +
-         `🏷️ Категорія: ${await this.getCategoryText(ticket.category)}\n` +
-         `⚡ Пріоритет: ${this.getPriorityText(ticket.priority)}\n` +
-         `🆔 ID тікету: ${ticket._id}`;
-
-       if (session.ticketData.photos.length > 0) {
-         confirmText += `\n📷 Прикріплено фото: ${session.ticketData.photos.length}`;
-       }
-
-       await this.sendMessage(chatId, confirmText, {
-         reply_markup: {
-           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
-         }
-       });
-
-       logger.info(`Тікет з шаблону створено через Telegram: ${ticket._id} користувачем ${user.email}, шаблон: ${session.templateId}`);
-     } catch (error) {
-       logger.error('Помилка створення тікету з шаблону:', error);
-       await this.sendMessage(chatId, 'Помилка створення тікету з шаблону. Спробуйте ще раз.');
-     }
-   }
+  
 
 
   /**
@@ -2529,32 +2176,6 @@ class TelegramService {
     const session = this.userSessions.get(chatId);
     if (session) {
       session.ticketData.categoryId = categoryId;
-      
-      // Якщо це шаблонний тікет, пропускаємо вибір пріоритету
-      if (session.isTemplate && session.templateId) {
-        const template = await TicketTemplate.findById(session.templateId);
-        if (template) {
-          session.ticketData.title = template.title;
-          session.ticketData.description = template.description;
-          session.ticketData.priority = template.priority;
-          session.ticketData.categoryId = template.category || categoryId;
-          session.step = 'photo';
-          
-          await this.sendMessage(chatId,
-            '📷 Хочете додати фото до тікету? (необов\'язково)', {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '📷 Прикріпити фото', callback_data: 'template_add_photo' }],
-                  [{ text: '⏭️ Пропустити', callback_data: 'template_create_without_photo' }],
-                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                ]
-              }
-            }
-          );
-          return;
-        }
-      }
-      
       session.step = 'priority';
       await this.sendMessage(chatId, 
         this.getPriorityPromptText(), {

@@ -17,5 +17,8 @@ router.get('/collections/:collectionName/structure', databaseController.getColle
 // Отримати документи з колекції
 router.get('/collections/:collectionName/documents', databaseController.getCollectionDocuments);
 
+// Видалити колекцію (адміністратор)
+router.delete('/collections/:collectionName', databaseController.deleteCollection);
+
 module.exports = router;
 

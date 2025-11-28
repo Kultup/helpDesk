@@ -22,14 +22,16 @@ class AuthController {
         });
       }
 
-      const { login, password, rememberMe = false } = req.body;
+      const { login, email, password, rememberMe = false } = req.body;
 
       logger.info('🔍 Login attempt:', { login, passwordLength: password?.length });
 
-      // Пошук користувача за логіном
-      const user = await User.findOne({ 
-        login: login.toLowerCase() 
-      }).select('+password').populate('position city');
+      let user;
+      if (login) {
+        user = await User.findOne({ login: login.toLowerCase() }).select('+password').populate('position city');
+      } else if (email) {
+        user = await User.findOne({ email: email.toLowerCase() }).select('+password').populate('position city');
+      }
 
       logger.info('👤 User found:', !!user);
       if (user) {
@@ -43,7 +45,7 @@ class AuthController {
 
       if (!user) {
         return res.status(401).json({
-          message: 'Невірний логін або пароль'
+          message: 'Невірний email або пароль'
         });
       }
 
@@ -77,7 +79,7 @@ class AuthController {
         const attemptsLeft = 5 - user.loginAttempts;
         if (attemptsLeft > 0) {
           return res.status(401).json({
-            message: `Невірний логін або пароль. Залишилось спроб: ${attemptsLeft}`
+            message: `Невірний email або пароль. Залишилось спроб: ${attemptsLeft}`
           });
         } else {
           return res.status(423).json({
@@ -88,9 +90,10 @@ class AuthController {
 
       // Скидання лічильника спроб при успішному вході
       if (user.loginAttempts > 0) {
-        user.loginAttempts = 0;
-        user.lockUntil = undefined;
-        await user.save();
+        await User.findByIdAndUpdate(user._id, {
+          $set: { loginAttempts: 0 },
+          $unset: { lockUntil: 1 }
+        });
       }
 
       // Генерація JWT токенів
@@ -116,30 +119,22 @@ class AuthController {
         { expiresIn: refreshTokenExpiry }
       );
 
-      // Оновлення інформації про останній вхід
-      user.lastLogin = new Date();
-      
-      // Ініціалізуємо refreshTokens якщо не існує
-      if (!user.refreshTokens) {
-        user.refreshTokens = [];
-      }
-      
-      user.refreshTokens.push({
+      const tokenData = {
         token: refreshToken,
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + (rememberMe ? 60 : 7) * 24 * 60 * 60 * 1000),
         userAgent: req.get('User-Agent'),
         ip: req.ip
-      });
+      };
 
-      // Обмеження кількості активних сесій (максимум 5)
-      if (user.refreshTokens.length > 5) {
-        user.refreshTokens = user.refreshTokens.slice(-5);
-      }
-
-      // Зберігаємо зміни через user.save(), щоб спрацювали mongoose hooks та валідація
-      user.markModified('refreshTokens');
-      await user.save({ validateModifiedOnly: true });
+      const updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        {
+          $set: { lastLogin: new Date() },
+          $push: { refreshTokens: { $each: [tokenData], $slice: -5 } }
+        },
+        { new: true }
+      );
 
       // Логування успішного входу
       logger.info(`Користувач увійшов в систему: ${login}`, {
@@ -153,18 +148,18 @@ class AuthController {
 
       // Підготовка відповіді користувача
       const userResponse = {
-        _id: user._id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        position: user.position,
-        city: user.city,
-        role: user.role,
-        isEmailVerified: user.isEmailVerified || false,
-        telegramId: user.telegramId,
-        profile: user.profile || {},
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt
+        _id: updatedUser?._id || user._id,
+        email: updatedUser?.email || user.email,
+        firstName: updatedUser?.firstName || user.firstName,
+        lastName: updatedUser?.lastName || user.lastName,
+        position: updatedUser?.position || user.position,
+        city: updatedUser?.city || user.city,
+        role: updatedUser?.role || user.role,
+        isEmailVerified: (updatedUser?.isEmailVerified ?? user.isEmailVerified) || false,
+        telegramId: updatedUser?.telegramId || user.telegramId,
+        profile: updatedUser?.profile || user.profile || {},
+        lastLogin: updatedUser?.lastLogin || user.lastLogin,
+        createdAt: updatedUser?.createdAt || user.createdAt
       };
 
       // Встановлення HTTP-only cookie для refresh token

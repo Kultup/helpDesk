@@ -22,8 +22,6 @@ import Users from './pages/Users';
 import Analytics from './pages/Analytics';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
 import Categories from './pages/Categories';
-import Templates from './pages/Templates';
-import CreateTemplate from './pages/CreateTemplate';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
 import SLASettings from './pages/SLASettings';
@@ -113,17 +111,6 @@ const App: React.FC = () => {
             <Route path="tickets/create" element={<CreateTicket />} />
             <Route path="tickets/:id" element={<TicketDetails />} />
             <Route path="categories" element={<Categories />} />
-            <Route path="templates" element={<Templates />} />
-            <Route path="templates/new" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateTemplate />
-              </ProtectedRoute>
-            } />
-            <Route path="templates/:id/edit" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateTemplate />
-              </ProtectedRoute>
-            } />
             <Route path="settings" element={<Settings />} />
 
             
@@ -176,16 +163,6 @@ const App: React.FC = () => {
             <Route path="admin/categories" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Categories />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/templates" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Templates />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/templates/new" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateTemplate />
               </ProtectedRoute>
             } />
             <Route path="admin/quick-notifications" element={

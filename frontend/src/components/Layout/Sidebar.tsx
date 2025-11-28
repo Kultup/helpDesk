@@ -58,7 +58,6 @@ const navGroups: NavGroup[] = [
     titleKey: 'sidebar.groups.analytics',
     adminOnly: true,
     items: [
-      { nameKey: 'sidebar.templates', href: '/templates', icon: FileText, adminOnly: true },
       { nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
     ]
   },

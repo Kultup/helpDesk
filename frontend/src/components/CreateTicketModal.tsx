@@ -42,7 +42,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   const [admins, setAdmins] = useState<any[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [formData, setFormData] = useState({
@@ -118,89 +117,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Templates with translations
-  const templates: TicketTemplate[] = [
-    {
-      id: 'technical',
-      title: t('createTicketModal.templates.technical.title'),
-      description: t('createTicketModal.templates.technical.description'),
-      category: TicketCategory.TECHNICAL,
-      priority: TicketPriority.MEDIUM,
-      estimatedTime: t('createTicketModal.templates.technical.estimatedTime'),
-      tags: t('createTicketModal.templates.technical.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.technical.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'network',
-      title: t('createTicketModal.templates.network.title'),
-      description: t('createTicketModal.templates.network.description'),
-      category: TicketCategory.TECHNICAL,
-      priority: TicketPriority.HIGH,
-      estimatedTime: t('createTicketModal.templates.network.estimatedTime'),
-      tags: t('createTicketModal.templates.network.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.network.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'security',
-      title: t('createTicketModal.templates.security.title'),
-      description: t('createTicketModal.templates.security.description'),
-      category: TicketCategory.TECHNICAL,
-      priority: TicketPriority.HIGH,
-      estimatedTime: t('createTicketModal.templates.security.estimatedTime'),
-      tags: t('createTicketModal.templates.security.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.security.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'printer',
-      title: t('createTicketModal.templates.printer.title'),
-      description: t('createTicketModal.templates.printer.description'),
-      category: TicketCategory.TECHNICAL,
-      priority: TicketPriority.LOW,
-      estimatedTime: t('createTicketModal.templates.printer.estimatedTime'),
-      tags: t('createTicketModal.templates.printer.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.printer.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'account',
-      title: t('createTicketModal.templates.account.title'),
-      description: t('createTicketModal.templates.account.description'),
-      category: TicketCategory.ACCOUNT,
-      priority: TicketPriority.MEDIUM,
-      estimatedTime: t('createTicketModal.templates.account.estimatedTime'),
-      tags: t('createTicketModal.templates.account.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.account.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'billing',
-      title: t('createTicketModal.templates.billing.title'),
-      description: t('createTicketModal.templates.billing.description'),
-      category: TicketCategory.BILLING,
-      priority: TicketPriority.MEDIUM,
-      estimatedTime: t('createTicketModal.templates.billing.estimatedTime'),
-      tags: t('createTicketModal.templates.billing.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.billing.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'general',
-      title: t('createTicketModal.templates.general.title'),
-      description: t('createTicketModal.templates.general.description'),
-      category: TicketCategory.GENERAL,
-      priority: TicketPriority.LOW,
-      estimatedTime: t('createTicketModal.templates.general.estimatedTime'),
-      tags: t('createTicketModal.templates.general.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.general.quickTips', { returnObjects: true }) as string[]
-    },
-    {
-      id: 'other',
-      title: t('createTicketModal.templates.other.title'),
-      description: t('createTicketModal.templates.other.description'),
-      category: TicketCategory.GENERAL,
-      priority: TicketPriority.MEDIUM,
-      estimatedTime: t('createTicketModal.templates.other.estimatedTime'),
-      tags: t('createTicketModal.templates.other.tags', { returnObjects: true }) as string[],
-      quickTips: t('createTicketModal.templates.other.quickTips', { returnObjects: true }) as string[]
-    }
-  ];
 
   // Load cities on component mount
   useEffect(() => {
@@ -258,19 +174,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     }
   };
 
-  const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
-    if (template) {
-      setSelectedTemplate(templateId);
-      setFormData(prev => ({
-        ...prev,
-        title: template.title,
-        description: template.description,
-        category: template.category,
-        priority: template.priority,
-      }));
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,13 +238,11 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         city: '',
         assignedTo: ''
       });
-      setSelectedTemplate(null);
       setAttachments([]);
     }
     onClose();
   };
 
-  const selectedTemplateData = selectedTemplate ? templates.find(t => t.id === selectedTemplate) : null;
 
   const getPriorityLabel = (value: TicketPriority) => {
     if (value === TicketPriority.LOW) return t('createTicketModal.priorities.low');
@@ -364,32 +265,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Template Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('createTicketModal.templateLabel')}
-          </label>
-          <Select value={selectedTemplate || ''} onValueChange={handleTemplateSelect}>
-            <SelectTrigger>
-              <span className="block truncate">
-                {selectedTemplateData?.title || t('createTicketModal.templatePlaceholder')}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map(template => (
-                <SelectItem key={template.id} value={template.id}>
-                  <div>
-                    <div className="font-medium">{template.title}</div>
-                    <div className="text-xs text-gray-500">{template.description}</div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-gray-500 mt-1">
-            {t('createTicketModal.templateHint')}
-          </p>
-        </div>
+        {/* Template Selection removed */}
 
         {/* Title */}
         <div>
@@ -508,22 +384,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           </div>
         </div>
 
-        {/* Template Tags */}
-         {selectedTemplateData && selectedTemplateData.tags && (
-           <div>
-             <div className="flex items-center gap-2 mb-2">
-               <TagIcon className="h-4 w-4 text-gray-500" />
-               <span className="text-sm text-gray-600">Tags:</span>
-             </div>
-             <div className="flex flex-wrap gap-2">
-               {selectedTemplateData.tags.map(tag => (
-                 <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                   {tag}
-                 </span>
-               ))}
-             </div>
-           </div>
-         )}
+        {/* Template Tags removed */}
 
          {/* File Upload Section */}
          <div>
