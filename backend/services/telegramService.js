@@ -2711,7 +2711,7 @@ class TelegramService {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         position: positionId,
-        department: '', // Відділ не обов'язковий в боті
+        department: (pendingRegistration.data.department || '').trim() || 'Не вказано', // Відділ не обов'язковий в боті
         city: cityId,
         phone: phone ? phone.trim() : undefined,
         telegramId: String(userId),

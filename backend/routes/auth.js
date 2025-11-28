@@ -29,8 +29,8 @@ const registerSchema = Joi.object({
   position: Joi.string().required().messages({
     'any.required': 'Посада є обов\'язковою'
   }),
-  department: Joi.string().required().messages({
-    'any.required': 'Відділ є обов\'язковим'
+  department: Joi.string().allow('').optional().default('').messages({
+    'string.base': 'Відділ повинен бути рядком'
   }),
   city: Joi.string().required().messages({
     'any.required': 'Місто є обов\'язковим'
