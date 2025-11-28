@@ -108,8 +108,23 @@ class FCMService {
             defaultSound: true,
             defaultVibrateTimings: true,
             visibility: 'public',
-            notificationPriority: 'max', // Максимальний пріоритет для звуку
-            importance: 'high' // Високий рівень важливості
+            notificationPriority: 'max', // Максимальний пріоритет для звуку та heads-up
+            importance: 'high', // Високий рівень важливості
+            tag: 'helDesKM_notification', // Тег для групування
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Дія при кліку
+            sticky: false, // Не постійне сповіщення
+            localOnly: false, // Показувати на всіх пристроях
+            defaultLightSettings: true, // Використовувати світло за замовчуванням
+            lightSettings: {
+              color: {
+                red: 1.0,
+                green: 0.0,
+                blue: 0.0,
+                alpha: 1.0
+              },
+              lightOnDurationMillis: 1000,
+              lightOffDurationMillis: 500
+            }
           }
         },
         apns: {

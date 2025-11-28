@@ -48,12 +48,23 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await androidImplementation.createNotificationChannel(channel);
   }
   
+  // Використовуємо BigTextStyle для розгортання сповіщень (як у Telegram)
+  final String? bodyText = message.notification?.body;
+  final BigTextStyleInformation bigTextStyle = BigTextStyleInformation(
+    bodyText ?? '',
+    htmlFormatBigText: false,
+    contentTitle: message.notification?.title ?? 'HelDesKM',
+    htmlFormatContentTitle: false,
+    summaryText: '',
+    htmlFormatSummaryText: false,
+  );
+  
   final AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
     'helDesKM_channel',
     'HelDesKM Notifications',
     channelDescription: 'Сповіщення від HelDesKM',
-    importance: Importance.max, // Максимальна важливість для звуку
+    importance: Importance.max, // Максимальна важливість для звуку та heads-up
     priority: Priority.max, // Максимальний пріоритет
     showWhen: true,
     playSound: true,
@@ -63,18 +74,33 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     ledColor: const Color.fromARGB(255, 255, 0, 0),
     category: AndroidNotificationCategory.message,
     fullScreenIntent: false,
+    styleInformation: bigTextStyle, // Додаємо BigTextStyle для розгортання
+    icon: '@mipmap/ic_launcher', // Іконка додатку
+    largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'), // Велика іконка
+    autoCancel: true, // Автоматично закривається при кліку
+    ongoing: false, // Не постійне сповіщення
+    ticker: message.notification?.title ?? 'HelDesKM', // Ticker для heads-up notification
+    channelShowBadge: true, // Показувати бейдж
+    setAsGroupSummary: false,
+    groupKey: 'helDesKM_group', // Групування сповіщень
+    setOnlyAlertOnce: false, // Показувати кожне сповіщення
   );
 
   final NotificationDetails platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
   );
 
+  // Формуємо payload з даними для навігації
+  final payload = message.data.isNotEmpty 
+      ? message.data.toString() 
+      : 'type=${message.data['type'] ?? 'notification'}&ticketId=${message.data['ticketId'] ?? ''}';
+  
   await localNotifications.show(
     message.hashCode,
     message.notification?.title ?? 'HelDesKM',
     message.notification?.body ?? '',
     platformChannelSpecifics,
-    payload: message.data.toString(),
+    payload: payload,
   );
 }
 
@@ -196,6 +222,27 @@ class FirebaseMessagingService {
         if (kDebugMode) {
           print('📱 Local notification tapped: ${response.payload}');
         }
+        // Обробка кліку по локальному сповіщенню для навігації
+        if (response.payload != null && _context != null && _context!.mounted) {
+          try {
+            // Парсимо дані з payload
+            final payload = response.payload;
+            if (payload != null && payload.isNotEmpty) {
+              // Спробуємо знайти ticketId в payload
+              if (payload.contains('ticketId')) {
+                final navigator = Navigator.of(_context!);
+                navigator.pushNamed('/tickets');
+              } else if (payload.contains('registration')) {
+                final navigator = Navigator.of(_context!);
+                navigator.pushNamed('/users');
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('⚠️ Помилка обробки кліку по сповіщенню: $e');
+            }
+          }
+        }
       },
     );
     
@@ -229,12 +276,23 @@ class FirebaseMessagingService {
 
   /// Показ локального сповіщення
   Future<void> _showLocalNotification(RemoteMessage message) async {
+      // Використовуємо BigTextStyle для розгортання сповіщень (як у Telegram)
+      final String? bodyText = message.notification?.body;
+      final BigTextStyleInformation bigTextStyle = BigTextStyleInformation(
+        bodyText ?? '',
+        htmlFormatBigText: false,
+        contentTitle: message.notification?.title ?? 'HelDesKM',
+        htmlFormatContentTitle: false,
+        summaryText: '',
+        htmlFormatSummaryText: false,
+      );
+      
       final AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'helDesKM_channel',
       'HelDesKM Notifications',
       channelDescription: 'Сповіщення від HelDesKM',
-      importance: Importance.max, // Максимальна важливість для звуку
+      importance: Importance.max, // Максимальна важливість для звуку та heads-up
       priority: Priority.max, // Максимальний пріоритет
       showWhen: true,
       playSound: true,
@@ -244,18 +302,33 @@ class FirebaseMessagingService {
       ledColor: const Color.fromARGB(255, 255, 0, 0),
       category: AndroidNotificationCategory.message,
       fullScreenIntent: false,
+      styleInformation: bigTextStyle, // Додаємо BigTextStyle для розгортання
+      icon: '@mipmap/ic_launcher', // Іконка додатку
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'), // Велика іконка
+      autoCancel: true, // Автоматично закривається при кліку
+      ongoing: false, // Не постійне сповіщення
+      ticker: message.notification?.title ?? 'HelDesKM', // Ticker для heads-up notification
+      channelShowBadge: true, // Показувати бейдж
+      setAsGroupSummary: false,
+      groupKey: 'helDesKM_group', // Групування сповіщень
+      setOnlyAlertOnce: false, // Показувати кожне сповіщення
     );
 
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
     );
 
+    // Формуємо payload з даними для навігації
+    final payload = message.data.isNotEmpty 
+        ? message.data.toString() 
+        : 'type=${message.data['type'] ?? 'notification'}&ticketId=${message.data['ticketId'] ?? ''}';
+    
     await _localNotifications.show(
       message.hashCode,
       message.notification?.title ?? 'HelDesKM',
       message.notification?.body ?? '',
       platformChannelSpecifics,
-      payload: message.data.toString(),
+      payload: payload,
     );
   }
 
