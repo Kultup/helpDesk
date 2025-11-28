@@ -11,6 +11,7 @@ const path = require('path');
 const https = require('https');
 const Category = require('../models/Category');
 const BotSettings = require('../models/BotSettings');
+const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
 
@@ -23,28 +24,43 @@ class TelegramService {
     this.stateStack = new Map();
     this.categoryCache = new Map(); // Кеш для категорій
     this.botSettings = null; // Налаштування бота з БД
+    this.mode = 'webhook';
     this.loadCategories(); // Завантажуємо категорії при ініціалізації
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
   async initialize() {
     try {
-      const token = process.env.TELEGRAM_BOT_TOKEN;
+      let cfg = null;
+      try {
+        cfg = await TelegramConfig.findOne({ key: 'default' });
+      } catch (e) {}
+      const token = (cfg?.botToken && cfg.botToken.trim()) || process.env.TELEGRAM_BOT_TOKEN;
       if (!token) {
         logger.error('TELEGRAM_BOT_TOKEN не встановлено');
         this.isInitialized = false;
         return;
       }
 
-      this.bot = new TelegramBot(token, { polling: false });
-      this.isInitialized = true; // Встановлюємо флаг після успішної ініціалізації
-      logger.info('✅ Telegram бот ініціалізовано');
+      const hasWebhookUrl = !!(cfg?.webhookUrl && cfg.webhookUrl.trim());
+      const usePolling = !hasWebhookUrl;
+      this.mode = usePolling ? 'polling' : 'webhook';
+      this.bot = new TelegramBot(token, usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false });
+      if (usePolling) {
+        this.bot.on('message', (msg) => this.handleMessage(msg));
+        this.bot.on('callback_query', (cq) => this.handleCallbackQuery(cq));
+        this.bot.on('polling_error', (err) => {
+          logger.error('Помилка polling:', err);
+        });
+        logger.info('✅ Telegram бот запущено у режимі polling');
+      } else {
+        logger.info('✅ Telegram бот запущено у режимі webhook');
+      }
+      this.isInitialized = true;
 
-      // Оновлюємо кеш категорій після ініціалізації бота
       try {
         await this.loadBotSettings();
         await this.loadCategories();
-        logger.info('✅ Категорії оновлено після ініціалізації');
       } catch (catErr) {
         logger.warn('⚠️ Не вдалося оновити категорії після ініціалізації:', catErr);
       }
@@ -97,26 +113,37 @@ class TelegramService {
   }
 
   async sendMessage(chatId, text, options = {}) {
-    try {
-      if (!this.bot) {
-        logger.error('Telegram бот не ініціалізовано');
-        return;
-      }
-      // Додаємо підтримку Markdown форматування за замовчуванням
-      const defaultOptions = { parse_mode: 'Markdown', ...options };
-      logger.debug(`Відправляю повідомлення в чат ${chatId}`, { text: text?.substring(0, 50) });
-      const result = await this.bot.sendMessage(chatId, text, defaultOptions);
-      logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, { messageId: result.message_id });
-      return result;
-    } catch (error) {
-      logger.error('Помилка відправки повідомлення:', {
-        chatId,
-        error: error.message,
-        stack: error.stack,
-        response: error.response?.data
-      });
-      throw error;
+    if (!this.bot) {
+      logger.error('Telegram бот не ініціалізовано');
+      return;
     }
+    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    const maxAttempts = 3;
+    let attempt = 0;
+    let lastError = null;
+    while (attempt < maxAttempts) {
+      try {
+        logger.debug(`Відправляю повідомлення в чат ${chatId}`, { text: text?.substring(0, 50) });
+        const result = await this.bot.sendMessage(chatId, text, defaultOptions);
+        logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, { messageId: result.message_id });
+        return result;
+      } catch (error) {
+        lastError = error;
+        attempt += 1;
+        if (attempt >= maxAttempts) {
+          break;
+        }
+        const delayMs = attempt * 500;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    logger.error('Помилка відправки повідомлення:', {
+      chatId,
+      error: lastError?.message,
+      stack: lastError?.stack,
+      response: lastError?.response?.data
+    });
+    throw lastError;
   }
 
   async deleteMessage(chatId, messageId) {
