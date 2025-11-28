@@ -2602,28 +2602,57 @@ class TelegramService {
 
   async sendInstitutionSelection(chatId, userId, pendingRegistration) {
     try {
+      const mongoose = require('mongoose');
       const cityId = pendingRegistration.data.cityId;
+      
+      logger.info('sendInstitutionSelection called:', {
+        userId,
+        cityId,
+        cityIdType: typeof cityId,
+        hasCityId: !!cityId
+      });
       
       // Отримуємо заклади для вибраного міста (якщо місто вибрано)
       const filter = { isActive: true, isPublic: true };
       if (cityId) {
-        filter['address.city'] = cityId;
+        // Конвертуємо cityId в ObjectId, якщо це рядок
+        if (mongoose.Types.ObjectId.isValid(cityId)) {
+          filter['address.city'] = new mongoose.Types.ObjectId(cityId);
+        } else {
+          filter['address.city'] = cityId;
+        }
       }
       
-      const institutions = await Institution.find(filter)
-        .select('name type')
+      logger.info('Institution filter:', filter);
+      
+      let institutions = await Institution.find(filter)
+        .select('name type address.city')
         .sort({ name: 1 })
         .limit(50)
         .lean();
 
+      logger.info('Found institutions:', {
+        count: institutions.length,
+        cityId: cityId,
+        institutions: institutions.map(i => ({ name: i.name, city: i.address?.city }))
+      });
+      
+      // Якщо для вибраного міста немає закладів, показуємо всі публічні заклади
+      if (institutions.length === 0 && cityId) {
+        logger.info('No institutions found for city, showing all public institutions');
+        institutions = await Institution.find({ isActive: true, isPublic: true })
+          .select('name type address.city')
+          .sort({ name: 1 })
+          .limit(50)
+          .lean();
+        logger.info('Found all public institutions:', {
+          count: institutions.length
+        });
+      }
+
       const keyboard = [];
       
-      // Додаємо кнопку "Пропустити"
-      keyboard.push([{
-        text: '⏭️ Пропустити (необов\'язково)',
-        callback_data: 'skip_institution'
-      }]);
-      
+      // Додаємо заклади до клавіатури
       if (institutions.length > 0) {
         institutions.forEach(institution => {
           keyboard.push([{
@@ -2632,21 +2661,36 @@ class TelegramService {
           }]);
         });
       }
+      
+      // Додаємо кнопку "Пропустити" в кінці
+      keyboard.push([{
+        text: '⏭️ Пропустити (необов\'язково)',
+        callback_data: 'skip_institution'
+      }]);
 
-      await this.sendMessage(chatId, 
-        `✅ *Посада обрана!*\n\n` +
+      let messageText = `✅ *Посада обрана!*\n\n` +
         `💼 *Посада:* ${pendingRegistration.data.positionId ? 'Обрано' : 'Не обрано'}\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🏢 *Крок 8/8:* Оберіть заклад (необов'язково)\n\n` +
-        `💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`,
-        {
-          reply_markup: {
-            inline_keyboard: keyboard
-          }
+        `🏢 *Крок 8/8:* Оберіть заклад (необов'язково)\n\n`;
+      
+      if (institutions.length === 0) {
+        messageText += `⚠️ *Немає доступних закладів для вибраного міста*\n\n`;
+      }
+      
+      messageText += `💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`;
+
+      await this.sendMessage(chatId, messageText, {
+        reply_markup: {
+          inline_keyboard: keyboard
         }
-      );
+      });
     } catch (error) {
-      logger.error('Помилка отримання списку закладів:', error);
+      logger.error('Помилка отримання списку закладів:', {
+        error: error.message,
+        stack: error.stack,
+        userId,
+        cityId: pendingRegistration.data.cityId
+      });
       // Якщо помилка, пропускаємо крок закладу
       pendingRegistration.data.institutionId = null;
       pendingRegistration.step = 'completed';
