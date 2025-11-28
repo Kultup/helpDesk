@@ -2379,6 +2379,14 @@ class TelegramService {
       });
 
       if (!pendingRegistration) {
+        // Видаляємо старі незавершені реєстрації для цього користувача
+        await PendingRegistration.deleteMany({
+          $or: [
+            { telegramId: String(userId) },
+            { telegramId: userId }
+          ]
+        });
+        
         pendingRegistration = new PendingRegistration({
           telegramId: String(userId),
           telegramChatId: String(chatId),
@@ -2386,6 +2394,10 @@ class TelegramService {
           data: {}
         });
         await pendingRegistration.save();
+        logger.info('Created new PendingRegistration for user:', userId);
+      } else {
+        // Якщо є незавершена реєстрація, продовжуємо з того місця, де зупинилися
+        logger.info('Resuming existing registration from step:', pendingRegistration.step);
       }
 
       await this.processRegistrationStep(chatId, userId, pendingRegistration);
@@ -2670,7 +2682,12 @@ class TelegramService {
         pendingRegistration.data.cityId = cityId;
         pendingRegistration.step = 'position';
         await pendingRegistration.save();
-        logger.info('City selected, moving to position step');
+        logger.info('City selected:', { 
+          cityId, 
+          step: pendingRegistration.step, 
+          hasCityId: !!pendingRegistration.data.cityId,
+          dataKeys: Object.keys(pendingRegistration.data || {})
+        });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data.startsWith('position_')) {
         const positionId = data.replace('position_', '');
@@ -2678,7 +2695,14 @@ class TelegramService {
         pendingRegistration.data.positionId = positionId;
         pendingRegistration.step = 'institution';
         await pendingRegistration.save();
-        logger.info('Position saved, moving to institution step');
+        logger.info('Position selected:', { 
+          positionId, 
+          step: pendingRegistration.step,
+          hasCityId: !!pendingRegistration.data.cityId,
+          cityId: pendingRegistration.data.cityId,
+          hasPositionId: !!pendingRegistration.data.positionId,
+          dataKeys: Object.keys(pendingRegistration.data || {})
+        });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data.startsWith('institution_')) {
         const institutionId = data.replace('institution_', '');
@@ -2701,7 +2725,44 @@ class TelegramService {
   async completeRegistration(chatId, userId, pendingRegistration) {
     try {
       const axios = require('axios');
-      const { firstName, lastName, email, phone, password, cityId, positionId, institutionId } = pendingRegistration.data;
+      
+      // Логуємо поточний стан даних перед деструктуризацією
+      logger.info('completeRegistration called:', {
+        step: pendingRegistration.step,
+        dataKeys: Object.keys(pendingRegistration.data || {}),
+        hasCityId: !!pendingRegistration.data?.cityId,
+        cityId: pendingRegistration.data?.cityId,
+        hasPositionId: !!pendingRegistration.data?.positionId,
+        positionId: pendingRegistration.data?.positionId,
+        fullData: JSON.stringify(pendingRegistration.data)
+      });
+      
+      const { firstName, lastName, email, phone, password, cityId, positionId, institutionId } = pendingRegistration.data || {};
+
+      // Перевіряємо обов'язкові поля перед реєстрацією
+      if (!cityId) {
+        logger.warn('City not selected, returning to city selection step', {
+          userId,
+          step: pendingRegistration.step,
+          dataKeys: Object.keys(pendingRegistration.data || {})
+        });
+        pendingRegistration.step = 'city';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+        return;
+      }
+
+      if (!positionId) {
+        logger.warn('Position not selected, returning to position selection step', {
+          userId,
+          step: pendingRegistration.step,
+          hasCityId: !!cityId
+        });
+        pendingRegistration.step = 'position';
+        await pendingRegistration.save();
+        await this.processRegistrationStep(chatId, userId, pendingRegistration);
+        return;
+      }
 
       // Використовуємо API endpoint для реєстрації, як у мобільному додатку
       const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5000/api';
@@ -2717,6 +2778,23 @@ class TelegramService {
         telegramId: String(userId),
         institution: institutionId || undefined
       };
+      
+      logger.info('Registering user with data:', {
+        email: registerData.email,
+        hasCity: !!registerData.city,
+        city: registerData.city,
+        hasPosition: !!registerData.position,
+        position: registerData.position,
+        hasInstitution: !!registerData.institution,
+        institution: registerData.institution
+      });
+      
+      logger.info('Registering user with data:', {
+        email: registerData.email,
+        hasCity: !!registerData.city,
+        hasPosition: !!registerData.position,
+        hasInstitution: !!registerData.institution
+      });
 
       try {
         const response = await axios.post(`${apiBaseUrl}/auth/register`, registerData);
