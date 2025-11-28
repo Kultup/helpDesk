@@ -467,6 +467,28 @@ exports.updateTicket = async (req, res) => {
       } catch (error) {
         logger.error('Помилка відправки сповіщення про призначення:', error);
       }
+      
+      // Відправка FCM сповіщення призначеному користувачу
+      try {
+        const fcmService = require('../services/fcmService');
+        await fcmService.sendToUser(assignedTo, {
+          title: '🎫 Тікет призначено вам',
+          body: `Вам призначено тікет: ${ticket.title}`,
+          type: 'ticket_assigned',
+          data: {
+            ticketId: ticket._id.toString(),
+            ticketTitle: ticket.title,
+            ticketStatus: ticket.status,
+            ticketPriority: ticket.priority,
+            assignedBy: req.user.firstName && req.user.lastName 
+              ? `${req.user.firstName} ${req.user.lastName}`
+              : 'Адміністратор'
+          }
+        });
+        logger.info('✅ FCM сповіщення про призначення тікету відправлено користувачу');
+      } catch (error) {
+        logger.error('❌ Помилка відправки FCM сповіщення про призначення:', error);
+      }
     }
 
     if (priority && priority !== previousState.priority) {
@@ -500,6 +522,44 @@ exports.updateTicket = async (req, res) => {
       } catch (error) {
         logger.error('Помилка відправки Telegram сповіщення:', error);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      }
+      
+      // Відправка FCM сповіщення автору та призначеному користувачу про зміну статусу
+      try {
+        const fcmService = require('../services/fcmService');
+        const statusText = {
+          'open': 'Відкрито',
+          'in_progress': 'В роботі',
+          'resolved': 'Вирішено',
+          'closed': 'Закрито'
+        };
+        
+        const recipients = [];
+        if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
+        if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
+        
+        // Видаляємо дублікати
+        const uniqueRecipients = [...new Set(recipients)];
+        
+        for (const userId of uniqueRecipients) {
+          await fcmService.sendToUser(userId, {
+            title: '🔄 Статус тікету змінено',
+            body: `Тікет "${ticket.title}" тепер має статус: ${statusText[status] || status}`,
+            type: 'ticket_status_changed',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              previousStatus: previousState.status,
+              newStatus: status,
+              changedBy: req.user.firstName && req.user.lastName 
+                ? `${req.user.firstName} ${req.user.lastName}`
+                : 'Адміністратор'
+            }
+          });
+        }
+        logger.info('✅ FCM сповіщення про зміну статусу відправлено');
+      } catch (error) {
+        logger.error('❌ Помилка відправки FCM сповіщення про зміну статусу:', error);
       }
     } else {
       logger.info(`❌ Статус не змінився, сповіщення не відправляється`);

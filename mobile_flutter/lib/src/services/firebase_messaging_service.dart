@@ -180,7 +180,11 @@ class FirebaseMessagingService {
     final navigator = Navigator.of(_context!);
     
     // Обробка різних типів сповіщень
-    if (type == 'ticket_created' || type == 'ticket_updated') {
+    if (type == 'ticket_created' || 
+        type == 'ticket_updated' || 
+        type == 'ticket_assigned' || 
+        type == 'ticket_status_changed' ||
+        type == 'ticket_comment') {
       final ticketId = data['ticketId'] as String?;
       if (ticketId != null) {
         navigator.pushNamed(

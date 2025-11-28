@@ -604,6 +604,46 @@ exports.createComment = async (req, res) => {
       { path: 'attachments', select: 'filename originalName size mimeType' },
       { path: 'mentions', select: 'firstName lastName email' }
     ]);
+    
+    // Заповнити тікет для отримання інформації про автора та призначеного
+    await ticket.populate([
+      { path: 'createdBy', select: '_id' },
+      { path: 'assignedTo', select: '_id' }
+    ]);
+
+    // Відправка FCM сповіщення автору тікету та призначеному користувачу про новий коментар
+    try {
+      const fcmService = require('../services/fcmService');
+      const recipients = [];
+      if (ticket.createdBy) recipients.push(ticket.createdBy._id.toString());
+      if (ticket.assignedTo) recipients.push(ticket.assignedTo._id.toString());
+      
+      // Видаляємо автора коментаря зі списку отримувачів (він сам додав коментар)
+      const commentAuthorId = req.user._id.toString();
+      const uniqueRecipients = [...new Set(recipients)].filter(id => id !== commentAuthorId);
+      
+      const authorName = comment.author?.firstName && comment.author?.lastName
+        ? `${comment.author.firstName} ${comment.author.lastName}`
+        : 'Користувач';
+      
+      for (const userId of uniqueRecipients) {
+        await fcmService.sendToUser(userId, {
+          title: '💬 Новий коментар до тікету',
+          body: `${authorName} додав коментар до тікету "${ticket.title}"`,
+          type: 'ticket_comment',
+          data: {
+            ticketId: ticket._id.toString(),
+            ticketTitle: ticket.title,
+            commentId: comment._id.toString(),
+            commentAuthor: authorName,
+            commentPreview: content.substring(0, 100)
+          }
+        });
+      }
+      logger.info('✅ FCM сповіщення про новий коментар відправлено');
+    } catch (error) {
+      logger.error('❌ Помилка відправки FCM сповіщення про коментар:', error);
+    }
 
     res.status(201).json({
       success: true,

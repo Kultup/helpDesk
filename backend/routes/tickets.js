@@ -408,6 +408,30 @@ router.post('/',
         logger.error('❌ Помилка відправки FCM сповіщення про новий тікет:', error);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
+      
+      // Відправка FCM сповіщення призначеному користувачу (якщо тікет призначено при створенні)
+      if (ticket.assignedTo) {
+        try {
+          const fcmService = require('../services/fcmService');
+          await fcmService.sendToUser(ticket.assignedTo.toString(), {
+            title: '🎫 Новий тікет призначено вам',
+            body: `Вам призначено тікет: ${ticket.title}`,
+            type: 'ticket_assigned',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              ticketStatus: ticket.status,
+              ticketPriority: ticket.priority,
+              createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
+                ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+                : 'Невідомий користувач'
+            }
+          });
+          logger.info('✅ FCM сповіщення про призначення тікету відправлено користувачу');
+        } catch (error) {
+          logger.error('❌ Помилка відправки FCM сповіщення про призначення:', error);
+        }
+      }
 
       res.status(201).json({
         success: true,
@@ -489,6 +513,44 @@ router.put('/:id',
         } catch (error) {
           logger.error('❌ Помилка відправки Telegram сповіщення:', error);
           // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+        }
+        
+        // Відправка FCM сповіщення автору та призначеному користувачу про зміну статусу
+        try {
+          const fcmService = require('../services/fcmService');
+          const statusText = {
+            'open': 'Відкрито',
+            'in_progress': 'В роботі',
+            'resolved': 'Вирішено',
+            'closed': 'Закрито'
+          };
+          
+          const recipients = [];
+          if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
+          if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
+          
+          // Видаляємо дублікати
+          const uniqueRecipients = [...new Set(recipients)];
+          
+          for (const userId of uniqueRecipients) {
+            await fcmService.sendToUser(userId, {
+              title: '🔄 Статус тікету змінено',
+              body: `Тікет "${ticket.title}" тепер має статус: ${statusText[value.status] || value.status}`,
+              type: 'ticket_status_changed',
+              data: {
+                ticketId: ticket._id.toString(),
+                ticketTitle: ticket.title,
+                previousStatus: previousStatus,
+                newStatus: value.status,
+                changedBy: req.user.firstName && req.user.lastName 
+                  ? `${req.user.firstName} ${req.user.lastName}`
+                  : 'Адміністратор'
+              }
+            });
+          }
+          logger.info('✅ FCM сповіщення про зміну статусу відправлено');
+        } catch (error) {
+          logger.error('❌ Помилка відправки FCM сповіщення про зміну статусу:', error);
         }
       } else {
         logger.info(`❌ Статус тікету не змінився, сповіщення не відправляється`);
@@ -653,6 +715,36 @@ router.post('/:id/comments',
       await ticket.populate('comments.author', 'firstName lastName email');
 
       const newComment = ticket.comments[ticket.comments.length - 1];
+
+      // Відправка FCM сповіщення автору тікету та призначеному користувачу про новий коментар
+      try {
+        const fcmService = require('../services/fcmService');
+        const recipients = [];
+        if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
+        if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
+        
+        // Видаляємо автора коментаря зі списку отримувачів (він сам додав коментар)
+        const commentAuthorId = req.user._id.toString();
+        const uniqueRecipients = [...new Set(recipients)].filter(id => id !== commentAuthorId);
+        
+        for (const userId of uniqueRecipients) {
+          await fcmService.sendToUser(userId, {
+            title: '💬 Новий коментар до тікету',
+            body: `${req.user.firstName} ${req.user.lastName} додав коментар до тікету "${ticket.title}"`,
+            type: 'ticket_comment',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              commentId: newComment._id.toString(),
+              commentAuthor: `${req.user.firstName} ${req.user.lastName}`,
+              commentPreview: value.content.substring(0, 100)
+            }
+          });
+        }
+        logger.info('✅ FCM сповіщення про новий коментар відправлено');
+      } catch (error) {
+        logger.error('❌ Помилка відправки FCM сповіщення про коментар:', error);
+      }
 
       res.status(201).json({
         success: true,
