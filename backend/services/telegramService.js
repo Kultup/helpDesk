@@ -741,6 +741,9 @@ class TelegramService {
         await this.handleMyTicketsCallback(chatId, user);
       } else if (data === 'ticket_history') {
         await this.handleTicketHistoryCallback(chatId, user);
+      } else if (data.startsWith('view_ticket_')) {
+        const ticketId = data.replace('view_ticket_', '');
+        await this.handleViewTicketCallback(chatId, user, ticketId);
       } else if (data.startsWith('recreate_ticket_')) {
         const ticketId = data.replace('recreate_ticket_', '');
         await this.handleRecreateTicketCallback(chatId, user, ticketId);
@@ -1009,6 +1012,65 @@ class TelegramService {
         `❌ *Помилка*\n\n` +
         `Не вдалося завантажити дані тікету.\n\n` +
         `🔄 Спробуйте ще раз.`
+      );
+    }
+  }
+
+  async handleViewTicketCallback(chatId, user, ticketId) {
+    try {
+      const ticket = await Ticket.findById(ticketId)
+        .populate('city', 'name')
+        .populate('category', 'name')
+        .lean();
+
+      if (!ticket) {
+        await this.sendMessage(chatId,
+          `❌ *Тікет не знайдено*\n\n` +
+          `Оригінальний тікет не знайдено в системі.`
+        );
+        return;
+      }
+
+      if (String(ticket.createdBy) !== String(user._id)) {
+        await this.sendMessage(chatId,
+          `❌ *Доступ заборонено*\n\n` +
+          `Цей тікет не належить вам.`
+        );
+        return;
+      }
+
+      const statusEmoji = this.getStatusEmoji(ticket.status);
+      const statusText = this.getStatusText(ticket.status);
+      const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const categoryText = ticket.category ? ticket.category.name : 'Не вказано';
+      const priorityText = this.getPriorityText(ticket.priority);
+
+      const message =
+        `🎫 *Деталі тікету*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 *Заголовок:* ${ticket.title}\n` +
+        `📊 *Статус:* ${statusEmoji} ${statusText}\n` +
+        `🏷️ *Категорія:* ${categoryText}\n` +
+        `⚡ *Пріоритет:* ${priorityText}\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
+        `📅 *Створено:* \`${date}\`\n` +
+        `🆔 *ID:* \`${ticket._id}\`\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      await this.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50), callback_data: `recreate_ticket_${ticket._id}` }],
+            [{ text: '🏠 Головне меню', callback_data: 'back' }]
+          ]
+        },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка перегляду деталей тікету:', error);
+      await this.sendMessage(chatId,
+        `❌ *Помилка завантаження деталей*\n\n` +
+        `Не вдалося завантажити дані тікету.`
       );
     }
   }
