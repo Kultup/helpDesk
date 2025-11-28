@@ -130,7 +130,12 @@ const io = new Server(server, {
     },
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  maxHttpBufferSize: 1e6, // 1MB обмеження для запобігання проблем з великими пакетами
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Вимкнути бінарний парсер, якщо він викликає проблеми
+  allowEIO3: false
 });
 
 // Зберігаємо io в app для використання в інших частинах додатку
@@ -205,26 +210,55 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   io.on('connection', (socket) => {
     logger.info('👤 Користувач підключився:', socket.id);
     
+    // Обробка помилок підключення
+    socket.on('error', (error) => {
+      logger.error('Socket.IO error:', error);
+    });
+    
     // Приєднання до кімнати адміністраторів для сповіщень про реєстрацію
     socket.on('join-admin-room', () => {
       socket.join('admin-room');
       logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
     });
 
-    // Відправка історії логів новому клієнту
+    // Відправка історії логів новому клієнту (з обмеженням розміру)
     socket.on('request-log-history', () => {
-      const logHistory = logWebSocketService.getLogHistory();
-      socket.emit('log-history', logHistory);
+      try {
+        const logHistory = logWebSocketService.getLogHistory();
+        // Обмежуємо розмір історії логів, щоб уникнути проблем з парсингом
+        const limitedHistory = logHistory.slice(-100); // Останні 100 записів
+        socket.emit('log-history', limitedHistory);
+      } catch (error) {
+        logger.error('Error sending log history:', error);
+      }
     });
 
-    // Обробка логів від фронтенду
+    // Обробка логів від фронтенду (з валідацією)
     socket.on('frontend-log', (data) => {
-      logWebSocketService.broadcastFrontendLog(data.level, data.message, data.details);
+      try {
+        // Перевіряємо, чи дані не містять цикличних посилань
+        if (data && typeof data === 'object') {
+          // Обмежуємо глибину вкладеності через JSON serialization
+          const sanitizedData = JSON.parse(JSON.stringify(data, null, 2));
+          logWebSocketService.broadcastFrontendLog(
+            sanitizedData.level, 
+            sanitizedData.message, 
+            sanitizedData.details
+          );
+        }
+      } catch (error) {
+        logger.error('Error processing frontend log:', error);
+      }
     });
     
     socket.on('disconnect', () => {
       logger.info('👋 Користувач відключився:', socket.id);
     });
+  });
+  
+  // Глобальна обробка помилок Socket.IO
+  io.engine.on('connection_error', (err) => {
+    logger.error('Socket.IO connection error:', err);
   });
 })
 .catch(err => logger.error('❌ Помилка підключення до MongoDB:', err));

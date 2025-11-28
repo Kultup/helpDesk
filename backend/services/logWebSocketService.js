@@ -70,22 +70,52 @@ class LogWebSocketService {
   broadcastLog(level, message, source, details = null) {
     if (!this.io) return;
 
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      source,
-      details
-    };
+    try {
+      // Очищаємо details від циклічних посилань та обмежуємо розмір
+      let sanitizedDetails = null;
+      if (details) {
+        try {
+          // Використовуємо JSON для видалення циклічних посилань
+          sanitizedDetails = JSON.parse(JSON.stringify(details, (key, value) => {
+            // Пропускаємо функції та undefined
+            if (typeof value === 'function' || value === undefined) {
+              return null;
+            }
+            // Обмежуємо глибину вкладеності
+            if (typeof value === 'object' && value !== null) {
+              // Якщо об'єкт занадто великий, обмежуємо його
+              const stringified = JSON.stringify(value);
+              if (stringified.length > 10000) { // 10KB обмеження
+                return '[Object too large]';
+              }
+            }
+            return value;
+          }));
+        } catch (error) {
+          sanitizedDetails = '[Error serializing details]';
+        }
+      }
 
-    // Додаємо до буфера
-    this.logBuffer.push(logEntry);
-    if (this.logBuffer.length > this.maxBufferSize) {
-      this.logBuffer = this.logBuffer.slice(-this.maxBufferSize);
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        level,
+        message: String(message).substring(0, 1000), // Обмежуємо довжину повідомлення
+        source,
+        details: sanitizedDetails
+      };
+
+      // Додаємо до буфера
+      this.logBuffer.push(logEntry);
+      if (this.logBuffer.length > this.maxBufferSize) {
+        this.logBuffer = this.logBuffer.slice(-this.maxBufferSize);
+      }
+
+      // Відправляємо всім підключеним клієнтам
+      this.io.emit('log', logEntry);
+    } catch (error) {
+      // Якщо виникла помилка при серіалізації, логуємо її, але не падаємо
+      console.error('Error broadcasting log:', error.message);
     }
-
-    // Відправляємо всім підключеним клієнтам
-    this.io.emit('log', logEntry);
   }
 
   // Метод для отримання історії логів
