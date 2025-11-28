@@ -8,9 +8,8 @@ import { Layout } from './components/Layout';
 import { UserRole } from './types';
 import './i18n'; // Ініціалізація i18n
 import logService from './services/logService'; // Ініціалізація логів
-import { io } from 'socket.io-client';
-import { Toaster, toast } from 'react-hot-toast';
-import { useAuth } from './contexts/AuthContext';
+import { Toaster } from 'react-hot-toast';
+import SocketNotifications from './components/SocketNotifications';
 
 // Імпорт компонентів
 import Login from './pages/Login';
@@ -76,61 +75,15 @@ const NotFound: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
-
   useEffect(() => {
     // Ініціалізуємо логи при запуску додатку
     logService.initialize();
-    
-    // Ініціалізація Socket.IO для сповіщень
-    let socket: any = null;
-    const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || '') as string;
-    const socketUrl = rawUrl.replace(/\/api\/?$/, '');
-
-    const requestNotificationPermission = async () => {
-      if ('Notification' in window && Notification.permission === 'default') {
-        try { await Notification.requestPermission(); } catch {}
-      }
-    };
-
-    const showBrowserNotification = (title: string, body: string) => {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(title, { body }); } catch {}
-      } else {
-        toast(`${title}: ${body}`, { icon: '🔔' });
-      }
-    };
-
-    if (isAuthenticated) {
-      requestNotificationPermission();
-      socket = io(socketUrl, { transports: ['websocket'] });
-      socket.on('connect', () => {
-        if (user?.role === 'admin') {
-          socket.emit('join-admin-room');
-        }
-      });
-
-      // Тікети: нові/статус
-      socket.on('ticket-notification', (payload: any) => {
-        const type = payload?.type;
-        const title = type === 'new_ticket' ? 'Новий тікет' : type === 'ticket_status_change' ? 'Оновлення тікету' : 'Сповіщення тікетів';
-        const message = payload?.data?.title ? `${payload.data.title}` : payload?.message || '';
-        showBrowserNotification(title, message);
-      });
-
-      // Реєстрації: нові запити
-      socket.on('registration-notification', (payload: any) => {
-        const email = payload?.data?.email || payload?.userEmail || '';
-        showBrowserNotification('Новий запит на реєстрацію', email);
-      });
-    }
 
     // Очищення при розмонтуванні
     return () => {
       logService.disconnect();
-      if (socket) { try { socket.disconnect(); } catch {} }
     };
-  }, [isAuthenticated, user?.role]);
+  }, []);
 
   return (
     <ThemeProvider>
@@ -138,6 +91,7 @@ const App: React.FC = () => {
         <PendingRegistrationsProvider>
           <Toaster position="top-right" />
           <ErrorNotifications />
+          <SocketNotifications />
           <Router>
             <RoleBasedRedirect />
             <Routes>
