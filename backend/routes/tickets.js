@@ -386,6 +386,29 @@ router.post('/',
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
 
+      // Відправка FCM сповіщення адміністраторам про новий тікет
+      try {
+        const fcmService = require('../services/fcmService');
+        await fcmService.sendToAdmins({
+          title: '🎫 Новий тікет',
+          body: `Створено новий тікет: ${ticket.title}`,
+          type: 'ticket_created',
+          data: {
+            ticketId: ticket._id.toString(),
+            ticketTitle: ticket.title,
+            ticketStatus: ticket.status,
+            ticketPriority: ticket.priority,
+            createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
+              ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+              : 'Невідомий користувач'
+          }
+        });
+        logger.info('✅ FCM сповіщення про новий тікет відправлено адміністраторам');
+      } catch (error) {
+        logger.error('❌ Помилка відправки FCM сповіщення про новий тікет:', error);
+        // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      }
+
       res.status(201).json({
         success: true,
         message: 'Тикет успішно створено',

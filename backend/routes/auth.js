@@ -182,6 +182,26 @@ router.post('/register', async (req, res) => {
       logger.error('❌ Помилка при відправці WebSocket сповіщення:', error);
     }
 
+    // Відправка FCM сповіщення адміністраторам про нову реєстрацію
+    try {
+      const fcmService = require('../services/fcmService');
+      await fcmService.sendToAdmins({
+        title: '👤 Новий запит на реєстрацію',
+        body: `${user.firstName} ${user.lastName} (${user.email}) подала заявку на реєстрацію`,
+        type: 'registration_request',
+        data: {
+          userId: user._id.toString(),
+          userEmail: user.email,
+          userName: `${user.firstName} ${user.lastName}`,
+          registrationStatus: user.registrationStatus
+        }
+      });
+      logger.info('✅ FCM сповіщення про нову реєстрацію відправлено адміністраторам');
+    } catch (error) {
+      logger.error('❌ Помилка відправки FCM сповіщення про нову реєстрацію:', error);
+      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+    }
+
     // Отримання користувача з заповненими полями
     const populatedUser = await User.findById(user._id)
       .populate('position')

@@ -1,0 +1,225 @@
+const admin = require('firebase-admin');
+const logger = require('../utils/logger');
+const User = require('../models/User');
+
+class FCMService {
+  constructor() {
+    this.isInitialized = false;
+    this._initializeFirebase();
+  }
+
+  _initializeFirebase() {
+    try {
+      // Перевіряємо, чи Firebase вже ініціалізовано
+      if (admin.apps.length === 0) {
+        // Шукаємо service account key
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Перевіряємо різні можливі шляхи
+        const possiblePaths = [
+          process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+          path.resolve(__dirname, '../.firebase/heldeskm-service-account.json'),
+          path.resolve(__dirname, '../../.firebase/heldeskm-service-account.json'),
+          path.resolve(process.cwd(), '.firebase/heldeskm-service-account.json'),
+          './.firebase/heldeskm-service-account.json'
+        ].filter(p => p != null);
+        
+        let serviceAccountFullPath = null;
+        for (const serviceAccountPath of possiblePaths) {
+          const fullPath = path.resolve(serviceAccountPath);
+          if (fs.existsSync(fullPath)) {
+            serviceAccountFullPath = fullPath;
+            break;
+          }
+        }
+        
+        if (serviceAccountFullPath) {
+          try {
+            const serviceAccount = require(serviceAccountFullPath);
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount)
+            });
+            this.isInitialized = true;
+            logger.info('✅ Firebase Admin SDK ініціалізовано для FCM');
+          } catch (error) {
+            logger.error('❌ Помилка ініціалізації Firebase з service account:', error);
+            this.isInitialized = false;
+          }
+        } else {
+          logger.warn('⚠️ Firebase service account key не знайдено. FCM сповіщення не будуть працювати.');
+          logger.warn(`   Перевірені шляхи: ${possiblePaths.join(', ')}`);
+          logger.warn('   Встановіть змінну середовища FIREBASE_SERVICE_ACCOUNT_PATH або розмістіть файл в .firebase/heldeskm-service-account.json');
+        }
+      } else {
+        this.isInitialized = true;
+        logger.info('✅ Firebase Admin SDK вже ініціалізовано');
+      }
+    } catch (error) {
+      logger.error('❌ Помилка ініціалізації Firebase Admin SDK:', error);
+      this.isInitialized = false;
+    }
+  }
+
+  /**
+   * Відправити FCM сповіщення користувачу
+   * @param {String} userId - ID користувача
+   * @param {Object} notification - Об'єкт сповіщення {title, body, data}
+   * @returns {Promise<boolean>}
+   */
+  async sendToUser(userId, notification) {
+    if (!this.isInitialized) {
+      logger.warn('⚠️ FCM не ініціалізовано, сповіщення не відправлено');
+      return false;
+    }
+
+    try {
+      const user = await User.findById(userId).select('devices');
+      if (!user || !user.devices || user.devices.length === 0) {
+        logger.warn(`⚠️ Користувач ${userId} не має зареєстрованих пристроїв`);
+        return false;
+      }
+
+      // Отримуємо всі активні push токени
+      const pushTokens = user.devices
+        .filter(device => device.isActive && device.pushToken)
+        .map(device => device.pushToken);
+
+      if (pushTokens.length === 0) {
+        logger.warn(`⚠️ Користувач ${userId} не має активних push токенів`);
+        return false;
+      }
+
+      const message = {
+        notification: {
+          title: notification.title || 'HelDesKM',
+          body: notification.body || ''
+        },
+        data: {
+          ...notification.data,
+          type: notification.type || 'notification',
+          timestamp: new Date().toISOString()
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            channelId: 'helDesKM_channel'
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1
+            }
+          }
+        }
+      };
+
+      // Відправляємо сповіщення на всі пристрої користувача
+      const results = await Promise.allSettled(
+        pushTokens.map(token => 
+          admin.messaging().send({
+            ...message,
+            token: token
+          })
+        )
+      );
+
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failureCount = results.filter(r => r.status === 'rejected').length;
+
+      logger.info(`✅ FCM сповіщення відправлено користувачу ${userId}: ${successCount} успішно, ${failureCount} помилок`);
+
+      // Видаляємо невалідні токени
+      if (failureCount > 0) {
+        const invalidTokens = [];
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const error = result.reason;
+            if (error.code === 'messaging/invalid-registration-token' || 
+                error.code === 'messaging/registration-token-not-registered') {
+              invalidTokens.push(pushTokens[index]);
+            }
+          }
+        });
+
+        if (invalidTokens.length > 0) {
+          await this._removeInvalidTokens(userId, invalidTokens);
+        }
+      }
+
+      return successCount > 0;
+    } catch (error) {
+      logger.error(`❌ Помилка відправки FCM сповіщення користувачу ${userId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Відправити FCM сповіщення всім адміністраторам
+   * @param {Object} notification - Об'єкт сповіщення {title, body, data}
+   * @returns {Promise<number>} - Кількість успішно відправлених сповіщень
+   */
+  async sendToAdmins(notification) {
+    if (!this.isInitialized) {
+      logger.warn('⚠️ FCM не ініціалізовано, сповіщення не відправлено');
+      return 0;
+    }
+
+    try {
+      const admins = await User.find({
+        role: { $in: ['admin', 'super_admin', 'administrator'] },
+        isActive: true,
+        'devices.isActive': true,
+        'devices.pushToken': { $exists: true, $ne: null }
+      }).select('_id devices');
+
+      if (admins.length === 0) {
+        logger.warn('⚠️ Не знайдено адміністраторів з активними push токенами');
+        return 0;
+      }
+
+      let successCount = 0;
+      for (const admin of admins) {
+        const sent = await this.sendToUser(admin._id, notification);
+        if (sent) successCount++;
+      }
+
+      logger.info(`✅ FCM сповіщення відправлено ${successCount} адміністраторам`);
+      return successCount;
+    } catch (error) {
+      logger.error('❌ Помилка відправки FCM сповіщень адміністраторам:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Видалити невалідні токени
+   * @private
+   */
+  async _removeInvalidTokens(userId, invalidTokens) {
+    try {
+      await User.updateOne(
+        { _id: userId },
+        {
+          $set: {
+            'devices.$[elem].isActive': false
+          }
+        },
+        {
+          arrayFilters: [{ 'elem.pushToken': { $in: invalidTokens } }]
+        }
+      );
+      logger.info(`🗑️ Видалено ${invalidTokens.length} невалідних токенів для користувача ${userId}`);
+    } catch (error) {
+      logger.error('❌ Помилка видалення невалідних токенів:', error);
+    }
+  }
+}
+
+// Експортуємо singleton
+const fcmService = new FCMService();
+module.exports = fcmService;
+

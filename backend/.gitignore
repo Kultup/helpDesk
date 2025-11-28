@@ -11,3 +11,6 @@ coverage/
 # Jest cache
 .jest-cache/
 
+# Firebase service account keys
+.firebase/
+

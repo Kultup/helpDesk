@@ -9,7 +9,7 @@ import 'secure_storage.dart';
 class DeviceInfoService {
   DeviceInfoService._();
 
-  static Future<Map<String, dynamic>> getDevicePayload() async {
+  static Future<Map<String, dynamic>> getDevicePayload({String? fcmToken}) async {
     final package = await PackageInfo.fromPlatform();
     final appVersion = '${package.version}+${package.buildNumber}';
 
@@ -52,7 +52,7 @@ class DeviceInfoService {
       'osVersion': osVersion,
       'sdkInt': sdkInt,
       'appVersion': appVersion,
-      'pushToken': null,
+      'pushToken': fcmToken,
       'label': null,
     };
   }
