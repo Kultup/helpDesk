@@ -1,17 +1,73 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:typed_data';
 import 'notification_service.dart';
 
-/// Обробка сповіщень, коли додаток на передньому плані
+/// Обробка сповіщень, коли додаток на передньому плані або закритий
+@pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  
   if (kDebugMode) {
     print('📱 Background message received: ${message.messageId}');
     print('Title: ${message.notification?.title}');
     print('Body: ${message.notification?.body}');
     print('Data: ${message.data}');
   }
+  
+  // Показуємо локальне сповіщення зі звуком навіть коли додаток закритий
+  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+  
+  // Ініціалізуємо локальні сповіщення якщо ще не ініціалізовано
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+  await localNotifications.initialize(initializationSettings);
+  
+  // Створюємо notification channel зі звуком
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'helDesKM_channel',
+    'HelDesKM Notifications',
+    description: 'Сповіщення від HelDesKM',
+    importance: Importance.high,
+    playSound: true,
+    enableVibration: true,
+    vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+  );
+  
+  await localNotifications
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+  
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+    'helDesKM_channel',
+    'HelDesKM Notifications',
+    channelDescription: 'Сповіщення від HelDesKM',
+    importance: Importance.high,
+    priority: Priority.high,
+    showWhen: true,
+    playSound: true,
+    enableVibration: true,
+    vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+  );
+
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+  );
+
+  await localNotifications.show(
+    message.hashCode,
+    message.notification?.title ?? 'HelDesKM',
+    message.notification?.body ?? '',
+    platformChannelSpecifics,
+    payload: message.data.toString(),
+  );
 }
 
 class FirebaseMessagingService {
@@ -134,11 +190,31 @@ class FirebaseMessagingService {
         }
       },
     );
+    
+    // Створюємо notification channel зі звуком для Android
+    await _createNotificationChannel();
+  }
+  
+  /// Створення notification channel зі звуком
+  Future<void> _createNotificationChannel() async {
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'helDesKM_channel',
+      'HelDesKM Notifications',
+      description: 'Сповіщення від HelDesKM',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
+    );
+    
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
   }
 
   /// Показ локального сповіщення
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'helDesKM_channel',
       'HelDesKM Notifications',
@@ -146,6 +222,9 @@ class FirebaseMessagingService {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
+      playSound: true,
+      enableVibration: true,
+      vibrationPattern: Int64List.fromList([0, 250, 250, 250]),
     );
 
     const NotificationDetails platformChannelSpecifics = NotificationDetails(

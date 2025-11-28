@@ -104,7 +104,11 @@ class FCMService {
           priority: 'high',
           notification: {
             sound: 'default',
-            channelId: 'helDesKM_channel'
+            channelId: 'helDesKM_channel',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+            visibility: 'public',
+            notificationPriority: 'high'
           }
         },
         apns: {
