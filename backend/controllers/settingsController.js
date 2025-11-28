@@ -155,15 +155,23 @@ exports.setupWebhook = async (req, res) => {
     const botToken = config.botToken.trim();
 
     // Переконатися, що URL має https://
-    let url = baseUrl;
+    let url = baseUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
     }
 
+    // Нормалізуємо URL: прибираємо зайві шляхи, якщо користувач ввів повний webhook
     // Видаляємо trailing slash
     url = url.replace(/\/$/, '');
+    // Прибираємо повторювані або зайві шляхи, якщо були введені
+    url = url
+      .replace(/\/(api\/telegram\/webhook)$/i, '')
+      .replace(/\/(telegram\/webhook)$/i, '')
+      .replace(/\/(api\/telegram)$/i, '')
+      .replace(/\/(telegram)$/i, '')
+      .replace(/\/(api)$/i, '');
 
-    // Формуємо webhook URL
+    // Формуємо webhook URL з нормалізованого базового URL
     let webhookUrl;
     if (url.endsWith('/api')) {
       webhookUrl = `${url}/telegram/webhook`;

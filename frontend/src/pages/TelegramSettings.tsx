@@ -377,9 +377,7 @@ const TelegramSettings: React.FC = () => {
               </Button>
             </div>
             <p className="mt-1 text-sm text-gray-500">
-              {t('settings.telegram.serverUrlDescription', 'Введіть URL вашого сервера (наприклад, https://krainamriy.fun). Webhook буде налаштовано на {url}/api/telegram/webhook', {
-                url: webhookBaseUrl || 'https://your-domain.com'
-              })}
+              {t('settings.telegram.serverUrlDescription', 'Введіть лише базовий URL сервера (наприклад, https://krainamriy.fun). Не додавайте /api або /api/telegram/webhook — система сама сформує коректний шлях.')}
             </p>
           </div>
         </CardContent>
