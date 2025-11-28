@@ -178,7 +178,7 @@ class TelegramService {
           { telegramId: userId }
         ]
       })
-        .populate('position', 'name')
+        .populate('position', 'title')
         .populate('city', 'name');
       
       // Якщо користувач вже зареєстрований, показуємо головне меню
@@ -662,12 +662,12 @@ class TelegramService {
     // Перезавантажуємо користувача з populate, якщо дані не завантажені
     if (!user.position || !user.city || typeof user.position === 'string' || typeof user.city === 'string') {
       user = await User.findById(user._id)
-        .populate('position', 'name')
+        .populate('position', 'title')
         .populate('city', 'name');
     }
     
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Не вказано';
-    const positionName = (user.position && typeof user.position === 'object' ? user.position.name : user.position) || 'Не вказано';
+    const positionName = (user.position && typeof user.position === 'object' ? user.position.title : user.position) || 'Не вказано';
     const cityName = (user.city && typeof user.city === 'object' ? user.city.name : user.city) || 'Не вказано';
     
     const welcomeText = 
@@ -716,7 +716,7 @@ class TelegramService {
           { telegramId: userId }
         ]
       })
-        .populate('position', 'name')
+        .populate('position', 'title')
         .populate('city', 'name');
       
       // Якщо користувач вже зареєстрований, не дозволяємо повторну реєстрацію
@@ -1680,7 +1680,7 @@ class TelegramService {
       });
       const closedTickets = await Ticket.countDocuments({ 
         createdBy: user._id, 
-        status: 'closed' 
+        status: { $in: ['closed', 'resolved'] }
       });
 
       const text = 
