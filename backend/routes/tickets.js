@@ -363,7 +363,9 @@ router.post('/',
         originalName: file.originalname,
         path: file.path,
         size: file.size,
-        mimetype: file.mimetype
+        mimetype: file.mimetype,
+        uploadedBy: req.user._id, // Додаємо uploadedBy для кожного вкладення
+        uploadedAt: new Date()
       })) : [];
 
       // Створення тикету

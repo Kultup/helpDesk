@@ -38,7 +38,7 @@ const ticketSchema = new mongoose.Schema({
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: [true, 'Category is required']
+    required: false
   },
   subcategory: {
     type: String,
@@ -53,7 +53,7 @@ const ticketSchema = new mongoose.Schema({
   city: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'City',
-    required: [true, 'City is required']
+    required: false
   },
   department: {
     type: String,
