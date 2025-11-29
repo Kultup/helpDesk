@@ -249,7 +249,43 @@ async function handleCreateTicketCommand(chatId, user, description) {
     });
 
     await ticket.save();
-    await ticket.populate('city', 'name');
+    await ticket.populate([
+      { path: 'city', select: 'name' },
+      { path: 'createdBy', select: 'firstName lastName email' }
+    ]);
+
+    // Відправка WebSocket сповіщення про новий тікет
+    try {
+      const ticketWebSocketService = require('../services/ticketWebSocketService');
+      ticketWebSocketService.notifyNewTicket(ticket);
+      logger.info('✅ WebSocket сповіщення про новий тікет відправлено (Telegram /create)');
+    } catch (wsError) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram /create):', wsError);
+    }
+
+    // Відправка FCM сповіщення адміністраторам про новий тікет
+    try {
+      logger.info('📱 Спроба відправки FCM сповіщення адміністраторам про новий тікет (Telegram /create)');
+      const fcmService = require('../services/fcmService');
+      const adminCount = await fcmService.sendToAdmins({
+        title: '🎫 Новий тікет',
+        body: `Створено новий тікет: ${ticket.title}`,
+        type: 'ticket_created',
+        data: {
+          ticketId: ticket._id.toString(),
+          ticketTitle: ticket.title,
+          ticketStatus: ticket.status,
+          ticketPriority: ticket.priority,
+          createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
+            ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+            : 'Невідомий користувач'
+        }
+      });
+      logger.info(`✅ FCM сповіщення про новий тікет відправлено ${adminCount} адміністраторам (Telegram /create)`);
+    } catch (error) {
+      logger.error('❌ Помилка відправки FCM сповіщення про новий тікет (Telegram /create):', error);
+      logger.error('   Stack:', error.stack);
+    }
 
     const successText = 
       `✅ Тикет створено успішно!\n\n` +

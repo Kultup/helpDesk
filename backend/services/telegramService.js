@@ -2046,16 +2046,65 @@ class TelegramService {
          { path: 'city', select: 'name region' }
        ]);
 
-       // Відправляємо WebSocket сповіщення про новий тікет
-       try {
-         ticketWebSocketService.notifyNewTicket(ticket);
-         logger.info('✅ WebSocket сповіщення про новий тікет відправлено (Telegram)');
-       } catch (wsError) {
-         logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram):', wsError);
-       }
+      // Відправляємо WebSocket сповіщення про новий тікет
+      try {
+        ticketWebSocketService.notifyNewTicket(ticket);
+        logger.info('✅ WebSocket сповіщення про новий тікет відправлено (Telegram)');
+      } catch (wsError) {
+        logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram):', wsError);
+      }
 
-       // Очищуємо сесію
-       this.userSessions.delete(chatId);
+      // Відправка FCM сповіщення адміністраторам про новий тікет
+      try {
+        logger.info('📱 Спроба відправки FCM сповіщення адміністраторам про новий тікет (Telegram)');
+        const fcmService = require('./fcmService');
+        const adminCount = await fcmService.sendToAdmins({
+          title: '🎫 Новий тікет',
+          body: `Створено новий тікет: ${ticket.title}`,
+          type: 'ticket_created',
+          data: {
+            ticketId: ticket._id.toString(),
+            ticketTitle: ticket.title,
+            ticketStatus: ticket.status,
+            ticketPriority: ticket.priority,
+            createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
+              ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+              : 'Невідомий користувач'
+          }
+        });
+        logger.info(`✅ FCM сповіщення про новий тікет відправлено ${adminCount} адміністраторам (Telegram)`);
+      } catch (error) {
+        logger.error('❌ Помилка відправки FCM сповіщення про новий тікет (Telegram):', error);
+        logger.error('   Stack:', error.stack);
+        // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      }
+      
+      // Відправка FCM сповіщення призначеному користувачу (якщо тікет призначено при створенні)
+      if (ticket.assignedTo) {
+        try {
+          const fcmService = require('./fcmService');
+          await fcmService.sendToUser(ticket.assignedTo.toString(), {
+            title: '🎫 Новий тікет призначено вам',
+            body: `Вам призначено тікет: ${ticket.title}`,
+            type: 'ticket_assigned',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              ticketStatus: ticket.status,
+              ticketPriority: ticket.priority,
+              createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
+                ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+                : 'Невідомий користувач'
+            }
+          });
+          logger.info('✅ FCM сповіщення про призначення тікету відправлено користувачу (Telegram)');
+        } catch (error) {
+          logger.error('❌ Помилка відправки FCM сповіщення про призначення (Telegram):', error);
+        }
+      }
+
+      // Очищуємо сесію
+      this.userSessions.delete(chatId);
 
       let confirmText = 
         `🎉 *Тікет успішно створено!*\n\n` +
