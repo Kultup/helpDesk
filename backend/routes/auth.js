@@ -374,6 +374,88 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// @route   PUT /api/auth/device
+// @desc    Оновлення інформації про пристрій (включно з FCM токеном)
+// @access  Private
+router.put('/device', authenticateToken, async (req, res) => {
+  try {
+    const { device } = req.body;
+    
+    if (!device || !device.deviceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Інформація про пристрій обов\'язкова'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Користувача не знайдено'
+      });
+    }
+
+    if (!Array.isArray(user.devices)) user.devices = [];
+    const now = new Date();
+    const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
+
+    const idx = user.devices.findIndex(d => d.deviceId === device.deviceId);
+    if (idx >= 0) {
+      user.devices[idx] = {
+        ...user.devices[idx].toObject?.() || user.devices[idx],
+        platform: device.platform || user.devices[idx].platform,
+        manufacturer: device.manufacturer ?? user.devices[idx].manufacturer,
+        model: device.model ?? user.devices[idx].model,
+        osVersion: device.osVersion ?? user.devices[idx].osVersion,
+        sdkInt: device.sdkInt ?? user.devices[idx].sdkInt,
+        appVersion: device.appVersion ?? user.devices[idx].appVersion,
+        pushToken: device.pushToken ?? user.devices[idx].pushToken,
+        label: device.label ?? user.devices[idx].label,
+        lastLoginAt: now,
+        lastIp: clientIp,
+        isActive: true
+      };
+    } else {
+      user.devices.push({
+        deviceId: device.deviceId,
+        platform: device.platform || 'android',
+        manufacturer: device.manufacturer ?? null,
+        model: device.model ?? null,
+        osVersion: device.osVersion ?? null,
+        sdkInt: device.sdkInt ?? null,
+        appVersion: device.appVersion ?? null,
+        pushToken: device.pushToken ?? null,
+        label: device.label ?? null,
+        firstLoginAt: now,
+        lastLoginAt: now,
+        lastIp: clientIp,
+        isActive: true
+      });
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          devices: user.devices || []
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Інформацію про пристрій оновлено'
+    });
+  } catch (error) {
+    logger.error('Помилка оновлення інформації про пристрій:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера при оновленні інформації про пристрій'
+    });
+  }
+});
+
 // @route   GET /api/auth/me
 // @desc    Отримання інформації про поточного користувача
 // @access  Private
