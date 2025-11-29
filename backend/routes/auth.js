@@ -544,7 +544,15 @@ router.post('/logout', authenticateToken, async (req, res) => {
 router.get('/register/positions', async (req, res) => {
   try {
     const Position = require('../models/Position');
-    const positions = await Position.find({ isActive: true })
+    // Виключаємо посаду "адміністратор системи" зі списку для реєстрації
+    const positions = await Position.find({ 
+      isActive: true,
+      title: {
+        $not: {
+          $regex: /адміністратор системи|администратор системы|system administrator/i
+        }
+      }
+    })
       .select('_id title')
       .sort({ title: 1 });
     
