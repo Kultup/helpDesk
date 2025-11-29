@@ -154,7 +154,7 @@ router.post('/register', async (req, res) => {
       firstName,
       lastName,
       position,
-      department,
+      department: department || undefined, // Якщо порожній рядок, використовуємо undefined для значення за замовчуванням
       city,
       phone,
       telegramId,
@@ -289,7 +289,7 @@ router.post('/login', async (req, res) => {
     // Якщо передали інформацію про пристрій — оновлюємо/додаємо її
     try {
       if (device && device.deviceId) {
-        if (!Array.isArray(user.devices)) user.devices = [];
+        if (!Array.isArray(user.devices)) {user.devices = [];}
         const now = new Date();
         const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
 

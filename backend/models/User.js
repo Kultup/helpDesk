@@ -68,8 +68,9 @@ const userSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    required: [true, 'Department is required'],
-    trim: true
+    required: false,
+    trim: true,
+    default: ''
   },
   city: {
     type: mongoose.Schema.Types.ObjectId,
@@ -379,7 +380,7 @@ userSchema.index({ 'devices.deviceId': 1 });
 
 // Middleware для хешування пароля
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {return next();}
   
   if (this.password) {
     this.password = await bcrypt.hash(this.password, 12);
@@ -398,7 +399,7 @@ userSchema.pre('save', function(next) {
 // Middleware для відстеження змін статусу користувача
 userSchema.pre('save', async function(next) {
   // Перевіряємо чи це новий документ
-  if (this.isNew) return next();
+  if (this.isNew) {return next();}
   
   // Отримуємо оригінальний документ з бази даних
   if (!this._originalDoc && (this.isModified('isActive') || this.isModified('role') || this.isModified('registrationStatus'))) {
@@ -523,8 +524,8 @@ userSchema.statics.findTopPerformers = function(limit = 10) {
 
 // Методи екземпляра
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  if (!this.password) return false;
-  return await bcrypt.compare(candidatePassword, this.password);
+  if (!this.password) {return false;}
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 userSchema.methods.generateEmailVerificationToken = function() {
@@ -592,7 +593,7 @@ userSchema.methods.removePermission = function(permission) {
 };
 
 userSchema.methods.hasPermission = function(permission) {
-  if (this.role === 'admin') return true;
+  if (this.role === 'admin') {return true;}
   return this.permissions.includes(permission);
 };
 
@@ -631,8 +632,8 @@ userSchema.methods.updatePreferences = function(preferences) {
 
 // Метод для порівняння паролів
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  if (!this.password) return false;
-  return await bcrypt.compare(candidatePassword, this.password);
+  if (!this.password) {return false;}
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Додаємо плагін пагінації
