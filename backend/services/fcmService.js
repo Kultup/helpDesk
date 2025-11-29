@@ -124,12 +124,7 @@ class FCMService {
             localOnly: false, // Показувати на всіх пристроях
             defaultLightSettings: true, // Використовувати світло за замовчуванням
             lightSettings: {
-              color: {
-                red: 1.0,
-                green: 0.0,
-                blue: 0.0,
-                alpha: 1.0
-              },
+              color: '#FF0000', // Червоний колір у форматі #RRGGBB
               lightOnDurationMillis: 1000,
               lightOffDurationMillis: 500
             }
