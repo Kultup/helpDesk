@@ -2373,36 +2373,25 @@ class TelegramService {
       }
 
       await ticket.populate([
-        { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'assignedTo', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' },
-        { path: 'category', select: 'name' }
+        { path: 'city', select: 'name region' }
       ]);
 
-      const categoryText = await this.getCategoryText(ticket.category?._id || ticket.category);
-      const priorityText = this.getPriorityText(ticket.priority);
-      const previousStatusText = this.getStatusText(previousStatus);
-      const newStatusText = this.getStatusText(newStatus);
-      const previousStatusEmoji = this.getStatusEmoji(previousStatus);
-      const newStatusEmoji = this.getStatusEmoji(newStatus);
-      
-      const message = 
-        `🔄 *Статус тікету змінено*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Заголовок:* ${ticket.title}\n` +
-        `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
-        `${previousStatusEmoji} *Попередній статус:* ${previousStatusText}\n` +
-        `${newStatusEmoji} *Новий статус:* ${newStatusText}\n\n` +
-        `👤 *Автор:* ${ticket.createdBy?.firstName || ''} ${ticket.createdBy?.lastName || ''}\n` +
-        `📧 *Email:* \`${ticket.createdBy?.email || 'Невідомий'}\`\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
-        `🏷️ *Категорія:* ${categoryText}\n` +
-        `⚡ *Пріоритет:* ${priorityText}\n` +
-        `👨‍💼 *Змінено:* ${changedBy?.firstName || ''} ${changedBy?.lastName || ''}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      // Якщо тікет закривається (closed або resolved), відправляємо спрощене повідомлення
+      if (newStatus === 'closed' || newStatus === 'resolved') {
+        const message = 
+          `🎫 *Тікет виконаний*\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📋 *Заголовок:* ${ticket.title}\n\n` +
+          `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
+          `🆔 *ID тікету:* \`${ticket._id}\``;
 
-      await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
-      logger.info('✅ Сповіщення про зміну статусу тікету відправлено в групу Telegram');
+        await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+        logger.info('✅ Сповіщення про закриття тікету відправлено в групу Telegram');
+      } else {
+        // Для інших змін статусу відправляємо повне повідомлення (якщо потрібно)
+        // Або можна просто не відправляти для інших статусів
+        logger.info('ℹ️ Зміна статусу на', newStatus, '- сповіщення в групу не відправляється');
+      }
     } catch (error) {
       logger.error('Помилка відправки сповіщення про зміну статусу тікету в групу:', error);
     }
