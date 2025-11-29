@@ -2283,65 +2283,14 @@ class TelegramService {
         category: ticket.category?.name
       });
 
-      // Отримуємо логін користувача з бази даних за telegramId
-      let userLogin = 'Невідомий';
-      try {
-        if (user && user.telegramId) {
-          logger.info('🔍 Пошук користувача за telegramId:', user.telegramId);
-          const userFromDb = await User.findOne({ 
-            $or: [
-              { telegramId: String(user.telegramId) },
-              { telegramId: user.telegramId }
-            ]
-          }).select('login');
-          if (userFromDb && userFromDb.login) {
-            userLogin = userFromDb.login;
-            logger.info('✅ Логін знайдено в БД:', userLogin);
-          } else if (user.login) {
-            userLogin = user.login;
-            logger.info('✅ Логін з об\'єкта user:', userLogin);
-          }
-        } else if (ticket.createdBy && ticket.createdBy.login) {
-          userLogin = ticket.createdBy.login;
-          logger.info('✅ Логін з ticket.createdBy:', userLogin);
-        } else if (user && user.login) {
-          userLogin = user.login;
-          logger.info('✅ Логін з об\'єкта user (без telegramId):', userLogin);
-        }
-      } catch (loginError) {
-        logger.error('❌ Помилка отримання логіну:', loginError);
-        // Продовжуємо з "Невідомий"
-      }
-
       logger.info('📝 Формування повідомлення...');
-      let categoryText = 'Не вказано';
-      try {
-        if (ticket.category && ticket.category._id) {
-          categoryText = await this.getCategoryText(ticket.category._id);
-        } else if (ticket.category) {
-          categoryText = await this.getCategoryText(ticket.category);
-        }
-      } catch (categoryError) {
-        logger.error('❌ Помилка отримання категорії:', categoryError);
-        categoryText = 'Не вказано';
-      }
-      const priorityText = this.getPriorityText(ticket.priority);
-      const statusText = this.getStatusText(ticket.status);
       
       const message = 
         `🎫 *Новий тікет створено*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Заголовок:* ${ticket.title}\n` +
-        `📝 *Опис:* ${ticket.description || 'Без опису'}\n\n` +
-        `👤 *Автор:* ${ticket.createdBy?.firstName || ''} ${ticket.createdBy?.lastName || ''}\n` +
-        `👤 *Логін:* \`${userLogin}\`\n` +
-        `📧 *Email:* \`${ticket.createdBy?.email || 'Невідомий'}\`\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
-        `🏷️ *Категорія:* ${categoryText}\n` +
-        `⚡ *Пріоритет:* ${priorityText}\n` +
-        `📊 *Статус:* ${statusText}\n` +
-        `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        `📋 *Заголовок:* ${ticket.title}\n\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
+        `🆔 *ID тікету:* \`${ticket._id}\``;
 
       logger.info('📤 Відправка повідомлення в групу...', {
         groupChatId,
