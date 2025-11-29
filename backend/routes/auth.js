@@ -396,7 +396,9 @@ router.put('/device', authenticateToken, async (req, res) => {
       });
     }
 
-    if (!Array.isArray(user.devices)) user.devices = [];
+    if (!Array.isArray(user.devices)) {
+      user.devices = [];
+    }
     const now = new Date();
     const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
 

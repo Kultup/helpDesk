@@ -74,21 +74,29 @@ class FCMService {
     }
 
     try {
-      const user = await User.findById(userId).select('devices');
+      const user = await User.findById(userId).select('devices email');
       if (!user || !user.devices || user.devices.length === 0) {
-        logger.warn(`⚠️ Користувач ${userId} не має зареєстрованих пристроїв`);
+        logger.warn(`⚠️ Користувач ${userId} (${user?.email || 'N/A'}) не має зареєстрованих пристроїв`);
         return false;
       }
 
       // Отримуємо всі активні push токени
       const pushTokens = user.devices
-        .filter(device => device.isActive && device.pushToken)
+        .filter(device => device.isActive && device.pushToken && device.pushToken.trim() !== '')
         .map(device => device.pushToken);
 
       if (pushTokens.length === 0) {
-        logger.warn(`⚠️ Користувач ${userId} не має активних push токенів`);
+        logger.warn(`⚠️ Користувач ${userId} (${user.email || 'N/A'}) не має активних push токенів`);
+        const devicesInfo = user.devices.map(d => ({
+          isActive: d.isActive,
+          hasToken: !!d.pushToken,
+          tokenLength: d.pushToken?.length || 0
+        }));
+        logger.info('   Пристрої користувача: ' + JSON.stringify(devicesInfo));
         return false;
       }
+
+      logger.info(`📤 Відправка FCM сповіщення користувачу ${user.email || userId}: ${pushTokens.length} токен(ів)`);
 
       const message = {
         notification: {
@@ -189,28 +197,60 @@ class FCMService {
     }
 
     try {
-      const admins = await User.find({
+      // Спочатку знаходимо всіх адміністраторів
+      const allAdmins = await User.find({
         role: { $in: ['admin', 'super_admin', 'administrator'] },
-        isActive: true,
-        'devices.isActive': true,
-        'devices.pushToken': { $exists: true, $ne: null }
-      }).select('_id devices');
+        isActive: true
+      }).select('_id email firstName lastName role devices');
 
-      if (admins.length === 0) {
+      logger.info(`🔍 Знайдено ${allAdmins.length} адміністраторів для відправки FCM сповіщень`);
+
+      if (allAdmins.length === 0) {
+        logger.warn('⚠️ Не знайдено активних адміністраторів');
+        return 0;
+      }
+
+      // Фільтруємо адміністраторів з активними токенами
+      const adminsWithTokens = allAdmins.filter(admin => {
+        if (!admin.devices || !Array.isArray(admin.devices)) {
+          return false;
+        }
+        return admin.devices.some(device => 
+          device.isActive && 
+          device.pushToken && 
+          device.pushToken.trim() !== ''
+        );
+      });
+
+      logger.info(`📱 Знайдено ${adminsWithTokens.length} адміністраторів з активними push токенами`);
+      
+      if (adminsWithTokens.length === 0) {
         logger.warn('⚠️ Не знайдено адміністраторів з активними push токенами');
+        // Логуємо деталі для діагностики
+        allAdmins.forEach(admin => {
+          const tokenCount = admin.devices?.filter(d => d.pushToken).length || 0;
+          const activeTokenCount = admin.devices?.filter(d => d.isActive && d.pushToken).length || 0;
+          logger.info(`   Адмін ${admin.email}: ${tokenCount} токенів, ${activeTokenCount} активних`);
+        });
         return 0;
       }
 
       let successCount = 0;
-      for (const admin of admins) {
-        const sent = await this.sendToUser(admin._id, notification);
-        if (sent) successCount++;
+      for (const admin of adminsWithTokens) {
+        const sent = await this.sendToUser(admin._id.toString(), notification);
+        if (sent) {
+          successCount++;
+          logger.info(`   ✅ Сповіщення відправлено адміністратору ${admin.email}`);
+        } else {
+          logger.warn(`   ⚠️ Не вдалося відправити сповіщення адміністратору ${admin.email}`);
+        }
       }
 
-      logger.info(`✅ FCM сповіщення відправлено ${successCount} адміністраторам`);
+      logger.info(`✅ FCM сповіщення відправлено ${successCount} з ${adminsWithTokens.length} адміністраторам`);
       return successCount;
     } catch (error) {
       logger.error('❌ Помилка відправки FCM сповіщень адміністраторам:', error);
+      logger.error('   Stack:', error.stack);
       return 0;
     }
   }
