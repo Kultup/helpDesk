@@ -287,6 +287,18 @@ async function handleCreateTicketCommand(chatId, user, description) {
       logger.error('   Stack:', error.stack);
     }
 
+    // Відправка Telegram сповіщення про новий тікет в групу
+    try {
+      logger.info('📢 Спроба відправки Telegram сповіщення в групу про новий тікет (Telegram /create)');
+      const telegramService = require('../services/telegramService');
+      await telegramService.sendNewTicketNotificationToGroup(ticket, user);
+      logger.info('✅ Telegram сповіщення в групу відправлено (Telegram /create)');
+    } catch (error) {
+      logger.error('❌ Помилка відправки Telegram сповіщення в групу (Telegram /create):', error);
+      logger.error('   Stack:', error.stack);
+      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+    }
+
     const successText = 
       `✅ Тикет створено успішно!\n\n` +
       `🆔 ID: ${ticket._id}\n` +
