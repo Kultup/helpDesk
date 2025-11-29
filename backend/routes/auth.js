@@ -538,4 +538,73 @@ router.post('/logout', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/register/positions
+// @desc    Отримати список активних посад для реєстрації (публічний)
+// @access  Public
+router.get('/register/positions', async (req, res) => {
+  try {
+    const Position = require('../models/Position');
+    const positions = await Position.find({ isActive: true })
+      .select('_id title')
+      .sort({ title: 1 });
+    
+    res.json({
+      success: true,
+      data: positions
+    });
+  } catch (error) {
+    logger.error('Помилка отримання посад для реєстрації:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера'
+    });
+  }
+});
+
+// @route   GET /api/auth/register/cities
+// @desc    Отримати список міст для реєстрації (публічний)
+// @access  Public
+router.get('/register/cities', async (req, res) => {
+  try {
+    const City = require('../models/City');
+    const cities = await City.find()
+      .select('_id name region')
+      .sort({ name: 1 });
+    
+    res.json({
+      success: true,
+      data: cities
+    });
+  } catch (error) {
+    logger.error('Помилка отримання міст для реєстрації:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера'
+    });
+  }
+});
+
+// @route   GET /api/auth/register/institutions
+// @desc    Отримати список активних закладів для реєстрації (публічний)
+// @access  Public
+router.get('/register/institutions', async (req, res) => {
+  try {
+    const Institution = require('../models/Institution');
+    const institutions = await Institution.find({ isActive: true })
+      .select('_id name')
+      .sort({ name: 1 });
+    
+    res.json({
+      success: true,
+      data: institutions
+    });
+  } catch (error) {
+    logger.error('Помилка отримання закладів для реєстрації:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера'
+    });
+  }
+});
+
 module.exports = router;
