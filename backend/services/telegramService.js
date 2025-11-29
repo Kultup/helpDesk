@@ -2219,10 +2219,30 @@ class TelegramService {
       }
 
       await ticket.populate([
-        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email login telegramId' },
         { path: 'city', select: 'name region' },
         { path: 'category', select: 'name' }
       ]);
+
+      // Отримуємо логін користувача з бази даних за telegramId
+      let userLogin = 'Невідомий';
+      if (user && user.telegramId) {
+        const userFromDb = await User.findOne({ 
+          $or: [
+            { telegramId: String(user.telegramId) },
+            { telegramId: user.telegramId }
+          ]
+        }).select('login');
+        if (userFromDb && userFromDb.login) {
+          userLogin = userFromDb.login;
+        } else if (user.login) {
+          userLogin = user.login;
+        }
+      } else if (ticket.createdBy && ticket.createdBy.login) {
+        userLogin = ticket.createdBy.login;
+      } else if (user && user.login) {
+        userLogin = user.login;
+      }
 
       const categoryText = await this.getCategoryText(ticket.category._id);
       const priorityText = this.getPriorityText(ticket.priority);
@@ -2234,6 +2254,7 @@ class TelegramService {
         `📋 *Заголовок:* ${ticket.title}\n` +
         `📝 *Опис:* ${ticket.description || 'Без опису'}\n\n` +
         `👤 *Автор:* ${ticket.createdBy?.firstName || ''} ${ticket.createdBy?.lastName || ''}\n` +
+        `👤 *Логін:* \`${userLogin}\`\n` +
         `📧 *Email:* \`${ticket.createdBy?.email || 'Невідомий'}\`\n` +
         `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
         `🏷️ *Категорія:* ${categoryText}\n` +
