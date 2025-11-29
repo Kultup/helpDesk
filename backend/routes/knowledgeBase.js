@@ -24,7 +24,7 @@ router.get('/articles', auth, async (req, res) => {
     } = req.query;
 
     const filters = {
-      category: category || undefined,
+      category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
       status: status || undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined
@@ -217,7 +217,7 @@ router.get('/search', auth, async (req, res) => {
     } = req.query;
 
     const filters = {
-      category: category || undefined,
+      category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
       status: status || undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined

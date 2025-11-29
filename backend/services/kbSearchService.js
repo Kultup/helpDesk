@@ -20,7 +20,7 @@ class KBSearchService {
       let searchQuery = { isDeleted: false };
 
       // Фільтри
-      if (filters.category) {
+      if (filters.category && filters.category !== 'undefined' && filters.category !== 'null') {
         searchQuery.category = filters.category;
       }
 

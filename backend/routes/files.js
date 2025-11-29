@@ -20,6 +20,7 @@ router.get('/:filename', async (req, res) => {
 
     // Шукаємо файл в різних папках
     const possiblePaths = [
+      path.join(__dirname, '../uploads/tickets', filename), // Файли з тікетів
       path.join(__dirname, '../uploads/telegram-photos', filename),
       path.join(__dirname, '../uploads/attachments', filename),
       path.join(__dirname, '../uploads/avatars', filename),
