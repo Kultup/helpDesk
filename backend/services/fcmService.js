@@ -112,13 +112,13 @@ class FCMService {
           priority: 'high',
           notification: {
             sound: 'default',
-            channelId: 'helDesKM_channel',
+            channelId: 'helpdesk_channel',
             defaultSound: true,
             defaultVibrateTimings: true,
             visibility: 'public',
             notificationPriority: 'max', // Максимальний пріоритет для звуку та heads-up
             importance: 'high', // Високий рівень важливості
-            tag: 'helDesKM_notification', // Тег для групування
+            tag: 'helpdesk_notification', // Тег для групування
             clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Дія при кліку
             sticky: false, // Не постійне сповіщення
             localOnly: false, // Показувати на всіх пристроях
@@ -153,7 +153,7 @@ class FCMService {
       const successCount = results.filter(r => r.status === 'fulfilled').length;
       const failureCount = results.filter(r => r.status === 'rejected').length;
 
-      logger.info(`✅ FCM сповіщення відправлено користувачу ${userId}: ${successCount} успішно, ${failureCount} помилок`);
+      logger.info(`✅ FCM сповіщення відправлено користувачу ${user.email || userId}: ${successCount} успішно, ${failureCount} помилок`);
 
       // Видаляємо невалідні токени
       if (failureCount > 0) {
@@ -161,6 +161,11 @@ class FCMService {
         results.forEach((result, index) => {
           if (result.status === 'rejected') {
             const error = result.reason;
+            logger.error(`❌ Помилка відправки FCM на токен ${index + 1}:`, {
+              code: error.code,
+              message: error.message,
+              stack: error.stack
+            });
             if (error.code === 'messaging/invalid-registration-token' || 
                 error.code === 'messaging/registration-token-not-registered') {
               invalidTokens.push(pushTokens[index]);
