@@ -14,6 +14,12 @@ const registerSchema = Joi.object({
     'string.email': 'Невірний формат email',
     'any.required': 'Email є обов\'язковим'
   }),
+  login: Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_]+$/).required().messages({
+    'string.min': 'Логін повинен містити мінімум 3 символи',
+    'string.max': 'Логін не може перевищувати 50 символів',
+    'string.pattern.base': 'Логін може містити тільки латинські літери, цифри та підкреслення',
+    'any.required': 'Логін є обов\'язковим'
+  }),
   password: Joi.string().min(6).required().messages({
     'string.min': 'Пароль повинен містити мінімум 6 символів',
     'any.required': 'Пароль є обов\'язковим'
@@ -93,7 +99,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const { email, password, firstName, lastName, position, department, city, phone, telegramId, institution } = value;
+    const { email, login: providedLogin, password, firstName, lastName, position, department, city, phone, telegramId, institution } = value;
 
     // Перевірка чи користувач вже існує (включаючи неактивних та pending)
     const existingUser = await User.findOne({ 
@@ -134,22 +140,21 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // Генеруємо унікальний логін
-    const { generateUniqueLogin } = require('../utils/helpers');
-    const login = await generateUniqueLogin(
-      email,
-      null,
-      null,
-      async (loginToCheck) => {
-        const user = await User.findOne({ login: loginToCheck });
-        return !!user;
-      }
-    );
+    // Перевірка унікальності логіну
+    const normalizedLogin = providedLogin.toLowerCase().trim();
+    const existingUserWithLogin = await User.findOne({ login: normalizedLogin });
+    
+    if (existingUserWithLogin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Користувач з таким логіном вже існує'
+      });
+    }
     
     // Створення нового користувача зі статусом pending
     const user = new User({
       email: email.toLowerCase(),
-      login: login,
+      login: normalizedLogin,
       password,
       firstName,
       lastName,
@@ -513,6 +518,47 @@ router.post('/refresh', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка сервера'
+    });
+  }
+});
+
+// @route   GET /api/auth/check-registration-status
+// @desc    Перевірка статусу реєстрації за email (публічний endpoint)
+// @access  Public
+router.get('/check-registration-status', async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email є обов\'язковим'
+      });
+    }
+    
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('registrationStatus isActive');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Користувача з таким email не знайдено'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        registrationStatus: user.registrationStatus,
+        isActive: user.isActive,
+        isApproved: user.registrationStatus === 'approved' && user.isActive
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка перевірки статусу реєстрації:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера при перевірці статусу реєстрації'
     });
   }
 });
