@@ -216,6 +216,16 @@ exports.createCity = async (req, res) => {
 
     logger.info('✅ Місто успішно збережено:', city._id);
 
+    // Відправка WebSocket сповіщення про створення міста
+    try {
+      const cityWebSocketService = require('../services/cityWebSocketService');
+      cityWebSocketService.notifyCityCreated(city);
+      logger.info('✅ WebSocket сповіщення про створення міста відправлено');
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про створення міста:', error);
+      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+    }
+
     res.status(201).json({
       success: true,
       message: 'Місто успішно створено',
@@ -309,6 +319,16 @@ exports.updateCity = async (req, res) => {
     city.lastModifiedBy = req.user._id;
     await city.save();
 
+    // Відправка WebSocket сповіщення про оновлення міста
+    try {
+      const cityWebSocketService = require('../services/cityWebSocketService');
+      cityWebSocketService.notifyCityUpdated(city);
+      logger.info('✅ WebSocket сповіщення про оновлення міста відправлено');
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про оновлення міста:', error);
+      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+    }
+
     res.json({
       success: true,
       message: 'Місто успішно оновлено',
@@ -366,6 +386,16 @@ exports.deleteCity = async (req, res) => {
     }
 
     await City.findByIdAndDelete(id);
+
+    // Відправка WebSocket сповіщення про видалення міста
+    try {
+      const cityWebSocketService = require('../services/cityWebSocketService');
+      cityWebSocketService.notifyCityDeleted(id);
+      logger.info('✅ WebSocket сповіщення про видалення міста відправлено');
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про видалення міста:', error);
+      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+    }
 
     res.json({
       success: true,

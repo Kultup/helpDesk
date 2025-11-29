@@ -201,6 +201,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   ticketWebSocketService.initialize(io);
   logger.info('✅ WebSocket сервіс для тікетів ініціалізовано');
   
+  // Ініціалізуємо WebSocket сервіс для міст
+  const cityWebSocketService = require('./services/cityWebSocketService');
+  cityWebSocketService.initialize(io);
+  logger.info('✅ WebSocket сервіс для міст ініціалізовано');
+  
   // Ініціалізуємо WebSocket сервіс для сповіщень про помилки
   const errorNotificationService = require('./services/errorNotificationService');
   errorNotificationService.initialize(io);

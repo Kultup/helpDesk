@@ -44,6 +44,54 @@ const Cities: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  // WebSocket підписки для синхронізації міст
+  useEffect(() => {
+    let socket: any = null;
+    
+    const connectWebSocket = async () => {
+      try {
+        const { io } = await import('socket.io-client');
+        const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || '') as string;
+        const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+        socket = io(socketUrl);
+        
+        socket.on('connect', () => {
+          console.log('Connected to WebSocket for cities updates');
+          socket.emit('join-admin-room');
+        });
+
+        socket.on('city:created', () => {
+          console.log('City created - refreshing list');
+          refetch();
+        });
+
+        socket.on('city:updated', () => {
+          console.log('City updated - refreshing list');
+          refetch();
+        });
+
+        socket.on('city:deleted', () => {
+          console.log('City deleted - refreshing list');
+          refetch();
+        });
+
+        socket.on('disconnect', () => {
+          console.log('Disconnected from WebSocket');
+        });
+      } catch (error) {
+        console.error('Error connecting to WebSocket:', error);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [refetch]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormLoading(true);

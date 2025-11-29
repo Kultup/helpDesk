@@ -35,3 +35,6 @@ coverage/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Mobile app
+mobile_flutter/
