@@ -2207,6 +2207,13 @@ class TelegramService {
    */
   async sendNewTicketNotificationToGroup(ticket, user) {
     try {
+      logger.info('🔔 Початок відправки сповіщення про новий тікет в групу', {
+        ticketId: ticket._id,
+        userId: user?._id,
+        userTelegramId: user?.telegramId,
+        botInitialized: !!this.bot
+      });
+
       if (!this.bot) {
         logger.warn('Telegram бот не ініціалізований для відправки сповіщення про новий тікет');
         return;
@@ -2218,33 +2225,60 @@ class TelegramService {
         return;
       }
 
+      logger.info('📋 Заповнення даних тікету...');
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email login telegramId' },
         { path: 'city', select: 'name region' },
         { path: 'category', select: 'name' }
       ]);
+      logger.info('✅ Дані тікету заповнено', {
+        createdBy: ticket.createdBy?._id,
+        city: ticket.city?.name,
+        category: ticket.category?.name
+      });
 
       // Отримуємо логін користувача з бази даних за telegramId
       let userLogin = 'Невідомий';
-      if (user && user.telegramId) {
-        const userFromDb = await User.findOne({ 
-          $or: [
-            { telegramId: String(user.telegramId) },
-            { telegramId: user.telegramId }
-          ]
-        }).select('login');
-        if (userFromDb && userFromDb.login) {
-          userLogin = userFromDb.login;
-        } else if (user.login) {
+      try {
+        if (user && user.telegramId) {
+          logger.info('🔍 Пошук користувача за telegramId:', user.telegramId);
+          const userFromDb = await User.findOne({ 
+            $or: [
+              { telegramId: String(user.telegramId) },
+              { telegramId: user.telegramId }
+            ]
+          }).select('login');
+          if (userFromDb && userFromDb.login) {
+            userLogin = userFromDb.login;
+            logger.info('✅ Логін знайдено в БД:', userLogin);
+          } else if (user.login) {
+            userLogin = user.login;
+            logger.info('✅ Логін з об\'єкта user:', userLogin);
+          }
+        } else if (ticket.createdBy && ticket.createdBy.login) {
+          userLogin = ticket.createdBy.login;
+          logger.info('✅ Логін з ticket.createdBy:', userLogin);
+        } else if (user && user.login) {
           userLogin = user.login;
+          logger.info('✅ Логін з об\'єкта user (без telegramId):', userLogin);
         }
-      } else if (ticket.createdBy && ticket.createdBy.login) {
-        userLogin = ticket.createdBy.login;
-      } else if (user && user.login) {
-        userLogin = user.login;
+      } catch (loginError) {
+        logger.error('❌ Помилка отримання логіну:', loginError);
+        // Продовжуємо з "Невідомий"
       }
 
-      const categoryText = await this.getCategoryText(ticket.category._id);
+      logger.info('📝 Формування повідомлення...');
+      let categoryText = 'Не вказано';
+      try {
+        if (ticket.category && ticket.category._id) {
+          categoryText = await this.getCategoryText(ticket.category._id);
+        } else if (ticket.category) {
+          categoryText = await this.getCategoryText(ticket.category);
+        }
+      } catch (categoryError) {
+        logger.error('❌ Помилка отримання категорії:', categoryError);
+        categoryText = 'Не вказано';
+      }
       const priorityText = this.getPriorityText(ticket.priority);
       const statusText = this.getStatusText(ticket.status);
       
@@ -2263,10 +2297,23 @@ class TelegramService {
         `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
+      logger.info('📤 Відправка повідомлення в групу...', {
+        groupChatId,
+        messageLength: message.length
+      });
       await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
-      logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram');
+      logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram', {
+        groupChatId,
+        ticketId: ticket._id,
+        userLogin
+      });
     } catch (error) {
-      logger.error('Помилка відправки сповіщення про новий тікет в групу:', error);
+      logger.error('❌ Помилка відправки сповіщення про новий тікет в групу:', {
+        error: error.message,
+        stack: error.stack,
+        ticketId: ticket?._id,
+        userId: user?._id
+      });
     }
   }
 
