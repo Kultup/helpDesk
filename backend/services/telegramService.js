@@ -2221,22 +2221,44 @@ class TelegramService {
 
       // Отримуємо chatId з бази даних (налаштування з адмін панелі)
       let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      logger.info('🔍 Перевірка chatId:', {
+        fromEnv: !!groupChatId,
+        envValue: groupChatId ? 'встановлено' : 'не встановлено'
+      });
+      
       if (!groupChatId) {
         try {
+          logger.info('🔍 Пошук TelegramConfig в базі даних...');
           const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+          logger.info('📋 Результат пошуку TelegramConfig:', {
+            found: !!telegramConfig,
+            hasChatId: !!(telegramConfig && telegramConfig.chatId),
+            chatIdValue: telegramConfig?.chatId ? 'встановлено' : 'не встановлено'
+          });
+          
           if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
             groupChatId = telegramConfig.chatId.trim();
             logger.info('✅ ChatId отримано з бази даних:', groupChatId);
+          } else {
+            logger.warn('⚠️ TelegramConfig знайдено, але chatId порожній або відсутній');
           }
         } catch (configError) {
-          logger.error('❌ Помилка отримання TelegramConfig:', configError);
+          logger.error('❌ Помилка отримання TelegramConfig:', {
+            error: configError.message,
+            stack: configError.stack
+          });
         }
+      } else {
+        logger.info('✅ ChatId отримано з змінної оточення:', groupChatId);
       }
 
       if (!groupChatId) {
-        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
+        logger.warn('❌ TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
+        logger.warn('💡 Перевірте налаштування в адмін панелі або встановіть змінну оточення');
         return;
       }
+      
+      logger.info('✅ Використовується groupChatId:', groupChatId);
 
       logger.info('📋 Заповнення даних тікету...');
       await ticket.populate([
@@ -2312,20 +2334,51 @@ class TelegramService {
 
       logger.info('📤 Відправка повідомлення в групу...', {
         groupChatId,
-        messageLength: message.length
+        messageLength: message.length,
+        messagePreview: message.substring(0, 100)
       });
-      await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
-      logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram', {
-        groupChatId,
-        ticketId: ticket._id,
-        userLogin
-      });
+      
+      try {
+        const result = await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+        logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram', {
+          groupChatId,
+          ticketId: ticket._id,
+          userLogin,
+          messageId: result?.message_id
+        });
+      } catch (sendError) {
+        logger.error('❌ Помилка відправки повідомлення в групу:', {
+          error: sendError.message,
+          stack: sendError.stack,
+          response: sendError.response?.data,
+          groupChatId,
+          ticketId: ticket._id
+        });
+        // Не пробуємо відправити без Markdown, якщо помилка парсингу
+        if (sendError.message && sendError.message.includes('parse')) {
+          logger.info('🔄 Спроба відправки без Markdown...');
+          try {
+            const plainMessage = message.replace(/\*/g, '').replace(/`/g, '');
+            const result = await this.sendMessage(groupChatId, plainMessage);
+            logger.info('✅ Сповіщення відправлено без Markdown', {
+              groupChatId,
+              messageId: result?.message_id
+            });
+          } catch (plainError) {
+            logger.error('❌ Помилка відправки без Markdown:', plainError.message);
+            throw plainError;
+          }
+        } else {
+          throw sendError;
+        }
+      }
     } catch (error) {
       logger.error('❌ Помилка відправки сповіщення про новий тікет в групу:', {
         error: error.message,
         stack: error.stack,
         ticketId: ticket?._id,
-        userId: user?._id
+        userId: user?._id,
+        groupChatId: groupChatId || 'не встановлено'
       });
     }
   }
