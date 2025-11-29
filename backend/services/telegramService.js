@@ -269,11 +269,23 @@ class TelegramService {
     try {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
+      const chatType = msg.chat.type;
+      
+      // Заборона створення тікетів через групи - тільки приватні чати
+      if (chatType !== 'private') {
+        logger.info(`Повідомлення ігноровано - не приватний чат (тип: ${chatType})`, {
+          chatId,
+          userId,
+          chatType
+        });
+        return; // Ігноруємо повідомлення з груп, супергруп та каналів
+      }
       
       logger.info(`Отримано повідомлення від користувача ${userId} в чаті ${chatId}`, {
         text: msg.text?.substring(0, 100),
         hasPhoto: !!msg.photo,
-        hasContact: !!msg.contact
+        hasContact: !!msg.contact,
+        chatType
       });
 
       // Перевірка, чи користувач вже зареєстрований
@@ -810,9 +822,22 @@ class TelegramService {
     const messageId = callbackQuery.message.message_id;
     const data = callbackQuery.data;
     const userId = callbackQuery.from.id;
+    const chatType = callbackQuery.message.chat.type;
+
+    // Заборона обробки callback-запитів з груп - тільки приватні чати
+    if (chatType !== 'private') {
+      logger.info(`Callback query ігноровано - не приватний чат (тип: ${chatType})`, {
+        chatId,
+        userId,
+        data,
+        chatType
+      });
+      await this.answerCallbackQuery(callbackQuery.id, 'Бот працює тільки в приватних чатах');
+      return; // Ігноруємо callback-запити з груп, супергруп та каналів
+    }
 
     try {
-      logger.info('Обробка callback query:', { userId, data, chatId, messageId });
+      logger.info('Обробка callback query:', { userId, data, chatId, messageId, chatType });
 
       // Спочатку перевіряємо, чи користувач вже зареєстрований
       // Конвертуємо userId в рядок для пошуку
