@@ -184,8 +184,9 @@ router.post('/register', async (req, res) => {
 
     // Відправка FCM сповіщення адміністраторам про нову реєстрацію
     try {
+      logger.info('📱 Спроба відправки FCM сповіщення адміністраторам про нову реєстрацію');
       const fcmService = require('../services/fcmService');
-      await fcmService.sendToAdmins({
+      const adminCount = await fcmService.sendToAdmins({
         title: '👤 Новий запит на реєстрацію',
         body: `${user.firstName} ${user.lastName} (${user.email}) подала заявку на реєстрацію`,
         type: 'registration_request',
@@ -196,9 +197,10 @@ router.post('/register', async (req, res) => {
           registrationStatus: user.registrationStatus
         }
       });
-      logger.info('✅ FCM сповіщення про нову реєстрацію відправлено адміністраторам');
+      logger.info(`✅ FCM сповіщення про нову реєстрацію відправлено ${adminCount} адміністраторам`);
     } catch (error) {
       logger.error('❌ Помилка відправки FCM сповіщення про нову реєстрацію:', error);
+      logger.error('   Stack:', error.stack);
       // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
     }
 
