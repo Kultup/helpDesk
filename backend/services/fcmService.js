@@ -116,8 +116,7 @@ class FCMService {
             defaultSound: true,
             defaultVibrateTimings: true,
             visibility: 'public',
-            notificationPriority: 'max', // Максимальний пріоритет для звуку та heads-up
-            importance: 'high', // Високий рівень важливості
+            notificationPriority: 'PRIORITY_MAX', // Максимальний пріоритет для звуку та heads-up
             tag: 'helpdesk_notification', // Тег для групування
             clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Дія при кліку
             sticky: false, // Не постійне сповіщення
