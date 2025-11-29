@@ -199,6 +199,11 @@ router.get('/', authenticateToken, async (req, res) => {
 // Експорт тікетів
 router.get('/export', authenticateToken, ticketController.exportTickets);
 
+// @route   GET /api/tickets/stats
+// @desc    Отримання статистики тікетів
+// @access  Private
+router.get('/stats', authenticateToken, ticketController.getTicketStatistics);
+
 // @route   GET /api/tickets/:id
 // @desc    Отримання конкретного тикету
 // @access  Private
