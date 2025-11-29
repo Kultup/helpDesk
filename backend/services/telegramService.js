@@ -2303,7 +2303,6 @@ class TelegramService {
         logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram', {
           groupChatId,
           ticketId: ticket._id,
-          userLogin,
           messageId: result?.message_id
         });
       } catch (sendError) {
@@ -2338,7 +2337,7 @@ class TelegramService {
         stack: error.stack,
         ticketId: ticket?._id,
         userId: user?._id,
-        groupChatId: groupChatId || 'не встановлено'
+        groupChatId: typeof groupChatId !== 'undefined' ? groupChatId : 'не встановлено'
       });
     }
   }
