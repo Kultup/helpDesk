@@ -65,10 +65,8 @@ const createTicketSchema = Joi.object({
     'any.required': 'Опис є обов\'язковим'
   }),
   priority: Joi.string().valid('low', 'medium', 'high').default('medium'),
-  category: Joi.string().valid('technical', 'account', 'billing', 'general').default('general'),
-  city: Joi.string().required().messages({
-    'any.required': 'Місто є обов\'язковим'
-  }),
+  category: Joi.string().valid('technical', 'account', 'billing', 'general').optional().allow(null),
+  city: Joi.string().optional().allow(null),
   assignedTo: Joi.string().optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).optional(),
@@ -285,9 +283,10 @@ router.post('/',
         }
       }
 
-      // Конвертація category зі строки в ObjectId
-      let categoryId = value.category;
-      if (typeof value.category === 'string' && !mongoose.Types.ObjectId.isValid(value.category)) {
+      // Конвертація category зі строки в ObjectId (опціонально)
+      let categoryId = null;
+      if (value.category) {
+        if (typeof value.category === 'string' && !mongoose.Types.ObjectId.isValid(value.category)) {
         // Мапінг англійських назв enum на українські назви категорій в базі
         const categoryNameMap = {
           'technical': ['Технічні', 'Технічні питання', 'Технічні проблеми'],
@@ -327,21 +326,35 @@ router.post('/',
           // Логуємо всі доступні категорії для діагностики
           const allCategories = await Category.find({ isActive: true }).select('name');
           logger.warn('❌ Доступні категорії в базі:', allCategories.map(c => c.name));
-          return res.status(400).json({
-            success: false,
-            message: `Категорія "${value.category}" не знайдена. Переконайтеся, що категорії ініціалізовані в базі даних.`
-          });
+          
+          // Якщо категорія не знайдена, використовуємо першу активну категорію (як в боті)
+          const fallbackCategory = await Category.findOne({ isActive: true }).sort({ name: 1 });
+          if (fallbackCategory) {
+            category = fallbackCategory;
+            logger.info('✅ Використано резервну категорію:', { 
+              requested: value.category,
+              categoryId: fallbackCategory._id,
+              name: fallbackCategory.name 
+            });
+          } else {
+            // Якщо категорія не знайдена і немає резервної, просто не встановлюємо категорію
+            logger.warn('⚠️ Категорія не знайдена, створюємо тікет без категорії');
+            categoryId = null;
+          }
         }
         
-        categoryId = category._id;
-        logger.info('✅ Категорія знайдена за назвою:', { 
-          category: value.category, 
-          categoryId: category._id,
-          foundName: category.name 
-        });
+        if (category) {
+          categoryId = category._id;
+          logger.info('✅ Категорія знайдена за назвою:', { 
+            category: value.category, 
+            categoryId: category._id,
+            foundName: category.name 
+          });
+        }
       } else if (typeof value.category === 'string' && mongoose.Types.ObjectId.isValid(value.category)) {
-        // Якщо category - це валідний ObjectId
-        categoryId = new mongoose.Types.ObjectId(value.category);
+          // Якщо category - це валідний ObjectId
+          categoryId = new mongoose.Types.ObjectId(value.category);
+        }
       }
 
       // Обробка вкладених файлів
@@ -354,13 +367,19 @@ router.post('/',
       })) : [];
 
       // Створення тикету
-      const ticket = new Ticket({
+      const ticketData = {
         ...value,
-        category: categoryId, // Використовуємо конвертований categoryId
         createdBy: req.user._id,
         attachments,
-        source: 'web'
-      });
+        source: 'mobile' // Тікети з мобільного додатку
+      };
+      
+      // Додаємо категорію тільки якщо вона вказана
+      if (categoryId) {
+        ticketData.category = categoryId;
+      }
+      
+      const ticket = new Ticket(ticketData);
 
       await ticket.save();
       logger.info('✅ Тикет успішно створено:', ticket._id);
