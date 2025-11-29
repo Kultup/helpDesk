@@ -2219,9 +2219,22 @@ class TelegramService {
         return;
       }
 
-      const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      // Отримуємо chatId з бази даних (налаштування з адмін панелі)
+      let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
       if (!groupChatId) {
-        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено');
+        try {
+          const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+          if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
+            groupChatId = telegramConfig.chatId.trim();
+            logger.info('✅ ChatId отримано з бази даних:', groupChatId);
+          }
+        } catch (configError) {
+          logger.error('❌ Помилка отримання TelegramConfig:', configError);
+        }
+      }
+
+      if (!groupChatId) {
+        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
         return;
       }
 
@@ -2327,9 +2340,22 @@ class TelegramService {
         return;
       }
 
-      const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      // Отримуємо chatId з бази даних (налаштування з адмін панелі)
+      let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
       if (!groupChatId) {
-        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено');
+        try {
+          const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+          if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
+            groupChatId = telegramConfig.chatId.trim();
+            logger.info('✅ ChatId отримано з бази даних для статусу:', groupChatId);
+          }
+        } catch (configError) {
+          logger.error('❌ Помилка отримання TelegramConfig:', configError);
+        }
+      }
+
+      if (!groupChatId) {
+        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
         return;
       }
 
