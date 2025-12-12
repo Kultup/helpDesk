@@ -160,11 +160,6 @@ const App: React.FC = () => {
                 <Institutions />
               </ProtectedRoute>
             } />
-            <Route path="admin/categories" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Categories />
-              </ProtectedRoute>
-            } />
             <Route path="admin/quick-notifications" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <QuickNotifications />
