@@ -131,7 +131,7 @@ const CreateTicket: React.FC = () => {
       setError('');
       
       // Для не-адмінів встановлюємо місто з профілю, якщо воно не встановлено
-      let ticketData = { ...formData };
+      const ticketData = { ...formData };
       if (!isAdmin && !ticketData.cityId && user?.city) {
         ticketData.cityId = typeof user.city === 'string' ? user.city : user.city._id;
       }
