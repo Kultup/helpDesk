@@ -223,7 +223,6 @@ class ApiService {
         formData.append('title', ticketData.title);
         formData.append('description', ticketData.description);
         formData.append('priority', ticketData.priority);
-        formData.append('category', ticketData.category);
         formData.append('city', ticketData.city);
         
         if (ticketData.assignedTo) {
@@ -883,9 +882,9 @@ class ApiService {
     return response.data;
   }
 
-  // Масові критичні сповіщення через Telegram
-  async sendTelegramNotification(payload: { message: string; type?: 'info' | 'warning' | 'error' | 'success'; userIds?: string[] }): Promise<ApiResponse<{ results: { total: number; sent: number; failed: number; details: Array<Record<string, unknown>> } }>> {
-    const response: AxiosResponse<ApiResponse<{ results: { total: number; sent: number; failed: number; details: Array<Record<string, unknown>> } }>> =
+  // Швидкі сповіщення через Telegram в групу
+  async sendTelegramNotification(payload: { message: string; type?: 'info' | 'warning' | 'error' | 'success' }): Promise<ApiResponse<{ sent: boolean; groupChatId: string }>> {
+    const response: AxiosResponse<ApiResponse<{ sent: boolean; groupChatId: string }>> =
       await this.api.post('/telegram/send-notification', payload);
     return response.data;
   }

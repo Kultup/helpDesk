@@ -213,7 +213,7 @@ router.delete('/unlink', authenticateToken, async (req, res) => {
 
 /**
  * @route   POST /api/telegram/send-notification
- * @desc    Відправка сповіщення через Telegram
+ * @desc    Відправка сповіщення через Telegram в групу
  * @access  Private
  */
 router.post('/send-notification', authenticateToken, async (req, res) => {
@@ -226,7 +226,7 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
       });
     }
 
-    const { userIds, message, type = 'info' } = req.body;
+    const { message, type = 'info' } = req.body;
 
     if (!message) {
       return res.status(400).json({
@@ -235,21 +235,35 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
       });
     }
 
-    let users;
-    if (userIds && userIds.length > 0) {
-      // Відправка конкретним користувачам
-      users = await User.find({ 
-        _id: { $in: userIds },
-        telegramId: { $exists: true, $ne: null }
-      });
-    } else {
-      // Відправка всім користувачам з Telegram
-      users = await User.find({ 
-        telegramId: { $exists: true, $ne: null }
+    if (!telegramService.isInitialized || !telegramService.bot) {
+      return res.status(503).json({
+        success: false,
+        message: 'Telegram бот не ініціалізований'
       });
     }
 
-    const results = [];
+    // Отримуємо chatId з бази даних або змінної оточення
+    const TelegramConfig = require('../models/TelegramConfig');
+    let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+    
+    if (!groupChatId) {
+      try {
+        const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+        if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
+          groupChatId = telegramConfig.chatId.trim();
+        }
+      } catch (configError) {
+        logger.error('Помилка отримання TelegramConfig:', configError);
+      }
+    }
+
+    if (!groupChatId) {
+      return res.status(400).json({
+        success: false,
+        message: 'TELEGRAM_GROUP_CHAT_ID не встановлено. Перевірте налаштування в адмін панелі або встановіть змінну оточення.'
+      });
+    }
+
     const typeEmojis = {
       info: 'ℹ️',
       warning: '⚠️',
@@ -259,43 +273,36 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
 
     const formattedMessage = `${typeEmojis[type] || 'ℹ️'} *Сповіщення*\n\n${message}`;
 
-    for (const user of users) {
-      try {
-        if (telegramService.isInitialized) {
-          await telegramService.bot.sendMessage(
-            user.telegramId, 
-            formattedMessage,
-            { parse_mode: 'Markdown' }
-          );
-          results.push({ userId: user._id, status: 'sent' });
-        } else {
-          results.push({ userId: user._id, status: 'bot_not_initialized' });
+    try {
+      // Відправляємо повідомлення в групу
+      await telegramService.sendMessage(groupChatId, formattedMessage, { parse_mode: 'Markdown' });
+      
+      logger.telegram('Швидке сповіщення відправлено в групу', {
+        adminId: req.user.id,
+        groupChatId,
+        type,
+        messageLength: message.length
+      });
+
+      res.json({
+        success: true,
+        message: 'Сповіщення відправлено в групу',
+        data: {
+          sent: true,
+          groupChatId
         }
-      } catch (error) {
-        logger.error(`Помилка відправки повідомлення користувачу ${user._id}:`, error);
-        results.push({ userId: user._id, status: 'error', error: error.message });
-      }
+      });
+    } catch (error) {
+      logger.error('Помилка відправки повідомлення в групу:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка відправки повідомлення в групу',
+        error: error.message
+      });
     }
 
-    logger.telegram('Масова розсилка сповіщень', {
-      adminId: req.user.id,
-      totalUsers: users.length,
-      results
-    });
-
-    res.json({
-      success: true,
-      message: 'Сповіщення відправлено',
-      results: {
-        total: users.length,
-        sent: results.filter(r => r.status === 'sent').length,
-        failed: results.filter(r => r.status === 'error').length,
-        details: results
-      }
-    });
-
   } catch (error) {
-    logger.error('Помилка масової розсилки:', error);
+    logger.error('Помилка відправки швидкого сповіщення:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера'

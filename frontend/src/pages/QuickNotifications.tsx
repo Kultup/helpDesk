@@ -62,9 +62,9 @@ const QuickNotifications: React.FC = () => {
     setResult(null);
     try {
       const res = await apiService.sendTelegramNotification({ message, type });
-      if (res.success && res.data?.results) {
-        const { sent = 0, failed = 0, total = 0 } = res.data.results || { sent: 0, failed: 0, total: 0 };
-        setResult({ sent, failed, total });
+      if (res.success) {
+        // Сповіщення відправлено в групу
+        setResult({ sent: 1, failed: 0, total: 1 });
         // Clear message after successful send
         setMessage('');
       } else {
