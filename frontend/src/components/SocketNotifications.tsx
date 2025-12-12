@@ -1,10 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import RatingRequestModal from './RatingRequestModal';
 
 const SocketNotifications = () => {
   const { user, isAuthenticated } = useAuth();
+  const [ratingRequest, setRatingRequest] = useState<{
+    ticketId: string;
+    ticketTitle: string;
+  } | null>(null);
 
   useEffect(() => {
     let socket: any = null;
@@ -25,10 +30,14 @@ const SocketNotifications = () => {
       }
     };
 
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       requestPermission();
       socket = io(socketUrl, { transports: ['websocket'] });
       socket.on('connect', () => {
+        // Підключаємося до кімнати користувача для персональних сповіщень
+        if (user._id) {
+          socket.emit('join-user-room', user._id);
+        }
         if (user?.role === 'admin') {
           socket.emit('join-admin-room');
         }
@@ -45,14 +54,46 @@ const SocketNotifications = () => {
         const email = payload?.data?.email || payload?.userEmail || '';
         showNotification('Новий запит на реєстрацію', email);
       });
+
+      // Обробка запиту на оцінку якості
+      socket.on('ticket-rating-request', (payload: any) => {
+        if (payload?.data?.ticketId && payload?.data?.ticketTitle) {
+          setRatingRequest({
+            ticketId: payload.data.ticketId,
+            ticketTitle: payload.data.ticketTitle
+          });
+          showNotification('📊 Оцініть якість вирішення', `Тікет "${payload.data.ticketTitle}" вирішено. Будь ласка, оцініть якість обслуговування.`);
+        }
+      });
     }
 
     return () => {
       if (socket) { try { socket.disconnect(); } catch {} }
     };
-  }, [isAuthenticated, user?.role]);
+  }, [isAuthenticated, user]);
 
-  return null;
+  const handleCloseRatingModal = () => {
+    setRatingRequest(null);
+  };
+
+  const handleRated = () => {
+    // Можна додати логіку оновлення списку тікетів
+    setRatingRequest(null);
+  };
+
+  return (
+    <>
+      {ratingRequest && (
+        <RatingRequestModal
+          ticketId={ratingRequest.ticketId}
+          ticketTitle={ratingRequest.ticketTitle}
+          isOpen={!!ratingRequest}
+          onClose={handleCloseRatingModal}
+          onRated={handleRated}
+        />
+      )}
+    </>
+  );
 };
 
 export default SocketNotifications;

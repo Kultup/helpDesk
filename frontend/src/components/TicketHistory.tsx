@@ -117,6 +117,17 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   const formatValue = (value: HistoryValue, field?: string): string | React.ReactNode => {
     if (value === null || value === undefined) return String(t('common.notSpecified', 'Не вказано'));
     
+    // Спеціальна обробка для дат
+    if (field === 'resolvedAt' || field === 'closedAt' || field === 'createdAt' || field === 'updatedAt' || field === 'dueDate') {
+      if (typeof value === 'string' || value instanceof Date) {
+        try {
+          return formatDate(value);
+        } catch {
+          return String(value);
+        }
+      }
+    }
+    
     // Спеціальна обробка для статусів
     if (field === 'status' || field === 'statusHistory') {
       if (typeof value === 'string') {
@@ -165,28 +176,97 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
           </div>
         );
       }
+      
+      // Спеціальна обробка для масиву коментарів (ID)
+      if (field === 'comments' && value.length > 0) {
+        // Перевіряємо, чи це масив ID (рядки, що виглядають як ObjectId)
+        const isIdArray = value.every(item => typeof item === 'string' && item.length === 24);
+        if (isIdArray) {
+          return `Додано ${value.length} ${value.length === 1 ? 'коментар' : value.length < 5 ? 'коментарі' : 'коментарів'}`;
+        }
+      }
+      
       // Для інших масивів показуємо як список
       if (value.length === 0) {
         return String(t('common.none', 'Жодного'));
       }
-      return value.map((item: unknown, index: number) => (
-        <div key={index} className="text-sm">• {formatValue(item as HistoryValue, field)}</div>
-      ));
+      
+      // Якщо масив невеликий, показуємо всі елементи
+      if (value.length <= 5) {
+        return (
+          <div className="space-y-1">
+            {value.map((item: unknown, index: number) => (
+              <div key={index} className="text-sm">• {formatValue(item as HistoryValue, field)}</div>
+            ))}
+          </div>
+        );
+      }
+      
+      // Для великих масивів показуємо кількість
+      return `${value.length} елементів`;
     }
     
     // Обробка об'єктів
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       const obj = value as Record<string, unknown>;
+      
+      // Спеціальна обробка для qualityRating
+      if (field?.includes('qualityRating') || (obj.hasRating !== undefined || obj.rating !== undefined)) {
+        if (obj.hasRating && obj.rating !== null && obj.rating !== undefined) {
+          const rating = Number(obj.rating);
+          const stars = '⭐'.repeat(rating);
+          const feedback = obj.feedback ? `\nВідгук: ${String(obj.feedback).substring(0, 100)}${String(obj.feedback).length > 100 ? '...' : ''}` : '';
+          return (
+            <div className="text-sm">
+              <div className="font-medium">Оцінка: {stars} ({rating}/5)</div>
+              {feedback && <div className="text-gray-600 mt-1">{feedback}</div>}
+            </div>
+          );
+        }
+        if (obj.ratingRequested) {
+          return 'Запит на оцінку відправлено';
+        }
+        return 'Оцінка не надана';
+      }
+      
+      // Спеціальна обробка для metrics
+      if (field?.includes('metrics') || (obj.responseTime !== undefined || obj.resolutionTime !== undefined)) {
+        const parts: string[] = [];
+        if (obj.responseTime !== undefined && Number(obj.responseTime) > 0) {
+          parts.push(`Час відповіді: ${obj.responseTime} ${Number(obj.responseTime) === 1 ? 'хвилина' : 'хвилин'}`);
+        }
+        if (obj.resolutionTime !== undefined && Number(obj.resolutionTime) > 0) {
+          parts.push(`Час вирішення: ${obj.resolutionTime} ${Number(obj.resolutionTime) === 1 ? 'хвилина' : 'хвилин'}`);
+        }
+        if (obj.reopenCount !== undefined && Number(obj.reopenCount) > 0) {
+          parts.push(`Повторно відкрито: ${obj.reopenCount} ${Number(obj.reopenCount) === 1 ? 'раз' : 'разів'}`);
+        }
+        if (obj.escalationCount !== undefined && Number(obj.escalationCount) > 0) {
+          parts.push(`Ескалацій: ${obj.escalationCount} ${Number(obj.escalationCount) === 1 ? 'раз' : 'разів'}`);
+        }
+        return parts.length > 0 ? parts.join(', ') : 'Метрики оновлено';
+      }
+      
       // Якщо це об'єкт з полями, які можна показати
       if (obj._id || obj.email || obj.name) {
         return String(obj.email || obj.name || obj._id || JSON.stringify(value));
       }
+      
       // Для складних об'єктів показуємо структурований вигляд
       const keys = Object.keys(obj);
       if (keys.length <= 3) {
-        return keys.map(key => `${key}: ${formatValue(obj[key] as HistoryValue, field)}`).join(', ');
+        return keys.map(key => {
+          const keyLabel = getFieldLabel(key);
+          const val = formatValue(obj[key] as HistoryValue, key);
+          return `${keyLabel}: ${val}`;
+        }).join(', ');
       }
-      // Для великих об'єктів - JSON, але з форматуванням
+      
+      // Для великих об'єктів - спрощений вигляд
+      if (keys.length > 3) {
+        return `Об'єкт з ${keys.length} полями`;
+      }
+      
       return JSON.stringify(value, null, 2);
     }
     
@@ -194,6 +274,38 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
   };
 
   const getFieldLabel = (field: string): string => {
+    // Приховуємо технічні поля або показуємо їх зрозуміло
+    if (field.includes('.')) {
+      const parts = field.split('.');
+      const mainField = parts[0];
+      const subField = parts[1];
+      
+      // Спеціальна обробка для вкладених полів
+      if (mainField === 'qualityRating') {
+        if (subField === 'ratingRequested') return 'Запит на оцінку';
+        if (subField === 'requestedAt') return 'Дата запиту на оцінку';
+        if (subField === 'rating') return 'Оцінка якості';
+        if (subField === 'hasRating') return 'Оцінка надана';
+        return 'Оцінка якості';
+      }
+      
+      if (mainField === 'metrics') {
+        if (subField === 'responseTime') return 'Час відповіді';
+        if (subField === 'resolutionTime') return 'Час вирішення';
+        if (subField === 'reopenCount') return 'Кількість повторних відкриттів';
+        if (subField === 'escalationCount') return 'Кількість ескалацій';
+        return 'Метрики';
+      }
+      
+      // Для інших вкладених полів показуємо основне поле
+      const mainLabels: { [key: string]: string } = {
+        qualityRating: 'Оцінка якості',
+        metrics: 'Метрики',
+        statusHistory: 'Історія статусів'
+      };
+      return mainLabels[mainField] || mainField;
+    }
+    
     const labels: { [key: string]: string } = {
       status: String(t('common.status', 'Статус')),
       statusHistory: String(t('tickets.history', 'Історія статусів')),
@@ -210,9 +322,60 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
       dueDate: String(t('tickets.dueDate', 'Термін виконання')),
       estimatedHours: String(t('tickets.estimatedTime', 'Очікуваний час')),
       actualHours: String(t('tickets.actualTime', 'Фактичний час')),
-      tags: String(t('tickets.tags', 'Теги'))
+      tags: String(t('tickets.tags', 'Теги')),
+      comments: 'Коментарі',
+      qualityRating: 'Оцінка якості',
+      metrics: 'Метрики',
+      resolvedAt: 'Дата вирішення',
+      closedAt: 'Дата закриття'
     };
     return labels[field] || field;
+  };
+  
+  // Перевірка, чи поле варто показувати (фільтруємо технічні поля)
+  const shouldShowField = (field: string, oldValue: HistoryValue, newValue: HistoryValue): boolean => {
+    // Приховуємо технічні поля, які не несуть корисної інформації
+    const hiddenFields = [
+      'qualityRating.requestedAt', // Технічне поле
+      'qualityRating.ratingRequested', // Технічне поле
+      'qualityRating.hasRating', // Технічне поле
+      'comments' // Коментарі показуємо окремо через опис
+    ];
+    
+    if (hiddenFields.includes(field)) {
+      return false;
+    }
+    
+    // Якщо значення не змінилося (null -> null або однакові значення)
+    if (oldValue === newValue || (oldValue === null && newValue === null) || 
+        (oldValue === undefined && newValue === undefined)) {
+      return false;
+    }
+    
+    // Якщо обидва значення null або undefined - не показуємо
+    if ((oldValue === null || oldValue === undefined) && (newValue === null || newValue === undefined)) {
+      return false;
+    }
+    
+    // Якщо це масив ID коментарів - не показуємо окремо
+    if (field === 'comments' && Array.isArray(newValue) && newValue.length > 0) {
+      // Перевіряємо, чи це масив ID (рядки, що виглядають як ObjectId)
+      const isIdArray = newValue.every(item => typeof item === 'string' && item.length === 24);
+      if (isIdArray) {
+        return false; // Не показуємо технічні ID коментарів
+      }
+    }
+    
+    // Якщо це об'єкт qualityRating з тільки технічними полями - не показуємо
+    if (field === 'qualityRating' && typeof newValue === 'object' && newValue !== null && !Array.isArray(newValue)) {
+      const obj = newValue as Record<string, unknown>;
+      // Якщо тільки технічні поля змінилися, не показуємо
+      if (obj.ratingRequested !== undefined && obj.requestedAt !== undefined && obj.rating === null) {
+        return false;
+      }
+    }
+    
+    return true;
   };
   
   const formatMetadata = (metadata: Record<string, unknown>): React.ReactNode => {
@@ -324,18 +487,22 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                        </span>
                      </div>
                      
-                     <p className="text-base text-gray-900 mb-3 font-medium leading-relaxed">{entry.description}</p>
+                     {entry.description && (
+                       <p className="text-base text-gray-900 mb-3 font-medium leading-relaxed">
+                         {entry.description}
+                       </p>
+                     )}
                      
-                     {entry.field && (entry.oldValue !== undefined || entry.newValue !== undefined) && (
+                     {entry.field && shouldShowField(entry.field, entry.oldValue, entry.newValue) && (entry.oldValue !== undefined || entry.newValue !== undefined) && (
                        <div className="bg-white p-3 rounded border border-gray-200 shadow-sm text-sm">
                          <div className="font-semibold text-gray-800 mb-2">
-                           Поле: {getFieldLabel(entry.field)}
+                           {getFieldLabel(entry.field)}
                          </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                            {entry.oldValue !== undefined && (
                              <div>
-                               <span className="text-red-600 font-semibold">{String(t('common.was', 'Було'))}:</span>
-                               <div className="text-gray-900 bg-red-50 p-2 rounded mt-1 font-medium">
+                               <span className="text-red-600 font-semibold text-xs">{String(t('common.was', 'Було'))}:</span>
+                               <div className="text-gray-900 bg-red-50 p-2 rounded mt-1 text-sm">
                                  {typeof formatValue(entry.oldValue, entry.field) === 'string' 
                                    ? formatValue(entry.oldValue, entry.field) 
                                    : <div>{formatValue(entry.oldValue, entry.field)}</div>}
@@ -344,8 +511,8 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
                            )}
                            {entry.newValue !== undefined && (
                              <div>
-                               <span className="text-green-600 font-semibold">{String(t('common.became', 'Стало'))}:</span>
-                               <div className="text-gray-900 bg-green-50 p-2 rounded mt-1 font-medium">
+                               <span className="text-green-600 font-semibold text-xs">{String(t('common.became', 'Стало'))}:</span>
+                               <div className="text-gray-900 bg-green-50 p-2 rounded mt-1 text-sm">
                                  {typeof formatValue(entry.newValue, entry.field) === 'string' 
                                    ? formatValue(entry.newValue, entry.field) 
                                    : <div>{formatValue(entry.newValue, entry.field)}</div>}

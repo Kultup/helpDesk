@@ -982,4 +982,59 @@ router.get('/:id/history', authenticateToken, ticketHistoryController.getTicketH
 // GET /api/tickets/:id/history/stats - Отримати статистику змін тікету
 router.get('/:id/history/stats', authenticateToken, ticketHistoryController.getTicketChangeStats);
 
+// POST /api/tickets/:id/rate - Оцінити якість вирішення тікету
+router.post('/:id/rate', authenticateToken, async (req, res) => {
+  try {
+    const { rating, feedback } = req.body;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Оцінка повинна бути від 1 до 5'
+      });
+    }
+
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Тікет не знайдено'
+      });
+    }
+
+    // Перевірка доступу - тільки автор тікету може оцінити
+    if (String(ticket.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Доступ заборонено. Тільки автор тікету може оцінити якість вирішення'
+      });
+    }
+
+    // Оновлюємо оцінку
+    ticket.qualityRating.hasRating = true;
+    ticket.qualityRating.rating = Math.max(1, Math.min(5, parseInt(rating, 10)));
+    ticket.qualityRating.ratedAt = new Date();
+    ticket.qualityRating.ratedBy = req.user._id;
+    if (feedback) {
+      ticket.qualityRating.feedback = feedback.substring(0, 500);
+    }
+    await ticket.save();
+
+    res.json({
+      success: true,
+      message: 'Оцінка успішно збережена',
+      data: {
+        rating: ticket.qualityRating.rating,
+        feedback: ticket.qualityRating.feedback
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка збереження оцінки тікету:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера'
+    });
+  }
+});
+
 module.exports = router;

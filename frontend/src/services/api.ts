@@ -1218,6 +1218,11 @@ class ApiService {
     return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
   }
 
+  // Оцінити якість вирішення тікету
+  async rateTicket(ticketId: string, rating: number, feedback?: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post(`/tickets/${ticketId}/rate`, { rating, feedback });
+  }
+
 
   // Налаштування Telegram
   async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {

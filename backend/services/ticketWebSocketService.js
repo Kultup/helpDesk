@@ -92,6 +92,31 @@ class TicketWebSocketService {
       logger.error('❌ Помилка відправки WebSocket оновлення кількості тікетів:', error);
     }
   }
+
+  // Сповіщення про запит на оцінку якості (для конкретного користувача)
+  notifyRatingRequest(userId, ticketData) {
+    if (!this.io) {
+      logger.warn('⚠️ TicketWebSocketService не ініціалізовано');
+      return;
+    }
+
+    try {
+      // Відправляємо сповіщення конкретному користувачу через його user-room
+      this.io.to(`user-${userId}`).emit('ticket-rating-request', {
+        type: 'ticket_rating_request',
+        data: {
+          ticketId: ticketData._id?.toString() || ticketData._id,
+          ticketTitle: ticketData.title,
+          ticketStatus: ticketData.status
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      logger.info(`📊 Відправлено WebSocket запит на оцінку для користувача ${userId}, тікет: ${ticketData._id}`);
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket запиту на оцінку:', error);
+    }
+  }
 }
 
 module.exports = new TicketWebSocketService();
