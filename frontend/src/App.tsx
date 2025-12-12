@@ -23,7 +23,6 @@ import Institutions from './pages/Institutions';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
-import Categories from './pages/Categories';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
 import SLASettings from './pages/SLASettings';
@@ -114,7 +113,6 @@ const App: React.FC = () => {
             <Route path="tickets" element={<Tickets />} />
             <Route path="tickets/create" element={<CreateTicket />} />
             <Route path="tickets/:id" element={<TicketDetails />} />
-            <Route path="categories" element={<Categories />} />
             <Route path="settings" element={<Settings />} />
 
             

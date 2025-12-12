@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
-import { TicketPriority, TicketCategory } from '../types';
+import { TicketPriority } from '../types';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
 import Input from './UI/Input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './UI/Select';
 import Card from './UI/Card';
-import { Lightbulb, Clock, Tag as TagIcon, Upload, X, File } from 'lucide-react';
+import { Lightbulb, Clock, Upload, X, File } from 'lucide-react';
 
 interface CreateTicketModalProps {
   isOpen: boolean;
@@ -22,7 +22,6 @@ interface TicketTemplate {
   id: string;
   title: string;
   description: string;
-  category: TicketCategory;
   priority: TicketPriority;
   estimatedTime: string;
   tags: string[];
@@ -48,7 +47,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     title: '',
     description: '',
     priority: TicketPriority.MEDIUM,
-    category: TicketCategory.TECHNICAL,
     city: '',
     assignedTo: ''
   });
@@ -201,7 +199,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
-        category: formData.category,
         cityId: formData.city,
         assignedTo: formData.assignedTo || undefined
       };
@@ -234,7 +231,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         title: '',
         description: '',
         priority: TicketPriority.MEDIUM,
-        category: TicketCategory.TECHNICAL,
         city: '',
         assignedTo: ''
       });
@@ -248,13 +244,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     if (value === TicketPriority.LOW) return t('createTicketModal.priorities.low');
     if (value === TicketPriority.MEDIUM) return t('createTicketModal.priorities.medium');
     return t('createTicketModal.priorities.high');
-  };
-
-  const getCategoryLabel = (value: TicketCategory) => {
-    if (value === TicketCategory.TECHNICAL) return t('createTicketModal.categories.technical');
-    if (value === TicketCategory.ACCOUNT) return t('createTicketModal.categories.account');
-    if (value === TicketCategory.BILLING) return t('createTicketModal.categories.billing');
-    return t('createTicketModal.categories.general');
   };
 
   return (

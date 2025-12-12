@@ -33,7 +33,6 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 // Chart Components
 import WeeklyTicketsChart from '../components/charts/WeeklyTicketsChart';
-import CategoryDistributionChart from '../components/charts/CategoryDistributionChart';
 import WorkloadByDayChart from '../components/charts/WorkloadByDayChart';
 
 // Admin Components
@@ -635,9 +634,6 @@ const Dashboard: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
                   <WeeklyTicketsChart />
-                </div>
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-accent/10 to-accent/20 rounded-lg sm:rounded-xl border border-accent/30 hover:shadow-lg transition-all duration-300">
-                  <CategoryDistributionChart />
                 </div>
                 <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
                   <WorkloadByDayChart />

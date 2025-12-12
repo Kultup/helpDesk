@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CreateTicketForm, TicketPriority, TicketCategory, City, ApiResponse, UserRole, TicketStatus, Ticket } from '../types';
+import { CreateTicketForm, TicketPriority, City, ApiResponse, UserRole, TicketStatus, Ticket } from '../types';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/UI/Button';
@@ -23,7 +23,6 @@ const CreateTicket: React.FC = () => {
     title: '',
     description: '',
     priority: TicketPriority.MEDIUM,
-    category: TicketCategory.GENERAL,
     cityId: '',
     status: TicketStatus.OPEN
   });
@@ -57,23 +56,11 @@ const CreateTicket: React.FC = () => {
           const response = await apiService.getTicketById(id); // Fixed method name
           if (response.success && response.data) {
             const ticket: Ticket = response.data;
-            // Helper function to convert category to TicketCategory enum
-            const getCategoryValue = (category: TicketCategory | { _id: string; name: string; color?: string }): TicketCategory => {
-              if (typeof category === 'object' && category !== null && 'name' in category) {
-                const categoryName = category.name.toLowerCase();
-                if (Object.values(TicketCategory).includes(categoryName as TicketCategory)) {
-                  return categoryName as TicketCategory;
-                }
-                return TicketCategory.GENERAL;
-              }
-              return (category as TicketCategory) || TicketCategory.GENERAL;
-            };
 
             setFormData({
               title: ticket.title,
               description: ticket.description,
               priority: ticket.priority,
-              category: getCategoryValue(ticket.category),
               cityId: ticket.city?._id || '',
               status: ticket.status
             });

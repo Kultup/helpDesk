@@ -11,7 +11,6 @@ import {
   Users, 
   X,
   Server,
-  Tag,
   FileText,
   UserCheck,
   AlertTriangle,
@@ -51,7 +50,6 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: Home },
       { nameKey: 'sidebar.tickets', href: '/tickets', icon: Ticket },
-      { nameKey: 'sidebar.categories', href: '/categories', icon: Tag },
     ]
   },
   {

@@ -372,7 +372,6 @@ export interface CreateTicketForm {
   title: string;
   description: string;
   priority: TicketPriority;
-  category: TicketCategory;
   cityId: string;
   assignedTo?: string;
 }
