@@ -226,26 +226,11 @@ const ticketSchema = new mongoose.Schema({
     isEscalated: { type: Boolean, default: false }
   },
   
-  // Email інтеграція
-  emailThread: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'EmailThread',
-    default: null
-  },
-  createdFromEmail: {
-    type: Boolean,
-    default: false
-  },
-  emailAddress: {
-    type: String,
-    trim: true,
-    default: null
-  },
   // Метадані
   metadata: {
     source: {
       type: String,
-      enum: ['web', 'telegram', 'email', 'api', 'import', 'mobile'],
+      enum: ['web', 'telegram', 'api', 'import', 'mobile'],
       default: 'web'
     },
     ipAddress: { type: String },

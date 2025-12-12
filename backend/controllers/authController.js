@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
-const { sendEmail } = require('../services/emailService');
 const { verifyTelegramAuth } = require('../services/telegramService');
 const logger = require('../utils/logger');
 
@@ -370,34 +369,10 @@ class AuthController {
       user.passwordResetExpires = resetTokenExpires;
       await user.save();
 
-      // Відправка email з інструкціями
-      try {
-        await sendEmail({
-          to: email,
-          subject: 'Відновлення паролю Help Desk системи',
-          template: 'password-reset',
-          data: {
-            firstName: user.firstName,
-            resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`,
-            expiresIn: '1 година'
-          }
-        });
-
-        logger.info(`Запит на відновлення паролю: ${email}`, {
-          userId: user._id,
-          ip: req.ip
-        });
-
-      } catch (emailError) {
-        logger.error('Помилка відправки email відновлення:', emailError);
-        user.passwordResetToken = undefined;
-        user.passwordResetExpires = undefined;
-        await user.save();
-
-        return res.status(500).json({
-          message: 'Помилка відправки email. Спробуйте пізніше.'
-        });
-      }
+      logger.info(`Запит на відновлення паролю: ${email}`, {
+        userId: user._id,
+        ip: req.ip
+      });
 
       res.json({ message: successMessage });
 

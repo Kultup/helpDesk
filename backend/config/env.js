@@ -31,11 +31,6 @@ const envSchema = Joi.object({
   TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
   TELEGRAM_CHAT_ID: Joi.string().allow('').optional(),
 
-  // Email (опціонально)
-  EMAIL_HOST: Joi.string().allow('').optional(),
-  EMAIL_PORT: Joi.alternatives().try(Joi.number(), Joi.string().allow('')).optional(),
-  EMAIL_USER: Joi.string().allow('').optional(),
-  EMAIL_PASS: Joi.string().allow('').optional(),
 
   // File Upload
   UPLOAD_DIR: Joi.string().default('./uploads'),
@@ -65,9 +60,6 @@ const envSchema = Joi.object({
 const validateEnv = () => {
   // Обробка порожніх значень для числових опціональних полів
   const cleanedEnv = { ...process.env };
-  if (cleanedEnv.EMAIL_PORT === '') {
-    delete cleanedEnv.EMAIL_PORT;
-  }
   if (cleanedEnv.ZABBIX_POLL_INTERVAL === '') {
     delete cleanedEnv.ZABBIX_POLL_INTERVAL;
   }
@@ -90,12 +82,7 @@ const validateEnv = () => {
 
   // Встановлюємо валідовані значення назад в process.env
   Object.keys(value).forEach((key) => {
-    // Конвертуємо EMAIL_PORT в число, якщо воно було числом
-    if (key === 'EMAIL_PORT' && value[key] !== undefined && value[key] !== '') {
-      process.env[key] = typeof value[key] === 'string' ? parseInt(value[key], 10) : value[key];
-    } else {
-      process.env[key] = value[key];
-    }
+    process.env[key] = value[key];
   });
 
   // Додаткова перевірка для production

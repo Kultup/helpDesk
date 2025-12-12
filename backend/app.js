@@ -171,11 +171,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
   
   
-  // Ініціалізуємо email сервіс
-  const { initializeEmailService, setupEmailPolling } = require('./jobs/emailPolling');
-  await initializeEmailService();
-  setupEmailPolling();
-  logger.info('✅ Email сервіс ініціалізовано');
   
   // Ініціалізуємо Zabbix polling
   const { setupZabbixPolling } = require('./jobs/zabbixPolling');
@@ -335,7 +330,6 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 app.use('/api/settings', require('./routes/settings')); // Налаштування системи
 app.use('/api/kb', require('./routes/knowledgeBase')); // Knowledge Base
-app.use('/api/email', require('./routes/email')); // Email інтеграція
 app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція
 // Сповіщення
 app.use('/api/notifications', require('./routes/notifications'));

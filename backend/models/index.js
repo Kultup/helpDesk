@@ -14,8 +14,6 @@ const Event = require('./Event');
 const AdminNote = require('./AdminNote');
 const Tag = require('./Tag');
 const KnowledgeBase = require('./KnowledgeBase');
-const EmailThread = require('./EmailThread');
-const EmailSettings = require('./EmailSettings');
 const TelegramConfig = require('./TelegramConfig');
 const ActiveDirectoryConfig = require('./ActiveDirectoryConfig');
 const Notification = require('./Notification');
@@ -39,8 +37,6 @@ module.exports = {
   AdminNote,
   Tag,
   KnowledgeBase,
-  EmailThread,
-  EmailSettings,
   TelegramConfig,
   ActiveDirectoryConfig,
   Notification,

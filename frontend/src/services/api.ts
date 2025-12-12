@@ -931,7 +931,7 @@ class ApiService {
   }
 
   // ===== Notifications Templates (Quick messages) =====
-  async getNotificationTemplates(params?: { type?: 'email' | 'telegram' | 'web' | 'sms'; category?: 'ticket' | 'user' | 'system' | 'security' | 'maintenance' }): Promise<ApiResponse<NotificationTemplate[]>> {
+  async getNotificationTemplates(params?: { type?: 'telegram' | 'web' | 'sms'; category?: 'ticket' | 'user' | 'system' | 'security' | 'maintenance' }): Promise<ApiResponse<NotificationTemplate[]>> {
     const queryParams = new URLSearchParams();
     if (params?.type) queryParams.append('type', params.type);
     if (params?.category) queryParams.append('category', params.category);
@@ -1218,52 +1218,6 @@ class ApiService {
     return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
   }
 
-  // Email API methods
-  async sendEmail(data: {
-    to: string;
-    subject: string;
-    html?: string;
-    text?: string;
-    cc?: string;
-    bcc?: string;
-    attachments?: Array<Record<string, unknown>>;
-    replyTo?: string;
-  }): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post('/email/send', data);
-  }
-
-  async getEmailThreads(params?: {
-    ticketId?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<{
-    data: Array<Record<string, unknown>>;
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      pages: number;
-    };
-  }>> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, value.toString());
-        }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.get(`/email/threads${queryString ? `?${queryString}` : ''}`);
-  }
-
-  async getEmailThread(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.get(`/email/threads/${id}`);
-  }
-
-  async testEmailConnection(): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post('/email/test-connection');
-  }
 
   // Налаштування Telegram
   async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {
