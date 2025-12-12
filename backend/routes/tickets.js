@@ -541,13 +541,11 @@ router.put('/:id',
         });
       }
 
-      // Перевірка доступу
-      if (req.user.role !== 'admin' && 
-          ticket.createdBy.toString() !== req.user._id.toString() &&
-          (!ticket.assignedTo || ticket.assignedTo.toString() !== req.user._id.toString())) {
+      // Перевірка доступу: тільки адміністратор може редагувати заявки
+      if (req.user.role !== 'admin') {
         return res.status(403).json({
           success: false,
-          message: 'Доступ заборонено'
+          message: 'Тільки адміністратор може редагувати заявки'
         });
       }
 

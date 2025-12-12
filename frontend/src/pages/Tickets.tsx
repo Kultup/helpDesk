@@ -428,11 +428,13 @@ const Tickets: React.FC = () => {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Link to={`${basePath}/tickets/${ticket._id}/edit`}>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          {isAdmin && (
+                            <Link to={`${basePath}/tickets/${ticket._id}/edit`}>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          )}
                           {isAdmin && (
                             <Button
                               variant="ghost"

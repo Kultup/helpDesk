@@ -588,42 +588,44 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Priority Tickets - Compact */}
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
-                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
-                      {t('dashboard.priorityTickets')}
-                    </h2>
-                  <div className="space-y-2 sm:space-y-3">
-                    {priorityTickets.length > 0 ? (
-                      priorityTickets.slice(0, 3).map((ticket) => (
-                        <div
-                          key={ticket._id}
-                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
-                          onClick={() => navigate(`/tickets/${ticket._id}`)}
-                        >
-                          <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
-                            {ticket.title}
-                          </h3>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 text-xs">
-                            <span className="text-error font-bold flex items-center">
-                              <Zap className="h-3 w-3 mr-1" />
-                              {t('dashboard.priorities.high')}
-                            </span>
-                            <span className="text-text-secondary font-medium">
-                              {formatDateWithLocale(ticket.createdAt)}
-                            </span>
+                {/* Priority Tickets - Compact - Only for Admins */}
+                {isAdmin && (
+                  <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
+                        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
+                        {t('dashboard.priorityTickets')}
+                      </h2>
+                    <div className="space-y-2 sm:space-y-3">
+                      {priorityTickets.length > 0 ? (
+                        priorityTickets.slice(0, 3).map((ticket) => (
+                          <div
+                            key={ticket._id}
+                            className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
+                            onClick={() => navigate(`/tickets/${ticket._id}`)}
+                          >
+                            <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
+                              {ticket.title}
+                            </h3>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 text-xs">
+                              <span className="text-error font-bold flex items-center">
+                                <Zap className="h-3 w-3 mr-1" />
+                                {t('dashboard.priorities.high')}
+                              </span>
+                              <span className="text-text-secondary font-medium">
+                                {formatDateWithLocale(ticket.createdAt)}
+                              </span>
+                            </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8">
+                          <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
+                          <p className="text-text-secondary text-xs sm:text-sm font-medium">{t('dashboard.noPriorityTickets')}</p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 sm:py-8">
-                        <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
-                        <p className="text-text-secondary text-xs sm:text-sm font-medium">{t('dashboard.noPriorityTickets')}</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

@@ -59,9 +59,17 @@ const CreateTicket: React.FC = () => {
     }
   }, [isAdmin, user?.city, isEditMode]);
 
+  // Перевірка доступу до редагування - тільки для адміністраторів
+  useEffect(() => {
+    if (isEditMode && !isAdmin) {
+      // Якщо звичайний користувач намагається редагувати тікет, перенаправляємо на деталі
+      navigate(`/tickets/${id}`);
+    }
+  }, [isEditMode, isAdmin, id, navigate]);
+
   // Завантаження даних тикету для редагування
   useEffect(() => {
-    if (isEditMode && id) {
+    if (isEditMode && id && isAdmin) {
       const fetchTicket = async () => {
         try {
           setIsLoading(true);
@@ -88,7 +96,7 @@ const CreateTicket: React.FC = () => {
       };
       fetchTicket();
     }
-  }, [id, isEditMode]);
+  }, [id, isEditMode, isAdmin]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -126,6 +134,12 @@ const CreateTicket: React.FC = () => {
       let ticketData = { ...formData };
       if (!isAdmin && !ticketData.cityId && user?.city) {
         ticketData.cityId = typeof user.city === 'string' ? user.city : user.city._id;
+      }
+      
+      // Перевірка: тільки адміністратор може редагувати тікети
+      if (isEditMode && !isAdmin) {
+        setError('Тільки адміністратор може редагувати заявки');
+        return;
       }
       
       let response;
