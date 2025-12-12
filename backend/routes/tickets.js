@@ -424,18 +424,18 @@ router.post('/',
 
       // Заповнення полів для відповіді
       await ticket.populate([
-        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email telegramId' },
         { path: 'assignedTo', select: 'firstName lastName email' },
         { path: 'city', select: 'name region' },
         { path: 'category', select: 'name color' }
       ]);
 
-      // Відправка Telegram сповіщення про новий тікет
+      // При створенні тікету - ВСІ тікети отримують сповіщення в Telegram групу
       try {
         await telegramService.sendNewTicketNotificationToGroup(ticket, req.user);
-        logger.info('✅ Telegram сповіщення про новий тікет відправлено');
+        logger.info('✅ Telegram сповіщення про новий тікет відправлено в групу');
       } catch (error) {
-        logger.error('❌ Помилка відправки Telegram сповіщення про новий тікет:', error);
+        logger.error('❌ Помилка відправки Telegram сповіщення в групу:', error);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
 
@@ -448,7 +448,7 @@ router.post('/',
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
 
-      // Відправка FCM сповіщення адміністраторам про новий тікет
+      // Відправка FCM сповіщення адміністраторам про новий тікет (для всіх джерел)
       try {
         logger.info('📱 Спроба відправки FCM сповіщення адміністраторам про новий тікет');
         const fcmService = require('../services/fcmService');
@@ -471,27 +471,6 @@ router.post('/',
         logger.error('❌ Помилка відправки FCM сповіщення про новий тікет:', error);
         logger.error('   Stack:', error.stack);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
-      }
-      
-      // Відправка FCM сповіщення автору тікета (якщо він не адміністратор)
-      if (ticket.createdBy) {
-        try {
-          const fcmService = require('../services/fcmService');
-          await fcmService.sendToUser(ticket.createdBy.toString(), {
-            title: '🎫 Тікет створено',
-            body: `Ваш тікет "${ticket.title}" успішно створено`,
-            type: 'ticket_created',
-            data: {
-              ticketId: ticket._id.toString(),
-              ticketTitle: ticket.title,
-              ticketStatus: ticket.status,
-              ticketPriority: ticket.priority,
-            }
-          });
-          logger.info('✅ FCM сповіщення про створення тікету відправлено автору');
-        } catch (error) {
-          logger.error('❌ Помилка відправки FCM сповіщення автору тікету:', error);
-        }
       }
       
       // Відправка FCM сповіщення призначеному користувачу (якщо тікет призначено при створенні)
@@ -583,59 +562,113 @@ router.put('/:id',
       // Перевірка зміни статусу та відправка сповіщень
       if (value.status && value.status !== previousStatus) {
         logger.info(`✅ Статус тікету змінився з "${previousStatus}" на "${value.status}". Відправляю сповіщення...`);
-        try {
-          // Відправка сповіщення в групу
-          await telegramService.sendTicketStatusNotificationToGroup(
-            ticket,
-            previousStatus,
-            value.status,
-            req.user
-          );
-          
-          // Відправка сповіщення користувачеві
-          await telegramService.sendTicketNotification(ticket, 'updated');
-          logger.info(`📤 Сповіщення про зміну статусу відправлено успішно`);
-        } catch (error) {
-          logger.error('❌ Помилка відправки Telegram сповіщення:', error);
-          // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
-        }
         
-        // Відправка FCM сповіщення автору та призначеному користувачу про зміну статусу
-        try {
-          const fcmService = require('../services/fcmService');
-          const statusText = {
-            'open': 'Відкрито',
-            'in_progress': 'В роботі',
-            'resolved': 'Вирішено',
-            'closed': 'Закрито'
-          };
-          
-          const recipients = [];
-          if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
-          if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
-          
-          // Видаляємо дублікати
-          const uniqueRecipients = [...new Set(recipients)];
-          
-          for (const userId of uniqueRecipients) {
-            await fcmService.sendToUser(userId, {
-              title: '🔄 Статус тікету змінено',
-              body: `Тікет "${ticket.title}" тепер має статус: ${statusText[value.status] || value.status}`,
-              type: 'ticket_status_changed',
-              data: {
-                ticketId: ticket._id.toString(),
-                ticketTitle: ticket.title,
-                previousStatus: previousStatus,
-                newStatus: value.status,
-                changedBy: req.user.firstName && req.user.lastName 
-                  ? `${req.user.firstName} ${req.user.lastName}`
-                  : 'Адміністратор'
+        // Визначаємо джерело створення тікету
+        const ticketSource = ticket.metadata?.source || 'web';
+        const isTicketClosed = value.status === 'resolved' || value.status === 'closed';
+        
+        // Завантажуємо повну інформацію про автора для відправки сповіщень
+        await ticket.populate([
+          { path: 'createdBy', select: 'firstName lastName email telegramId' }
+        ]);
+        
+        if (isTicketClosed) {
+          // При закритті тікету - відправляємо сповіщення в відповідний месенджер залежно від джерела
+          if (ticketSource === 'telegram') {
+            // Тікет створено з Telegram - відправляємо сповіщення в Telegram користувачу
+            if (ticket.createdBy?.telegramId) {
+              try {
+                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+                const statusEmoji = value.status === 'resolved' ? '✅' : '🔒';
+                const message = 
+                  `${statusEmoji} *Тікет ${statusText.toLowerCase()}*\n` +
+                  `📋 ${ticket.title}\n` +
+                  `🆔 \`${ticket._id}\`\n` +
+                  `\n${statusEmoji} *${statusText}*`;
+                
+                await telegramService.sendMessage(ticket.createdBy.telegramId, message, { parse_mode: 'Markdown' });
+                logger.info('✅ Telegram сповіщення про закриття тікету відправлено користувачу');
+              } catch (error) {
+                logger.error('❌ Помилка відправки Telegram сповіщення користувачу:', error);
               }
-            });
+            }
+          } else if (ticketSource === 'mobile') {
+            // Тікет створено з мобільного додатку - відправляємо FCM сповіщення користувачу
+            if (ticket.createdBy) {
+              try {
+                const fcmService = require('../services/fcmService');
+                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+                await fcmService.sendToUser(ticket.createdBy.toString(), {
+                  title: `🎫 Тікет ${statusText.toLowerCase()}`,
+                  body: `Тікет "${ticket.title}" має статус: ${statusText}`,
+                  type: 'ticket_status_changed',
+                  data: {
+                    ticketId: ticket._id.toString(),
+                    ticketTitle: ticket.title,
+                    previousStatus: previousStatus,
+                    newStatus: value.status,
+                    changedBy: req.user.firstName && req.user.lastName 
+                      ? `${req.user.firstName} ${req.user.lastName}`
+                      : 'Адміністратор'
+                  }
+                });
+                logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (mobile)');
+              } catch (error) {
+                logger.error('❌ Помилка відправки FCM сповіщення користувачу (mobile):', error);
+              }
+            }
+          } else {
+            // Тікет створено з веб-інтерфейсу - відправляємо в групу Telegram та FCM (якщо є пристрій)
+            try {
+              await telegramService.sendTicketStatusNotificationToGroup(
+                ticket,
+                previousStatus,
+                value.status,
+                req.user
+              );
+              logger.info('✅ Telegram сповіщення про закриття тікету відправлено в групу (web)');
+            } catch (error) {
+              logger.error('❌ Помилка відправки Telegram сповіщення в групу (web):', error);
+            }
+            
+            // Відправляємо FCM сповіщення користувачу, якщо він має пристрій
+            if (ticket.createdBy) {
+              try {
+                const fcmService = require('../services/fcmService');
+                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+                await fcmService.sendToUser(ticket.createdBy.toString(), {
+                  title: `🎫 Тікет ${statusText.toLowerCase()}`,
+                  body: `Тікет "${ticket.title}" має статус: ${statusText}`,
+                  type: 'ticket_status_changed',
+                  data: {
+                    ticketId: ticket._id.toString(),
+                    ticketTitle: ticket.title,
+                    previousStatus: previousStatus,
+                    newStatus: value.status,
+                    changedBy: req.user.firstName && req.user.lastName 
+                      ? `${req.user.firstName} ${req.user.lastName}`
+                      : 'Адміністратор'
+                  }
+                });
+                logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (web)');
+              } catch (error) {
+                logger.error('❌ Помилка відправки FCM сповіщення користувачу (web):', error);
+              }
+            }
           }
-          logger.info('✅ FCM сповіщення про зміну статусу відправлено');
-        } catch (error) {
-          logger.error('❌ Помилка відправки FCM сповіщення про зміну статусу:', error);
+        } else {
+          // Для інших змін статусу - відправляємо в групу для всіх джерел
+          try {
+            await telegramService.sendTicketStatusNotificationToGroup(
+              ticket,
+              previousStatus,
+              value.status,
+              req.user
+            );
+            logger.info(`📤 Сповіщення про зміну статусу відправлено в групу`);
+          } catch (error) {
+            logger.error('❌ Помилка відправки Telegram сповіщення в групу:', error);
+          }
         }
       } else {
         logger.info(`❌ Статус тікету не змінився, сповіщення не відправляється`);

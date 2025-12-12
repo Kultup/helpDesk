@@ -1186,37 +1186,115 @@ class TelegramService {
 
   async sendQualityRatingRequest(ticket) {
     try {
+      // Визначаємо джерело створення тікету
+      const ticketSource = ticket.metadata?.source || 'web';
       const user = await User.findById(ticket.createdBy).select('telegramId firstName lastName email');
-      if (!user || !user.telegramId) {
+      
+      if (!user) {
+        logger.warn('Користувача не знайдено для відправки запиту на оцінку');
         return;
       }
 
       const emoji = this.getStatusEmoji(ticket.status);
       const statusText = this.getStatusText(ticket.status);
       const title = this.truncateButtonText(ticket.title, 60);
-      const message =
-        `📊 *Оцініть якість вирішення*\n` +
-        `📋 ${title}\n` +
-        `📊 ${emoji} ${statusText}\n` +
-        `Оберіть оцінку від 1 до 5:`;
 
-      const keyboard = [
-        [
-          { text: '⭐ 1', callback_data: `rate_ticket_${ticket._id}_1` },
-          { text: '⭐⭐ 2', callback_data: `rate_ticket_${ticket._id}_2` },
-          { text: '⭐⭐⭐ 3', callback_data: `rate_ticket_${ticket._id}_3` }
-        ],
-        [
-          { text: '⭐⭐⭐⭐ 4', callback_data: `rate_ticket_${ticket._id}_4` },
-          { text: '⭐⭐⭐⭐⭐ 5', callback_data: `rate_ticket_${ticket._id}_5` }
-        ],
-        [{ text: '🏠 Головне меню', callback_data: 'back' }]
-      ];
+      if (ticketSource === 'telegram') {
+        // Тікет створено з Telegram - відправляємо запит на оцінку в Telegram
+        if (!user.telegramId) {
+          logger.warn('У користувача немає telegramId для відправки запиту на оцінку');
+          return;
+        }
 
-      await this.sendMessage(String(user.telegramId), message, {
-        reply_markup: { inline_keyboard: keyboard },
-        parse_mode: 'Markdown'
-      });
+        const message =
+          `📊 *Оцініть якість вирішення*\n` +
+          `📋 ${title}\n` +
+          `📊 ${emoji} ${statusText}\n` +
+          `Оберіть оцінку від 1 до 5:`;
+
+        const keyboard = [
+          [
+            { text: '⭐ 1', callback_data: `rate_ticket_${ticket._id}_1` },
+            { text: '⭐⭐ 2', callback_data: `rate_ticket_${ticket._id}_2` },
+            { text: '⭐⭐⭐ 3', callback_data: `rate_ticket_${ticket._id}_3` }
+          ],
+          [
+            { text: '⭐⭐⭐⭐ 4', callback_data: `rate_ticket_${ticket._id}_4` },
+            { text: '⭐⭐⭐⭐⭐ 5', callback_data: `rate_ticket_${ticket._id}_5` }
+          ],
+          [{ text: '🏠 Головне меню', callback_data: 'back' }]
+        ];
+
+        await this.sendMessage(String(user.telegramId), message, {
+          reply_markup: { inline_keyboard: keyboard },
+          parse_mode: 'Markdown'
+        });
+        logger.info('✅ Запит на оцінку відправлено в Telegram користувачу');
+      } else if (ticketSource === 'mobile') {
+        // Тікет створено з мобільного додатку - відправляємо FCM сповіщення
+        try {
+          const fcmService = require('./fcmService');
+          await fcmService.sendToUser(user._id.toString(), {
+            title: '📊 Оцініть якість вирішення',
+            body: `Будь ласка, оцініть якість вирішення тікету "${title}"`,
+            type: 'ticket_rating_request',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              ticketStatus: ticket.status
+            }
+          });
+          logger.info('✅ Запит на оцінку відправлено через FCM користувачу (mobile)');
+        } catch (error) {
+          logger.error('❌ Помилка відправки FCM запиту на оцінку:', error);
+        }
+      } else {
+        // Тікет створено з веб-інтерфейсу - відправляємо в Telegram групу або FCM (якщо є пристрій)
+        // Спочатку спробуємо FCM, якщо не вдасться - в групу
+        try {
+          const fcmService = require('./fcmService');
+          await fcmService.sendToUser(user._id.toString(), {
+            title: '📊 Оцініть якість вирішення',
+            body: `Будь ласка, оцініть якість вирішення тікету "${title}"`,
+            type: 'ticket_rating_request',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              ticketStatus: ticket.status
+            }
+          });
+          logger.info('✅ Запит на оцінку відправлено через FCM користувачу (web)');
+        } catch (error) {
+          logger.warn('⚠️ Не вдалося відправити FCM запит на оцінку, спробуємо Telegram групу:', error);
+          // Якщо FCM не вдалося, відправляємо в групу (якщо користувач має telegramId)
+          if (user.telegramId) {
+            const message =
+              `📊 *Оцініть якість вирішення*\n` +
+              `📋 ${title}\n` +
+              `📊 ${emoji} ${statusText}\n` +
+              `Оберіть оцінку від 1 до 5:`;
+
+            const keyboard = [
+              [
+                { text: '⭐ 1', callback_data: `rate_ticket_${ticket._id}_1` },
+                { text: '⭐⭐ 2', callback_data: `rate_ticket_${ticket._id}_2` },
+                { text: '⭐⭐⭐ 3', callback_data: `rate_ticket_${ticket._id}_3` }
+              ],
+              [
+                { text: '⭐⭐⭐⭐ 4', callback_data: `rate_ticket_${ticket._id}_4` },
+                { text: '⭐⭐⭐⭐⭐ 5', callback_data: `rate_ticket_${ticket._id}_5` }
+              ],
+              [{ text: '🏠 Головне меню', callback_data: 'back' }]
+            ];
+
+            await this.sendMessage(String(user.telegramId), message, {
+              reply_markup: { inline_keyboard: keyboard },
+              parse_mode: 'Markdown'
+            });
+            logger.info('✅ Запит на оцінку відправлено в Telegram користувачу (web fallback)');
+          }
+        }
+      }
     } catch (error) {
       logger.error('Помилка відправки запиту на оцінку:', error);
     }
