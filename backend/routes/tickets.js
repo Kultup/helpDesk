@@ -376,25 +376,25 @@ router.post('/',
       }
 
       // Визначаємо джерело створення тікету
-      // Перевіряємо, чи є у користувача активні мобільні пристрої
-      let source = 'web'; // За замовчуванням - веб
-      try {
-        const User = require('../models/User');
-        const userWithDevices = await User.findById(req.user._id).select('devices');
-        if (userWithDevices && userWithDevices.devices && Array.isArray(userWithDevices.devices)) {
-          const hasActiveMobileDevice = userWithDevices.devices.some(device => 
-            device.isActive && (device.platform === 'android' || device.platform === 'ios')
-          );
-          if (hasActiveMobileDevice) {
-            source = 'mobile';
-            logger.info('📱 Визначено джерело: мобільний додаток (є активні пристрої)');
-          } else {
-            logger.info('🌐 Визначено джерело: веб (немає активних мобільних пристроїв)');
-          }
+      let source = 'web'; // За замовчуванням - веб (для веб-інтерфейсу)
+      
+      // Якщо source передано в запиті (для мобільного додатку), використовуємо його
+      if (value.source && (value.source === 'mobile' || value.source === 'web' || value.source === 'telegram')) {
+        source = value.source;
+        logger.info(`📱 Визначено джерело з запиту: ${source}`);
+      } else {
+        // Перевіряємо User-Agent для визначення мобільного додатку
+        const userAgent = req.get('user-agent') || '';
+        const isMobileApp = userAgent.includes('okhttp') || userAgent.includes('MobileApp') || userAgent.includes('Android') && userAgent.includes('HelpDesk');
+        
+        if (isMobileApp) {
+          source = 'mobile';
+          logger.info('📱 Визначено джерело: мобільний додаток (за User-Agent)');
+        } else {
+          // Для веб-інтерфейсу завжди 'web'
+          source = 'web';
+          logger.info('🌐 Визначено джерело: веб (веб-інтерфейс)');
         }
-      } catch (sourceError) {
-        logger.warn('⚠️ Помилка визначення джерела, використовуємо "web":', sourceError);
-        source = 'web';
       }
 
       // Створення тикету (узгоджено з логікою Telegram бота)
@@ -551,12 +551,28 @@ router.put('/:id',
         });
       }
 
+      // Перевірка: тільки адміністратор може змінювати статус
+      if (value.status && value.status !== ticket.status && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Тільки адміністратор може змінювати статус тікету'
+        });
+      }
+
       // Збереження попереднього статусу для перевірки змін
       const previousStatus = ticket.status;
       logger.info(`🚀 Оновлення тікету ${req.params.id}: попередній статус="${previousStatus}", новий статус="${value.status || 'не змінено'}"`);
 
+      // Оновлення тикету (виключаємо status, якщо користувач не адмін)
+      const updateData = { ...value };
+      if (req.user.role !== 'admin' && value.status) {
+        // Видаляємо status з даних оновлення для не-адмінів
+        delete updateData.status;
+        logger.info('⚠️ Спроба змінити статус не-адміністратором - статус не оновлено');
+      }
+
       // Оновлення тикету
-      Object.assign(ticket, value);
+      Object.assign(ticket, updateData);
       await ticket.save();
 
       // Перевірка зміни статусу та відправка сповіщень

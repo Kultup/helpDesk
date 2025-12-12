@@ -58,6 +58,13 @@ const TicketDetails: React.FC = () => {
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!ticket || isUpdating) return;
     
+    // Перевірка: тільки адміністратор може змінювати статус
+    if (!isAdmin) {
+      setError('Тільки адміністратор може змінювати статус тікету');
+      setEditingStatus(false);
+      return;
+    }
+    
     try {
       setIsUpdating(true);
       const response = await apiService.updateTicket(ticket._id, { status: newStatus });
@@ -73,7 +80,7 @@ const TicketDetails: React.FC = () => {
         setError(response.message || t('tickets.errors.updateStatusError'));
       }
     } catch (err: any) {
-      setError(err.message || t('tickets.errors.updateStatusError'));
+      setError(err.response?.data?.message || err.message || t('tickets.errors.updateStatusError'));
     } finally {
       setIsUpdating(false);
     }
@@ -103,6 +110,7 @@ const TicketDetails: React.FC = () => {
   };
 
   const canEdit = isAdmin || ticket?.createdBy?._id === user?._id || ticket?.assignedTo?._id === user?._id;
+  const canChangeStatus = isAdmin; // Тільки адміністратор може змінювати статус
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -291,7 +299,7 @@ const TicketDetails: React.FC = () => {
                 {/* Status */}
                 <div>
                   <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.status')}</span>
-                  {editingStatus && canEdit ? (
+                  {editingStatus && canChangeStatus ? (
                     <div className="space-y-2">
                       <select
                         value={ticket.status}
@@ -319,7 +327,7 @@ const TicketDetails: React.FC = () => {
                       <div className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
                         {getStatusLabel(ticket.status)}
                       </div>
-                      {canEdit && (
+                      {canChangeStatus && (
                         <button
                           onClick={() => setEditingStatus(true)}
                           className="text-blue-600 hover:text-blue-800 text-sm"

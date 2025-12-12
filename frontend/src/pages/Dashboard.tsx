@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
     setAdStatsLoading(true);
     setAdStatsError(null);
     try {
-      if (!isAdmin) return;
+      // Дозволяємо завантаження статистики Active Directory для всіх користувачів
       const response = await apiService.getADStatistics();
       if (response?.success && response.data) {
         const data = response.data as { users?: { total?: number }; computers?: { total?: number } };
@@ -649,14 +649,16 @@ const Dashboard: React.FC = () => {
                       <Button onClick={() => loadAdStats()} variant="ghost" size="sm" className="flex-1 sm:flex-none">
                         <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
-                      <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm">
-                        Відкрити
-                      </Button>
+                      {isAdmin && (
+                        <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm">
+                          Відкрити
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                         onClick={() => navigate('/admin/active-directory?view=users')}>
+                         onClick={() => navigate(isAdmin ? '/admin/active-directory?view=users' : '#')}>
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
@@ -676,7 +678,7 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                         onClick={() => navigate('/admin/active-directory?view=computers')}>
+                         onClick={() => navigate(isAdmin ? '/admin/active-directory?view=computers' : '#')}>
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>

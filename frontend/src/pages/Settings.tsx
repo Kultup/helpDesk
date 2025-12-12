@@ -1,36 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Bell, Palette, Globe, Clock, Save, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Save, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
 import { UserRole } from '../types';
 
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: 'uk' | 'en' | 'pl';
-  timezone: string;
-  dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
-  timeFormat: '12h' | '24h';
-  itemsPerPage: number;
-  emailNotifications: {
-    newTickets: boolean;
-    assignedTickets: boolean;
-    statusUpdates: boolean;
-    weeklyReports: boolean;
-    systemUpdates: boolean;
-  };
-}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { theme, setTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,35 +29,12 @@ const Settings: React.FC = () => {
     confirmPassword: ''
   });
 
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    theme: theme as 'light' | 'dark' | 'auto',
-    language: 'uk',
-    timezone: 'Europe/Kiev',
-    dateFormat: 'DD/MM/YYYY',
-    timeFormat: '24h',
-    itemsPerPage: 25,
-    emailNotifications: {
-      newTickets: true,
-      assignedTickets: true,
-      statusUpdates: true,
-      weeklyReports: false,
-      systemUpdates: true
-    }
-  });
-
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    if (user?.preferences) {
-      setPreferences(prev => ({
-        ...prev,
-        ...user.preferences
-      }));
-      
-      // Initialize language in i18n
-      if (user.preferences.language) {
-        i18n.changeLanguage(user.preferences.language);
-      }
+    // Initialize language in i18n from user preferences
+    if (user?.preferences?.language) {
+      i18n.changeLanguage(user.preferences.language);
     }
   }, [user, i18n]);
 
@@ -86,28 +46,6 @@ const Settings: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [field]: value
-    }));
-  };
-
-  const handlePreferenceChange = (field: keyof UserPreferences, value: any) => {
-    setPreferences(prev => ({ ...prev, [field]: value }));
-    
-    if (field === 'language') {
-      i18n.changeLanguage(value);
-    }
-    
-    if (field === 'theme') {
-      setTheme(value);
-    }
-  };
-
-  const handleNotificationChange = (field: string, value: boolean) => {
-    setPreferences(prev => ({
-      ...prev,
-      emailNotifications: {
-        ...prev.emailNotifications,
-        [field]: value
-      }
     }));
   };
 
@@ -155,27 +93,8 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleSavePreferences = async () => {
-    setIsSaving(true);
-    setMessage(null);
-
-    try {
-      await apiService.put(`/users/${user?._id}/preferences`, { preferences });
-      setMessage({ type: 'success', text: t('settings.settingsSavedSuccess') });
-    } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || t('settings.settingsSaveError')
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const tabs = [
-    { id: 'profile', label: t('settings.profile'), icon: User },
-    { id: 'preferences', label: t('settings.preferences'), icon: Palette },
-    { id: 'notifications', label: t('settings.notifications'), icon: Bell }
+    { id: 'profile', label: t('settings.profile'), icon: User }
   ];
 
   if (isLoading) {
@@ -355,207 +274,6 @@ const Settings: React.FC = () => {
           </Card>
         )}
 
-        {activeTab === 'preferences' && (
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-medium">{t('settings.interfaceSettings')}</h3>
-              <p className="text-sm text-gray-600">
-                {t('settings.interfaceDescription')}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Palette className="h-4 w-4 inline mr-1" />
-                    {t('settings.theme')}
-                  </label>
-                  <select
-                    value={preferences.theme}
-                    onChange={(e) => handlePreferenceChange('theme', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="light">{t('settings.light')}</option>
-                    <option value="dark">{t('settings.dark')}</option>
-                    <option value="auto">{t('settings.auto')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Globe className="h-4 w-4 inline mr-1" />
-                    {t('settings.language')}
-                  </label>
-                  <select
-                    value={preferences.language}
-                    onChange={(e) => handlePreferenceChange('language', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="uk">{t('settings.ukrainian')}</option>
-                    <option value="en">{t('settings.english')}</option>
-                    <option value="pl">{t('settings.polish')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('settings.dateFormat')}
-                  </label>
-                  <select
-                    value={preferences.dateFormat}
-                    onChange={(e) => handlePreferenceChange('dateFormat', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="DD/MM/YYYY">{t('settings.dateFormatDDMMYYYY')}</option>
-                    <option value="MM/DD/YYYY">{t('settings.dateFormatMMDDYYYY')}</option>
-                    <option value="YYYY-MM-DD">{t('settings.dateFormatYYYYMMDD')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Clock className="h-4 w-4 inline mr-1" />
-                    {t('settings.timeFormat')}
-                  </label>
-                  <select
-                    value={preferences.timeFormat}
-                    onChange={(e) => handlePreferenceChange('timeFormat', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="24h">{t('settings.24hour')}</option>
-                    <option value="12h">{t('settings.12hour')}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('settings.itemsPerPage')}
-                  </label>
-                  <select
-                    value={preferences.itemsPerPage}
-                    onChange={(e) => handlePreferenceChange('itemsPerPage', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSavePreferences}
-                  disabled={isSaving}
-                  className="flex items-center space-x-2"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>{isSaving ? t('common.saving') : t('common.save')}</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTab === 'notifications' && (
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-medium">{t('settings.notifications')}</h3>
-              <p className="text-sm text-gray-600">
-                {t('settings.notificationsDescription')}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">{t('settings.emailNotifications')}</h4>
-                
-                <div className="space-y-3">
-                  {Object.entries(preferences.emailNotifications).map(([key, value]) => {
-                    const labels: Record<string, string> = {
-                      newTickets: t('settings.newTickets'),
-                      assignedTickets: t('settings.assignedTickets'),
-                      statusUpdates: t('settings.statusUpdates'),
-                      weeklyReports: t('settings.weeklyReports'),
-                      systemUpdates: t('settings.systemUpdates')
-                    };
-
-                    return (
-                      <div key={key} className="flex items-center justify-between">
-                        <label className="text-sm font-medium text-gray-700">
-                          {labels[key]}
-                        </label>
-                        <input
-                          type="checkbox"
-                          checked={value}
-                          onChange={(e) => handleNotificationChange(key, e.target.checked)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">{t('settings.telegramNotifications')}</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="telegram-new-tickets" className="text-sm font-medium text-gray-700">
-                      {t('settings.newTickets')}
-                    </label>
-                    <input
-                      id="telegram-new-tickets"
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="telegram-assigned-tickets" className="text-sm font-medium text-gray-700">
-                      {t('settings.assignedTickets')}
-                    </label>
-                    <input
-                      id="telegram-assigned-tickets"
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="telegram-status-updates" className="text-sm font-medium text-gray-700">
-                      {t('settings.statusUpdates')}
-                    </label>
-                    <input
-                      id="telegram-status-updates"
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="telegram-system-updates" className="text-sm font-medium text-gray-700">
-                      {t('settings.systemUpdates')}
-                    </label>
-                    <input
-                      id="telegram-system-updates"
-                      type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSavePreferences}
-                  disabled={isSaving}
-                  className="flex items-center space-x-2"
-                >
-                  <Save className="h-4 w-4" />
-                  <span>{isSaving ? t('common.saving') : t('common.save')}</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
