@@ -11,6 +11,7 @@ const RatingRequestChecker: React.FC = () => {
     ticketTitle: string;
   } | null>(null);
   const [checkedTickets, setCheckedTickets] = useState<Set<string>>(new Set());
+  const [ratedTickets, setRatedTickets] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -81,8 +82,16 @@ const RatingRequestChecker: React.FC = () => {
           // (ratingRequested === true, але hasRating === false)
           const ticketsNeedingRating = tickets.filter(ticket => {
             const ticketId = ticket._id;
-            // Пропускаємо тікети, які вже перевіряли
+            // Пропускаємо тікети, які вже оцінені
+            if (ratedTickets.has(ticketId)) {
+              return false;
+            }
+            // Пропускаємо тікети, які вже перевіряли (показували модальне вікно)
             if (checkedTickets.has(ticketId)) {
+              return false;
+            }
+            // Пропускаємо тікети, які вже мають оцінку
+            if (ticket.qualityRating?.hasRating === true) {
               return false;
             }
             
@@ -126,17 +135,13 @@ const RatingRequestChecker: React.FC = () => {
   };
 
   const handleRated = async () => {
-    // Після оцінки перезавантажуємо тікети та шукаємо наступний
+    // Після оцінки додаємо тікет до списку оцінених, щоб він більше не показувався
+    if (pendingRatingTicket) {
+      setRatedTickets(prev => new Set(prev).add(pendingRatingTicket.ticketId));
+      setCheckedTickets(prev => new Set(prev).add(pendingRatingTicket.ticketId));
+    }
+    
     setPendingRatingTicket(null);
-    
-    // Очищаємо перевірені тікети, щоб можна було перевірити знову
-    // (на випадок, якщо є інші тікети, які потребують оцінки)
-    setCheckedTickets(new Set());
-    
-    // Невелика затримка перед наступною перевіркою
-    setTimeout(() => {
-      // Перевірка відбудеться автоматично через useEffect
-    }, 1000);
   };
 
   if (!pendingRatingTicket) {

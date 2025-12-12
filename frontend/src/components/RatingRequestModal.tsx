@@ -61,8 +61,8 @@ const RatingRequestModal: React.FC<RatingRequestModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
-        <div className="p-6 overflow-y-auto flex-1">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">
             Оцініть якість вирішення
@@ -154,10 +154,10 @@ const RatingRequestModal: React.FC<RatingRequestModalProps> = ({
             <button
               onClick={handleSubmit}
               disabled={!selectedRating || isSubmitting}
-              className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
                 !selectedRating || isSubmitting
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-primary text-white hover:bg-primary-dark'
+                  : 'bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700'
               }`}
             >
               {isSubmitting ? 'Відправка...' : 'Відправити оцінку'}
