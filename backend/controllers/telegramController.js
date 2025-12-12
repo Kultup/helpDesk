@@ -245,7 +245,9 @@ async function handleCreateTicketCommand(chatId, user, description) {
       priority: 'medium',
       city: userCity?._id,
       createdBy: user._id,
-      source: 'telegram'
+      metadata: {
+        source: 'telegram'
+      }
     });
 
     await ticket.save();

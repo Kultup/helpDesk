@@ -375,6 +375,28 @@ router.post('/',
         logger.info('🏙️ Місто не вказано в формі, використовуємо місто з профілю користувача:', cityId);
       }
 
+      // Визначаємо джерело створення тікету
+      // Перевіряємо, чи є у користувача активні мобільні пристрої
+      let source = 'web'; // За замовчуванням - веб
+      try {
+        const User = require('../models/User');
+        const userWithDevices = await User.findById(req.user._id).select('devices');
+        if (userWithDevices && userWithDevices.devices && Array.isArray(userWithDevices.devices)) {
+          const hasActiveMobileDevice = userWithDevices.devices.some(device => 
+            device.isActive && (device.platform === 'android' || device.platform === 'ios')
+          );
+          if (hasActiveMobileDevice) {
+            source = 'mobile';
+            logger.info('📱 Визначено джерело: мобільний додаток (є активні пристрої)');
+          } else {
+            logger.info('🌐 Визначено джерело: веб (немає активних мобільних пристроїв)');
+          }
+        }
+      } catch (sourceError) {
+        logger.warn('⚠️ Помилка визначення джерела, використовуємо "web":', sourceError);
+        source = 'web';
+      }
+
       // Створення тикету (узгоджено з логікою Telegram бота)
       const ticketData = {
         ...value,
@@ -386,7 +408,7 @@ router.post('/',
         createdBy: req.user._id,
         attachments,
         metadata: {
-          source: 'mobile' // Тікети з мобільного додатку (узгоджено з ботом: metadata.source)
+          source: source // 'web' або 'mobile' в залежності від наявності активних пристроїв
         }
       };
       
