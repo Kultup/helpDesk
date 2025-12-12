@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
-import { TicketPriority } from '../types';
+import { TicketPriority, UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
 import Input from './UI/Input';
@@ -36,6 +37,8 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   initialDescription
 }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === UserRole.ADMIN;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cities, setCities] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);
@@ -122,6 +125,17 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     loadAdmins();
   }, []);
 
+  // Автоматично встановлюємо місто з профілю користувача для не-адмінів
+  useEffect(() => {
+    if (!isAdmin && user?.city && isOpen) {
+      const userCityId = typeof user.city === 'string' ? user.city : user.city._id;
+      setFormData(prev => ({
+        ...prev,
+        city: userCityId || prev.city
+      }));
+    }
+  }, [isAdmin, user?.city, isOpen]);
+
   // Заповнюємо поля при відкритті модального вікна, якщо є initial дані
   useEffect(() => {
     if (isOpen && (initialTitle || initialDescription)) {
@@ -187,19 +201,26 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       return;
     }
 
-    if (!formData.city) {
+    // Для адмінів місто обов'язкове, для звичайних користувачів воно встановлюється автоматично
+    if (isAdmin && !formData.city) {
       toast.error('Місто є обов\'язковим');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Для не-адмінів встановлюємо місто з профілю, якщо воно не встановлено
+      let cityId = formData.city;
+      if (!isAdmin && !cityId && user?.city) {
+        cityId = typeof user.city === 'string' ? user.city : user.city._id;
+      }
+
       // Готуємо дані для створення тікету
       const ticketData = {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
-        cityId: formData.city,
+        cityId: cityId,
         assignedTo: formData.assignedTo || undefined
       };
 
@@ -326,22 +347,34 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('createTicketModal.cityLabel')} *
             </label>
-            <Select value={formData.city} onValueChange={(value) => setFormData(prev => ({ ...prev, city: value }))}>
-              <SelectTrigger>
-                <span className="block truncate">
-                  {loadingCities
-                    ? t('createTicketModal.loadingCities')
-                    : (cities.find(city => city.id === formData.city)?.name || t('createTicketModal.cityPlaceholder'))}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                {cities.map(city => (
-                  <SelectItem key={city.id} value={city.id}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isAdmin ? (
+              <Select value={formData.city} onValueChange={(value) => setFormData(prev => ({ ...prev, city: value }))}>
+                <SelectTrigger>
+                  <span className="block truncate">
+                    {loadingCities
+                      ? t('createTicketModal.loadingCities')
+                      : (cities.find(city => city.id === formData.city)?.name || t('createTicketModal.cityPlaceholder'))}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map(city => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={user?.city && typeof user.city === 'object' 
+                  ? `${user.city.name}${user.city.region ? ` (${user.city.region})` : ''}`
+                  : cities.find(city => city.id === formData.city)?.name || 'Місто не вказано'}
+                readOnly
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+                fullWidth
+              />
+            )}
           </div>
 
           {/* Assigned To */}

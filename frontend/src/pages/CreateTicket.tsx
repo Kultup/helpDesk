@@ -13,6 +13,7 @@ const CreateTicket: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === UserRole.ADMIN;
   const { id } = useParams<{ id?: string }>();
   const isEditMode = !!id;
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +47,17 @@ const CreateTicket: React.FC = () => {
 
     fetchCities();
   }, []);
+
+  // Автоматично встановлюємо місто з профілю користувача для не-адмінів
+  useEffect(() => {
+    if (!isEditMode && !isAdmin && user?.city) {
+      const userCityId = typeof user.city === 'string' ? user.city : user.city._id;
+      setFormData(prev => ({
+        ...prev,
+        cityId: userCityId || prev.cityId
+      }));
+    }
+  }, [isAdmin, user?.city, isEditMode]);
 
   // Завантаження даних тикету для редагування
   useEffect(() => {
@@ -100,7 +112,8 @@ const CreateTicket: React.FC = () => {
       setError(t('createTicketPage.messages.descriptionRequired'));
       return;
     }
-    if (!formData.cityId) {
+    // Для адмінів місто обов'язкове, для звичайних користувачів воно встановлюється автоматично
+    if (isAdmin && !formData.cityId) {
       setError(t('createTicketPage.messages.cityRequired'));
       return;
     }
@@ -109,11 +122,17 @@ const CreateTicket: React.FC = () => {
       setIsLoading(true);
       setError('');
       
+      // Для не-адмінів встановлюємо місто з профілю, якщо воно не встановлено
+      let ticketData = { ...formData };
+      if (!isAdmin && !ticketData.cityId && user?.city) {
+        ticketData.cityId = typeof user.city === 'string' ? user.city : user.city._id;
+      }
+      
       let response;
       if (isEditMode && id) {
-        response = await apiService.updateTicket(id, formData);
+        response = await apiService.updateTicket(id, ticketData);
       } else {
-        response = await apiService.createTicket(formData);
+        response = await apiService.createTicket(ticketData);
       }
       
       if (response.success) {
@@ -242,21 +261,35 @@ const CreateTicket: React.FC = () => {
                   <label htmlFor="cityId" className="block text-sm font-medium text-gray-700 mb-2">
                     {t('createTicketPage.form.cityLabel')}
                   </label>
-                  <select
-                    id="cityId"
-                    name="cityId"
-                    value={formData.cityId}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="">{t('createTicketPage.form.cityPlaceholder')}</option>
-                    {cities.map((city) => (
-                      <option key={city._id} value={city._id}>
-                        {city.name} ({city.region})
-                      </option>
-                    ))}
-                  </select>
+                  {isAdmin ? (
+                    <select
+                      id="cityId"
+                      name="cityId"
+                      value={formData.cityId}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value="">{t('createTicketPage.form.cityPlaceholder')}</option>
+                      {cities.map((city) => (
+                        <option key={city._id} value={city._id}>
+                          {city.name} ({city.region})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      id="cityId"
+                      name="cityId"
+                      value={user?.city && typeof user.city === 'object' 
+                        ? `${user.city.name}${user.city.region ? ` (${user.city.region})` : ''}`
+                        : cities.find(city => city._id === formData.cityId)?.name || 'Місто не вказано'}
+                      readOnly
+                      disabled
+                      className="bg-gray-100 cursor-not-allowed"
+                      fullWidth
+                    />
+                  )}
                 </div>
 
                 {/* Статус (тільки для редагування) */}
