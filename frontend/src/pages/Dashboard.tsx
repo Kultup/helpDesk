@@ -570,19 +570,21 @@ const Dashboard: React.FC = () => {
                         {t('dashboard.createNewTicket')}
                     </Button>
 
-                    <Button
-                      onClick={() => navigate(`${basePath}/analytics`)}
-                      variant="outline"
-                      className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
-                      style={{
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)',
-                        backgroundColor: 'var(--color-surface)'
-                      }}
-                    >
-                      <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                      {t('dashboard.analytics')}
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        onClick={() => navigate(`${basePath}/analytics`)}
+                        variant="outline"
+                        className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
+                        style={{
+                          borderColor: 'var(--color-border)',
+                          color: 'var(--color-text)',
+                          backgroundColor: 'var(--color-surface)'
+                        }}
+                      >
+                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                        {t('dashboard.analytics')}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -625,82 +627,82 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Analytics Section - Full Width */}
-            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
-                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
-                {t('dashboard.analyticsAndReports')}
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
-                  <WeeklyTicketsChart />
-                </div>
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
-                  <WorkloadByDayChart />
-                </div>
-                {/* Analytics & Reports Shortcut Block replaced with AD counters */}
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-                    <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
-                      <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
-                      {t('dashboard.analyticsAndReports')}
-                    </h3>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <Button onClick={() => loadAdStats()} variant="ghost" size="sm" className="flex-1 sm:flex-none">
-                        <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                      {isAdmin && (
+            {/* Analytics Section - Full Width - Only for Admins */}
+            {isAdmin && (
+              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
+                  {t('dashboard.analyticsAndReports')}
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
+                    <WeeklyTicketsChart />
+                  </div>
+                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
+                    <WorkloadByDayChart />
+                  </div>
+                  {/* Analytics & Reports Shortcut Block replaced with AD counters */}
+                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                      <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
+                        {t('dashboard.analyticsAndReports')}
+                      </h3>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Button onClick={() => loadAdStats()} variant="ghost" size="sm" className="flex-1 sm:flex-none">
+                          <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
                         <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm">
                           Відкрити
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                         onClick={() => navigate(isAdmin ? '/admin/active-directory?view=users' : '#')}>
-                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
-                        <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                          {t('activeDirectory.statistics.totalUsers')}
-                        </p>
-                        {adStatsLoading ? (
-                          <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
-                        ) : adStatsError ? (
-                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
-                        ) : (
-                          <p className="text-xl sm:text-2xl font-black text-foreground">
-                            {(adUsersTotal ?? 0).toLocaleString()}
-                          </p>
-                        )}
                       </div>
                     </div>
-                    <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                         onClick={() => navigate(isAdmin ? '/admin/active-directory?view=computers' : '#')}>
-                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
-                        <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                          {t('activeDirectory.statistics.totalComputers')}
-                        </p>
-                        {adStatsLoading ? (
-                          <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
-                        ) : adStatsError ? (
-                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
-                        ) : (
-                          <p className="text-xl sm:text-2xl font-black text-foreground">
-                            {(adComputersTotal ?? 0).toLocaleString()}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
+                           onClick={() => navigate('/admin/active-directory?view=users')}>
+                        <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                            {t('activeDirectory.statistics.totalUsers')}
                           </p>
-                        )}
+                          {adStatsLoading ? (
+                            <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
+                          ) : adStatsError ? (
+                            <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
+                          ) : (
+                            <p className="text-xl sm:text-2xl font-black text-foreground">
+                              {(adUsersTotal ?? 0).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
+                           onClick={() => navigate('/admin/active-directory?view=computers')}>
+                        <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                          <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                            {t('activeDirectory.statistics.totalComputers')}
+                          </p>
+                          {adStatsLoading ? (
+                            <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
+                          ) : adStatsError ? (
+                            <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
+                          ) : (
+                            <p className="text-xl sm:text-2xl font-black text-foreground">
+                              {(adComputersTotal ?? 0).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Bottom Section - Admin Tools */}
             {user?.role === 'admin' && (

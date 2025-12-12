@@ -89,6 +89,13 @@ const TicketDetails: React.FC = () => {
   const handlePriorityChange = async (newPriority: TicketPriority) => {
     if (!ticket || isUpdating) return;
     
+    // Перевірка: тільки адміністратор може змінювати пріоритет
+    if (!isAdmin) {
+      setError('Тільки адміністратор може змінювати пріоритет тікету');
+      setEditingPriority(false);
+      return;
+    }
+    
     try {
       setIsUpdating(true);
       const response = await apiService.updateTicket(ticket._id, { priority: newPriority });
@@ -103,7 +110,7 @@ const TicketDetails: React.FC = () => {
         setError(response.message || t('tickets.errors.updatePriorityError'));
       }
     } catch (err: any) {
-      setError(err.message || t('tickets.errors.updatePriorityError'));
+      setError(err.response?.data?.message || err.message || t('tickets.errors.updatePriorityError'));
     } finally {
       setIsUpdating(false);
     }
@@ -111,6 +118,7 @@ const TicketDetails: React.FC = () => {
 
   const canEdit = isAdmin || ticket?.createdBy?._id === user?._id || ticket?.assignedTo?._id === user?._id;
   const canChangeStatus = isAdmin; // Тільки адміністратор може змінювати статус
+  const canChangePriority = isAdmin; // Тільки адміністратор може змінювати пріоритет
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -343,7 +351,7 @@ const TicketDetails: React.FC = () => {
                 {/* Priority */}
                 <div>
                   <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.priority')}</span>
-                  {editingPriority && canEdit ? (
+                  {editingPriority && canChangePriority ? (
                     <div className="space-y-2">
                       <select
                         value={ticket.priority}
@@ -370,7 +378,7 @@ const TicketDetails: React.FC = () => {
                       <div className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
                         {getPriorityLabel(ticket.priority)}
                       </div>
-                      {canEdit && (
+                      {canChangePriority && (
                         <button
                           onClick={() => setEditingPriority(true)}
                           className="text-blue-600 hover:text-blue-800 text-sm"
