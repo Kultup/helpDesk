@@ -194,18 +194,15 @@ class TelegramService {
 
       const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
       
-      let message = `❌ *Реєстрацію відхилено*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `Ваш запит на реєстрацію було відхилено адміністратором.\n\n` +
-        `👤 *Користувач:* ${userName}\n` +
-        `📧 *Email:* \`${user.email}\`\n\n`;
+      let message = `❌ *Реєстрацію відхилено*\n` +
+        `👤 ${userName} | 📧 \`${user.email}\`\n`;
       
       if (reason && reason.trim()) {
-        message += `📝 *Причина відхилення:*\n${reason}\n\n`;
+        message += `📝 *Причина:* ${reason}\n`;
       }
       
-      message += `Якщо ви вважаєте, що це помилка, зверніться до адміністратора: [@Kultup](https://t.me/Kultup)\n\n` +
-        `Використайте /start для перегляду доступних опцій.`;
+      message += `\nЯкщо це помилка, зверніться: [@Kultup](https://t.me/Kultup)\n` +
+        `Використайте /start для перегляду опцій.`;
 
       await this.sendMessage(String(user.telegramId), message, {
         parse_mode: 'Markdown'
@@ -744,10 +741,9 @@ class TelegramService {
         } else {
           // Якщо користувача все ще не знайдено, показуємо повідомлення про реєстрацію
         await this.sendMessage(chatId, 
-          `🚫 *Доступ обмежено*\n\n` +
-          `👋 Вітаємо! Для використання бота потрібно зареєструватися в системі.\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📞 *Зверніться до адміністратора для отримання доступу:* [@Kultup](https://t.me/Kultup)`,
+          `🚫 *Доступ обмежено*\n` +
+          `Для використання бота потрібно зареєструватися.\n` +
+          `📞 Адміністратор: [@Kultup](https://t.me/Kultup)`,
           {
             parse_mode: 'Markdown',
             reply_markup: {
@@ -789,15 +785,10 @@ class TelegramService {
     const cityName = (user.city && typeof user.city === 'object' ? user.city.name : user.city) || 'Не вказано';
     
     const welcomeText = 
-      `🎉 *Вітаємо в системі підтримки!*\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `👤 *Профіль користувача:*\n` +
-      `👤 Ім'я: *${fullName}*\n` +
-      `📧 Email: \`${user.email}\`\n` +
-      `💼 Посада: *${positionName}*\n` +
-      `🏙️ Місто: *${cityName}*\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `🎯 *Оберіть дію:*`;
+      `🎉 *Вітаємо в системі підтримки!*\n` +
+      `👤 *Профіль:* ${fullName}\n` +
+      `📧 \`${user.email}\` | 💼 ${positionName} | 🏙️ ${cityName}\n` +
+      `\n🎯 *Оберіть дію:*`;
 
     const keyboard = {
       inline_keyboard: [
@@ -969,10 +960,9 @@ class TelegramService {
 
       if (tickets.length === 0) {
         await this.sendMessage(chatId, 
-          `📋 *Мої тікети*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📄 У вас поки що немає тікетів\n\n` +
-          `💡 Створіть новий тікет, щоб отримати допомогу!`, {
+          `📋 *Мої тікети*\n` +
+          `📄 У вас поки що немає тікетів\n` +
+          `💡 Створіть новий тікет для отримання допомоги`, {
           reply_markup: {
             inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
           }
@@ -980,9 +970,7 @@ class TelegramService {
         return;
       }
 
-      let text = 
-        `📋 *Ваші тікети*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      let text = `📋 *Ваші тікети*\n`;
       
       const keyboard = [];
 
@@ -991,11 +979,9 @@ class TelegramService {
         const statusText = this.getStatusText(ticket.status);
         const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const title = this.truncateButtonText(ticket.title, 50);
-        text += `${index + 1}. ${emoji} *${title}* — ${statusText}, \`${date}\`\n`;
+        text += `\n${index + 1}. ${emoji} *${title}* — ${statusText}, \`${date}\``;
         keyboard.push([{ text: '🔎 Деталі', callback_data: `view_ticket_${ticket._id}` }]);
       });
-
-      text += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
       keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
@@ -1003,9 +989,9 @@ class TelegramService {
       });
     } catch (error) {
       logger.error('Помилка отримання тікетів:', error);
-      await this.sendMessage(chatId, 
-        `❌ *Помилка завантаження тікетів*\n\n` +
-        `Не вдалося завантажити список тікетів.\n\n` +
+        await this.sendMessage(chatId, 
+        `❌ *Помилка завантаження тікетів*\n` +
+        `Не вдалося завантажити список тікетів\n` +
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
       );
@@ -1023,10 +1009,9 @@ class TelegramService {
 
       if (tickets.length === 0) {
         await this.sendMessage(chatId, 
-          `📜 *Історія тікетів*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📄 У вас поки що немає тікетів\n\n` +
-          `💡 Створіть новий тікет, щоб отримати допомогу!`, {
+          `📜 *Історія тікетів*\n` +
+          `📄 У вас поки що немає тікетів\n` +
+          `💡 Створіть новий тікет для отримання допомоги`, {
           reply_markup: {
             inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
           }
@@ -1035,9 +1020,8 @@ class TelegramService {
       }
 
       let text = 
-        `📜 *Історія тікетів*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 Показано ${tickets.length} тікетів\n\n`;
+        `📜 *Історія тікетів*\n` +
+        `📋 Показано ${tickets.length} тікетів\n`;
       
       const keyboard = [];
 
@@ -1050,9 +1034,8 @@ class TelegramService {
           year: 'numeric'
         });
         
-        text += `${index + 1}. ${status} *${ticket.title}*\n`;
-        text += `   📊 Статус: *${statusText}*\n`;
-        text += `   📅 ${date}\n\n`;
+        text += `\n${index + 1}. ${status} *${ticket.title}*\n` +
+          `   📊 ${statusText} | 📅 ${date}`;
         
         // Кнопка для повторного створення тікету
         keyboard.push([{
@@ -1061,8 +1044,7 @@ class TelegramService {
         }]);
       });
 
-      text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `💡 Натисніть на кнопку, щоб створити новий тікет на основі попереднього`;
+      text += `\n\n💡 Натисніть кнопку, щоб створити новий тікет на основі попереднього`;
       
       keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
@@ -1073,8 +1055,8 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка отримання історії тікетів:', error);
       await this.sendMessage(chatId, 
-        `❌ *Помилка завантаження історії*\n\n` +
-        `Не вдалося завантажити історію тікетів.\n\n` +
+        `❌ *Помилка завантаження історії*\n` +
+        `Не вдалося завантажити історію тікетів\n` +
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
       );
@@ -1123,15 +1105,11 @@ class TelegramService {
 
       // Показуємо форму з заповненими даними
       let message = 
-        `🔄 *Повторне створення тікету*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Заголовок (на основі попереднього):*\n` +
-        `\`${originalTicket.title}\`\n\n` +
-        `📝 *Опис (на основі попереднього):*\n` +
-        `\`${originalTicket.description || 'Без опису'}\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `✏️ Ви можете змінити заголовок або описати нову проблему.\n\n` +
-        `📋 *Крок 1/4:* Введіть заголовок тікету\n\n` +
+        `🔄 *Повторне створення тікету*\n` +
+        `📋 *Заголовок:* \`${originalTicket.title}\`\n` +
+        `📝 *Опис:* \`${originalTicket.description || 'Без опису'}\`\n` +
+        `\n✏️ Ви можете змінити заголовок або описати нову проблему\n` +
+        `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
         `💡 Опишіть коротко суть проблеми`;
 
       await this.sendMessage(chatId, message, {
@@ -1145,11 +1123,11 @@ class TelegramService {
       });
     } catch (error) {
       logger.error('Помилка повторного створення тікету:', error);
-      await this.sendMessage(chatId,
-        `❌ *Помилка*\n\n` +
-        `Не вдалося завантажити дані тікету.\n\n` +
-        `🔄 Спробуйте ще раз.`
-      );
+        await this.sendMessage(chatId,
+          `❌ *Помилка*\n` +
+          `Не вдалося завантажити дані тікету\n` +
+          `🔄 Спробуйте ще раз`
+        );
     }
   }
 
@@ -1179,20 +1157,14 @@ class TelegramService {
       const statusEmoji = this.getStatusEmoji(ticket.status);
       const statusText = this.getStatusText(ticket.status);
       const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const categoryText = ticket.category ? ticket.category.name : 'Не вказано';
       const priorityText = this.getPriorityText(ticket.priority);
 
       const message =
-        `🎫 *Деталі тікету*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Заголовок:* ${ticket.title}\n` +
-        `📊 *Статус:* ${statusEmoji} ${statusText}\n` +
-        `🏷️ *Категорія:* ${categoryText}\n` +
-        `⚡ *Пріоритет:* ${priorityText}\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n` +
-        `📅 *Створено:* \`${date}\`\n` +
-        `🆔 *ID:* \`${ticket._id}\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        `🎫 *Деталі тікету*\n` +
+        `📋 ${ticket.title}\n` +
+        `📊 ${statusEmoji} ${statusText} | ⚡ ${priorityText}\n` +
+        `🏙️ ${ticket.city?.name || 'Не вказано'} | 📅 \`${date}\`\n` +
+        `🆔 \`${ticket._id}\``;
 
       await this.sendMessage(chatId, message, {
         reply_markup: {
@@ -1206,8 +1178,8 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка перегляду деталей тікету:', error);
       await this.sendMessage(chatId,
-        `❌ *Помилка завантаження деталей*\n\n` +
-        `Не вдалося завантажити дані тікету.`
+        `❌ *Помилка завантаження деталей*\n` +
+        `Не вдалося завантажити дані тікету`
       );
     }
   }
@@ -1223,10 +1195,9 @@ class TelegramService {
       const statusText = this.getStatusText(ticket.status);
       const title = this.truncateButtonText(ticket.title, 60);
       const message =
-        `📊 *Оцініть якість вирішення*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Тікет:* ${title}\n` +
-        `📊 *Статус:* ${emoji} ${statusText}\n\n` +
+        `📊 *Оцініть якість вирішення*\n` +
+        `📋 ${title}\n` +
+        `📊 ${emoji} ${statusText}\n` +
         `Оберіть оцінку від 1 до 5:`;
 
       const keyboard = [
@@ -1283,9 +1254,9 @@ class TelegramService {
       const session = this.userSessions.get(chatId);
       if (!session || !session.ticketData || !session.ticketData.title) {
         await this.sendMessage(chatId,
-          `❌ *Помилка*\n\n` +
-          `Не вдалося знайти попередній заголовок.\n\n` +
-          `🔄 Спробуйте ввести заголовок вручну.`
+          `❌ *Помилка*\n` +
+          `Не вдалося знайти попередній заголовок\n` +
+          `🔄 Спробуйте ввести заголовок вручну`
         );
         return;
       }
@@ -1294,11 +1265,10 @@ class TelegramService {
       session.step = 'description';
       
       await this.sendMessage(chatId,
-        `✅ *Заголовок використано*\n\n` +
-        `📋 Заголовок: *${session.ticketData.title}*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📝 *Крок 2/4:* Введіть опис проблеми\n\n` +
-        `💡 Опишіть детально вашу проблему.`, {
+        `✅ *Заголовок використано*\n` +
+        `📋 ${session.ticketData.title}\n` +
+        `\n📝 *Крок 2/4:* Введіть опис проблеми\n` +
+        `💡 Опишіть детально вашу проблему`, {
           reply_markup: {
             inline_keyboard: [
               [{ text: '✅ Використати попередній опис', callback_data: 'use_previous_description' }],
@@ -1311,9 +1281,9 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка використання попереднього заголовку:', error);
       await this.sendMessage(chatId,
-        `❌ *Помилка*\n\n` +
-        `Не вдалося використати попередній заголовок.\n\n` +
-        `🔄 Спробуйте ввести заголовок вручну.`
+        `❌ *Помилка*\n` +
+        `Не вдалося використати попередній заголовок\n` +
+        `🔄 Спробуйте ввести заголовок вручну`
       );
     }
   }
@@ -1323,9 +1293,9 @@ class TelegramService {
       const session = this.userSessions.get(chatId);
       if (!session || !session.ticketData || !session.ticketData.description) {
         await this.sendMessage(chatId,
-          `❌ *Помилка*\n\n` +
-          `Не вдалося знайти попередній опис.\n\n` +
-          `🔄 Спробуйте ввести опис вручну.`
+          `❌ *Помилка*\n` +
+          `Не вдалося знайти попередній опис\n` +
+          `🔄 Спробуйте ввести опис вручну`
         );
         return;
       }
@@ -1334,11 +1304,10 @@ class TelegramService {
       session.step = 'photo';
       
       await this.sendMessage(chatId,
-        `✅ *Опис використано*\n\n` +
-        `📝 Опис: *${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📷 *Крок 3/4:* Прикріпіть фото (необов'язково)\n\n` +
-        `💡 Ви можете прикріпити фото для кращого опису проблеми.`, {
+        `✅ *Опис використано*\n` +
+        `📝 ${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}\n` +
+        `\n📷 *Крок 3/4:* Прикріпіть фото (необов'язково)\n` +
+        `💡 Ви можете прикріпити фото для кращого опису проблеми`, {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📷 Прикріпити фото', callback_data: 'attach_photo' }],
@@ -1352,9 +1321,9 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка використання попереднього опису:', error);
       await this.sendMessage(chatId,
-        `❌ *Помилка*\n\n` +
-        `Не вдалося використати попередній опис.\n\n` +
-        `🔄 Спробуйте ввести опис вручну.`
+        `❌ *Помилка*\n` +
+        `Не вдалося використати попередній опис\n` +
+        `🔄 Спробуйте ввести опис вручну`
       );
     }
   }
@@ -1371,9 +1340,8 @@ class TelegramService {
     this.userSessions.set(chatId, session);
     
     await this.sendMessage(chatId, 
-      `📝 *Створення нового тікету*\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `📋 *Крок 1/4:* Введіть заголовок тікету\n\n` +
+      `📝 *Створення нового тікету*\n` +
+      `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
       `💡 Опишіть коротко суть проблеми`, {
         reply_markup: {
           inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
@@ -1525,9 +1493,8 @@ class TelegramService {
             pendingRegistration.step = 'password';
             // Приховуємо клавіатуру після успішного введення номера
             await this.sendMessage(chatId, 
-              `✅ <b>Номер телефону прийнято!</b>\n\n` +
-              `📱 Номер: ${text.trim()}\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+              `✅ <b>Номер телефону прийнято!</b>\n` +
+              `📱 ${text.trim()}`,
               {
                 parse_mode: 'HTML',
                 reply_markup: {
@@ -1844,9 +1811,8 @@ class TelegramService {
 
       // Приховуємо клавіатуру і переходимо до наступного кроку
       await this.sendMessage(chatId, 
-        `✅ <b>Номер телефону отримано!</b>\n\n` +
-        `📱 Номер: ${phoneNumber}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `✅ <b>Номер телефону отримано!</b>\n` +
+        `📱 ${phoneNumber}`,
         {
           parse_mode: 'HTML',
           reply_markup: {
@@ -1973,12 +1939,8 @@ class TelegramService {
       });
 
       const text = 
-        `📊 *Ваша статистика*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Всього тікетів:* \`${totalTickets}\`\n` +
-        `🔓 *Відкритих:* \`${openTickets}\`\n` +
-        `✅ *Закритих:* \`${closedTickets}\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        `📊 *Ваша статистика*\n` +
+        `📋 Всього: \`${totalTickets}\` | 🔓 Відкритих: \`${openTickets}\` | ✅ Закритих: \`${closedTickets}\``;
 
       await this.sendMessage(chatId, text, {
         reply_markup: {
@@ -2160,11 +2122,9 @@ class TelegramService {
       this.userSessions.delete(chatId);
 
       let confirmText = 
-        `🎉 *Тікет успішно створено!*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
-        `⏳ *Очікуйте відповідь адміністратора*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        `🎉 *Тікет успішно створено!*\n` +
+        `🆔 \`${ticket._id}\`\n` +
+        `⏳ Очікуйте відповідь адміністратора`;
 
        await this.sendMessage(chatId, confirmText, {
          reply_markup: {
@@ -2286,11 +2246,9 @@ class TelegramService {
       logger.info('📝 Формування повідомлення...');
       
       const message = 
-        `🎫 *Новий тікет створено*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Заголовок:* ${ticket.title}\n\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
-        `🆔 *ID тікету:* \`${ticket._id}\``;
+        `🎫 *Новий тікет створено*\n` +
+        `📋 ${ticket.title}\n` +
+        `🏙️ ${ticket.city?.name || 'Не вказано'} | 🆔 \`${ticket._id}\``;
 
       logger.info('📤 Відправка повідомлення в групу...', {
         groupChatId,
@@ -2378,11 +2336,9 @@ class TelegramService {
       // Якщо тікет закривається (closed або resolved), відправляємо спрощене повідомлення
       if (newStatus === 'closed' || newStatus === 'resolved') {
         const message = 
-          `🎫 *Тікет виконаний*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 *Заголовок:* ${ticket.title}\n\n` +
-          `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
-          `🆔 *ID тікету:* \`${ticket._id}\``;
+          `🎫 *Тікет виконаний*\n` +
+          `📋 ${ticket.title}\n` +
+          `🏙️ ${ticket.city?.name || 'Не вказано'} | 🆔 \`${ticket._id}\``;
 
         await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
         logger.info('✅ Сповіщення про закриття тікету відправлено в групу Telegram');
@@ -2429,23 +2385,15 @@ class TelegramService {
       // Формуємо повідомлення
       const statusText = this.getStatusText(ticket.status);
       const statusEmoji = this.getStatusEmoji(ticket.status);
-      const categoryText = await this.getCategoryText(ticket.category?._id || ticket.category);
 
       let message = '';
       if (type === 'updated') {
         message = 
-          `🔄 *Статус вашого тікету змінено*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 *Заголовок:* ${ticket.title}\n` +
-          `🆔 *ID тікету:* \`${ticket._id}\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `✨ *НОВИЙ СТАТУС:*\n` +
-          `${statusEmoji} *${statusText}*\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `🏷️ *Категорія:* ${categoryText}\n` +
-          `⚡ *Пріоритет:* ${this.getPriorityText(ticket.priority)}\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `💡 Ви можете переглянути деталі тікету в системі.`;
+          `🔄 *Статус тікету змінено*\n` +
+          `📋 ${ticket.title}\n` +
+          `🆔 \`${ticket._id}\`\n` +
+          `\n${statusEmoji} *${statusText}*\n` +
+          `⚡ ${this.getPriorityText(ticket.priority)}`;
       }
 
       if (message) {
@@ -2490,14 +2438,12 @@ class TelegramService {
   }
 
   getCategoryPromptText() {
-    return `🏷️ *Оберіть категорію тікету*\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    return `🏷️ *Оберіть категорію тікету*\n` +
       `Категорія допоможе швидше обробити ваш запит.`;
   }
 
   getPriorityPromptText() {
-    return `⚡ *Оберіть пріоритет тікету*\n\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    return `⚡ *Оберіть пріоритет тікету*\n` +
       `Пріоритет визначає швидкість обробки вашого запиту.`;
   }
 
@@ -2718,10 +2664,9 @@ class TelegramService {
       switch (step) {
         case 'firstName':
           await this.sendMessage(chatId, 
-            `📝 <b>Реєстрація в системі</b>\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 <b>Крок 1/9:</b> Введіть ваше ім'я\n\n` +
-            `💡 Ім'я повинно містити тільки літери та бути довжиною від 2 до 50 символів.`,
+            `📝 <b>Реєстрація в системі</b>\n` +
+            `👤 <b>Крок 1/9:</b> Введіть ваше ім'я\n` +
+            `💡 Ім'я повинно містити тільки літери та бути довжиною від 2 до 50 символів`,
             { parse_mode: 'HTML' }
           );
           break;
@@ -2732,11 +2677,10 @@ class TelegramService {
             return map[match];
           });
           await this.sendMessage(chatId, 
-            `✅ <b>Ім'я прийнято!</b>\n\n` +
-            `👤 Ім'я: ${firstNameValue}\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 <b>Крок 2/9:</b> Введіть ваше прізвище\n\n` +
-            `💡 Прізвище повинно містити тільки літери та бути довжиною від 2 до 50 символів.`,
+            `✅ <b>Ім'я прийнято!</b>\n` +
+            `👤 ${firstNameValue}\n` +
+            `\n👤 <b>Крок 2/9:</b> Введіть ваше прізвище\n` +
+            `💡 Прізвище повинно містити тільки літери та бути довжиною від 2 до 50 символів`,
             { parse_mode: 'HTML' }
           );
           break;
@@ -2747,10 +2691,9 @@ class TelegramService {
             return map[match];
           });
           await this.sendMessage(chatId, 
-            `✅ <b>Прізвище прийнято!</b>\n\n` +
-            `👤 Прізвище: ${lastNameValue}\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📧 <b>Крок 3/9:</b> Введіть вашу електронну адресу\n\n` +
+            `✅ <b>Прізвище прийнято!</b>\n` +
+            `👤 ${lastNameValue}\n` +
+            `\n📧 <b>Крок 3/9:</b> Введіть вашу електронну адресу\n` +
             `💡 Приклад: user@example.com`,
             { parse_mode: 'HTML' }
           );
@@ -2762,14 +2705,13 @@ class TelegramService {
             return map[match];
           });
           await this.sendMessage(chatId, 
-            `✅ <b>Email прийнято!</b>\n\n` +
-            `📧 Email: ${emailValue}\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 <b>Крок 4/9:</b> Введіть ваш логін\n\n` +
+            `✅ <b>Email прийнято!</b>\n` +
+            `📧 ${emailValue}\n` +
+            `\n👤 <b>Крок 4/9:</b> Введіть ваш логін\n` +
             `💡 Логін повинен:\n` +
             `• Містити мінімум 3 символи\n` +
             `• Містити максимум 50 символів\n` +
-            `• Складатися тільки з латинських літер, цифр та підкреслення\n\n` +
+            `• Складатися тільки з латинських літер, цифр та підкреслення\n` +
             `💡 <b>Приклад:</b> my_login123`,
             { parse_mode: 'HTML' }
           );
@@ -2781,11 +2723,10 @@ class TelegramService {
             return map[match];
           });
           await this.sendMessage(chatId, 
-            `✅ <b>Логін прийнято!</b>\n\n` +
-            `👤 Логін: ${loginValue}\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `📱 <b>Крок 5/9:</b> Введіть ваш номер телефону\n\n` +
-            `💡 Приклад: +380501234567\n\n` +
+            `✅ <b>Логін прийнято!</b>\n` +
+            `👤 ${loginValue}\n` +
+            `\n📱 <b>Крок 5/9:</b> Введіть ваш номер телефону\n` +
+            `💡 Приклад: +380501234567\n` +
             `Або натисніть кнопку нижче, щоб поділитися номером:`,
             {
               parse_mode: 'HTML',
@@ -2806,14 +2747,13 @@ class TelegramService {
         case 'password':
           const phoneNumber = pendingRegistration.data.phone || '';
           await this.sendMessage(chatId, 
-            `✅ <b>Номер телефону прийнято!</b>\n\n` +
-            `📱 <b>Номер:</b> ${phoneNumber}\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `🔐 <b>Крок 6/9:</b> Введіть пароль\n\n` +
+            `✅ <b>Номер телефону прийнято!</b>\n` +
+            `📱 ${phoneNumber}\n` +
+            `\n🔐 <b>Крок 6/9:</b> Введіть пароль\n` +
             `💡 Пароль повинен містити:\n` +
             `• Мінімум 6 символів\n` +
             `• Принаймні одну літеру\n` +
-            `• Принаймні одну цифру\n\n` +
+            `• Принаймні одну цифру\n` +
             `💡 <b>Приклад:</b> MyPass123\n\n` +
             `⚠️ <b>ВАЖЛИВО: Запам'ятайте ваш пароль!</b>\n` +
             `Він знадобиться для входу в систему.`,
@@ -2875,10 +2815,9 @@ class TelegramService {
       });
 
       await this.sendMessage(chatId, 
-        `✅ *Пароль прийнято!*\n\n` +
-        `🔐 *Пароль:* \`********\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🏙️ *Крок 7/9:* Оберіть ваше місто`,
+        `✅ *Пароль прийнято!*\n` +
+        `🔐 \`********\`\n` +
+        `\n🏙️ *Крок 7/9:* Оберіть ваше місто`,
         {
           reply_markup: {
             inline_keyboard: keyboard
@@ -2925,8 +2864,7 @@ class TelegramService {
       });
 
       await this.sendMessage(chatId, 
-        `✅ *Місто обрано!*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✅ *Місто обрано!*\n` +
         `💼 *Крок 8/9:* Оберіть вашу посаду`,
         {
           reply_markup: {
@@ -3008,16 +2946,15 @@ class TelegramService {
         callback_data: 'skip_institution'
       }]);
 
-      let messageText = `✅ *Посада обрана!*\n\n` +
-        `💼 *Посада:* ${pendingRegistration.data.positionId ? 'Обрано' : 'Не обрано'}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🏢 *Крок 9/9:* Оберіть заклад (необов'язково)\n\n`;
+      let messageText = `✅ *Посада обрана!*\n` +
+        `💼 ${pendingRegistration.data.positionId ? 'Обрано' : 'Не обрано'}\n` +
+        `\n🏢 *Крок 9/9:* Оберіть заклад (необов'язково)`;
       
       if (institutions.length === 0) {
-        messageText += `⚠️ *Немає доступних закладів для вибраного міста*\n\n`;
+        messageText += `\n⚠️ Немає доступних закладів для вибраного міста`;
       }
       
-      messageText += `💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`;
+      messageText += `\n💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`;
 
       await this.sendMessage(chatId, messageText, {
         reply_markup: {
@@ -3201,13 +3138,11 @@ class TelegramService {
           await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
 
           await this.sendMessage(chatId, 
-            `🎉 *Реєстрація завершена!*\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `✅ Ваш обліковий запис створено.\n\n` +
-            `⏳ *Очікуйте активації*\n\n` +
-            `Ваш обліковий запис потребує активації адміністратором.\n\n` +
-            `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)\n\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+            `🎉 *Реєстрація завершена!*\n` +
+            `✅ Ваш обліковий запис створено\n` +
+            `\n⏳ *Очікуйте активації*\n` +
+            `Ваш обліковий запис потребує активації адміністратором\n` +
+            `📞 Адміністратор: [@Kultup](https://t.me/Kultup)`,
             { parse_mode: 'Markdown' }
           );
 
@@ -3233,15 +3168,14 @@ class TelegramService {
   }
 
   async askForPassword(chatId) {
-    await this.sendMessage(chatId, 
-      `🔐 <b>Крок 6/9:</b> Введіть пароль\n\n` +
-      `💡 Пароль повинен містити:\n` +
-      `• Мінімум 6 символів\n` +
-      `• Принаймні одну літеру\n` +
-      `• Принаймні одну цифру\n\n` +
-      `💡 <b>Приклад:</b> MyPass123\n\n` +
-      `⚠️ <b>ВАЖЛИВО: Запам'ятайте ваш пароль!</b>\n` +
-      `Він знадобиться для входу в систему.`,
+      await this.sendMessage(chatId, 
+        `🔐 <b>Крок 6/9:</b> Введіть пароль\n` +
+        `💡 Пароль повинен містити:\n` +
+        `• Мінімум 6 символів\n` +
+        `• Принаймні одну літеру\n` +
+        `• Принаймні одну цифру\n` +
+        `💡 <b>Приклад:</b> MyPass123\n` +
+        `⚠️ <b>ВАЖЛИВО: Запам'ятайте ваш пароль!</b> Він знадобиться для входу в систему.`,
       { parse_mode: 'HTML' }
     );
   }
@@ -3258,9 +3192,9 @@ class TelegramService {
       
       if (existingUser) {
         await this.sendMessage(chatId, 
-          `✅ *Ви вже авторизовані!*\n\n` +
-          `Ваш обліковий запис вже підключено до Telegram.\n\n` +
-          `Використайте /start для перегляду меню.`
+          `✅ *Ви вже авторизовані!*\n` +
+          `Ваш обліковий запис вже підключено до Telegram\n` +
+          `Використайте /start для перегляду меню`
         );
         return;
       }
@@ -3280,10 +3214,9 @@ class TelegramService {
       this.userSessions.set(chatId, session);
 
       await this.sendMessage(chatId, 
-        `🔐 *Авторизація в системі*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📝 *Крок 1/2:* Введіть ваш логін\n\n` +
-        `💡 Введіть логін, який ви використовуєте для входу в систему.`,
+        `🔐 *Авторизація в системі*\n` +
+        `📝 *Крок 1/2:* Введіть ваш логін\n` +
+        `💡 Введіть логін, який ви використовуєте для входу в систему`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -3318,11 +3251,10 @@ class TelegramService {
             session.data.login = text.trim().toLowerCase();
             session.step = 'password';
             await this.sendMessage(chatId, 
-              `✅ *Логін прийнято!*\n\n` +
-              `👤 *Логін:* \`${session.data.login}\`\n\n` +
-              `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-              `🔐 *Крок 2/2:* Введіть ваш пароль\n\n` +
-              `💡 Введіть пароль для входу в систему.`
+              `✅ *Логін прийнято!*\n` +
+              `👤 \`${session.data.login}\`\n` +
+              `\n🔐 *Крок 2/2:* Введіть ваш пароль\n` +
+              `💡 Введіть пароль для входу в систему`
             );
           } else {
             isValid = false;
@@ -3374,9 +3306,9 @@ class TelegramService {
 
       if (!user) {
         await this.sendMessage(chatId, 
-          `❌ *Помилка авторизації*\n\n` +
-          `Користувача з таким логіном не знайдено.\n\n` +
-          `💡 Перевірте правильність логіну та спробуйте ще раз.`,
+          `❌ *Помилка авторизації*\n` +
+          `Користувача з таким логіном не знайдено\n` +
+          `💡 Перевірте правильність логіну та спробуйте ще раз`,
           {
             reply_markup: {
               inline_keyboard: [
@@ -3460,10 +3392,9 @@ class TelegramService {
       });
 
       await this.sendMessage(chatId, 
-        `✅ *Авторизація успішна!*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `🎉 Вітаємо, ${updatedUser.firstName}!\n\n` +
-        `Ваш обліковий запис успішно підключено до Telegram бота.`
+        `✅ *Авторизація успішна!*\n` +
+        `🎉 Вітаємо, ${updatedUser.firstName}!\n` +
+        `Ваш обліковий запис успішно підключено до Telegram бота`
       );
 
       // Показуємо dashboard
