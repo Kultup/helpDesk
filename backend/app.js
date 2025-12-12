@@ -170,10 +170,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   setupCleanupJob();
   logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
   
-  // Ініціалізуємо SLA моніторинг
-  const { setupSLAMonitor } = require('./jobs/slaMonitor');
-  setupSLAMonitor();
-  logger.info('✅ SLA моніторинг налаштовано');
   
   // Ініціалізуємо email сервіс
   const { initializeEmailService, setupEmailPolling } = require('./jobs/emailPolling');
@@ -338,7 +334,6 @@ app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 app.use('/api/settings', require('./routes/settings')); // Налаштування системи
-app.use('/api/sla', require('./routes/sla')); // SLA трекінг
 app.use('/api/kb', require('./routes/knowledgeBase')); // Knowledge Base
 app.use('/api/email', require('./routes/email')); // Email інтеграція
 app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція

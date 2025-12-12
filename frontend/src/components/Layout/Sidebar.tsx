@@ -68,8 +68,6 @@ const navGroups: NavGroup[] = [
       { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },
-      { nameKey: 'sidebar.sla', href: '/sla', icon: Clock, adminOnly: true },
-      { nameKey: 'sidebar.slaSettings', href: '/sla/settings', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
       { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
       { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },

@@ -25,8 +25,6 @@ import Analytics from './pages/Analytics';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
-import SLASettings from './pages/SLASettings';
-import SLADashboard from './pages/SLADashboard';
 import TelegramSettings from './pages/TelegramSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
@@ -186,16 +184,6 @@ const App: React.FC = () => {
             <Route path="admin/logs" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Logs />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/sla" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <SLADashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/sla/settings" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <SLASettings />
               </ProtectedRoute>
             } />
             <Route path="admin/settings/telegram" element={

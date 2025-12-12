@@ -455,80 +455,12 @@ router.get('/performance',
         { $sort: { '_id.year': 1, '_id.week': 1 } }
       ]);
 
-      // SLA метрики
-      const slaMetrics = await Ticket.aggregate([
-        { $match: dateFilter },
-        {
-          $project: {
-            priority: 1,
-            status: 1,
-            createdAt: 1,
-            resolvedAt: 1,
-            resolutionTime: {
-              $cond: [
-                { $and: ['$resolvedAt', { $ne: ['$resolvedAt', null] }] },
-                { $subtract: ['$resolvedAt', '$createdAt'] },
-                null
-              ]
-            },
-            slaTarget: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ['$priority', 'high'] }, then: 4 * 60 * 60 * 1000 }, // 4 години
-                  { case: { $eq: ['$priority', 'medium'] }, then: 24 * 60 * 60 * 1000 }, // 24 години
-                  { case: { $eq: ['$priority', 'low'] }, then: 72 * 60 * 60 * 1000 } // 72 години
-                ],
-                default: 24 * 60 * 60 * 1000
-              }
-            }
-          }
-        },
-        {
-          $group: {
-            _id: '$priority',
-            totalTickets: { $sum: 1 },
-            resolvedTickets: {
-              $sum: { $cond: [{ $ne: ['$resolutionTime', null] }, 1, 0] }
-            },
-            slaCompliant: {
-              $sum: {
-                $cond: [
-                  { 
-                    $and: [
-                      { $ne: ['$resolutionTime', null] },
-                      { $lte: ['$resolutionTime', '$slaTarget'] }
-                    ]
-                  },
-                  1,
-                  0
-                ]
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            totalTickets: 1,
-            resolvedTickets: 1,
-            slaCompliant: 1,
-            slaComplianceRate: {
-              $cond: [
-                { $gt: ['$resolvedTickets', 0] },
-                { $divide: ['$slaCompliant', '$resolvedTickets'] },
-                0
-              ]
-            }
-          }
-        }
-      ]);
-
       res.json({
         success: true,
         data: {
           avgResolutionByUser,
           overdueTickets,
-          weeklyResolutionTrend,
-          slaMetrics
+          weeklyResolutionTrend
         }
       });
 

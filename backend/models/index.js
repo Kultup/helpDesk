@@ -13,7 +13,6 @@ const QuickTip = require('./QuickTip');
 const Event = require('./Event');
 const AdminNote = require('./AdminNote');
 const Tag = require('./Tag');
-const SLAPolicy = require('./SLAPolicy');
 const KnowledgeBase = require('./KnowledgeBase');
 const EmailThread = require('./EmailThread');
 const EmailSettings = require('./EmailSettings');
@@ -39,7 +38,6 @@ module.exports = {
   Event,
   AdminNote,
   Tag,
-  SLAPolicy,
   KnowledgeBase,
   EmailThread,
   EmailSettings,

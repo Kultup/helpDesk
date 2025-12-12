@@ -10,7 +10,6 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
-import TicketSLA from '../components/TicketSLA';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
 
 import { formatDate } from '../utils';
@@ -264,8 +263,6 @@ const TicketDetails: React.FC = () => {
             </Card>
           )}
           
-          {/* SLA Статус */}
-          <TicketSLA ticketId={ticket._id} />
 
           {/* Пов'язані статті KB */}
           {ticket && (

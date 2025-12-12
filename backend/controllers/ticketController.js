@@ -255,15 +255,6 @@ exports.createTicket = async (req, res) => {
     await ticket.save();
     logger.info('✅ Тікет збережено в базі даних:', ticket._id);
 
-    // Розраховуємо та оновлюємо SLA для тикету
-    try {
-      const slaService = require('../services/slaService');
-      await slaService.updateTicketSLA(ticket);
-      logger.info('✅ SLA розраховано для тикету:', ticket._id);
-    } catch (slaError) {
-      logger.error('❌ Помилка розрахунку SLA:', slaError);
-      // Не зупиняємо виконання, якщо SLA не вдалося розрахувати
-    }
 
     // Відправка сповіщення в Telegram групу про новий тікет
     logger.info('🎯 Викликаю функцію відправки сповіщення для тікету:', ticket._id);
@@ -413,30 +404,12 @@ exports.updateTicket = async (req, res) => {
 
     await ticket.save();
 
-    // Оновлюємо SLA для тикету, якщо змінився пріоритет або категорія
-    if (priority !== undefined || category !== undefined) {
-      try {
-        const slaService = require('../services/slaService');
-        await slaService.updateTicketSLA(ticket);
-        logger.info('✅ SLA оновлено для тикету:', ticket._id);
-      } catch (slaError) {
-        logger.error('❌ Помилка оновлення SLA:', slaError);
-      }
-    }
 
-    // Оновлюємо метрики SLA при зміні статусу
+    // Якщо це перша відповідь, встановлюємо firstResponseAt
     if (status !== undefined && status !== previousState.status) {
-      try {
-        const slaService = require('../services/slaService');
-        await slaService.updateSLAMetrics(ticket);
-        
-        // Якщо це перша відповідь, встановлюємо firstResponseAt
-        if (status === 'in_progress' && !ticket.firstResponseAt) {
-          ticket.firstResponseAt = new Date();
-          await ticket.save();
-        }
-      } catch (slaError) {
-        logger.error('❌ Помилка оновлення метрик SLA:', slaError);
+      if (status === 'in_progress' && !ticket.firstResponseAt) {
+        ticket.firstResponseAt = new Date();
+        await ticket.save();
       }
     }
 
@@ -888,7 +861,6 @@ exports.exportTickets = async (req, res) => {
         responseTime: 0,
         resolutionTime: 0,
         isOverdue: false,
-        slaStatus: 'В межах SLA',
         daysOpen: 0,
         statusChanges: 0,
         lastActivity: null,
@@ -917,17 +889,6 @@ exports.exportTickets = async (req, res) => {
         metrics.resolutionTime = Math.round(resolutionTime * 100) / 100;
       }
       
-      // Перевірка SLA
-      const slaResponseTime = ticket.sla?.responseTime || 24;
-      const slaResolutionTime = ticket.sla?.resolutionTime || 72;
-      
-      if (!ticket.firstResponseAt && metrics.responseTime === 0 && metrics.daysOpen * 24 > slaResponseTime) {
-        metrics.isOverdue = true;
-        metrics.slaStatus = 'Порушення SLA (відповідь)';
-      } else if (!ticket.resolvedAt && !['resolved', 'closed'].includes(ticket.status) && metrics.daysOpen * 24 > slaResolutionTime) {
-        metrics.isOverdue = true;
-        metrics.slaStatus = 'Порушення SLA (вирішення)';
-      }
       
       // Кількість змін статусу
       if (ticket.statusHistory && ticket.statusHistory.length > 0) {
@@ -1001,7 +962,6 @@ exports.exportTickets = async (req, res) => {
         'Час відповіді (год)': calculatedMetrics.responseTime,
         'Час вирішення (год)': calculatedMetrics.resolutionTime,
         'Днів відкритий': calculatedMetrics.daysOpen,
-        'Статус SLA': calculatedMetrics.slaStatus,
         'Прострочений': calculatedMetrics.isOverdue ? 'Так' : 'Ні',
         
         // Статистика активності

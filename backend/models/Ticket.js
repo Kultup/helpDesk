@@ -114,57 +114,6 @@ const ticketSchema = new mongoose.Schema({
     min: [0, 'Actual hours cannot be negative'],
     default: null
   },
-  
-  // SLA політика
-  slaPolicy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'SLAPolicy',
-    default: null
-  },
-  
-  // SLA та метрики
-  sla: {
-    responseTime: { type: Number, default: 24 }, // години
-    resolutionTime: { type: Number, default: 72 }, // години
-    priority: { type: String, default: 'medium' }
-  },
-  // SLA порушення та попередження
-  slaBreachAt: {
-    type: Date,
-    default: null
-  },
-  slaWarningSent: {
-    type: Boolean,
-    default: false
-  },
-  slaWarningsSent: [{
-    percentage: { type: Number, required: true },
-    sentAt: { type: Date, default: Date.now },
-    notifiedUsers: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }]
-  }],
-  // Історія ескалацій
-  escalationHistory: [{
-    level: { type: Number, required: true },
-    escalatedAt: { type: Date, default: Date.now },
-    escalatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    escalatedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    reason: { type: String, trim: true },
-    percentage: { type: Number },
-    slaBreachType: {
-      type: String,
-      enum: ['response', 'resolution', 'manual'],
-      default: 'manual'
-    }
-  }],
   metrics: {
     responseTime: { type: Number, default: 0 }, // години
     resolutionTime: { type: Number, default: 0 }, // години
@@ -374,19 +323,6 @@ ticketSchema.virtual('age').get(function() {
 
 ticketSchema.virtual('isActive').get(function() {
   return !['closed', 'cancelled'].includes(this.status) && !this.isDeleted;
-});
-
-ticketSchema.virtual('isSlaBreached').get(function() {
-  if (this.status === 'closed' || this.status === 'resolved') return false;
-  
-  const now = new Date();
-  const responseDeadline = new Date(this.createdAt.getTime() + this.sla.responseTime * 60 * 60 * 1000);
-  const resolutionDeadline = new Date(this.createdAt.getTime() + this.sla.resolutionTime * 60 * 60 * 1000);
-  
-  if (!this.firstResponseAt && now > responseDeadline) return true;
-  if (now > resolutionDeadline) return true;
-  
-  return false;
 });
 
 ticketSchema.virtual('commentsCount', {
