@@ -113,6 +113,8 @@ export interface Ticket {
   }>;
   qualityRating?: {
     hasRating: boolean;
+    ratingRequested?: boolean;
+    requestedAt?: string;
     rating?: number;
     feedback?: string;
     ratedAt?: string;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
-import { Ticket } from '../types';
+import { Ticket, TicketStatus } from '../types';
 import RatingRequestModal from './RatingRequestModal';
 
 const RatingRequestChecker: React.FC = () => {
@@ -22,7 +22,7 @@ const RatingRequestChecker: React.FC = () => {
         // Отримуємо тікети користувача зі статусом resolved
         const responseResolved = await apiService.getTickets(
           {
-            status: ['resolved']
+            status: [TicketStatus.RESOLVED]
           },
           {
             page: 1,
@@ -33,7 +33,7 @@ const RatingRequestChecker: React.FC = () => {
         // Отримуємо також тікети зі статусом closed
         const responseClosed = await apiService.getTickets(
           {
-            status: ['closed']
+            status: [TicketStatus.CLOSED]
           },
           {
             page: 1,
@@ -89,7 +89,7 @@ const RatingRequestChecker: React.FC = () => {
             return (
               ticket.qualityRating?.ratingRequested === true &&
               ticket.qualityRating?.hasRating === false &&
-              (ticket.status === 'resolved' || ticket.status === 'closed')
+              (ticket.status === TicketStatus.RESOLVED || ticket.status === TicketStatus.CLOSED)
             );
           });
 
