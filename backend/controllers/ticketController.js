@@ -132,7 +132,7 @@ exports.getTicketById = async (req, res) => {
     }
 
     const ticket = await Ticket.findById(id)
-      .populate('createdBy', 'firstName lastName email position city avatar')
+      .populate('createdBy', 'firstName lastName email position city avatar telegramId telegramChatId')
       .populate('city', 'name region coordinates')
       .populate('watchers', 'firstName lastName email')
       .populate('createdBy.position', 'title')

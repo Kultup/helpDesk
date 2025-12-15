@@ -197,7 +197,7 @@ router.get('/stats', authenticateToken, ticketController.getTicketStatistics);
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.id)
-      .populate('createdBy', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName email telegramId telegramChatId')
       .populate('city', 'name region')
       .populate('comments.author', 'firstName lastName email');
 

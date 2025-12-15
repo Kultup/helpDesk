@@ -231,19 +231,16 @@ const TicketDetails: React.FC = () => {
           >
             ← {t('tickets.backToTickets')}
           </Link>
-          {isAdmin && ticket.createdBy && (
-            typeof ticket.createdBy === 'object' && 
-            ticket.createdBy.telegramId && (
-              <Button
-                onClick={() => setIsTelegramModalOpen(true)}
-                variant="primary"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Написати в Telegram
-              </Button>
-            )
+          {isAdmin && ticket.createdBy && typeof ticket.createdBy === 'object' && (
+            <Button
+              onClick={() => setIsTelegramModalOpen(true)}
+              variant="primary"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              Написати в Telegram
+            </Button>
           )}
         </div>
         <h1 className="text-3xl font-bold text-gray-900">{ticket.title}</h1>
