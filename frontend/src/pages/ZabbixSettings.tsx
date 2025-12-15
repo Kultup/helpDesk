@@ -67,7 +67,7 @@ const ZabbixSettings: React.FC = () => {
   const [config, setConfig] = useState<ZabbixConfig | null>(null);
   const [groups, setGroups] = useState<ZabbixAlertGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { users: allUsers } = useUsers(true); // Отримуємо активних користувачів
+  const { users: allUsers } = useUsers(1, 1000, undefined, undefined, true); // Отримуємо активних користувачів
   
   
   // Фільтруємо всіх адміністраторів (включаючи super_admin)

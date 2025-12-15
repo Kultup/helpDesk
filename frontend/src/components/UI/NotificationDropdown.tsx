@@ -200,17 +200,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                          ticket.priority === 'medium' ? t('notifications.priority.medium') : t('notifications.priority.low')}
                       </span>
                     </div>
-                    
-                    {ticket.assignedTo && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <User className="h-4 w-4 mr-1.5 flex-shrink-0 text-gray-600" />
-                        <span className="truncate max-w-[120px] sm:max-w-20 text-gray-600">
-                          {typeof ticket.assignedTo === 'object' 
-                            ? ticket.assignedTo.email 
-                            : ticket.assignedTo}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

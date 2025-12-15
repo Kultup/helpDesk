@@ -35,13 +35,13 @@ export const usePositions = (
         setPositions(response.data.positions || []);
         // Оновлюємо пагінацію з відповіді
         if (response.data.pagination) {
-          const pag = response.data.pagination as { page: number; pages: number; total: number; hasNextPage?: boolean; hasPrevPage?: boolean };
+          const pag = response.data.pagination;
           setPagination({
             currentPage: pag.page,
-            totalPages: pag.pages,
+            totalPages: pag.totalPages,
             totalItems: pag.total,
-            hasNext: pag.hasNextPage ?? false,
-            hasPrev: pag.hasPrevPage ?? false
+            hasNext: (pag.page < pag.totalPages),
+            hasPrev: (pag.page > 1)
           });
         }
       } else {
