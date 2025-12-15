@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Edit, Trash2, MapPin } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, MapPin, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -10,11 +10,13 @@ import Pagination from '../components/UI/Pagination';
 import { useCities, useWindowSize } from '../hooks';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { useTranslation } from 'react-i18next';
-import { City } from '../types';
+import { City, Institution } from '../types';
+import { institutionService } from '../services/institutionService';
 
 interface CityFormData {
   name: string;
   region: string;
+  institutions: string[];
 }
 
 const Cities: React.FC = () => {
@@ -31,9 +33,12 @@ const Cities: React.FC = () => {
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [formData, setFormData] = useState<CityFormData>({
     name: '',
-    region: ''
+    region: '',
+    institutions: []
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
+  const [institutionsLoading, setInstitutionsLoading] = useState(false);
 
   useEffect(() => {
     refetch();
@@ -43,6 +48,29 @@ const Cities: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Завантажуємо заклади при відкритті форми
+  useEffect(() => {
+    if (showForm) {
+      fetchAllInstitutions();
+    }
+  }, [showForm]);
+
+  const fetchAllInstitutions = async () => {
+    try {
+      setInstitutionsLoading(true);
+      const response = await institutionService.getAll({
+        page: 1,
+        limit: 1000,
+        isActive: true
+      });
+      setAllInstitutions(response.institutions);
+    } catch (err) {
+      console.error('Failed to fetch institutions:', err);
+    } finally {
+      setInstitutionsLoading(false);
+    }
+  };
 
   // WebSocket підписки для синхронізації міст
   useEffect(() => {
@@ -97,20 +125,34 @@ const Cities: React.FC = () => {
     setFormLoading(true);
 
     try {
+      const { institutions, ...cityFormData } = formData;
       const cityData = {
-        ...formData,
+        ...cityFormData,
         coordinates: { lat: 50.4501, lng: 30.5234 } // Default coordinates (Kyiv), can be updated later
       };
       
+      let savedCityId: string;
       if (editingCity) {
         await updateCity(editingCity._id, cityData);
+        savedCityId = editingCity._id;
+        
+        // Оновлюємо прив'язку закладів до міста
+        if (formData.institutions) {
+          await updateCityInstitutions(savedCityId, formData.institutions);
+        }
       } else {
-        await createCity(cityData);
+        const newCity = await createCity(cityData);
+        savedCityId = newCity._id || newCity.data?._id;
+        
+        // Оновлюємо прив'язку закладів до міста
+        if (formData.institutions && formData.institutions.length > 0) {
+          await updateCityInstitutions(savedCityId, formData.institutions);
+        }
       }
       
       setShowForm(false);
       setEditingCity(null);
-      setFormData({ name: '', region: '' });
+      setFormData({ name: '', region: '', institutions: [] });
     } catch (error) {
       console.error(t('cities.saveError'), error);
     } finally {
@@ -118,12 +160,33 @@ const Cities: React.FC = () => {
     }
   };
 
-  const handleEdit = (city: City) => {
+  const handleEdit = async (city: City) => {
     setEditingCity(city);
-    setFormData({
-      name: city.name,
-      region: city.region
-    });
+    
+    // Завантажуємо заклади, прив'язані до цього міста
+    try {
+      const response = await institutionService.getAll({
+        page: 1,
+        limit: 1000,
+        city: city._id,
+        isActive: true
+      });
+      const cityInstitutions = response.institutions.map(inst => inst._id);
+      
+      setFormData({
+        name: city.name,
+        region: city.region,
+        institutions: cityInstitutions
+      });
+    } catch (err) {
+      console.error('Failed to fetch city institutions:', err);
+      setFormData({
+        name: city.name,
+        region: city.region,
+        institutions: []
+      });
+    }
+    
     setShowForm(true);
   };
 
@@ -156,10 +219,52 @@ const Cities: React.FC = () => {
     });
   };
 
+  const updateCityInstitutions = async (cityId: string, institutionIds: string[]) => {
+    try {
+      // Отримуємо всі заклади
+      const allInstResponse = await institutionService.getAll({
+        page: 1,
+        limit: 1000,
+        isActive: true
+      });
+      
+      // Оновлюємо заклади: прив'язуємо вибрані до міста, відв'язуємо інші
+      const updatePromises = allInstResponse.institutions.map(async (institution) => {
+        const shouldBeLinked = institutionIds.includes(institution._id);
+        const isCurrentlyLinked = typeof institution.address?.city === 'object' 
+          ? institution.address.city._id === cityId
+          : institution.address?.city === cityId;
+        
+        if (shouldBeLinked && !isCurrentlyLinked) {
+          // Прив'язуємо заклад до міста
+          await institutionService.update(institution._id, {
+            address: {
+              city: cityId,
+              ...institution.address
+            }
+          });
+        } else if (!shouldBeLinked && isCurrentlyLinked) {
+          // Відв'язуємо заклад від міста
+          await institutionService.update(institution._id, {
+            address: {
+              ...institution.address,
+              city: null
+            }
+          });
+        }
+      });
+      
+      await Promise.all(updatePromises);
+    } catch (error) {
+      console.error('Error updating city institutions:', error);
+      toast.error('Помилка оновлення прив\'язки закладів');
+    }
+  };
+
   const handleCancel = () => {
     setShowForm(false);
     setEditingCity(null);
-    setFormData({ name: '', region: '' });
+    setFormData({ name: '', region: '', institutions: [] });
   };
 
   if (isLoading) {
@@ -230,6 +335,50 @@ const Cities: React.FC = () => {
                   required
                   disabled={formLoading}
                 />
+
+                {/* Institutions Selection */}
+                {editingCity && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      <Building2 className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      {t('cities.institutions') || 'Заклади'}
+                    </label>
+                    {institutionsLoading ? (
+                      <div className="text-xs sm:text-sm text-gray-500">Завантаження закладів...</div>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
+                        {allInstitutions.length === 0 ? (
+                          <div className="text-xs sm:text-sm text-gray-500">Немає доступних закладів</div>
+                        ) : (
+                          allInstitutions.map((institution) => (
+                            <label key={institution._id} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.institutions?.includes(institution._id) || false}
+                                onChange={(e) => {
+                                  const currentInstitutions = formData.institutions || [];
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      institutions: [...currentInstitutions, institution._id]
+                                    });
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      institutions: currentInstitutions.filter(id => id !== institution._id)
+                                    });
+                                  }
+                                }}
+                                className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <span className="text-xs sm:text-sm text-gray-700">{institution.name}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:space-x-3">
                   <Button
