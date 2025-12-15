@@ -11,7 +11,6 @@ import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
-import { Send, MessageCircle } from 'lucide-react';
 
 import { formatDate } from '../utils';
 
@@ -25,9 +24,6 @@ const TicketDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
   const [editingPriority, setEditingPriority] = useState(false);
-  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
-  const [telegramMessage, setTelegramMessage] = useState('');
-  const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const { user } = useAuth();
   const isAdmin = user?.role === UserRole.ADMIN;
   const basePath = isAdmin ? '/admin' : '';
@@ -124,30 +120,6 @@ const TicketDetails: React.FC = () => {
   const canChangeStatus = isAdmin; // Тільки адміністратор може змінювати статус
   const canChangePriority = isAdmin; // Тільки адміністратор може змінювати пріоритет
 
-  const handleSendTelegramMessage = async () => {
-    if (!telegramMessage.trim() || !ticket) return;
-
-    try {
-      setIsSendingTelegram(true);
-      const response = await apiService.sendTelegramMessage(ticket._id, telegramMessage.trim());
-      if (response.success) {
-        setTelegramMessage('');
-        setIsTelegramModalOpen(false);
-        // Оновлюємо тікет для отримання нового коментаря
-        await loadTicket();
-        // Оновлюємо коментарі
-        if (ticketHistoryRef.current) {
-          await ticketHistoryRef.current.refreshHistory();
-        }
-      } else {
-        setError(response.message || 'Помилка відправки повідомлення');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Помилка відправки повідомлення');
-    } finally {
-      setIsSendingTelegram(false);
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -231,28 +203,6 @@ const TicketDetails: React.FC = () => {
           >
             ← {t('tickets.backToTickets')}
           </Link>
-          {isAdmin && ticket.createdBy && typeof ticket.createdBy === 'object' && (
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => navigate(`${basePath}/tickets/${id}/telegram-chat`)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Telegram чат
-              </Button>
-              <Button
-                onClick={() => setIsTelegramModalOpen(true)}
-                variant="primary"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Написати в Telegram
-              </Button>
-            </div>
-          )}
         </div>
         <h1 className="text-3xl font-bold text-gray-900">{ticket.title}</h1>
       </div>
@@ -536,44 +486,6 @@ const TicketDetails: React.FC = () => {
           </div>
         )}
 
-      {/* Модальне вікно для відправки повідомлення через Telegram */}
-      {isTelegramModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">Написати в Telegram</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Введіть повідомлення, яке буде відправлено користувачу через Telegram та додано як коментар до тікету.
-            </p>
-            <textarea
-              value={telegramMessage}
-              onChange={(e) => setTelegramMessage(e.target.value)}
-              placeholder="Введіть повідомлення..."
-              className="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-              rows={5}
-              maxLength={1000}
-            />
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button
-                onClick={() => {
-                  setIsTelegramModalOpen(false);
-                  setTelegramMessage('');
-                }}
-                variant="ghost"
-                disabled={isSendingTelegram}
-              >
-                Скасувати
-              </Button>
-              <Button
-                onClick={handleSendTelegramMessage}
-                variant="primary"
-                disabled={!telegramMessage.trim() || isSendingTelegram}
-              >
-                {isSendingTelegram ? 'Відправка...' : 'Відправити'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
