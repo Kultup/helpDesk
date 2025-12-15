@@ -205,6 +205,7 @@ export interface Position {
     hoursPerWeek: number;
   };
   reportingTo?: string;
+  institutions?: string[];
   isActive: boolean;
   isPublic: boolean;
   createdBy: string;
@@ -239,6 +240,7 @@ export interface CreatePositionData {
     hoursPerWeek: number;
   };
   reportingTo?: string;
+  institutions?: string[];
   isActive: boolean;
   isPublic: boolean;
 }

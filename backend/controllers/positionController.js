@@ -49,6 +49,11 @@ const getAllPositions = async (req, res) => {
 
     const positions = await Position.paginate(filters, options);
 
+    // Populate institutions для всіх посад
+    if (positions.docs && positions.docs.length > 0) {
+      await Position.populate(positions.docs, { path: 'institutions', select: 'name type' });
+    }
+
     // Додати статистику якщо потрібно
     if (withStatistics === 'true') {
       for (let position of positions.docs) {
@@ -405,7 +410,8 @@ const createPosition = async (req, res) => {
       reportingTo,
       permissions,
       isPublic,
-      description
+      description,
+      institutions
     } = req.body;
 
     // Перевірка унікальності назви посади в межах департаменту
@@ -435,6 +441,22 @@ const createPosition = async (req, res) => {
     // Обробка reportingTo - якщо порожній рядок, встановлюємо null
     const processedReportingTo = reportingTo && reportingTo.trim() !== '' ? reportingTo : null;
 
+    // Перевірка існування закладів
+    if (institutions && Array.isArray(institutions) && institutions.length > 0) {
+      const Institution = require('../models/Institution');
+      const validInstitutions = await Institution.find({
+        _id: { $in: institutions },
+        isActive: true
+      });
+      
+      if (validInstitutions.length !== institutions.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Один або більше закладів не знайдено або неактивні'
+        });
+      }
+    }
+
     const position = new Position({
       title,
       titleEn,
@@ -451,6 +473,7 @@ const createPosition = async (req, res) => {
       permissions: permissions || [],
       isPublic: isPublic !== undefined ? isPublic : true,
       description,
+      institutions: institutions || [],
       createdBy: req.user._id
     });
 
@@ -524,7 +547,8 @@ const updatePosition = async (req, res) => {
       permissions,
       isPublic,
       isActive,
-      description
+      description,
+      institutions
     } = req.body;
 
     // Перевірка унікальності назви посади (якщо змінюється)
@@ -564,6 +588,25 @@ const updatePosition = async (req, res) => {
           message: 'Вказана керівна посада не існує'
         });
       }
+    }
+
+    // Перевірка існування закладів
+    if (institutions !== undefined) {
+      if (Array.isArray(institutions) && institutions.length > 0) {
+        const Institution = require('../models/Institution');
+        const validInstitutions = await Institution.find({
+          _id: { $in: institutions },
+          isActive: true
+        });
+        
+        if (validInstitutions.length !== institutions.length) {
+          return res.status(400).json({
+            success: false,
+            message: 'Один або більше закладів не знайдено або неактивні'
+          });
+        }
+      }
+      position.institutions = institutions || [];
     }
 
     // Оновлення полів

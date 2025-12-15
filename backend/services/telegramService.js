@@ -3226,7 +3226,7 @@ class TelegramService {
           break;
           
         case 'position':
-          await this.sendPositionSelection(chatId, userId);
+          await this.sendPositionSelection(chatId, userId, pendingRegistration);
           break;
 
         case 'position_request':
@@ -3329,21 +3329,51 @@ class TelegramService {
     }
   }
 
-  async sendPositionSelection(chatId, userId) {
+  async sendPositionSelection(chatId, userId, pendingRegistration) {
     try {
+      const mongoose = require('mongoose');
+      const institutionId = pendingRegistration?.data?.institutionId;
+      
       // Виключаємо посаду "адміністратор системи"
-      const positions = await Position.find({ 
+      const filter = { 
         isActive: true,
+        isPublic: true,
         title: {
           $not: {
             $regex: /адміністратор системи|администратор системы|system administrator/i
           }
         }
-      })
+      };
+
+      // Якщо обрано заклад, показуємо тільки посади, прив'язані до цього закладу
+      if (institutionId && mongoose.Types.ObjectId.isValid(institutionId)) {
+        filter.institutions = new mongoose.Types.ObjectId(institutionId);
+      }
+
+      let positions = await Position.find(filter)
         .select('title')
         .sort({ title: 1 })
         .limit(50)
         .lean();
+
+      // Якщо для закладу немає прив'язаних посад, показуємо всі публічні посади
+      if (positions.length === 0 && institutionId) {
+        logger.info('No positions found for institution, showing all public positions');
+        const allFilter = { 
+          isActive: true,
+          isPublic: true,
+          title: {
+            $not: {
+              $regex: /адміністратор системи|администратор системы|system administrator/i
+            }
+          }
+        };
+        positions = await Position.find(allFilter)
+          .select('title')
+          .sort({ title: 1 })
+          .limit(50)
+          .lean();
+      }
 
       if (positions.length === 0) {
         await this.sendMessage(chatId, 
@@ -3368,9 +3398,11 @@ class TelegramService {
         callback_data: 'position_not_found'
       }]);
 
+      const institutionMessage = institutionId ? '\n🏢 Показано посади для обраного закладу' : '';
+      
       await this.sendMessage(chatId, 
         `✅ *Заклад обрано!*\n` +
-        `🏢 Заклад вибрано\n` +
+        `🏢 Заклад вибрано${institutionMessage}\n` +
         `\n💼 *Крок 9/9:* Оберіть вашу посаду`,
         {
           reply_markup: {

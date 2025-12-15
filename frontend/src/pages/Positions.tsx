@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Position, CreatePositionData } from '../types';
+import { Position, CreatePositionData, Institution } from '../types';
 import { usePositions } from '../hooks/usePositions';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from '../hooks';
+import { institutionService } from '../services/institutionService';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Card from '../components/UI/Card';
 import Pagination from '../components/UI/Pagination';
 import Modal from '../components/UI/Modal';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
-import { Trash2, Edit, Plus, Search, Users, Building, CheckSquare, Square } from 'lucide-react';
+import { Trash2, Edit, Plus, Search, Users, Building, CheckSquare, Square, Building2 } from 'lucide-react';
 
 // Використовуємо CreatePositionData як тип для форми
 type PositionFormData = CreatePositionData;
@@ -51,10 +52,13 @@ const Positions: React.FC = () => {
       hoursPerWeek: 40
     },
     reportingTo: '',
+    institutions: [],
     isActive: true,
     isPublic: true
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [institutionsLoading, setInstitutionsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +98,7 @@ const Positions: React.FC = () => {
         hoursPerWeek: 40
       },
       reportingTo: '',
+      institutions: [],
       isActive: true,
       isPublic: true
     });
@@ -104,6 +109,29 @@ const Positions: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Завантажуємо заклади при відкритті модального вікна
+  useEffect(() => {
+    if (isModalOpen) {
+      fetchInstitutions();
+    }
+  }, [isModalOpen]);
+
+  const fetchInstitutions = async () => {
+    try {
+      setInstitutionsLoading(true);
+      const response = await institutionService.getAll({
+        page: 1,
+        limit: 1000,
+        isActive: true
+      });
+      setInstitutions(response.institutions);
+    } catch (err) {
+      console.error('Failed to fetch institutions:', err);
+    } finally {
+      setInstitutionsLoading(false);
+    }
+  };
 
   const handleEdit = (position: Position) => {
     setFormData({
@@ -124,6 +152,7 @@ const Positions: React.FC = () => {
         hoursPerWeek: 40
       },
       reportingTo: position.reportingTo || '',
+      institutions: position.institutions || [],
       isActive: position.isActive,
       isPublic: position.isPublic
     });
@@ -549,6 +578,48 @@ const Positions: React.FC = () => {
                 {t('positions.addSkill')}
               </Button>
             </div>
+          </div>
+
+          {/* Institutions Selection */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+              <Building2 className="inline h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              {t('positions.institutions') || 'Заклади (необов\'язково)'}
+            </label>
+            {institutionsLoading ? (
+              <div className="text-xs sm:text-sm text-gray-500">Завантаження закладів...</div>
+            ) : (
+              <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
+                {institutions.length === 0 ? (
+                  <div className="text-xs sm:text-sm text-gray-500">Немає доступних закладів</div>
+                ) : (
+                  institutions.map((institution) => (
+                    <label key={institution._id} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.institutions?.includes(institution._id) || false}
+                        onChange={(e) => {
+                          const currentInstitutions = formData.institutions || [];
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              institutions: [...currentInstitutions, institution._id]
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              institutions: currentInstitutions.filter(id => id !== institution._id)
+                            });
+                          }
+                        }}
+                        className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-xs sm:text-sm text-gray-700">{institution.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

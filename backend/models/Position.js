@@ -89,6 +89,10 @@ const positionSchema = new mongoose.Schema({
     ref: 'Position',
     default: null
   },
+  institutions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Institution'
+  }],
   isActive: {
     type: Boolean,
     default: true
