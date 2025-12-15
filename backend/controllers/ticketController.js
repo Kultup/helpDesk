@@ -52,10 +52,7 @@ exports.getTickets = async (req, res) => {
         // Для не-адмінів пошук має працювати тільки для їх тікетів
         filters.$and = [
           {
-            $or: [
-              { createdBy: req.user._id },
-              { assignedTo: req.user._id }
-            ]
+            createdBy: req.user._id
           },
           {
             $or: searchConditions
@@ -69,10 +66,7 @@ exports.getTickets = async (req, res) => {
       // Перевірка прав доступу (якщо немає пошуку)
       if (req.user.role !== 'admin') {
         // Звичайні користувачі бачать тільки свої тикети або призначені їм
-        filters.$or = [
-          { createdBy: req.user._id },
-          { assignedTo: req.user._id }
-        ];
+        filters.createdBy = req.user._id;
       }
     }
     
@@ -92,7 +86,6 @@ exports.getTickets = async (req, res) => {
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
       populate: [
         { path: 'createdBy', select: 'firstName lastName email position' },
-        { path: 'assignedTo', select: 'firstName lastName email position' },
         { path: 'city', select: 'name region' }
       ]
     };
@@ -140,13 +133,10 @@ exports.getTicketById = async (req, res) => {
 
     const ticket = await Ticket.findById(id)
       .populate('createdBy', 'firstName lastName email position city avatar')
-      .populate('assignedTo', 'firstName lastName email position city avatar')
       .populate('city', 'name region coordinates')
       .populate('watchers', 'firstName lastName email')
       .populate('createdBy.position', 'title')
-      .populate('createdBy.city', 'name')
-      .populate('assignedTo.position', 'title')
-      .populate('assignedTo.city', 'name');
+      .populate('createdBy.city', 'name');
 
     if (!ticket) {
       return res.status(404).json({
@@ -158,7 +148,6 @@ exports.getTicketById = async (req, res) => {
     // Перевірка прав доступу
     if (req.user.role !== 'admin' && 
         !ticket.createdBy.equals(req.user._id) && 
-        !ticket.assignedTo?.equals(req.user._id) &&
         !ticket.watchers.some(watcher => watcher._id.equals(req.user._id))) {
       return res.status(403).json({
         success: false,
@@ -227,17 +216,6 @@ exports.createTicket = async (req, res) => {
       }
     }
 
-    // Перевірка існування призначеного користувача
-    if (assignedTo) {
-      const userExists = await User.findById(assignedTo);
-      if (!userExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'Вказаний користувач не існує'
-        });
-      }
-    }
-
     const ticket = new Ticket({
       title,
       description,
@@ -245,7 +223,6 @@ exports.createTicket = async (req, res) => {
       category,
       subcategory,
       city,
-      assignedTo,
       createdBy: req.user._id,
       dueDate: dueDate ? new Date(dueDate) : null,
       estimatedHours,
@@ -274,7 +251,6 @@ exports.createTicket = async (req, res) => {
     try {
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'assignedTo', select: 'firstName lastName email' },
         { path: 'city', select: 'name region' }
       ]);
       
@@ -332,8 +308,7 @@ exports.updateTicket = async (req, res) => {
 
     // Перевірка прав доступу
     if (req.user.role !== 'admin' && 
-        !ticket.createdBy.equals(req.user._id) && 
-        !ticket.assignedTo?.equals(req.user._id)) {
+        !ticket.createdBy.equals(req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Немає прав для редагування цього тикету'
@@ -358,8 +333,7 @@ exports.updateTicket = async (req, res) => {
     // Збереження попереднього стану для логування змін
     const previousState = {
       status: ticket.status,
-      priority: ticket.priority,
-      assignedTo: ticket.assignedTo
+      priority: ticket.priority
     };
 
     // Оновлення полів
@@ -384,23 +358,6 @@ exports.updateTicket = async (req, res) => {
       }
     }
 
-    // Обробка зміни призначення
-    if (assignedTo !== undefined && assignedTo !== ticket.assignedTo?.toString()) {
-      if (assignedTo) {
-        const userExists = await User.findById(assignedTo);
-        if (!userExists) {
-          return res.status(400).json({
-            success: false,
-            message: 'Вказаний користувач не існує'
-          });
-        }
-        ticket.assignedTo = assignedTo;
-        ticket.assignedAt = new Date();
-      } else {
-        ticket.assignedTo = null;
-        ticket.assignedAt = null;
-      }
-    }
 
     await ticket.save();
 
@@ -425,44 +382,6 @@ exports.updateTicket = async (req, res) => {
       });
     }
 
-    if (assignedTo && assignedTo !== previousState.assignedTo?.toString()) {
-      const newAssignee = await User.findById(assignedTo);
-      systemComments.push({
-        content: `Тикет призначено користувачу ${newAssignee.firstName} ${newAssignee.lastName}`,
-        ticket: ticket._id,
-        author: req.user._id,
-        type: 'assignment'
-      });
-      
-      // Відправка сповіщення користувачеві про призначення тікета
-      try {
-        await telegramService.sendTicketNotification(ticket, 'assigned');
-      } catch (error) {
-        logger.error('Помилка відправки сповіщення про призначення:', error);
-      }
-      
-      // Відправка FCM сповіщення призначеному користувачу
-      try {
-        const fcmService = require('../services/fcmService');
-        await fcmService.sendToUser(assignedTo, {
-          title: '🎫 Тікет призначено вам',
-          body: `Вам призначено тікет: ${ticket.title}`,
-          type: 'ticket_assigned',
-          data: {
-            ticketId: ticket._id.toString(),
-            ticketTitle: ticket.title,
-            ticketStatus: ticket.status,
-            ticketPriority: ticket.priority,
-            assignedBy: req.user.firstName && req.user.lastName 
-              ? `${req.user.firstName} ${req.user.lastName}`
-              : 'Адміністратор'
-          }
-        });
-        logger.info('✅ FCM сповіщення про призначення тікету відправлено користувачу');
-      } catch (error) {
-        logger.error('❌ Помилка відправки FCM сповіщення про призначення:', error);
-      }
-    }
 
     if (priority && priority !== previousState.priority) {
       systemComments.push({
@@ -509,7 +428,6 @@ exports.updateTicket = async (req, res) => {
         
         const recipients = [];
         if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
-        if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
         
         // Видаляємо дублікати
         const uniqueRecipients = [...new Set(recipients)];
@@ -541,7 +459,6 @@ exports.updateTicket = async (req, res) => {
     // Заповнити дані для відповіді
     await ticket.populate([
       { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'assignedTo', select: 'firstName lastName email' },
       { path: 'city', select: 'name region' }
     ]);
 
@@ -674,7 +591,7 @@ exports.removeWatcher = async (req, res) => {
 // Отримати статистику тикетів
 exports.getTicketStatistics = async (req, res) => {
   try {
-    const { period = '30d', city, assignedTo } = req.query;
+    const { period = '30d', city } = req.query;
     
     // Визначення періоду
     const now = new Date();
@@ -702,14 +619,10 @@ exports.getTicketStatistics = async (req, res) => {
     };
 
     if (city) matchStage.city = new mongoose.Types.ObjectId(city);
-    if (assignedTo) matchStage.assignedTo = new mongoose.Types.ObjectId(assignedTo);
 
     // Перевірка прав доступу
     if (req.user.role !== 'admin') {
-      matchStage.$or = [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ];
+      matchStage.createdBy = req.user._id;
     }
 
     const statistics = await Ticket.aggregate([
@@ -806,10 +719,7 @@ exports.exportTickets = async (req, res) => {
 
     // Перевірка прав доступу
     if (req.user.role !== 'admin') {
-      filters.$or = [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ];
+      filters.createdBy = req.user._id;
     }
 
     // Отримання тікетів з повною інформацією
@@ -828,21 +738,6 @@ exports.exportTickets = async (req, res) => {
           }
         ]
       })
-      .populate({
-        path: 'assignedTo',
-        select: 'firstName lastName email position city',
-        populate: [
-          {
-            path: 'city',
-            select: 'name region'
-          },
-          {
-            path: 'position',
-            select: 'title'
-          }
-        ]
-      })
-      .populate('assignedBy', 'firstName lastName email')
       .populate('city', 'name region')
       .populate('tags', 'name color')
       .sort({ createdAt: -1 })
@@ -940,13 +835,6 @@ exports.exportTickets = async (req, res) => {
         'Регіон': ticket.city ? ticket.city.region : 'Не вказано',
         'Відділ': ticket.department || 'Не вказано',
         
-        // Призначення
-        'Виконавець': ticket.assignedTo ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}` : 'Не призначено',
-        'Email виконавця': ticket.assignedTo ? ticket.assignedTo.email : 'Не призначено',
-        'Посада виконавця': ticket.assignedTo && ticket.assignedTo.position ? ticket.assignedTo.position.title : 'Не призначено',
-        'Місто виконавця': ticket.assignedTo && ticket.assignedTo.city ? ticket.assignedTo.city.name : 'Не призначено',
-        'Призначив': ticket.assignedBy ? `${ticket.assignedBy.firstName} ${ticket.assignedBy.lastName}` : 'Не вказано',
-        'Дата та час призначення': ticket.assignedAt ? formatDateTime(ticket.assignedAt) : 'Не призначено',
         
         // Часові мітки
         'Дата та час першої відповіді': ticket.firstResponseAt ? formatDateTime(ticket.firstResponseAt) : 'Немає відповіді',

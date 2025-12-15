@@ -8,7 +8,8 @@ import {
   SortOptions,
   TicketStatus,
   CreateTicketForm,
-  UpdateTicketForm
+  UpdateTicketForm,
+  ApiResponse
 } from '../types';
 import { apiService } from '../services/api';
 import { debounce } from '../utils';
@@ -282,26 +283,64 @@ export const useCities = (page = 1, limit = 20, search?: string): {
 };
 
 // Хук для роботи з користувачами
-export const useUsers = (isActive?: boolean): {
+export const useUsers = (
+  page = 1,
+  limit = 20,
+  search?: string,
+  role?: string,
+  isActive?: boolean
+): {
   users: User[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
   isLoading: boolean;
   error: string | null;
-  refetch: (activeFilter?: boolean) => Promise<void>;
+  refetch: () => Promise<void>;
   forceDeleteUser: (userId: string) => Promise<void>;
 } => {
   const [users, setUsers] = useState<User[]>([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNext: false,
+    hasPrev: false
+  });
   const { isLoading, startLoading, stopLoading } = useLoading();
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUsers = useCallback(async (activeFilter?: boolean) => {
+  const fetchUsers = useCallback(async () => {
     try {
       startLoading();
       setError(null);
       
-      const response = await apiService.getUsers(activeFilter);
+      const response = await apiService.getUsers({
+        page,
+        limit,
+        search,
+        role,
+        isActive
+      });
       
       if (response.success && response.data) {
         setUsers(Array.isArray(response.data) ? response.data : []);
+        // Оновлюємо пагінацію з відповіді
+        const responseWithPagination = response as ApiResponse<User[]> & { pagination?: { currentPage: number; totalPages: number; totalItems: number; hasNext?: boolean; hasPrev?: boolean; hasNextPage?: boolean; hasPrevPage?: boolean } };
+        if (responseWithPagination.pagination) {
+          const pag = responseWithPagination.pagination;
+          setPagination({
+            currentPage: pag.currentPage,
+            totalPages: pag.totalPages,
+            totalItems: pag.totalItems,
+            hasNext: pag.hasNext ?? pag.hasNextPage ?? false,
+            hasPrev: pag.hasPrev ?? pag.hasPrevPage ?? false
+          });
+        }
       } else {
         setError(response.message || 'Помилка завантаження користувачів');
         setUsers([]); // Встановлюємо порожній масив при помилці
@@ -312,14 +351,14 @@ export const useUsers = (isActive?: boolean): {
     } finally {
       stopLoading();
     }
-  }, [startLoading, stopLoading]);
+  }, [startLoading, stopLoading, page, limit, search, role, isActive]);
 
   useEffect(() => {
-    fetchUsers(isActive);
-  }, [fetchUsers, isActive]);
+    fetchUsers();
+  }, [fetchUsers]);
 
-  const refetch = useCallback((activeFilter?: boolean): Promise<void> => {
-    return fetchUsers(activeFilter);
+  const refetch = useCallback((): Promise<void> => {
+    return fetchUsers();
   }, [fetchUsers]);
 
   const forceDeleteUser = useCallback(async (userId: string): Promise<void> => {
@@ -334,6 +373,7 @@ export const useUsers = (isActive?: boolean): {
 
   return {
     users,
+    pagination,
     isLoading,
     error,
     refetch,
@@ -358,7 +398,7 @@ export const useDeactivatedUsers = (): {
       startLoading();
       setError(null);
       
-      const response = await apiService.getUsers(false); // false для деактивованих користувачів
+      const response = await apiService.getUsers({ isActive: false }); // false для деактивованих користувачів
       
       if (response.success && response.data) {
         setDeactivatedUsers(Array.isArray(response.data) ? response.data : []);

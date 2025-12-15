@@ -69,24 +69,10 @@ const ticketSchema = new mongoose.Schema({
       lng: { type: Number }
     }
   },
-  assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  assignedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'Creator is required']
-  },
-  assignedAt: {
-    type: Date,
-    default: null
   },
   firstResponseAt: {
     type: Date,
@@ -342,7 +328,6 @@ ticketSchema.virtual('notesCount', {
 ticketSchema.index({ ticketNumber: 1 });
 ticketSchema.index({ status: 1, priority: 1 });
 ticketSchema.index({ createdBy: 1, status: 1 });
-ticketSchema.index({ assignedTo: 1, status: 1 });
 ticketSchema.index({ city: 1, status: 1 });
 ticketSchema.index({ category: 1, subcategory: 1 });
 ticketSchema.index({ createdAt: -1 });
@@ -409,7 +394,7 @@ ticketSchema.pre('save', async function(next) {
   try {
     if (this.isModified('status')) {
       // Визначаємо хто змінив статус
-      let changedBy = this.modifiedBy || this.assignedBy || this.createdBy;
+      let changedBy = this.modifiedBy || this.createdBy;
       
       // Якщо changedBy не встановлено, використовуємо createdBy або system
       if (!changedBy && this.isNew) {
@@ -488,16 +473,9 @@ ticketSchema.statics.findByCity = function(cityId) {
 
 ticketSchema.statics.findByUser = function(userId) {
   return this.find({
-    $or: [
-      { createdBy: userId },
-      { assignedTo: userId }
-    ],
+    createdBy: userId,
     isDeleted: false
   });
-};
-
-ticketSchema.statics.findAssignedTo = function(userId) {
-  return this.find({ assignedTo: userId, isDeleted: false });
 };
 
 ticketSchema.statics.findCreatedBy = function(userId) {
@@ -569,20 +547,6 @@ ticketSchema.statics.getStatisticsByCity = function() {
 };
 
 // Методи екземпляра
-ticketSchema.methods.assign = function(userId, assignedBy) {
-  this.assignedTo = userId;
-  this.assignedBy = assignedBy;
-  this.assignedAt = new Date();
-  return this.save();
-};
-
-ticketSchema.methods.unassign = function() {
-  this.assignedTo = null;
-  this.assignedBy = null;
-  this.assignedAt = null;
-  return this.save();
-};
-
 ticketSchema.methods.changeStatus = function(newStatus, changedBy, comment = '') {
   const oldStatus = this.status;
   this.status = newStatus;
@@ -745,8 +709,6 @@ ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {
       return 'status_changed';
     case 'priority':
       return 'priority_changed';
-    case 'assignedTo':
-      return newValue ? 'assigned' : 'unassigned';
     case 'title':
       return 'title_changed';
     case 'description':
@@ -770,10 +732,6 @@ ticketSchema.methods._getChangeDescription = function(change) {
       return `Статус змінено з "${oldValue}" на "${newValue}"`;
     case 'priority_changed':
       return `Пріоритет змінено з "${oldValue}" на "${newValue}"`;
-    case 'assigned':
-      return `Тікет призначено користувачу`;
-    case 'unassigned':
-      return `Призначення тікету скасовано`;
     case 'title_changed':
       return `Заголовок змінено`;
     case 'description_changed':

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaDesktop, FaSearch, FaSync, FaCheckCircle, FaTimesCircle, FaWindows, FaLinux, FaApple } from 'react-icons/fa';
 import { apiService as api } from '../../services/api';
 import LoadingSpinner from '../UI/LoadingSpinner';
+import Pagination from '../UI/Pagination';
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from '../../hooks';
 import Card, { CardContent } from '../UI/Card';
@@ -10,32 +11,49 @@ const ADComputers = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
+  const [currentPage, setCurrentPage] = useState(1);
   const [computers, setComputers] = useState([]);
-  const [filteredComputers, setFilteredComputers] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, enabled, disabled
   const [filterOS, setFilterOS] = useState('all'); // all, windows, linux, mac
+  const itemsPerPage = 20;
 
   useEffect(() => {
     fetchComputers();
-  }, []);
+  }, [currentPage, searchTerm, filterStatus, filterOS]);
 
+  // Скидаємо сторінку на 1 при зміні пошуку або фільтрів
   useEffect(() => {
-    filterComputers();
-  }, [computers, searchTerm, filterStatus, filterOS]);
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterOS]);
 
   const fetchComputers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.getADComputers();
+      const response = await api.getADComputers({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined,
+        filterStatus: filterStatus !== 'all' ? filterStatus : undefined,
+        filterOS: filterOS !== 'all' ? filterOS : undefined
+      });
       
       if (response.success) {
-        setComputers(response.data);
+        setComputers(response.data || []);
+        // Оновлюємо пагінацію з відповіді
+        if (response.pagination) {
+          setPagination(response.pagination);
+        } else {
+          setPagination(null);
+        }
       } else {
         setError(t('activeDirectory.computers.errorGetting'));
+        setComputers([]);
+        setPagination(null);
       }
     } catch (err) {
       console.error('Error fetching AD computers:', err);
@@ -43,45 +61,6 @@ const ADComputers = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterComputers = () => {
-    let filtered = computers;
-
-    // Фільтр за статусом
-    if (filterStatus === 'enabled') {
-      filtered = filtered.filter(computer => computer.enabled);
-    } else if (filterStatus === 'disabled') {
-      filtered = filtered.filter(computer => !computer.enabled);
-    }
-
-    // Фільтр за ОС
-    if (filterOS !== 'all') {
-      filtered = filtered.filter(computer => {
-        const os = computer.operatingSystem?.toLowerCase() || '';
-        switch (filterOS) {
-          case 'windows':
-            return os.includes('windows');
-          case 'linux':
-            return os.includes('linux') || os.includes('ubuntu') || os.includes('centos');
-          case 'mac':
-            return os.includes('mac') || os.includes('darwin');
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Пошук за назвою
-    if (searchTerm) {
-      filtered = filtered.filter(computer =>
-        computer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        computer.dNSHostName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        computer.operatingSystem?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredComputers(filtered);
   };
 
   const getOSIcon = (operatingSystem) => {
@@ -138,7 +117,7 @@ const ADComputers = () => {
           <FaDesktop className="text-green-600" size={24} />
           <h2 className="text-2xl font-bold text-gray-800">{t('activeDirectory.computers.title')}</h2>
           <span className="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded">
-            {filteredComputers.length} з {computers.length}
+            {pagination?.totalItems || computers.length} {t('activeDirectory.computers.total')}
           </span>
         </div>
         <button
@@ -198,7 +177,7 @@ const ADComputers = () => {
 
       {/* Список комп'ютерів */}
       <div className="bg-white rounded-lg shadow-md border overflow-hidden">
-        {filteredComputers.length === 0 ? (
+        {computers.length === 0 ? (
           <div className="text-center py-8 sm:py-12">
             <FaDesktop className="mx-auto text-gray-400 mb-3 sm:mb-4" size={isMobile ? 36 : 48} />
             <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">{t('activeDirectory.computers.noComputersFound')}</h3>
@@ -212,7 +191,7 @@ const ADComputers = () => {
         ) : isMobile ? (
           // Мобільний вигляд з картками
           <div className="divide-y divide-gray-200">
-            {filteredComputers.map((computer, index) => (
+                {computers.map((computer, index) => (
               <Card key={`computer-${index}-${computer.name}`} className="border-0 rounded-none shadow-none">
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex items-start space-x-3">
@@ -305,7 +284,7 @@ const ADComputers = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredComputers.map((computer, index) => (
+                {computers.map((computer, index) => (
                   <tr key={`computer-${index}-${computer.name}`} className="hover:bg-gray-50">
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -362,6 +341,22 @@ const ADComputers = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="p-4 border-t border-gray-200">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </div>
         )}
       </div>

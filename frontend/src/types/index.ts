@@ -91,7 +91,6 @@ export interface Ticket {
   priority: TicketPriority;
   category: TicketCategory | { _id: string; name: string; color?: string };
   city: City;
-  assignedTo?: User;
   createdBy: User;
   estimatedHours?: number;
   actualHours?: number;

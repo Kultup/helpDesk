@@ -224,10 +224,6 @@ class ApiService {
         formData.append('description', ticketData.description);
         formData.append('priority', ticketData.priority);
         formData.append('city', ticketData.city);
-        
-        if (ticketData.assignedTo) {
-          formData.append('assignedTo', ticketData.assignedTo);
-        }
 
         // Додаємо файли
         files.forEach((file) => {
@@ -270,11 +266,6 @@ class ApiService {
     return response.data;
   }
 
-  async assignTicket(ticketId: string, userId: string): Promise<ApiResponse<Ticket>> {
-    const response: AxiosResponse<ApiResponse<Ticket>> = 
-      await this.api.patch(`/tickets/${ticketId}/assign`, { userId });
-    return response.data;
-  }
 
   // Методи для коментарів
   async addComment(ticketId: string, content: string): Promise<ApiResponse<Comment>> {
@@ -286,6 +277,12 @@ class ApiService {
   async deleteComment(ticketId: string, commentId: string): Promise<ApiResponse<null>> {
     const response: AxiosResponse<ApiResponse<null>> = 
       await this.api.delete(`/tickets/${ticketId}/comments/${commentId}`);
+    return response.data;
+  }
+
+  async sendTelegramMessage(ticketId: string, message: string): Promise<ApiResponse<{ ticketId: string; sentAt: string }>> {
+    const response: AxiosResponse<ApiResponse<{ ticketId: string; sentAt: string }>> = 
+      await this.api.post(`/tickets/${ticketId}/send-telegram-message`, { message });
     return response.data;
   }
 
@@ -328,13 +325,25 @@ class ApiService {
   }
 
   // Методи для посад
-  async getPositions(isActive?: boolean | 'all'): Promise<ApiResponse<PositionsResponse>> {
-    const params = new URLSearchParams();
-    if (isActive !== undefined) {
-      params.append('isActive', String(isActive));
+  async getPositions(params?: {
+    isActive?: boolean | 'all';
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PositionsResponse>> {
+    const queryParams = new URLSearchParams();
+    if (params?.isActive !== undefined) {
+      queryParams.append('isActive', String(params.isActive));
     }
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     
-    const url = params.toString() ? `/positions?${params.toString()}` : '/positions';
+    const url = queryParams.toString() ? `/positions?${queryParams.toString()}` : '/positions';
     const response: AxiosResponse<ApiResponse<PositionsResponse>> = await this.api.get(url);
     return response.data;
   }
@@ -441,14 +450,28 @@ class ApiService {
   }
 
   // Методи для користувачів
-  async getUsers(isActive?: boolean): Promise<ApiResponse<User[]>> {
-    const params = new URLSearchParams();
-    if (isActive !== undefined) {
-      params.append('isActive', String(isActive));
+  async getUsers(params?: {
+    isActive?: boolean;
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<User[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.isActive !== undefined) {
+      queryParams.append('isActive', String(params.isActive));
     }
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
     
     const response: AxiosResponse<ApiResponse<User[]>> = 
-      await this.api.get(`/users${params.toString() ? `?${params.toString()}` : ''}`);
+      await this.api.get(`/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
     return response.data;
   }
 
@@ -525,13 +548,39 @@ class ApiService {
     return response.data;
   }
 
-  async getADUsers(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get('/active-directory/users');
+  async getADUsers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    filterStatus?: 'all' | 'enabled' | 'disabled';
+  }): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.filterStatus) queryParams.append('filterStatus', params.filterStatus);
+    
+    const url = queryParams.toString() ? `/active-directory/users?${queryParams.toString()}` : '/active-directory/users';
+    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get(url);
     return response.data;
   }
 
-  async getADComputers(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get('/active-directory/computers');
+  async getADComputers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    filterStatus?: 'all' | 'enabled' | 'disabled';
+    filterOS?: 'all' | 'windows' | 'linux' | 'mac';
+  }): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.filterStatus) queryParams.append('filterStatus', params.filterStatus);
+    if (params?.filterOS) queryParams.append('filterOS', params.filterOS);
+    
+    const url = queryParams.toString() ? `/active-directory/computers?${queryParams.toString()}` : '/active-directory/computers';
+    const response: AxiosResponse<ApiResponse<Array<Record<string, unknown>>>> = await this.api.get(url);
     return response.data;
   }
 

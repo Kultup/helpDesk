@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaUser, FaSearch, FaSync, FaUserCheck, FaUserTimes } from 'react-icons/fa';
 import { apiService as api } from '../../services/api';
 import LoadingSpinner from '../UI/LoadingSpinner';
+import Pagination from '../UI/Pagination';
 import { useTranslation } from 'react-i18next';
 import { useWindowSize } from '../../hooks';
 import Card, { CardContent } from '../UI/Card';
@@ -10,31 +11,47 @@ const ADUsers = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
+  const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); // all, enabled, disabled
+  const itemsPerPage = 20;
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentPage, searchTerm, filterStatus]);
 
+  // Скидаємо сторінку на 1 при зміні пошуку або фільтрів
   useEffect(() => {
-    filterUsers();
-  }, [users, searchTerm, filterStatus]);
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.getADUsers();
+      const response = await api.getADUsers({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined,
+        filterStatus: filterStatus !== 'all' ? filterStatus : undefined
+      });
       
       if (response.success) {
-        setUsers(response.data);
+        setUsers(response.data || []);
+        // Оновлюємо пагінацію з відповіді
+        if (response.pagination) {
+          setPagination(response.pagination);
+        } else {
+          setPagination(null);
+        }
       } else {
         setError('Помилка отримання користувачів');
+        setUsers([]);
+        setPagination(null);
       }
     } catch (err) {
       console.error('Error fetching AD users:', err);
@@ -75,30 +92,6 @@ const ADUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterUsers = () => {
-    let filtered = users;
-
-    // Фільтр за статусом
-    if (filterStatus === 'enabled') {
-      filtered = filtered.filter(user => user.enabled);
-    } else if (filterStatus === 'disabled') {
-      filtered = filtered.filter(user => !user.enabled);
-    }
-
-    // Пошук за ім'ям або email
-    if (searchTerm) {
-      filtered = filtered.filter(user =>
-        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.sAMAccountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.mail?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredUsers(filtered);
   };
 
   const handleRefresh = () => {
@@ -143,7 +136,7 @@ const ADUsers = () => {
           <FaUser className="text-blue-600" size={isMobile ? 20 : 24} />
           <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">{t('activeDirectory.users.title')}</h2>
           <span className="bg-blue-100 text-blue-800 text-xs sm:text-sm font-medium px-2 sm:px-2.5 py-0.5 rounded">
-            {filteredUsers.length} {t('activeDirectory.users.countOf')} {users.length}
+            {pagination?.totalItems || users.length} {t('activeDirectory.users.total')}
           </span>
         </div>
         <button
@@ -189,7 +182,7 @@ const ADUsers = () => {
 
       {/* Список користувачів */}
       <div className="bg-white rounded-lg shadow-md border overflow-hidden">
-        {filteredUsers.length === 0 ? (
+        {users.length === 0 ? (
           <div className="text-center py-8 sm:py-12">
             <FaUser className="mx-auto text-gray-400 mb-3 sm:mb-4" size={isMobile ? 36 : 48} />
             <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">{t('activeDirectory.users.noUsersFound')}</h3>
@@ -203,7 +196,7 @@ const ADUsers = () => {
         ) : isMobile ? (
           // Мобільний вигляд з картками
           <div className="divide-y divide-gray-200">
-            {filteredUsers.map((user, index) => (
+                {users.map((user, index) => (
               <Card key={`user-${index}-${user.sAMAccountName || user.username}`} className="border-0 rounded-none shadow-none">
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex items-start space-x-3">
@@ -296,7 +289,7 @@ const ADUsers = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user, index) => (
+                {users.map((user, index) => (
                   <tr key={`user-${index}-${user.sAMAccountName || user.username}`} className="hover:bg-gray-50">
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -353,6 +346,22 @@ const ADUsers = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="p-4 border-t border-gray-200">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </div>
         )}
       </div>

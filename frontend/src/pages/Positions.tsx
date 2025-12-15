@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Position, CreatePositionData } from '../types';
 import { usePositions } from '../hooks/usePositions';
 import { useConfirmation } from '../hooks/useConfirmation';
@@ -7,6 +7,7 @@ import { useWindowSize } from '../hooks';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Card from '../components/UI/Card';
+import Pagination from '../components/UI/Pagination';
 import Modal from '../components/UI/Modal';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
 import { Trash2, Edit, Plus, Search, Users, Building, CheckSquare, Square } from 'lucide-react';
@@ -18,9 +19,16 @@ const Positions: React.FC = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
-  const { positions, loading, error, createPosition, updatePosition, deletePosition, bulkDeletePositions } = usePositions();
-  const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const itemsPerPage = 20;
+  
+  const { positions, pagination, loading, error, createPosition, updatePosition, deletePosition, bulkDeletePositions, fetchPositions } = usePositions(
+    currentPage,
+    itemsPerPage,
+    searchTerm || undefined
+  );
+  const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
@@ -92,11 +100,10 @@ const Positions: React.FC = () => {
     setEditingPosition(null);
   };
 
-  const filteredPositions = positions?.filter(position =>
-    position.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    position.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (position.description && position.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) || [];
+  // Скидаємо сторінку на 1 при зміні пошуку
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleEdit = (position: Position) => {
     setFormData({
@@ -152,10 +159,10 @@ const Positions: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedPositions.length === filteredPositions.length) {
+    if (selectedPositions.length === positions.length) {
       setSelectedPositions([]);
     } else {
-      setSelectedPositions(filteredPositions.map(position => position._id));
+      setSelectedPositions(positions.map(position => position._id));
     }
   };
 
@@ -173,6 +180,7 @@ const Positions: React.FC = () => {
         try {
           await bulkDeletePositions(selectedPositions);
           setSelectedPositions([]);
+          await fetchPositions();
           hideConfirmation();
         } catch (error) {
           console.error(t('positions.deleteError'), error);
@@ -199,7 +207,7 @@ const Positions: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">{t('positions.title')}</h1>
           <p className="text-sm sm:text-base text-text-secondary mt-1">
-            {t('positions.description')} ({positions?.length || 0} {t('positions.positionsCount')})
+            {t('positions.description')} ({pagination?.totalItems || positions?.length || 0} {t('positions.positionsCount')})
           </p>
         </div>
         <div className="mt-2 sm:mt-0 flex flex-wrap gap-2">
@@ -241,22 +249,22 @@ const Positions: React.FC = () => {
               className="pl-8 sm:pl-10"
             />
           </div>
-          {filteredPositions.length > 0 && (
+          {positions.length > 0 && (
             <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2">
               <button
                 onClick={handleSelectAll}
                 className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-text-secondary hover:text-foreground"
               >
-                {selectedPositions.length === filteredPositions.length ? (
+                {selectedPositions.length === positions.length ? (
                   <CheckSquare className="w-3 h-3 sm:w-4 sm:h-4" />
                 ) : (
                   <Square className="w-3 h-3 sm:w-4 sm:h-4" />
                 )}
-                {selectedPositions.length === filteredPositions.length ? t('positions.deselectAll') : t('positions.selectAll')}
+                {selectedPositions.length === positions.length ? t('positions.deselectAll') : t('positions.selectAll')}
               </button>
               {selectedPositions.length > 0 && (
                 <span className="text-xs sm:text-sm text-text-secondary">
-                  {t('positions.selected', { count: selectedPositions.length, total: filteredPositions.length })}
+                  {t('positions.selected', { count: selectedPositions.length, total: positions.length })}
                 </span>
               )}
             </div>
@@ -265,10 +273,10 @@ const Positions: React.FC = () => {
       </Card>
 
       {/* Positions List */}
-      {filteredPositions.length === 0 && !loading ? null : (
+      {positions.length === 0 && !loading ? null : (
         <Card>
           <div className="divide-y divide-border">
-            {filteredPositions.map((position) => (
+            {positions.map((position) => (
               <div 
                 key={position._id}
                 className="p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors"
@@ -384,10 +392,24 @@ const Positions: React.FC = () => {
               </div>
             ))}
           </div>
+          
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          )}
         </Card>
       )}
 
-      {filteredPositions.length === 0 && !loading && (
+      {positions.length === 0 && !loading && (
         <Card>
           <div className="text-center py-6 sm:py-8">
             <Users className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary mx-auto mb-3 sm:mb-4" />

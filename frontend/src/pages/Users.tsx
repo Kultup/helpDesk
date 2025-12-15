@@ -5,6 +5,7 @@ import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import Pagination from '../components/UI/Pagination';
 import UserForm, { UserFormData } from '../components/UserForm';
 import UserDetailsModal from '../components/UserDetailsModal';
 import ConfirmationModal from '../components/UI/ConfirmationModal';
@@ -19,13 +20,22 @@ const Users: React.FC = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [activeFilter, setActiveFilter] = useState<boolean | undefined>(undefined);
-  const { users, isLoading, error, refetch: refetchUsers, forceDeleteUser } = useUsers(activeFilter);
+  const itemsPerPage = 20;
+  
+  const { users, pagination, isLoading, error, refetch: refetchUsers, forceDeleteUser } = useUsers(
+    currentPage,
+    itemsPerPage,
+    searchTerm || undefined,
+    roleFilter !== 'all' ? roleFilter : undefined,
+    activeFilter
+  );
   const { cities, isLoading: citiesLoading, error: citiesError, refetch: refetchCities } = useCities();
   const { positions, loading: positionsLoading } = usePositions();
   const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [formLoading, setFormLoading] = useState(false);
@@ -51,18 +61,13 @@ const Users: React.FC = () => {
   } = useDeactivatedUsers();
 
   useEffect(() => {
-    refetchUsers();
     refetchCities();
   }, []);
 
-  const filteredUsers = (users || []).filter(user => {
-    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    
-    return matchesSearch && matchesRole;
-  });
+  // Скидаємо сторінку на 1 при зміні пошуку або фільтрів
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, activeFilter]);
 
   const handleUserSubmit = async (userData: UserFormData) => {
     setFormLoading(true);
@@ -76,7 +81,7 @@ const Users: React.FC = () => {
       }
       
       // Оновлюємо список користувачів
-      await refetchUsers(activeFilter);
+      await refetchUsers();
       
       // Закриваємо форму
       setShowForm(false);
@@ -134,7 +139,7 @@ const Users: React.FC = () => {
       onConfirm: async () => {
         try {
           const response = await apiService.toggleUserActive(userId);
-          await refetchUsers(activeFilter);
+          await refetchUsers();
           hideConfirmation();
           alert(isActive ? t('users.deactivateUserSuccess', { email: userEmail }) : t('users.activateUserSuccess', { email: userEmail }));
         } catch (error: any) {
@@ -158,7 +163,7 @@ const Users: React.FC = () => {
       onConfirm: async () => {
         try {
           const response = await apiService.deleteUser(userId);
-          await refetchUsers(activeFilter);
+          await refetchUsers();
           hideConfirmation();
           alert(t('users.deleteSuccess', { email: userEmail }));
         } catch (error: any) {
@@ -210,7 +215,7 @@ const Users: React.FC = () => {
       onConfirm: async () => {
         try {
           await activateUser(userId);
-          await refetchUsers(activeFilter); // Оновлюємо основний список
+          await refetchUsers(); // Оновлюємо основний список
           hideConfirmation();
           alert(t('users.activateUserSuccess', { email: userEmail }));
         } catch (error: any) {
@@ -254,10 +259,10 @@ const Users: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedUsers.size === filteredUsers.length) {
+    if (selectedUsers.size === users.length) {
       setSelectedUsers(new Set());
     } else {
-      setSelectedUsers(new Set(filteredUsers.map(user => user._id)));
+      setSelectedUsers(new Set(users.map(user => user._id)));
     }
   };
 
@@ -281,7 +286,7 @@ const Users: React.FC = () => {
         try {
           const userIds = Array.from(selectedUsers);
           await apiService.bulkToggleUsers(userIds, action);
-          await refetchUsers(activeFilter);
+          await refetchUsers();
           setSelectedUsers(new Set());
           hideConfirmation();
           alert(actionPastText);
@@ -321,7 +326,7 @@ const Users: React.FC = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('users.title')}</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
-            {t('users.description', { count: users?.length || 0 })}
+            {t('users.description', { count: pagination?.totalItems || users?.length || 0 })}
             {selectedUsers.size > 0 && (
               <span className="ml-2 text-primary font-medium">
                 {t('users.selected', { count: selectedUsers.size })}
@@ -633,7 +638,7 @@ const Users: React.FC = () => {
       {/* Users List */}
       <Card>
         <CardContent className="p-0">
-          {filteredUsers.length === 0 ? (
+          {users.length === 0 ? (
             <div className="text-center py-8 sm:py-12 px-4">
               <User className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
@@ -650,7 +655,7 @@ const Users: React.FC = () => {
               <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
                 <input
                   type="checkbox"
-                  checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
+                        checked={selectedUsers.size === users.length && users.length > 0}
                   onChange={handleSelectAll}
                   className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
@@ -664,7 +669,7 @@ const Users: React.FC = () => {
                 )}
               </div>
               
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <Card key={user._id} className={cn("hover:shadow-lg transition-shadow", !user.isActive && "opacity-75")}>
                   <CardContent className="p-3 sm:p-4">
                     <div className="space-y-3">
@@ -825,7 +830,7 @@ const Users: React.FC = () => {
                     <th className="px-4 sm:px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
+                        checked={selectedUsers.size === users.length && users.length > 0}
                         onChange={handleSelectAll}
                         className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                       />
@@ -851,7 +856,7 @@ const Users: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredUsers.map((user) => (
+                  {users.map((user) => (
                     <tr key={user._id} className={cn("hover:bg-gray-50", !user.isActive && "bg-gray-50 opacity-75")}>
                       <td className="px-4 sm:px-6 py-4">
                         <input
@@ -989,6 +994,20 @@ const Users: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          )}
+          
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           )}
         </CardContent>
       </Card>

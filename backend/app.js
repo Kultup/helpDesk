@@ -331,6 +331,7 @@ app.use('/api/ticket-history', require('./routes/ticketHistory')); // Істор
 app.use('/api/users', require('./routes/users'));
 app.use('/api/cities', require('./routes/cities'));
 app.use('/api/positions', require('./routes/positions'));
+app.use('/api/position-requests', require('./routes/positionRequests'));
 app.use('/api/institutions', require('./routes/institutions'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/comments', require('./routes/comments'));

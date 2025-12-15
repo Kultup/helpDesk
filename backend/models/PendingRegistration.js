@@ -9,7 +9,7 @@ const pendingRegistrationSchema = new mongoose.Schema({
   step: {
     type: String,
     required: true,
-    enum: ['firstName', 'lastName', 'email', 'login', 'phone', 'password', 'city', 'position', 'institution', 'department', 'completed'],
+    enum: ['firstName', 'lastName', 'email', 'login', 'phone', 'password', 'city', 'position', 'position_request', 'institution', 'department', 'completed'],
     default: 'firstName'
   },
   data: {

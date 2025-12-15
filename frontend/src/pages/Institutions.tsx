@@ -22,16 +22,27 @@ import { institutionService } from '../services/institutionService';
 import { cityService } from '../services/cityService';
 import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
+import Pagination from '../components/UI/Pagination';
 
 const Institutions: React.FC = () => {
   const { t } = useTranslation();
   const { width } = useWindowSize();
   const isMobile = width < 768;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const itemsPerPage = 20;
   const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [pagination, setPagination] = useState<{
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  } | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
@@ -43,19 +54,39 @@ const Institutions: React.FC = () => {
 
 
   useEffect(() => {
-    fetchInstitutions();
     fetchCities();
   }, []);
+
+  useEffect(() => {
+    fetchInstitutions();
+  }, [currentPage, searchTerm]);
+
+  // Скидаємо сторінку на 1 при зміні пошуку
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const fetchInstitutions = async () => {
     try {
       setLoading(true);
       const response = await institutionService.getAll({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined,
         sortBy: 'createdAt',
-        sortOrder: 'desc',
-        limit: 100
+        sortOrder: 'desc'
       });
       setInstitutions(response.institutions);
+      if (response.pagination) {
+        setPagination({
+          currentPage: response.pagination.currentPage,
+          totalPages: response.pagination.totalPages || Math.ceil((response.pagination.totalItems || 0) / itemsPerPage),
+          totalItems: response.pagination.totalItems || 0,
+          itemsPerPage: response.pagination.itemsPerPage || itemsPerPage,
+          hasNextPage: response.pagination.hasNextPage || false,
+          hasPrevPage: response.pagination.hasPrevPage || false
+        });
+      }
     } catch (err) {
       setError(t('institutions.errors.fetchFailed'));
     } finally {
@@ -112,11 +143,6 @@ const Institutions: React.FC = () => {
     setEditingInstitution(null);
   };
 
-  const filteredInstitutions = institutions.filter(institution =>
-    institution.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(institution.type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (institution.description && institution.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   const handleEdit = (institution: Institution) => {
     setEditingInstitution(institution);
@@ -145,10 +171,10 @@ const Institutions: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedInstitutions.length === filteredInstitutions.length) {
+    if (selectedInstitutions.length === institutions.length) {
       setSelectedInstitutions([]);
     } else {
-      setSelectedInstitutions(filteredInstitutions.map(institution => institution._id));
+      setSelectedInstitutions(institutions.map(institution => institution._id));
     }
   };
 
@@ -283,12 +309,12 @@ const Institutions: React.FC = () => {
             />
           </div>
           
-          {filteredInstitutions.length > 0 && (
+          {institutions.length > 0 && (
             <button
               onClick={handleSelectAll}
               className="text-xs sm:text-sm text-primary-600 hover:text-primary-800 font-medium sm:ml-4"
             >
-              {selectedInstitutions.length === filteredInstitutions.length
+              {selectedInstitutions.length === institutions.length
                 ? t('institutions.deselectAll')
                 : t('institutions.selectAll')
               }
@@ -297,7 +323,7 @@ const Institutions: React.FC = () => {
         </CardContent>
       </Card>
 
-      {filteredInstitutions.length === 0 ? (
+      {institutions.length === 0 && !loading ? (
         <Card>
           <CardContent className="text-center py-8 sm:py-12">
             <Building2 className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-text-secondary" />
@@ -309,7 +335,7 @@ const Institutions: React.FC = () => {
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
-              {filteredInstitutions.map((institution) => (
+              {institutions.map((institution) => (
                 <div
                   key={institution._id}
                   className={`p-3 sm:p-4 lg:p-6 hover:bg-surface/50 transition-colors ${
@@ -459,6 +485,20 @@ const Institutions: React.FC = () => {
                 </div>
               ))}
             </div>
+            
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
           </CardContent>
         </Card>
       )}

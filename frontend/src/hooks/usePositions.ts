@@ -1,21 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Position, CreatePositionData } from '../types';
 import { apiService } from '../services/api';
 
-export const usePositions = (isActive?: boolean | 'all') => {
+export const usePositions = (
+  page = 1,
+  limit = 20,
+  search?: string,
+  isActive?: boolean | 'all'
+) => {
   const [positions, setPositions] = useState<Position[]>([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    hasNext: false,
+    hasPrev: false
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPositions = async (activeFilter?: boolean | 'all') => {
+  const fetchPositions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiService.getPositions(activeFilter ?? isActive);
+      const response = await apiService.getPositions({
+        isActive,
+        page,
+        limit,
+        search
+      });
       
       if (response.success && response.data) {
         // Правильно отримуємо масив позицій з response.data.positions
-        setPositions(response.data.positions);
+        setPositions(response.data.positions || []);
+        // Оновлюємо пагінацію з відповіді
+        if (response.data.pagination) {
+          const pag = response.data.pagination as { page: number; pages: number; total: number; hasNextPage?: boolean; hasPrevPage?: boolean };
+          setPagination({
+            currentPage: pag.page,
+            totalPages: pag.pages,
+            totalItems: pag.total,
+            hasNext: pag.hasNextPage ?? false,
+            hasPrev: pag.hasPrevPage ?? false
+          });
+        }
       } else {
         setError(response.message || 'Помилка завантаження позицій');
       }
@@ -24,7 +52,7 @@ export const usePositions = (isActive?: boolean | 'all') => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isActive, page, limit, search]);
 
   const createPosition = async (positionData: CreatePositionData) => {
     try {
@@ -87,10 +115,11 @@ export const usePositions = (isActive?: boolean | 'all') => {
 
   useEffect(() => {
     fetchPositions();
-  }, [isActive]);
+  }, [fetchPositions]);
 
   return {
     positions,
+    pagination,
     loading,
     error,
     fetchPositions,

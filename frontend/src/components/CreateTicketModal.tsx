@@ -50,8 +50,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     title: '',
     description: '',
     priority: TicketPriority.MEDIUM,
-    city: '',
-    assignedTo: ''
+    city: ''
   });
 
   // Чи є попередньо заповнені поля
@@ -220,8 +219,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
-        cityId: cityId,
-        assignedTo: formData.assignedTo || undefined
+        cityId: cityId
       };
 
       // Використовуємо apiService з файлами, якщо вони є
@@ -252,8 +250,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         title: '',
         description: '',
         priority: TicketPriority.MEDIUM,
-        city: '',
-        assignedTo: ''
+        city: ''
       });
       setAttachments([]);
     }
@@ -377,33 +374,6 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             )}
           </div>
 
-          {/* Assigned To */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('createTicketModal.assignedToLabel')}
-            </label>
-            <Select value={formData.assignedTo || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, assignedTo: value }))}>
-              <SelectTrigger>
-                <span className="block truncate">
-                  {loadingAdmins
-                    ? t('createTicketModal.loadingAdmins')
-                    : (
-                      (admins.find(admin => admin.id === formData.assignedTo)?.name
-                        ? `${admins.find(admin => admin.id === formData.assignedTo)?.name} (${admins.find(admin => admin.id === formData.assignedTo)?.email})`
-                        : t('createTicketModal.assignedToPlaceholder'))
-                    )}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t('createTicketModal.assignedToPlaceholder')}</SelectItem>
-                {admins.map(admin => (
-                  <SelectItem key={admin.id} value={admin.id}>
-                    {admin.name} ({admin.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Template Tags removed */}

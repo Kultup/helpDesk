@@ -6,6 +6,7 @@ const City = require('../models/City');
 const Position = require('../models/Position');
 const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
+const PositionRequest = require('../models/PositionRequest');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -26,6 +27,7 @@ class TelegramService {
     this.categoryCache = new Map(); // Кеш для категорій
     this.botSettings = null; // Налаштування бота з БД
     this.mode = 'webhook';
+    this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.loadCategories(); // Завантажуємо категорії при ініціалізації
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
@@ -377,6 +379,19 @@ class TelegramService {
       switch (command) {
         case '/start':
           await this.handleStartCommand(chatId, userId, msg);
+          break;
+        case '/menu':
+          // Очищаємо активний тікет та показуємо головне меню
+          this.clearActiveTicketForUser(chatId);
+          if (user) {
+            await this.showUserDashboard(chatId, user);
+          } else {
+            await this.sendMessage(chatId, 
+              `🚫 *Помилка авторизації*\n\n` +
+              `Ви не авторизовані в системі.\n\n` +
+              `🔑 Використайте /start для початку роботи.`
+            );
+          }
           break;
         default:
           if (!user) {
@@ -815,8 +830,11 @@ class TelegramService {
     const userId = callbackQuery.from.id;
     const chatType = callbackQuery.message.chat.type;
 
-    // Заборона обробки callback-запитів з груп - тільки приватні чати
-    if (chatType !== 'private') {
+    // Дозволяємо обробку callback для підтвердження/відхилення посади з груп
+    const isPositionRequestCallback = data.startsWith('approve_position_') || data.startsWith('reject_position_');
+    
+    // Заборона обробки callback-запитів з груп - тільки приватні чати (крім position request)
+    if (chatType !== 'private' && !isPositionRequestCallback) {
       logger.info(`Callback query ігноровано - не приватний чат (тип: ${chatType})`, {
         chatId,
         userId,
@@ -825,6 +843,12 @@ class TelegramService {
       });
       await this.answerCallbackQuery(callbackQuery.id, 'Бот працює тільки в приватних чатах');
       return; // Ігноруємо callback-запити з груп, супергруп та каналів
+    }
+
+    // Обробка callback для підтвердження/відхилення посади (з груп)
+    if (isPositionRequestCallback) {
+      await this.handlePositionRequestCallback(callbackQuery);
+      return;
     }
 
     try {
@@ -1460,6 +1484,15 @@ class TelegramService {
     
     // Якщо користувач зареєстрований, не проводимо реєстрацію
     if (existingUser) {
+      // Перевіряємо, чи є активний тікет для відповіді
+      const activeTicketId = this.activeTickets.get(String(chatId));
+      if (activeTicketId) {
+        const handled = await this.handleTicketReply(chatId, text, activeTicketId, existingUser);
+        if (handled) {
+          return; // Повідомлення оброблено як відповідь на тікет
+        }
+      }
+
       // Перевіряємо, чи є активна сесія для створення тікету
       if (session) {
         await this.handleTicketCreationStep(chatId, text, session);
@@ -1616,6 +1649,38 @@ class TelegramService {
           } else {
             isValid = false;
             errorMessage = '❌ *Некоректна назва відділу*\n\nНазва відділу повинна бути довжиною від 2 до 100 символів.\n\n💡 Спробуйте ще раз:';
+          }
+          break;
+
+        case 'position_request':
+          if (text && text.trim().length >= 2 && text.trim().length <= 100) {
+            const positionName = text.trim();
+            // Створюємо запит на додавання посади
+            const positionRequest = new PositionRequest({
+              title: positionName,
+              telegramId: String(userId),
+              telegramChatId: String(chatId),
+              pendingRegistrationId: pendingRegistration._id,
+              status: 'pending'
+            });
+            await positionRequest.save();
+
+            // Відправляємо сповіщення адмінам
+            await this.notifyAdminsAboutPositionRequest(positionRequest, pendingRegistration);
+
+            await this.sendMessage(chatId,
+              `✅ *Запит на додавання посади відправлено!*\n\n` +
+              `📝 *Посада:* ${positionName}\n\n` +
+              `⏳ Ваш запит буде розглянуто адміністратором.\n` +
+              `Ви отримаєте сповіщення, коли посада буде додана до системи.\n\n` +
+              `💡 Після додавання посади ви зможете продовжити реєстрацію.`,
+              { parse_mode: 'Markdown' }
+            );
+            // Не переходимо до наступного кроку, чекаємо на додавання посади
+            return;
+          } else {
+            isValid = false;
+            errorMessage = '❌ *Некоректна назва посади*\n\nНазва посади повинна бути довжиною від 2 до 100 символів.\n\n💡 Спробуйте ще раз:';
           }
           break;
 
@@ -2259,6 +2324,168 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправка сповіщення користувачу про підтвердження посади
+   */
+  async notifyUserAboutPositionApproval(positionRequest, position) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про підтвердження посади');
+        return;
+      }
+
+      const chatId = positionRequest.telegramChatId || positionRequest.telegramId;
+      if (!chatId) {
+        logger.warn('Немає chatId для відправки сповіщення про підтвердження посади');
+        return;
+      }
+
+      const message = 
+        `✅ *Посаду додано!*\n\n` +
+        `💼 *Посада:* ${position.title}\n\n` +
+        `Ваш запит на додавання посади було підтверджено.\n` +
+        `Тепер ви можете продовжити реєстрацію.`;
+
+      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      logger.info('✅ Сповіщення про підтвердження посади відправлено користувачу', {
+        chatId,
+        positionId: position._id,
+        requestId: positionRequest._id
+      });
+    } catch (error) {
+      logger.error('❌ Помилка відправки сповіщення про підтвердження посади:', {
+        error: error.message,
+        stack: error.stack,
+        positionRequestId: positionRequest?._id
+      });
+    }
+  }
+
+  /**
+   * Відправка сповіщення користувачу про відхилення посади
+   */
+  async notifyUserAboutPositionRejection(positionRequest, reason) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про відхилення посади');
+        return;
+      }
+
+      const chatId = positionRequest.telegramChatId || positionRequest.telegramId;
+      if (!chatId) {
+        logger.warn('Немає chatId для відправки сповіщення про відхилення посади');
+        return;
+      }
+
+      let message = 
+        `❌ *Запит на посаду відхилено*\n\n` +
+        `💼 *Посада:* ${positionRequest.title}\n\n`;
+
+      if (reason) {
+        message += `📝 *Причина:* ${reason}\n\n`;
+      }
+
+      message += `Будь ласка, оберіть іншу посаду зі списку або зверніться до адміністратора.`;
+
+      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      logger.info('✅ Сповіщення про відхилення посади відправлено користувачу', {
+        chatId,
+        requestId: positionRequest._id
+      });
+    } catch (error) {
+      logger.error('❌ Помилка відправки сповіщення про відхилення посади:', {
+        error: error.message,
+        stack: error.stack,
+        positionRequestId: positionRequest?._id
+      });
+    }
+  }
+
+  /**
+   * Відправка сповіщення адмінам про новий запит на додавання посади
+   */
+  async notifyAdminsAboutPositionRequest(positionRequest, pendingRegistration) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки сповіщення про запит на посаду');
+        return;
+      }
+
+      // Отримуємо chatId з бази даних (налаштування з адмін панелі)
+      let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      if (!groupChatId) {
+        try {
+          const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+          if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
+            groupChatId = telegramConfig.chatId.trim();
+          }
+        } catch (configError) {
+          logger.error('❌ Помилка отримання TelegramConfig:', configError);
+        }
+      }
+
+      if (!groupChatId) {
+        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
+        return;
+      }
+
+      const positionName = positionRequest.title;
+      const telegramId = positionRequest.telegramId;
+      const requestId = positionRequest._id.toString();
+
+      // Формуємо повідомлення з кнопками для швидкого підтвердження/відхилення
+      const message = 
+        `📝 *Новий запит на додавання посади*\n\n` +
+        `💼 *Посада:* ${positionName}\n` +
+        `👤 *Telegram ID:* \`${telegramId}\`\n` +
+        `🆔 *ID запиту:* \`${requestId}\`\n\n` +
+        `Для додавання посади використайте адмін панель або API.`;
+
+      try {
+        const result = await this.sendMessage(groupChatId, message, { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { 
+                  text: '✅ Додати посаду', 
+                  callback_data: `approve_position_${requestId}` 
+                },
+                { 
+                  text: '❌ Відхилити', 
+                  callback_data: `reject_position_${requestId}` 
+                }
+              ]
+            ]
+          }
+        });
+
+        // Зберігаємо ID повідомлення для можливості відповіді
+        positionRequest.adminMessageId = result.message_id?.toString();
+        await positionRequest.save();
+
+        logger.info('✅ Сповіщення про запит на посаду відправлено адмінам', {
+          groupChatId,
+          requestId,
+          messageId: result?.message_id
+        });
+      } catch (sendError) {
+        logger.error('❌ Помилка відправки сповіщення про запит на посаду:', {
+          error: sendError.message,
+          stack: sendError.stack,
+          groupChatId,
+          requestId
+        });
+      }
+    } catch (error) {
+      logger.error('❌ Помилка відправки сповіщення про запит на посаду:', {
+        error: error.message,
+        stack: error.stack,
+        positionRequestId: positionRequest?._id
+      });
+    }
+  }
+
   
 
   
@@ -2859,6 +3086,11 @@ class TelegramService {
         case 'position':
           await this.sendPositionSelection(chatId, userId);
           break;
+
+        case 'position_request':
+          // Цей крок обробляється через handleRegistrationTextInput
+          // Тут просто чекаємо на введення тексту
+          break;
           
         case 'institution':
           await this.sendInstitutionSelection(chatId, userId, pendingRegistration);
@@ -2953,6 +3185,12 @@ class TelegramService {
           callback_data: `position_${position._id}`
         }]);
       });
+
+      // Додаємо кнопку "Не знайшов свою посаду"
+      keyboard.push([{
+        text: '❓ Не знайшов свою посаду',
+        callback_data: 'position_not_found'
+      }]);
 
       await this.sendMessage(chatId, 
         `✅ *Місто обрано!*\n` +
@@ -3116,6 +3354,17 @@ class TelegramService {
           dataKeys: Object.keys(pendingRegistration.data || {})
         });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      } else if (data === 'position_not_found') {
+        // Користувач натиснув "Не знайшов свою посаду"
+        pendingRegistration.step = 'position_request';
+        await pendingRegistration.save();
+        await this.sendMessage(chatId,
+          `📝 *Введіть назву вашої посади*\n\n` +
+          `Будь ласка, введіть назву посади, яку ви хочете додати до системи.\n\n` +
+          `💡 *Приклад:* Старший інженер, Менеджер проекту, тощо\n\n` +
+          `Після додавання посади адміністратором, ви отримаєте сповіщення та зможете продовжити реєстрацію.`,
+          { parse_mode: 'Markdown' }
+        );
       } else if (data.startsWith('institution_')) {
         const institutionId = data.replace('institution_', '');
         pendingRegistration.data.institutionId = institutionId;
@@ -3504,6 +3753,238 @@ class TelegramService {
     // Placeholder for feedback handling
     // This can be implemented based on your requirements
     return false;
+  }
+
+  /**
+   * Встановити активний тікет для користувача (для обробки відповідей)
+   */
+  setActiveTicketForUser(chatId, ticketId) {
+    this.activeTickets.set(String(chatId), ticketId);
+    logger.info(`Встановлено активний тікет ${ticketId} для користувача ${chatId}`);
+  }
+
+  /**
+   * Отримати активний тікет для користувача
+   */
+  getActiveTicketForUser(chatId) {
+    return this.activeTickets.get(String(chatId));
+  }
+
+  /**
+   * Видалити активний тікет для користувача
+   */
+  clearActiveTicketForUser(chatId) {
+    this.activeTickets.delete(String(chatId));
+    logger.info(`Видалено активний тікет для користувача ${chatId}`);
+  }
+
+  /**
+   * Обробка відповіді користувача на тікет
+   */
+  async handleTicketReply(chatId, text, ticketId, user) {
+    try {
+      const Ticket = require('../models/Ticket');
+      const ticket = await Ticket.findById(ticketId);
+      
+      if (!ticket) {
+        await this.sendMessage(chatId, 
+          '❌ Тікет не знайдено. Активний тікет очищено.',
+          { parse_mode: 'Markdown' }
+        );
+        this.clearActiveTicketForUser(chatId);
+        return false;
+      }
+
+      // Перевіряємо, чи користувач є автором тікету
+      if (String(ticket.createdBy) !== String(user._id)) {
+        await this.sendMessage(chatId, 
+          '❌ Ви не маєте прав для відповіді на цей тікет.',
+          { parse_mode: 'Markdown' }
+        );
+        this.clearActiveTicketForUser(chatId);
+        return false;
+      }
+
+      // Зберігаємо повідомлення як коментар до тікету
+      ticket.comments.push({
+        author: user._id,
+        content: `[Telegram] ${text.trim()}`,
+        isInternal: false,
+        createdAt: new Date()
+      });
+      await ticket.save();
+
+      // Відправляємо WebSocket сповіщення про новий коментар
+      try {
+        const ticketWebSocketService = require('./ticketWebSocketService');
+        await ticket.populate('comments.author', 'firstName lastName email');
+        const newComment = ticket.comments[ticket.comments.length - 1];
+        ticketWebSocketService.notifyNewComment(ticket._id.toString(), newComment);
+      } catch (wsError) {
+        logger.error('Помилка відправки WebSocket сповіщення:', wsError);
+      }
+
+      // Відправляємо підтвердження користувачу
+      await this.sendMessage(chatId,
+        `✅ *Ваша відповідь додана до тікету*\n\n` +
+        `📋 *Тікет:* ${ticket.title}\n` +
+        `🆔 \`${ticket._id}\`\n\n` +
+        `Ваше повідомлення було додано як коментар до тікету.\n` +
+        `Продовжуйте відповідати, або надішліть /menu для виходу.`,
+        { parse_mode: 'Markdown' }
+      );
+
+      logger.info(`Відповідь користувача ${user.email} додана до тікету ${ticketId}`);
+
+      // Не очищаємо активний тікет, щоб користувач міг продовжувати відповідати
+      return true;
+    } catch (error) {
+      logger.error('Помилка обробки відповіді на тікет:', error);
+      await this.sendMessage(chatId,
+        '❌ *Помилка*\n\nВиникла помилка при обробці вашої відповіді. Спробуйте ще раз.',
+        { parse_mode: 'Markdown' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Обробка callback для підтвердження/відхилення запиту на посаду
+   */
+  async handlePositionRequestCallback(callbackQuery) {
+    try {
+      const data = callbackQuery.data;
+      const userId = callbackQuery.from.id;
+      const chatId = callbackQuery.message.chat.id;
+      const messageId = callbackQuery.message.message_id;
+
+      // Перевіряємо, чи користувач є адміністратором
+      const user = await User.findOne({
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId }
+        ]
+      });
+
+      if (!user || user.role !== 'admin') {
+        await this.answerCallbackQuery(callbackQuery.id, 'Тільки адміністратори можуть обробляти запити на посади');
+        return;
+      }
+
+      if (data.startsWith('approve_position_')) {
+        const requestId = data.replace('approve_position_', '');
+        const positionRequest = await PositionRequest.findById(requestId)
+          .populate('pendingRegistrationId');
+
+        if (!positionRequest) {
+          await this.answerCallbackQuery(callbackQuery.id, 'Запит не знайдено');
+          return;
+        }
+
+        if (positionRequest.status !== 'pending') {
+          await this.answerCallbackQuery(callbackQuery.id, 'Запит вже оброблено');
+          return;
+        }
+
+        // Перевіряємо, чи посада з такою назвою вже існує
+        const existingPosition = await Position.findOne({ 
+          title: { $regex: new RegExp(`^${positionRequest.title}$`, 'i') }
+        });
+
+        let createdPosition;
+        if (existingPosition) {
+          createdPosition = existingPosition;
+          logger.info(`Посада "${positionRequest.title}" вже існує, використовуємо існуючу`);
+        } else {
+          // Створюємо нову посаду
+          createdPosition = new Position({
+            title: positionRequest.title,
+            department: 'Загальний',
+            isActive: true,
+            isPublic: true,
+            createdBy: user._id
+          });
+          await createdPosition.save();
+          logger.info(`Створено нову посаду: ${createdPosition.title}`);
+        }
+
+        // Оновлюємо запит
+        positionRequest.status = 'approved';
+        positionRequest.approvedBy = user._id;
+        positionRequest.approvedAt = new Date();
+        positionRequest.createdPositionId = createdPosition._id;
+        await positionRequest.save();
+
+        // Відправляємо сповіщення користувачу
+        await this.notifyUserAboutPositionApproval(positionRequest, createdPosition);
+
+        // Якщо є активна реєстрація, продовжуємо її
+        if (positionRequest.pendingRegistrationId) {
+          const pendingRegistration = positionRequest.pendingRegistrationId;
+          if (pendingRegistration && pendingRegistration.step === 'position_request') {
+            pendingRegistration.data.positionId = createdPosition._id.toString();
+            pendingRegistration.step = 'institution';
+            await pendingRegistration.save();
+
+            const telegramUserId = pendingRegistration.telegramId;
+            const telegramChatId = pendingRegistration.telegramChatId;
+            await this.processRegistrationStep(telegramChatId, telegramUserId, pendingRegistration);
+          }
+        }
+
+        await this.answerCallbackQuery(callbackQuery.id, 'Посаду додано успішно');
+        // Оновлюємо повідомлення
+        await this.bot.editMessageText(
+          `✅ *Посаду додано!*\n\n` +
+          `💼 ${createdPosition.title}\n` +
+          `👤 Підтверджено: ${user.firstName} ${user.lastName}`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'Markdown'
+          }
+        );
+      } else if (data.startsWith('reject_position_')) {
+        const requestId = data.replace('reject_position_', '');
+        const positionRequest = await PositionRequest.findById(requestId);
+
+        if (!positionRequest) {
+          await this.answerCallbackQuery(callbackQuery.id, 'Запит не знайдено');
+          return;
+        }
+
+        if (positionRequest.status !== 'pending') {
+          await this.answerCallbackQuery(callbackQuery.id, 'Запит вже оброблено');
+          return;
+        }
+
+        // Оновлюємо запит
+        positionRequest.status = 'rejected';
+        positionRequest.rejectedBy = user._id;
+        positionRequest.rejectedAt = new Date();
+        positionRequest.rejectionReason = 'Відхилено адміністратором';
+        await positionRequest.save();
+
+        // Відправляємо сповіщення користувачу
+        await this.notifyUserAboutPositionRejection(positionRequest, positionRequest.rejectionReason);
+
+        await this.answerCallbackQuery(callbackQuery.id, 'Запит відхилено');
+        // Оновлюємо повідомлення
+        await this.bot.editMessageText(
+          `❌ *Запит відхилено*\n\n` +
+          `💼 ${positionRequest.title}\n` +
+          `👤 Відхилено: ${user.firstName} ${user.lastName}`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'Markdown'
+          }
+        );
+      }
+    } catch (error) {
+      logger.error('Помилка обробки callback запиту на посаду:', error);
+      await this.answerCallbackQuery(callbackQuery.id, 'Виникла помилка');
+    }
   }
 }
 

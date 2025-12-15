@@ -4,15 +4,54 @@ const logger = require('../utils/logger');
 // Отримання всіх користувачів з AD
 const getUsers = async (req, res) => {
   try {
-    const users = await activeDirectoryService.getUsers();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const filterStatus = req.query.filterStatus || 'all'; // all, enabled, disabled
+    
+    let users = await activeDirectoryService.getUsers();
+    
+    // Фільтрація за статусом
+    if (filterStatus === 'enabled') {
+      users = users.filter(user => user.enabled);
+    } else if (filterStatus === 'disabled') {
+      users = users.filter(user => !user.enabled);
+    }
+    
+    // Пошук
+    if (search) {
+      const searchLower = search.toLowerCase();
+      users = users.filter(user =>
+        user.displayName?.toLowerCase().includes(searchLower) ||
+        user.username?.toLowerCase().includes(searchLower) ||
+        user.sAMAccountName?.toLowerCase().includes(searchLower) ||
+        user.email?.toLowerCase().includes(searchLower) ||
+        user.mail?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Пагінація
+    const totalItems = users.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedUsers = users.slice(startIndex, endIndex);
     
     // Перевіряємо чи AD доступний
     const isADAvailable = activeDirectoryService.isADAvailable();
     
     res.json({
       success: true,
-      data: users,
-      count: users.length,
+      data: paginatedUsers,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalItems: totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      },
+      count: totalItems,
       source: isADAvailable ? 'active_directory' : 'cache',
       adAvailable: isADAvailable
     });
@@ -30,15 +69,71 @@ const getUsers = async (req, res) => {
 // Отримання всіх комп'ютерів з AD
 const getComputers = async (req, res) => {
   try {
-    const computers = await activeDirectoryService.getComputers();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const filterStatus = req.query.filterStatus || 'all'; // all, enabled, disabled
+    const filterOS = req.query.filterOS || 'all'; // all, windows, linux, mac
+    
+    let computers = await activeDirectoryService.getComputers();
+    
+    // Фільтрація за статусом
+    if (filterStatus === 'enabled') {
+      computers = computers.filter(computer => computer.enabled);
+    } else if (filterStatus === 'disabled') {
+      computers = computers.filter(computer => !computer.enabled);
+    }
+    
+    // Фільтрація за ОС
+    if (filterOS !== 'all') {
+      computers = computers.filter(computer => {
+        const os = computer.operatingSystem?.toLowerCase() || '';
+        switch (filterOS) {
+          case 'windows':
+            return os.includes('windows');
+          case 'linux':
+            return os.includes('linux') || os.includes('ubuntu') || os.includes('centos');
+          case 'mac':
+            return os.includes('mac') || os.includes('darwin');
+          default:
+            return true;
+        }
+      });
+    }
+    
+    // Пошук
+    if (search) {
+      const searchLower = search.toLowerCase();
+      computers = computers.filter(computer =>
+        computer.name?.toLowerCase().includes(searchLower) ||
+        computer.dNSHostName?.toLowerCase().includes(searchLower) ||
+        computer.dnsName?.toLowerCase().includes(searchLower) ||
+        computer.operatingSystem?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Пагінація
+    const totalItems = computers.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedComputers = computers.slice(startIndex, endIndex);
     
     // Перевіряємо чи AD доступний
     const isADAvailable = activeDirectoryService.isADAvailable();
     
     res.json({
       success: true,
-      data: computers,
-      count: computers.length,
+      data: paginatedComputers,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalItems: totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      },
+      count: totalItems,
       source: isADAvailable ? 'active_directory' : 'cache',
       adAvailable: isADAvailable
     });
