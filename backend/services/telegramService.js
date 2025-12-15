@@ -3369,8 +3369,9 @@ class TelegramService {
       }]);
 
       await this.sendMessage(chatId, 
-        `✅ *Місто обрано!*\n` +
-        `💼 *Крок 8/9:* Оберіть вашу посаду`,
+        `✅ *Заклад обрано!*\n` +
+        `🏢 Заклад вибрано\n` +
+        `\n💼 *Крок 9/9:* Оберіть вашу посаду`,
         {
           reply_markup: {
             inline_keyboard: keyboard
@@ -3451,9 +3452,9 @@ class TelegramService {
         callback_data: 'skip_institution'
       }]);
 
-      let messageText = `✅ *Посада обрана!*\n` +
-        `💼 ${pendingRegistration.data.positionId ? 'Обрано' : 'Не обрано'}\n` +
-        `\n🏢 *Крок 9/9:* Оберіть заклад (необов'язково)`;
+      let messageText = `✅ *Місто обрано!*\n` +
+        `🏙️ Місто вибрано\n` +
+        `\n🏢 *Крок 8/9:* Оберіть заклад (необов'язково)`;
       
       if (institutions.length === 0) {
         messageText += `\n⚠️ Немає доступних закладів для вибраного міста`;
@@ -3506,7 +3507,7 @@ class TelegramService {
       if (data.startsWith('city_')) {
         const cityId = data.replace('city_', '');
         pendingRegistration.data.cityId = cityId;
-        pendingRegistration.step = 'position';
+        pendingRegistration.step = 'institution'; // Спочатку показуємо заклади, потім посаду
         await pendingRegistration.save();
         logger.info('City selected:', { 
           cityId, 
@@ -3539,7 +3540,7 @@ class TelegramService {
         }
         
         pendingRegistration.data.positionId = positionId;
-        pendingRegistration.step = 'institution';
+        pendingRegistration.step = 'completed'; // Після вибору посади завершуємо реєстрацію
         await pendingRegistration.save();
         logger.info('Position selected:', { 
           positionId, 
@@ -3553,12 +3554,12 @@ class TelegramService {
       } else if (data.startsWith('institution_')) {
         const institutionId = data.replace('institution_', '');
         pendingRegistration.data.institutionId = institutionId;
-        pendingRegistration.step = 'completed';
+        pendingRegistration.step = 'position'; // Після вибору закладу показуємо посади
         await pendingRegistration.save();
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       } else if (data === 'skip_institution') {
         pendingRegistration.data.institutionId = null;
-        pendingRegistration.step = 'completed';
+        pendingRegistration.step = 'position'; // Після пропуску закладу показуємо посади
         await pendingRegistration.save();
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
       }
@@ -4150,7 +4151,7 @@ class TelegramService {
           const pendingRegistration = positionRequest.pendingRegistrationId;
           if (pendingRegistration && pendingRegistration.step === 'position_request') {
             pendingRegistration.data.positionId = createdPosition._id.toString();
-            pendingRegistration.step = 'institution';
+            pendingRegistration.step = 'completed'; // Після створення посади завершуємо реєстрацію
             await pendingRegistration.save();
 
             const telegramUserId = pendingRegistration.telegramId;
