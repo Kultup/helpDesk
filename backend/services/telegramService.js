@@ -2519,17 +2519,45 @@ class TelegramService {
         return;
       }
 
+      const userId = positionRequest.telegramId;
+      
+      // Відправляємо повідомлення про відхилення
       let message = 
         `❌ *Запит на посаду відхилено*\n\n` +
-        `💼 *Посада:* ${positionRequest.title}\n\n`;
+        `💼 *Посада:* ${this.escapeMarkdown(positionRequest.title)}\n\n`;
 
       if (reason) {
-        message += `📝 *Причина:* ${reason}\n\n`;
+        message += `📝 *Причина:* ${this.escapeMarkdown(reason)}\n\n`;
       }
 
-      message += `Будь ласка, оберіть іншу посаду зі списку або зверніться до адміністратора.`;
-
       await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+
+      // Якщо є активна реєстрація, показуємо список доступних посад
+      if (positionRequest.pendingRegistrationId && userId) {
+        const pendingRegistration = await PendingRegistration.findById(positionRequest.pendingRegistrationId);
+        
+        if (pendingRegistration) {
+          // Оновлюємо крок реєстрації на 'position', щоб користувач міг вибрати посаду
+          pendingRegistration.step = 'position';
+          await pendingRegistration.save();
+          
+          // Показуємо список доступних посад
+          await this.sendPositionSelection(chatId, userId, pendingRegistration);
+          
+          logger.info('✅ Показано список посад після відхилення запиту', {
+            chatId,
+            userId,
+            requestId: positionRequest._id,
+            pendingRegistrationId: pendingRegistration._id
+          });
+          return;
+        }
+      }
+
+      // Якщо немає активної реєстрації, просто показуємо повідомлення
+      message = `Будь ласка, оберіть іншу посаду зі списку або зверніться до адміністратора.`;
+      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      
       logger.info('✅ Сповіщення про відхилення посади відправлено користувачу', {
         chatId,
         requestId: positionRequest._id
