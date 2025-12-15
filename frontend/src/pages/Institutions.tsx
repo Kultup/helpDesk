@@ -48,7 +48,8 @@ const Institutions: React.FC = () => {
   const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
   const [selectedInstitutions, setSelectedInstitutions] = useState<string[]>([]);
   const [formData, setFormData] = useState({
-    name: ''
+    name: '',
+    city: ''
   });
 
 
@@ -115,10 +116,17 @@ const Institutions: React.FC = () => {
       setLoading(true);
       setError('');
       
-      // Відправляємо тільки назву закладу
-      const submitData = {
+      // Відправляємо дані закладу
+      const submitData: any = {
         name: formData.name.trim()
       };
+      
+      // Додаємо місто, якщо воно вибрано
+      if (formData.city) {
+        submitData.address = {
+          city: formData.city
+        };
+      }
 
       if (editingInstitution) {
         await institutionService.update(editingInstitution._id, submitData);
@@ -138,7 +146,8 @@ const Institutions: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      name: ''
+      name: '',
+      city: ''
     });
     setEditingInstitution(null);
   };
@@ -147,7 +156,10 @@ const Institutions: React.FC = () => {
   const handleEdit = (institution: Institution) => {
     setEditingInstitution(institution);
     setFormData({
-      name: institution.name
+      name: institution.name,
+      city: typeof institution.address?.city === 'object' 
+        ? institution.address.city._id 
+        : institution.address?.city || ''
     });
     setShowAddForm(true);
   };
@@ -266,6 +278,25 @@ const Institutions: React.FC = () => {
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-foreground bg-surface"
                 placeholder={t('institutions.institutionPlaceholder')}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-foreground mb-1">
+                {t('institutions.city') || 'Місто'} *
+              </label>
+              <select
+                required
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-foreground bg-surface"
+              >
+                <option value="">{t('institutions.selectCity') || 'Оберіть місто'}</option>
+                {cities.map((city) => (
+                  <option key={city._id} value={city._id}>
+                    {city.name}{city.region ? ` (${city.region})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sm:space-x-3 pt-3 sm:pt-4 border-t border-border">
