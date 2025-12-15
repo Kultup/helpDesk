@@ -38,6 +38,8 @@ export interface User {
   city: string | City;
   telegramId?: string;
   telegramUsername?: string;
+  telegramChatId?: string;
+  avatar?: string;
   isActive: boolean;
   deletedAt?: string;
   deletedBy?: string;

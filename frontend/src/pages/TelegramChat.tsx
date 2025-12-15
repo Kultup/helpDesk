@@ -44,7 +44,7 @@ const TelegramChat: React.FC = () => {
         const response = await apiService.getTelegramMessages(id);
         
         if (response.success && response.data) {
-          setMessages(response.data as TelegramMessage[]);
+          setMessages(response.data);
           
           // Завантажуємо інформацію про тікет
           const ticketResponse = await apiService.getTicketById(id);
@@ -80,7 +80,7 @@ const TelegramChat: React.FC = () => {
         // Оновлюємо список повідомлень
         const messagesResponse = await apiService.getTelegramMessages(id);
         if (messagesResponse.success && messagesResponse.data) {
-          setMessages(messagesResponse.data as TelegramMessage[]);
+          setMessages(messagesResponse.data);
         }
       }
     } catch (error) {

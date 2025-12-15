@@ -34,6 +34,7 @@ import {
   CreateInstitutionData,
   InstitutionsResponse,
   InstitutionType,
+  TelegramMessage,
 } from '../types';
 
 // Реекспорт для зручності
@@ -1273,7 +1274,7 @@ class ApiService {
   }
 
   // Отримати Telegram повідомлення для тікету
-  async getTelegramMessages(ticketId: string): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+  async getTelegramMessages(ticketId: string): Promise<ApiResponse<TelegramMessage[]>> {
     return this.get(`/tickets/${ticketId}/telegram-messages`);
   }
 
