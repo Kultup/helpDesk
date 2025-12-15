@@ -8,7 +8,9 @@ import {
   Download,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -27,6 +29,7 @@ import { getStatusColor, getPriorityColor, formatDate, formatDaysAgo, cn } from 
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import DayIndicator from '../components/DayIndicator';
+import { apiService } from '../services/api';
 
 const Tickets: React.FC = () => {
   const { t } = useTranslation();
@@ -62,6 +65,7 @@ const Tickets: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
 
   // Обробка URL параметрів при завантаженні сторінки
   useEffect(() => {
@@ -149,6 +153,64 @@ const Tickets: React.FC = () => {
     setIsExportModalOpen(true);
   };
 
+  // Обробка вибору/зняття вибору заявки
+  const handleToggleSelect = (ticketId: string): void => {
+    setSelectedTickets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ticketId)) {
+        newSet.delete(ticketId);
+      } else {
+        newSet.add(ticketId);
+      }
+      return newSet;
+    });
+  };
+
+  // Обробка вибору всіх заявок на поточній сторінці
+  const handleSelectAll = (): void => {
+    if (selectedTickets.size === displayTickets.length && 
+        displayTickets.every(t => selectedTickets.has(t._id))) {
+      // Зняти вибір з усіх
+      setSelectedTickets(new Set());
+    } else {
+      // Вибрати всі на поточній сторінці
+      setSelectedTickets(new Set(displayTickets.map(t => t._id)));
+    }
+  };
+
+  // Масове видалення заявок
+  const handleBulkDelete = async (): Promise<void> => {
+    if (selectedTickets.size === 0) return;
+
+    const selectedTicketsArray = Array.from(selectedTickets);
+    const selectedTicketsData = displayTickets.filter(t => selectedTicketsArray.includes(t._id));
+    
+    showConfirmation({
+      title: 'Видалити вибрані заявки?',
+      message: `Ви впевнені, що хочете видалити ${selectedTickets.size} заявок? Цю дію неможливо скасувати.`,
+      type: 'danger',
+      confirmText: 'Видалити',
+      cancelText: 'Скасувати',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.bulkDeleteTickets(selectedTicketsArray);
+          if (response.success) {
+            setSelectedTickets(new Set());
+            await refetch();
+            hideConfirmation();
+          } else {
+            throw new Error(response.message || 'Помилка видалення заявок');
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Помилка масового видалення заявок:', error);
+          hideConfirmation();
+        }
+      },
+      onCancel: hideConfirmation
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -160,6 +222,15 @@ const Tickets: React.FC = () => {
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex space-x-3">
+          {isAdmin && selectedTickets.size > 0 && (
+            <Button 
+              variant="danger" 
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Видалити вибрані ({selectedTickets.size})
+            </Button>
+          )}
           <Button variant="outline" onClick={handleExportClick}>
             <Download className="h-4 w-4 mr-2" />
             {t('common.export')}
@@ -243,11 +314,39 @@ const Tickets: React.FC = () => {
           ) : isMobile ? (
             // Mobile Card View
             <div className="space-y-3 sm:space-y-4">
+              {isAdmin && displayTickets.length > 0 && (
+                <div className="px-3 sm:px-4 py-2 border-b border-border flex items-center justify-between">
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center gap-2 text-sm text-foreground hover:text-primary"
+                  >
+                    {selectedTickets.size === displayTickets.length && 
+                     displayTickets.every(t => selectedTickets.has(t._id)) ? (
+                      <CheckSquare className="h-5 w-5 text-primary" />
+                    ) : (
+                      <Square className="h-5 w-5" />
+                    )}
+                    <span>Вибрати всі</span>
+                  </button>
+                </div>
+              )}
               {displayTickets.map((ticket) => (
                 <Card key={ticket._id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-3 sm:p-4">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between">
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleToggleSelect(ticket._id)}
+                            className="mr-2 mt-1 flex-shrink-0"
+                          >
+                            {selectedTickets.has(ticket._id) ? (
+                              <CheckSquare className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Square className="h-5 w-5 text-text-secondary" />
+                            )}
+                          </button>
+                        )}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm sm:text-base font-semibold text-foreground mb-1 line-clamp-2">
                             {ticket.title}
@@ -332,6 +431,22 @@ const Tickets: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-surface border-b border-border">
                   <tr>
+                    {isAdmin && (
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider w-12">
+                        <button
+                          onClick={handleSelectAll}
+                          className="flex items-center"
+                          title="Вибрати всі"
+                        >
+                          {selectedTickets.size === displayTickets.length && 
+                           displayTickets.every(t => selectedTickets.has(t._id)) ? (
+                            <CheckSquare className="h-5 w-5 text-primary" />
+                          ) : (
+                            <Square className="h-5 w-5 text-text-secondary" />
+                          )}
+                        </button>
+                      </th>
+                    )}
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-text-secondary uppercase tracking-wider">
                       {t('tickets.table.ticket')}
                     </th>
@@ -358,6 +473,20 @@ const Tickets: React.FC = () => {
                 <tbody className="bg-surface divide-y divide-border">
                   {displayTickets.map((ticket) => (
                     <tr key={ticket._id} className="hover:bg-surface/50">
+                      {isAdmin && (
+                        <td className="px-4 sm:px-6 py-4">
+                          <button
+                            onClick={() => handleToggleSelect(ticket._id)}
+                            className="flex items-center"
+                          >
+                            {selectedTickets.has(ticket._id) ? (
+                              <CheckSquare className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Square className="h-5 w-5 text-text-secondary" />
+                            )}
+                          </button>
+                        </td>
+                      )}
                       <td className="px-4 sm:px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-foreground">

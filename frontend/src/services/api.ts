@@ -267,6 +267,12 @@ class ApiService {
     return response.data;
   }
 
+  async bulkDeleteTickets(ticketIds: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
+    const response: AxiosResponse<ApiResponse<{ deletedCount: number }>> = 
+      await this.api.delete('/tickets/bulk/delete', { data: { ticketIds } });
+    return response.data;
+  }
+
 
   // Методи для коментарів
   async addComment(ticketId: string, content: string): Promise<ApiResponse<Comment>> {

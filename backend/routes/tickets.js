@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Joi = require('joi');
-const { body, query, param } = require('express-validator');
+const { body, query, param, validationResult } = require('express-validator');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
 const Category = require('../models/Category');
@@ -719,6 +719,78 @@ router.put('/:id',
       res.status(500).json({
         success: false,
         message: 'Помилка сервера'
+      });
+    }
+  }
+);
+
+// @route   DELETE /api/tickets/bulk/delete
+// @desc    Масове видалення тікетів
+// @access  Private (Admin only)
+router.delete('/bulk/delete',
+  authenticateToken,
+  requirePermission('delete_tickets'),
+  [
+    body('ticketIds')
+      .isArray({ min: 1 })
+      .withMessage('ticketIds повинен бути непустим масивом'),
+    body('ticketIds.*')
+      .isMongoId()
+      .withMessage('Кожен ID тікету повинен бути валідним')
+  ],
+  logUserAction('масово видалив тікети'),
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Помилки валідації',
+          errors: errors.array()
+        });
+      }
+
+      const { ticketIds } = req.body;
+
+      // Перевірка чи існують тікети
+      const tickets = await Ticket.find({ _id: { $in: ticketIds } });
+      if (tickets.length !== ticketIds.length) {
+        return res.status(404).json({
+          success: false,
+          message: 'Деякі тікети не знайдено'
+        });
+      }
+
+      // Видалення файлів для всіх тікетів
+      tickets.forEach(ticket => {
+        ticket.attachments.forEach(attachment => {
+          if (fs.existsSync(attachment.path)) {
+            try {
+              fs.unlinkSync(attachment.path);
+            } catch (fileError) {
+              logger.error(`Помилка видалення файлу ${attachment.path}:`, fileError);
+            }
+          }
+        });
+      });
+
+      // Видалення тікетів
+      const result = await Ticket.deleteMany({ _id: { $in: ticketIds } });
+
+      res.json({
+        success: true,
+        message: `Успішно видалено ${result.deletedCount} тікетів`,
+        data: {
+          deletedCount: result.deletedCount
+        }
+      });
+
+    } catch (error) {
+      logger.error('Помилка масового видалення тікетів:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка сервера при масовому видаленні',
+        error: error.message
       });
     }
   }
