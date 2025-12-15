@@ -245,12 +245,13 @@ const Cities: React.FC = () => {
           });
         } else if (!shouldBeLinked && isCurrentlyLinked) {
           // Відв'язуємо заклад від міста
+          const { city, ...addressWithoutCity } = institution.address || {};
           await institutionService.update(institution._id, {
             address: {
-              ...institution.address,
-              city: null
+              ...addressWithoutCity,
+              city: undefined
             }
-          });
+          } as any);
         }
       });
       
