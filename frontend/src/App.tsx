@@ -10,7 +10,6 @@ import './i18n'; // Ініціалізація i18n
 import logService from './services/logService'; // Ініціалізація логів
 import { Toaster } from 'react-hot-toast';
 import SocketNotifications from './components/SocketNotifications';
-import RatingRequestChecker from './components/RatingRequestChecker';
 
 // Імпорт компонентів
 import Login from './pages/Login';
@@ -90,7 +89,6 @@ const App: React.FC = () => {
           <Toaster position="top-right" />
           <ErrorNotifications />
           <SocketNotifications />
-          <RatingRequestChecker />
           <Router>
             <RoleBasedRedirect />
             <Routes>
