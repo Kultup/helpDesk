@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Tickets from './pages/Tickets';
 import TicketDetails from './pages/TicketDetails';
+import TelegramChat from './pages/TelegramChat';
 import CreateTicket from './pages/CreateTicket';
 import Cities from './pages/Cities';
 import Positions from './pages/Positions';
@@ -111,6 +112,7 @@ const App: React.FC = () => {
             <Route path="tickets" element={<Tickets />} />
             <Route path="tickets/create" element={<CreateTicket />} />
             <Route path="tickets/:id" element={<TicketDetails />} />
+            <Route path="tickets/:id/telegram-chat" element={<TelegramChat />} />
             <Route path="settings" element={<Settings />} />
 
             

@@ -250,7 +250,23 @@ export interface Comment {
   createdAt: string;
 }
 
-
+// Типи Telegram повідомлень
+export interface TelegramMessage {
+  _id: string;
+  ticketId: string;
+  senderId: string | User;
+  recipientId: string | User;
+  content: string;
+  direction: 'admin_to_user' | 'user_to_admin';
+  telegramMessageId?: string;
+  telegramChatId?: string;
+  isRead: boolean;
+  readAt?: string;
+  sentAt: string;
+  deliveredAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Типи аналітики
 export interface AnalyticsData {
@@ -671,7 +687,6 @@ export interface Institution {
   createdAt: string;
   updatedAt: string;
 }
-
 export interface CreateInstitutionData {
   name: string;
   nameEn?: string;
@@ -727,3 +742,4 @@ export interface InstitutionsResponse {
     hasPrevPage: boolean;
   };
 }
+

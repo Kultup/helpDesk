@@ -3850,21 +3850,46 @@ class TelegramService {
         return false;
       }
 
-      // Зберігаємо повідомлення як коментар до тікету
-      ticket.comments.push({
-        author: user._id,
-        content: `[Telegram] ${text.trim()}`,
-        isInternal: false,
-        createdAt: new Date()
-      });
-      await ticket.save();
+      // Зберігаємо повідомлення в окрему колекцію TelegramMessage
+      const TelegramMessage = require('../models/TelegramMessage');
+      
+      // Знаходимо останнє повідомлення від адміна, щоб визначити, хто є адміном
+      const lastAdminMessage = await TelegramMessage.findOne({
+        ticketId: ticket._id,
+        direction: 'admin_to_user'
+      }).sort({ createdAt: -1 });
+      
+      const adminId = lastAdminMessage ? lastAdminMessage.senderId : null;
+      
+      // Якщо адміна не знайдено, шукаємо адмінів тікету (можна розширити логіку)
+      let recipientAdminId = adminId;
+      if (!recipientAdminId) {
+        // Для простоти беремо першого адміна (можна покращити)
+        const User = require('../models/User');
+        const admin = await User.findOne({ role: 'admin' });
+        recipientAdminId = admin ? admin._id : null;
+      }
 
-      // Відправляємо WebSocket сповіщення про новий коментар
+      const telegramMsg = new TelegramMessage({
+        ticketId: ticket._id,
+        senderId: user._id,
+        recipientId: recipientAdminId || user._id, // Якщо адміна немає, зберігаємо як відправника
+        content: text.trim(),
+        direction: 'user_to_admin',
+        telegramChatId: String(chatId),
+        sentAt: new Date(),
+        deliveredAt: new Date()
+      });
+      await telegramMsg.save();
+
+      // Відправляємо WebSocket сповіщення про нове Telegram повідомлення
       try {
         const ticketWebSocketService = require('./ticketWebSocketService');
-        await ticket.populate('comments.author', 'firstName lastName email');
-        const newComment = ticket.comments[ticket.comments.length - 1];
-        ticketWebSocketService.notifyNewComment(ticket._id.toString(), newComment);
+        await telegramMsg.populate([
+          { path: 'senderId', select: 'firstName lastName email' },
+          { path: 'recipientId', select: 'firstName lastName email' }
+        ]);
+        ticketWebSocketService.notifyNewTelegramMessage(ticket._id.toString(), telegramMsg);
       } catch (wsError) {
         logger.error('Помилка відправки WebSocket сповіщення:', wsError);
       }

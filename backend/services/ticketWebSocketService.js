@@ -117,6 +117,50 @@ class TicketWebSocketService {
       logger.error('❌ Помилка відправки WebSocket запиту на оцінку:', error);
     }
   }
+
+  // Сповіщення про новий коментар
+  notifyNewComment(ticketId, comment) {
+    if (!this.io) {
+      logger.warn('⚠️ TicketWebSocketService не ініціалізовано');
+      return;
+    }
+
+    try {
+      // Відправляємо сповіщення всім адміністраторам в admin-room
+      this.io.to('admin-room').emit('ticket-comment', {
+        type: 'new_comment',
+        ticketId: ticketId,
+        data: comment,
+        timestamp: new Date().toISOString()
+      });
+
+      logger.info(`📢 Відправлено WebSocket сповіщення про новий коментар до тікету: ${ticketId}`);
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про новий коментар:', error);
+    }
+  }
+
+  // Сповіщення про нове Telegram повідомлення
+  notifyNewTelegramMessage(ticketId, message) {
+    if (!this.io) {
+      logger.warn('⚠️ TicketWebSocketService не ініціалізовано');
+      return;
+    }
+
+    try {
+      // Відправляємо сповіщення всім адміністраторам в admin-room
+      this.io.to('admin-room').emit('telegram-message', {
+        type: 'new_telegram_message',
+        ticketId: ticketId,
+        data: message,
+        timestamp: new Date().toISOString()
+      });
+
+      logger.info(`📱 Відправлено WebSocket сповіщення про нове Telegram повідомлення до тікету: ${ticketId}`);
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про нове Telegram повідомлення:', error);
+    }
+  }
 }
 
 module.exports = new TicketWebSocketService();

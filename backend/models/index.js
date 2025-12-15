@@ -22,6 +22,7 @@ const Attachment = require('./Attachment');
 const ZabbixConfig = require('./ZabbixConfig');
 const ZabbixAlert = require('./ZabbixAlert');
 const ZabbixAlertGroup = require('./ZabbixAlertGroup');
+const TelegramMessage = require('./TelegramMessage');
 
 module.exports = {
   User,
@@ -45,4 +46,5 @@ module.exports = {
   ZabbixConfig,
   ZabbixAlert,
   ZabbixAlertGroup,
+  TelegramMessage,
 };

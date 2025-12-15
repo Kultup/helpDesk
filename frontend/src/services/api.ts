@@ -1272,6 +1272,16 @@ class ApiService {
     return this.post(`/tickets/${ticketId}/rate`, { rating, feedback });
   }
 
+  // Отримати Telegram повідомлення для тікету
+  async getTelegramMessages(ticketId: string): Promise<ApiResponse<Array<Record<string, unknown>>>> {
+    return this.get(`/tickets/${ticketId}/telegram-messages`);
+  }
+
+  // Відправити Telegram повідомлення користувачу
+  async sendTelegramMessageToUser(ticketId: string, content: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post(`/tickets/${ticketId}/send-telegram-message`, { content });
+  }
+
 
   // Налаштування Telegram
   async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {

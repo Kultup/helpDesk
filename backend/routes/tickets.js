@@ -1045,26 +1045,34 @@ router.post('/:id/send-telegram-message',
         `💬 *Повідомлення від адміністратора*\n\n` +
         `📋 *Тікет:* ${ticket.title}\n` +
         `🆔 \`${ticket._id}\`\n\n` +
-        `${message.trim()}\n\n` +
+        `${messageContent.trim()}\n\n` +
         `💡 Ви можете відповісти на це повідомлення, і ваша відповідь буде додана як коментар до тікету.`;
 
       try {
-        await telegramService.sendMessage(chatId, telegramMessage, { parse_mode: 'Markdown' });
+        const result = await telegramService.sendMessage(chatId, telegramMessage, { parse_mode: 'Markdown' });
         
-        // Зберігаємо повідомлення як коментар до тікету
-        ticket.comments.push({
-          author: req.user._id,
-          content: `[Telegram] ${message.trim()}`,
-          isInternal: false,
-          createdAt: new Date()
+        // Зберігаємо повідомлення в окрему колекцію TelegramMessage
+        const TelegramMessage = require('../models/TelegramMessage');
+        const telegramMsg = new TelegramMessage({
+          ticketId: ticket._id,
+          senderId: req.user._id,
+          recipientId: user._id,
+          content: messageContent.trim(),
+          direction: 'admin_to_user',
+          telegramMessageId: result?.message_id?.toString() || null,
+          telegramChatId: String(chatId),
+          sentAt: new Date(),
+          deliveredAt: new Date()
         });
-        await ticket.save();
+        await telegramMsg.save();
 
-        // Відправляємо WebSocket сповіщення про новий коментар
+        // Відправляємо WebSocket сповіщення про нове повідомлення
         try {
-          await ticket.populate('comments.author', 'firstName lastName email');
-          const newComment = ticket.comments[ticket.comments.length - 1];
-          ticketWebSocketService.notifyNewComment(ticket._id.toString(), newComment);
+          await telegramMsg.populate([
+            { path: 'senderId', select: 'firstName lastName email' },
+            { path: 'recipientId', select: 'firstName lastName email' }
+          ]);
+          ticketWebSocketService.notifyNewTelegramMessage(ticket._id.toString(), telegramMsg);
         } catch (wsError) {
           logger.error('Помилка відправки WebSocket сповіщення:', wsError);
         }
@@ -1109,6 +1117,52 @@ router.post('/:id/send-telegram-message',
       }
     } catch (error) {
       logger.error('Помилка відправки повідомлення через Telegram:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка сервера'
+      });
+    }
+  }
+);
+
+// GET /api/tickets/:id/telegram-messages - Отримати всі Telegram повідомлення для тікету
+router.get('/:id/telegram-messages',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const TelegramMessage = require('../models/TelegramMessage');
+      const ticket = await Ticket.findById(req.params.id);
+      
+      if (!ticket) {
+        return res.status(404).json({
+          success: false,
+          message: 'Тікет не знайдено'
+        });
+      }
+
+      // Перевірка доступу: тільки адміни або автор тікету можуть переглядати повідомлення
+      const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+      const isCreator = String(ticket.createdBy) === String(req.user._id);
+      
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Доступ заборонено'
+        });
+      }
+
+      // Отримуємо всі повідомлення для тікету, відсортовані за датою
+      const messages = await TelegramMessage.find({ ticketId: ticket._id })
+        .populate('senderId', 'firstName lastName email avatar')
+        .populate('recipientId', 'firstName lastName email avatar')
+        .sort({ createdAt: 1 }); // Сортування за датою (від старіших до новіших)
+
+      res.json({
+        success: true,
+        data: messages
+      });
+    } catch (error) {
+      logger.error('Помилка отримання Telegram повідомлень:', error);
       res.status(500).json({
         success: false,
         message: 'Помилка сервера'

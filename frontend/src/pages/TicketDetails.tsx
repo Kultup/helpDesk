@@ -11,7 +11,7 @@ import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
-import { Send } from 'lucide-react';
+import { Send, MessageCircle } from 'lucide-react';
 
 import { formatDate } from '../utils';
 
@@ -232,15 +232,26 @@ const TicketDetails: React.FC = () => {
             ← {t('tickets.backToTickets')}
           </Link>
           {isAdmin && ticket.createdBy && typeof ticket.createdBy === 'object' && (
-            <Button
-              onClick={() => setIsTelegramModalOpen(true)}
-              variant="primary"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" />
-              Написати в Telegram
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate(`/tickets/${id}/telegram-chat`)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Telegram чат
+              </Button>
+              <Button
+                onClick={() => setIsTelegramModalOpen(true)}
+                variant="primary"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Написати в Telegram
+              </Button>
+            </div>
           )}
         </div>
         <h1 className="text-3xl font-bold text-gray-900">{ticket.title}</h1>
