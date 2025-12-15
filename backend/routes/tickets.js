@@ -1004,16 +1004,17 @@ router.post('/:id/send-telegram-message',
   requirePermission('tickets.manage'),
   async (req, res) => {
     try {
-      const { message } = req.body;
+      const { content, message } = req.body;
+      const messageContent = content || message; // Підтримка обох варіантів для сумісності
       
-      if (!message || !message.trim()) {
+      if (!messageContent || !messageContent.trim()) {
         return res.status(400).json({
           success: false,
           message: 'Повідомлення не може бути порожнім'
         });
       }
 
-      if (message.length > 1000) {
+      if (messageContent.length > 1000) {
         return res.status(400).json({
           success: false,
           message: 'Повідомлення не може перевищувати 1000 символів'
