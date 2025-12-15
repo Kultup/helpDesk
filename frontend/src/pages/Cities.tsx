@@ -237,13 +237,13 @@ const Cities: React.FC = () => {
         
         if (shouldBeLinked && !isCurrentlyLinked) {
           // Прив'язуємо заклад до міста
-          const { city, ...addressWithoutCity } = institution.address || {};
+          const { city: _, ...addressWithoutCity } = institution.address || {};
           await institutionService.update(institution._id, {
             address: {
               ...addressWithoutCity,
               city: cityId
             }
-          });
+          } as any);
         } else if (!shouldBeLinked && isCurrentlyLinked) {
           // Відв'язуємо заклад від міста
           const { city, ...addressWithoutCity } = institution.address || {};
