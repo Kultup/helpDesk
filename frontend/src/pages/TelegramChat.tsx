@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { TelegramMessage, User } from '../types';
+import { TelegramMessage, User, UserRole } from '../types';
 import { apiService } from '../services/api';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -14,6 +14,7 @@ const TelegramChat: React.FC = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [messages, setMessages] = useState<TelegramMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +24,9 @@ const TelegramChat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isAdmin = user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN;
+  // Визначаємо basePath на основі поточного шляху
+  const basePath = location.pathname.includes('/admin/') ? '/admin' : '';
 
   // Прокрутка до останнього повідомлення
   const scrollToBottom = () => {
@@ -130,7 +133,7 @@ const TelegramChat: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
-              to={`/tickets/${id}`}
+              to={`${basePath}/tickets/${id}`}
               className="text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-5 h-5" />

@@ -234,7 +234,7 @@ const TicketDetails: React.FC = () => {
           {isAdmin && ticket.createdBy && typeof ticket.createdBy === 'object' && (
             <div className="flex items-center gap-2">
               <Button
-                onClick={() => navigate(`/tickets/${id}/telegram-chat`)}
+                onClick={() => navigate(`${basePath}/tickets/${id}/telegram-chat`)}
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-2"

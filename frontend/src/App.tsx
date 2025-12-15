@@ -137,6 +137,11 @@ const App: React.FC = () => {
                 <TicketDetails />
               </ProtectedRoute>
             } />
+            <Route path="admin/tickets/:id/telegram-chat" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <TelegramChat />
+              </ProtectedRoute>
+            } />
             <Route path="admin/users" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Users />
