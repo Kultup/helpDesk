@@ -1070,9 +1070,26 @@ router.post('/:id/send-telegram-message',
         }
 
         // Зберігаємо інформацію про активний тікет для користувача (для обробки відповідей)
-        await telegramService.setActiveTicketForUser(chatId, ticket._id.toString());
+        // Встановлюємо активний тікет для обох варіантів chatId (telegramChatId та telegramId)
+        await telegramService.setActiveTicketForUser(String(chatId), ticket._id.toString());
+        
+        // Також встановлюємо за telegramId, якщо він відрізняється від chatId
+        if (user.telegramId && String(user.telegramId) !== String(chatId)) {
+          await telegramService.setActiveTicketForUser(String(user.telegramId), ticket._id.toString());
+        }
+        
+        // Також встановлюємо за userId (якщо потрібно)
+        const userId = user.telegramId || chatId;
+        if (String(userId) !== String(chatId)) {
+          await telegramService.setActiveTicketForUser(String(userId), ticket._id.toString());
+        }
 
-        logger.info(`Повідомлення відправлено користувачу ${user.email} через Telegram для тікету ${ticket._id}`);
+        logger.info(`Повідомлення відправлено користувачу ${user.email} через Telegram для тікету ${ticket._id}`, {
+          chatId: String(chatId),
+          telegramId: user.telegramId,
+          telegramChatId: user.telegramChatId,
+          ticketId: ticket._id.toString()
+        });
         
         res.json({
           success: true,

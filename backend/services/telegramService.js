@@ -382,7 +382,7 @@ class TelegramService {
           break;
         case '/menu':
           // Очищаємо активний тікет та показуємо головне меню
-          this.clearActiveTicketForUser(chatId);
+          this.clearActiveTicketForUser(chatId, user);
           if (user) {
             await this.showUserDashboard(chatId, user);
           } else {
@@ -1485,7 +1485,35 @@ class TelegramService {
     // Якщо користувач зареєстрований, не проводимо реєстрацію
     if (existingUser) {
       // Перевіряємо, чи є активний тікет для відповіді
-      const activeTicketId = this.activeTickets.get(String(chatId));
+      // Перевіряємо обидва варіанти chatId (telegramChatId та telegramId)
+      const chatIdString = String(chatId);
+      const userIdString = String(userId);
+      
+      // Спочатку перевіряємо за chatId (якщо встановлено через telegramChatId)
+      let activeTicketId = this.activeTickets.get(chatIdString);
+      
+      // Якщо не знайдено, перевіряємо за telegramId (якщо встановлено через telegramId)
+      if (!activeTicketId && existingUser.telegramId) {
+        activeTicketId = this.activeTickets.get(String(existingUser.telegramId));
+      }
+      
+      // Також перевіряємо, чи це reply на повідомлення від бота
+      if (!activeTicketId && msg.reply_to_message) {
+        // Якщо користувач відповідає на повідомлення, перевіряємо активний тікет
+        // Можна також перевірити за userId
+        activeTicketId = this.activeTickets.get(userIdString);
+      }
+      
+      logger.info('Перевірка активного тікету для відповіді:', {
+        chatId: chatIdString,
+        userId: userIdString,
+        userTelegramId: existingUser.telegramId,
+        userTelegramChatId: existingUser.telegramChatId,
+        activeTicketId,
+        hasReply: !!msg.reply_to_message,
+        activeTicketsKeys: Array.from(this.activeTickets.keys())
+      });
+      
       if (activeTicketId) {
         const handled = await this.handleTicketReply(chatId, text, activeTicketId, existingUser);
         if (handled) {
@@ -3772,10 +3800,27 @@ class TelegramService {
 
   /**
    * Видалити активний тікет для користувача
+   * Очищає всі варіанти chatId (telegramChatId та telegramId)
    */
-  clearActiveTicketForUser(chatId) {
-    this.activeTickets.delete(String(chatId));
-    logger.info(`Видалено активний тікет для користувача ${chatId}`);
+  clearActiveTicketForUser(chatId, user = null) {
+    const chatIdString = String(chatId);
+    this.activeTickets.delete(chatIdString);
+    
+    // Якщо передано користувача, очищаємо також за telegramId
+    if (user) {
+      if (user.telegramId && String(user.telegramId) !== chatIdString) {
+        this.activeTickets.delete(String(user.telegramId));
+      }
+      if (user.telegramChatId && String(user.telegramChatId) !== chatIdString) {
+        this.activeTickets.delete(String(user.telegramChatId));
+      }
+    }
+    
+    logger.info(`Видалено активний тікет для користувача ${chatId}`, {
+      chatId: chatIdString,
+      userTelegramId: user?.telegramId,
+      userTelegramChatId: user?.telegramChatId
+    });
   }
 
   /**
@@ -3791,7 +3836,7 @@ class TelegramService {
           '❌ Тікет не знайдено. Активний тікет очищено.',
           { parse_mode: 'Markdown' }
         );
-        this.clearActiveTicketForUser(chatId);
+        this.clearActiveTicketForUser(chatId, user);
         return false;
       }
 
@@ -3801,7 +3846,7 @@ class TelegramService {
           '❌ Ви не маєте прав для відповіді на цей тікет.',
           { parse_mode: 'Markdown' }
         );
-        this.clearActiveTicketForUser(chatId);
+        this.clearActiveTicketForUser(chatId, user);
         return false;
       }
 
