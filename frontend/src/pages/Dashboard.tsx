@@ -461,24 +461,26 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-          {/* Key Metrics Section */}
-          <div className="mb-6 sm:mb-8 lg:mb-12">
-            <div className="mb-5 sm:mb-6 flex items-center">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
-                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+          {/* Key Metrics Section - Only for Admins */}
+          {isAdmin && (
+            <div className="mb-6 sm:mb-8 lg:mb-12">
+              <div className="mb-5 sm:mb-6 flex items-center">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
+                    <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                    {t('dashboard.keyMetrics')}
+                  </h2>
                 </div>
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                  {t('dashboard.keyMetrics')}
-                </h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
+                {statsArray.map((stat, index) => (
+                  <StatCard key={index} {...stat} />
+                ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-              {statsArray.map((stat, index) => (
-                <StatCard key={index} {...stat} />
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Main Content Grid */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-8">
