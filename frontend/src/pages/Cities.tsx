@@ -142,7 +142,7 @@ const Cities: React.FC = () => {
         }
       } else {
         const newCity = await createCity(cityData);
-        savedCityId = newCity._id || newCity.data?._id;
+        savedCityId = newCity._id;
         
         // Оновлюємо прив'язку закладів до міста
         if (formData.institutions && formData.institutions.length > 0) {
@@ -237,10 +237,11 @@ const Cities: React.FC = () => {
         
         if (shouldBeLinked && !isCurrentlyLinked) {
           // Прив'язуємо заклад до міста
+          const { city, ...addressWithoutCity } = institution.address || {};
           await institutionService.update(institution._id, {
             address: {
-              city: cityId,
-              ...institution.address
+              ...addressWithoutCity,
+              city: cityId
             }
           });
         } else if (!shouldBeLinked && isCurrentlyLinked) {
