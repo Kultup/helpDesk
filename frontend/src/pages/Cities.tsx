@@ -59,12 +59,27 @@ const Cities: React.FC = () => {
   const fetchAllInstitutions = async () => {
     try {
       setInstitutionsLoading(true);
+      // Завантажуємо заклади з максимальним лімітом (100)
       const response = await institutionService.getAll({
         page: 1,
-        limit: 1000,
+        limit: 100,
         isActive: true
       });
       setAllInstitutions(response.institutions);
+      
+      // Якщо є ще заклади, завантажуємо наступні сторінки
+      if (response.pagination && response.pagination.totalPages > 1) {
+        const allInstitutions = [...response.institutions];
+        for (let page = 2; page <= response.pagination.totalPages; page++) {
+          const nextResponse = await institutionService.getAll({
+            page,
+            limit: 100,
+            isActive: true
+          });
+          allInstitutions.push(...nextResponse.institutions);
+        }
+        setAllInstitutions(allInstitutions);
+      }
     } catch (err) {
       console.error('Failed to fetch institutions:', err);
     } finally {
@@ -221,15 +236,28 @@ const Cities: React.FC = () => {
 
   const updateCityInstitutions = async (cityId: string, institutionIds: string[]) => {
     try {
-      // Отримуємо всі заклади
-      const allInstResponse = await institutionService.getAll({
-        page: 1,
-        limit: 1000,
-        isActive: true
-      });
+      // Отримуємо всі заклади (з максимальним лімітом 100)
+      let allInstitutions: Institution[] = [];
+      let currentPage = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await institutionService.getAll({
+          page: currentPage,
+          limit: 100,
+          isActive: true
+        });
+        allInstitutions.push(...response.institutions);
+        
+        if (response.pagination && currentPage < response.pagination.totalPages) {
+          currentPage++;
+        } else {
+          hasMore = false;
+        }
+      }
       
       // Оновлюємо заклади: прив'язуємо вибрані до міста, відв'язуємо інші
-      const updatePromises = allInstResponse.institutions.map(async (institution) => {
+      const updatePromises = allInstitutions.map(async (institution) => {
         const shouldBeLinked = institutionIds.includes(institution._id);
         const isCurrentlyLinked = typeof institution.address?.city === 'object' 
           ? institution.address.city._id === cityId
