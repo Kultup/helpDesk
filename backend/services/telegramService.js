@@ -3104,7 +3104,18 @@ class TelegramService {
         logger.info('Created new PendingRegistration for user:', userId);
       } else {
         // Якщо є незавершена реєстрація, продовжуємо з того місця, де зупинилися
-        logger.info('Resuming existing registration from step:', pendingRegistration.step);
+        logger.info(`Resuming existing registration from step: ${pendingRegistration.step || 'undefined'}`, {
+          userId,
+          step: pendingRegistration.step,
+          data: pendingRegistration.data
+        });
+        
+        // Якщо step відсутній, встановлюємо початковий крок
+        if (!pendingRegistration.step) {
+          pendingRegistration.step = 'firstName';
+          await pendingRegistration.save();
+          logger.info('Fixed missing step, set to firstName');
+        }
       }
 
       await this.processRegistrationStep(chatId, userId, pendingRegistration);
