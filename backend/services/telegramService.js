@@ -3367,9 +3367,29 @@ class TelegramService {
           dataKeys: Object.keys(pendingRegistration.data || {})
         });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
+      } else if (data === 'position_not_found') {
+        // Користувач натиснув "Не знайшов свою посаду"
+        // Перевіряємо це ПЕРЕД перевіркою position_, щоб уникнути помилки
+        pendingRegistration.step = 'position_request';
+        await pendingRegistration.save();
+        await this.sendMessage(chatId,
+          `📝 *Введіть назву вашої посади*\n\n` +
+          `Будь ласка, введіть назву посади, яку ви хочете додати до системи.\n\n` +
+          `💡 *Приклад:* Старший інженер, Менеджер проекту, тощо\n\n` +
+          `Після додавання посади адміністратором, ви отримаєте сповіщення та зможете продовжити реєстрацію.`,
+          { parse_mode: 'Markdown' }
+        );
       } else if (data.startsWith('position_')) {
         const positionId = data.replace('position_', '');
         logger.info('Position selected:', positionId);
+        
+        // Валідація: перевіряємо, чи positionId є валідним ObjectId
+        if (!mongoose.Types.ObjectId.isValid(positionId)) {
+          logger.error('Invalid positionId:', positionId);
+          await this.sendMessage(chatId, '❌ Помилка: невалідний ідентифікатор посади. Спробуйте ще раз.');
+          return;
+        }
+        
         pendingRegistration.data.positionId = positionId;
         pendingRegistration.step = 'institution';
         await pendingRegistration.save();
@@ -3382,17 +3402,6 @@ class TelegramService {
           dataKeys: Object.keys(pendingRegistration.data || {})
         });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
-      } else if (data === 'position_not_found') {
-        // Користувач натиснув "Не знайшов свою посаду"
-        pendingRegistration.step = 'position_request';
-        await pendingRegistration.save();
-        await this.sendMessage(chatId,
-          `📝 *Введіть назву вашої посади*\n\n` +
-          `Будь ласка, введіть назву посади, яку ви хочете додати до системи.\n\n` +
-          `💡 *Приклад:* Старший інженер, Менеджер проекту, тощо\n\n` +
-          `Після додавання посади адміністратором, ви отримаєте сповіщення та зможете продовжити реєстрацію.`,
-          { parse_mode: 'Markdown' }
-        );
       } else if (data.startsWith('institution_')) {
         const institutionId = data.replace('institution_', '');
         pendingRegistration.data.institutionId = institutionId;
