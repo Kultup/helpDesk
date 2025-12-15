@@ -339,13 +339,25 @@ const updateInstitution = async (req, res) => {
     }
 
     // Перевіряємо чи існує місто якщо воно оновлюється
-    if (req.body.address?.city) {
+    if (req.body.address?.city && req.body.address.city !== null && req.body.address.city !== undefined) {
       const city = await City.findById(req.body.address.city);
       if (!city) {
         return res.status(400).json({
           success: false,
           message: 'Вказане місто не існує'
         });
+      }
+    }
+    
+    // Якщо передається address, але не всі поля, зберігаємо існуючі значення
+    if (req.body.address && institution.address) {
+      req.body.address = {
+        ...institution.address.toObject(),
+        ...req.body.address
+      };
+      // Якщо city передається як undefined, видаляємо його
+      if (req.body.address.city === undefined || req.body.address.city === null) {
+        req.body.address.city = null;
       }
     }
 

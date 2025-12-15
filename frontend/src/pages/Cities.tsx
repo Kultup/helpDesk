@@ -278,7 +278,7 @@ const Cities: React.FC = () => {
           await institutionService.update(institution._id, {
             address: {
               ...addressWithoutCity,
-              city: undefined
+              city: null
             }
           } as any);
         }

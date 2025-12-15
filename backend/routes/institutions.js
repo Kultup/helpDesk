@@ -69,20 +69,17 @@ const updateInstitutionSchema = Joi.object({
   description: Joi.string().max(1000).allow('').optional(),
   descriptionEn: Joi.string().max(1000).allow('').optional(),
   address: Joi.object({
-    street: Joi.string().max(200).required().messages({
-      'string.max': 'Адреса не може перевищувати 200 символів',
-      'any.required': 'Адреса є обов\'язковою'
+    street: Joi.string().max(200).allow('').optional().messages({
+      'string.max': 'Адреса не може перевищувати 200 символів'
     }),
     streetEn: Joi.string().max(200).allow('').optional(),
-    city: Joi.string().required().messages({
-      'any.required': 'Місто є обов\'язковим'
-    }),
-    postalCode: Joi.string().pattern(/^\d{5}$/).optional().messages({
+    city: Joi.string().allow(null).optional(),
+    postalCode: Joi.string().pattern(/^\d{5}$/).allow('').optional().messages({
       'string.pattern.base': 'Поштовий індекс повинен містити 5 цифр'
     }),
     district: Joi.string().max(100).allow('').optional(),
     districtEn: Joi.string().max(100).allow('').optional()
-  }).required(),
+  }).optional(),
   coordinates: Joi.object({
     lat: Joi.number().min(-90).max(90).required().messages({
       'number.min': 'Широта повинна бути між -90 та 90',
