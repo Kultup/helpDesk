@@ -3452,19 +3452,6 @@ class TelegramService {
         cityId: cityId,
         institutions: institutions.map(i => ({ name: i.name, city: i.address?.city }))
       });
-      
-      // Якщо для вибраного міста немає закладів, показуємо всі публічні заклади
-      if (institutions.length === 0 && cityId) {
-        logger.info('No institutions found for city, showing all public institutions');
-        institutions = await Institution.find({ isActive: true, isPublic: true })
-          .select('name type address.city')
-          .sort({ name: 1 })
-          .limit(50)
-          .lean();
-        logger.info('Found all public institutions:', {
-          count: institutions.length
-        });
-      }
 
       const keyboard = [];
       
@@ -3488,11 +3475,12 @@ class TelegramService {
         `🏙️ Місто вибрано\n` +
         `\n🏢 *Крок 8/9:* Оберіть заклад (необов'язково)`;
       
-      if (institutions.length === 0) {
+      if (institutions.length === 0 && cityId) {
         messageText += `\n⚠️ Немає доступних закладів для вибраного міста`;
+        messageText += `\n💡 Ви можете пропустити цей крок та перейти до вибору посади.`;
+      } else {
+        messageText += `\n💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`;
       }
-      
-      messageText += `\n💡 Ви можете пропустити цей крок, якщо не працюєте в конкретному закладі.`;
 
       await this.sendMessage(chatId, messageText, {
         reply_markup: {
