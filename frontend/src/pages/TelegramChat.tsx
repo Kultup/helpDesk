@@ -108,8 +108,9 @@ const TelegramChat: React.FC = () => {
 
   // Отримання аватара відправника
   const getSenderAvatar = (message: TelegramMessage) => {
-    if (typeof message.senderId === 'object' && message.senderId.avatar) {
-      return message.senderId.avatar;
+    if (typeof message.senderId === 'object' && '_id' in message.senderId) {
+      const sender = message.senderId as User;
+      return sender.avatar || null;
     }
     return null;
   };
