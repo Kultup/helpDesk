@@ -39,35 +39,104 @@ const TelegramChat: React.FC = () => {
 
   // Завантаження повідомлень
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadMessages = async (showLoading = true) => {
       if (!id) return;
       
       try {
-        setIsLoading(true);
+        if (showLoading) {
+          setIsLoading(true);
+        }
         const response = await apiService.getTelegramMessages(id);
         
         if (response.success && response.data) {
           setMessages(response.data);
           
-          // Завантажуємо інформацію про тікет
-          const ticketResponse = await apiService.getTicketById(id);
-          if (ticketResponse.success && ticketResponse.data) {
-            setTicket(ticketResponse.data);
+          // Завантажуємо інформацію про тікет тільки при першому завантаженні
+          if (showLoading && !ticket) {
+            const ticketResponse = await apiService.getTicketById(id);
+            if (ticketResponse.success && ticketResponse.data) {
+              setTicket(ticketResponse.data);
+            }
           }
         }
       } catch (error) {
         console.error('Помилка завантаження повідомлень:', error);
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadMessages();
+    // Перше завантаження з показом спінера
+    loadMessages(true);
 
-    // Оновлення повідомлень кожні 3 секунди
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
-  }, [id]);
+    // WebSocket підключення для отримання нових повідомлень в реальному часі
+    let socket: any = null;
+    const token = localStorage.getItem('token');
+    
+    if (token && id) {
+      import('socket.io-client').then(({ default: io }) => {
+        const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || window.location.origin) as string;
+        const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+        
+        socket = io(socketUrl, {
+          transports: ['websocket'],
+          auth: { token }
+        });
+
+        socket.on('connect', () => {
+          console.log('WebSocket підключено для Telegram чату');
+          // Підключаємося до адмін-кімнати для отримання сповіщень
+          if (isAdmin) {
+            socket.emit('join-admin-room');
+          }
+        });
+
+        // Слухаємо нові Telegram повідомлення
+        socket.on('telegram-message', (payload: any) => {
+          console.log('📱 Отримано WebSocket повідомлення:', payload);
+          // Порівнюємо ticketId як рядки
+          if (payload?.ticketId && String(payload.ticketId) === String(id) && payload?.data) {
+            const newMessage = payload.data as TelegramMessage;
+            console.log('✅ Додаємо нове повідомлення до чату:', newMessage);
+            setMessages(prev => {
+              // Перевіряємо, чи повідомлення вже є в списку
+              const exists = prev.some(msg => msg._id === newMessage._id);
+              if (!exists) {
+                return [...prev, newMessage];
+              }
+              return prev;
+            });
+          } else {
+            console.log('❌ Повідомлення не для цього тікету:', {
+              payloadTicketId: payload?.ticketId,
+              currentTicketId: id,
+              hasData: !!payload?.data
+            });
+          }
+        });
+
+        socket.on('disconnect', () => {
+          console.log('WebSocket відключено для Telegram чату');
+        });
+
+        socket.on('error', (error: any) => {
+          console.error('WebSocket помилка:', error);
+        });
+      });
+    }
+
+    // Резервне оновлення кожні 10 секунд (на випадок, якщо WebSocket не працює)
+    const interval = setInterval(() => loadMessages(false), 10000);
+    
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+      clearInterval(interval);
+    };
+  }, [id, isAdmin, ticket]);
 
   // Обробка відправки повідомлення
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -80,11 +149,13 @@ const TelegramChat: React.FC = () => {
       
       if (response.success) {
         setNewMessage('');
-        // Оновлюємо список повідомлень
-        const messagesResponse = await apiService.getTelegramMessages(id);
-        if (messagesResponse.success && messagesResponse.data) {
-          setMessages(messagesResponse.data);
-        }
+        // Оновлюємо список повідомлень (WebSocket також оновить автоматично)
+        setTimeout(async () => {
+          const messagesResponse = await apiService.getTelegramMessages(id);
+          if (messagesResponse.success && messagesResponse.data) {
+            setMessages(messagesResponse.data);
+          }
+        }, 500); // Невелика затримка, щоб дати час WebSocket сповіщенню
       }
     } catch (error) {
       console.error('Помилка відправки повідомлення:', error);

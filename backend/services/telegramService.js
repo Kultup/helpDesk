@@ -3886,8 +3886,8 @@ class TelegramService {
       try {
         const ticketWebSocketService = require('./ticketWebSocketService');
         await telegramMsg.populate([
-          { path: 'senderId', select: 'firstName lastName email' },
-          { path: 'recipientId', select: 'firstName lastName email' }
+          { path: 'senderId', select: 'firstName lastName email avatar' },
+          { path: 'recipientId', select: 'firstName lastName email avatar' }
         ]);
         ticketWebSocketService.notifyNewTelegramMessage(ticket._id.toString(), telegramMsg);
       } catch (wsError) {
