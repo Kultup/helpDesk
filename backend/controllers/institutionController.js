@@ -360,6 +360,14 @@ const updateInstitution = async (req, res) => {
         req.body.address.city = null;
       }
     }
+    
+    // Якщо передається coordinates, але не всі поля, зберігаємо існуючі значення
+    if (req.body.coordinates && institution.coordinates) {
+      req.body.coordinates = {
+        ...institution.coordinates.toObject(),
+        ...req.body.coordinates
+      };
+    }
 
     // Перевіряємо унікальність назви якщо вона змінюється
     if (req.body.name && req.body.name !== institution.name) {

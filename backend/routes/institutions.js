@@ -81,17 +81,15 @@ const updateInstitutionSchema = Joi.object({
     districtEn: Joi.string().max(100).allow('').optional()
   }).optional(),
   coordinates: Joi.object({
-    lat: Joi.number().min(-90).max(90).required().messages({
+    lat: Joi.number().min(-90).max(90).optional().messages({
       'number.min': 'Широта повинна бути між -90 та 90',
-      'number.max': 'Широта повинна бути між -90 та 90',
-      'any.required': 'Широта є обов\'язковою'
+      'number.max': 'Широта повинна бути між -90 та 90'
     }),
-    lng: Joi.number().min(-180).max(180).required().messages({
+    lng: Joi.number().min(-180).max(180).optional().messages({
       'number.min': 'Довгота повинна бути між -180 та 180',
-      'number.max': 'Довгота повинна бути між -180 та 180',
-      'any.required': 'Довгота є обов\'язковою'
+      'number.max': 'Довгота повинна бути між -180 та 180'
     })
-  }).required(),
+  }).optional(),
   contact: Joi.object({
     phone: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional().messages({
       'string.pattern.base': 'Невірний формат номера телефону'
