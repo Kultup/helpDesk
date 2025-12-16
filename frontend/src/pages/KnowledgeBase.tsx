@@ -33,6 +33,7 @@ const KnowledgeBase: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const isAdmin = user?.role === 'admin';
   const [selectedStatus, setSelectedStatus] = useState(isAdmin ? 'all' : 'published');
   const [sortBy, setSortBy] = useState<'relevance' | 'popularity' | 'date' | 'helpful'>('relevance');
   const [pagination, setPagination] = useState({
@@ -42,8 +43,6 @@ const KnowledgeBase: React.FC = () => {
     pages: 0
   });
   const [error, setError] = useState<string | null>(null);
-
-  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     loadCategories();
