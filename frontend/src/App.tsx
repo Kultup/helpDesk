@@ -34,6 +34,9 @@ import PendingRegistrations from './pages/PendingRegistrations';
 import Settings from './pages/Settings';
 import PhotoViewer from './components/PhotoViewer';
 import ErrorNotifications from './components/ErrorNotifications';
+import KnowledgeBase from './pages/KnowledgeBase';
+import KnowledgeArticleView from './pages/KnowledgeArticleView';
+import CreateKnowledgeArticle from './pages/CreateKnowledgeArticle';
 
 
 // Компонент для розумного перенаправлення
@@ -194,6 +197,26 @@ const App: React.FC = () => {
             <Route path="admin/settings/zabbix" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ZabbixSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/knowledge-base" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <KnowledgeBase />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/knowledge-base/:id" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <KnowledgeArticleView />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/knowledge-base/:id/edit" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <CreateKnowledgeArticle />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/knowledge-base/create" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <CreateKnowledgeArticle />
               </ProtectedRoute>
             } />
           </Route>

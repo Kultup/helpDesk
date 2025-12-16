@@ -18,7 +18,8 @@ import {
   Clock,
   Settings,
   Bot,
-  Activity
+  Activity,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
@@ -50,6 +51,7 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: Home },
       { nameKey: 'sidebar.tickets', href: '/tickets', icon: Ticket },
+      { nameKey: 'sidebar.knowledgeBase', href: '/knowledge-base', icon: BookOpen, adminOnly: true },
     ]
   },
   {
