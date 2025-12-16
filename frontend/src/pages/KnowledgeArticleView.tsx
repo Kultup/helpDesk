@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Edit2, Eye, Calendar, Tag, User } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Edit2, Eye, Calendar, Tag, User, Share2, Copy, Check } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils';
+import { useClipboard } from '../hooks';
+import toast from 'react-hot-toast';
 
 interface KBArticle {
   _id: string;
@@ -52,6 +54,8 @@ const KnowledgeArticleView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isMarkingHelpful, setIsMarkingHelpful] = useState(false);
   const [isMarkingNotHelpful, setIsMarkingNotHelpful] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const { copied, copy } = useClipboard();
 
   useEffect(() => {
     if (id) {
@@ -112,6 +116,26 @@ const KnowledgeArticleView: React.FC = () => {
     }
   };
 
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const handleCopyLink = async () => {
+    if (!id) return;
+    const articleUrl = `${window.location.origin}/admin/knowledge-base/${id}`;
+    const success = await copy(articleUrl);
+    if (success) {
+      toast.success('Посилання скопійовано в буфер обміну');
+    } else {
+      toast.error('Не вдалося скопіювати посилання');
+    }
+  };
+
+  const getShareUrl = () => {
+    if (!id) return '';
+    return `${window.location.origin}/admin/knowledge-base/${id}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -159,7 +183,18 @@ const KnowledgeArticleView: React.FC = () => {
           <Card>
             <CardContent className="p-6">
               <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">{article.title}</h1>
+                <div className="flex items-start justify-between mb-4">
+                  <h1 className="text-3xl font-bold text-gray-900 flex-1">{article.title}</h1>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleShare}
+                    className="ml-4"
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Поділитися
+                  </Button>
+                </div>
                 
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
                   {article.category && (
@@ -325,16 +360,24 @@ const KnowledgeArticleView: React.FC = () => {
                   <span className="text-sm text-gray-900">{formatDate(article.createdAt)}</span>
                 </div>
 
-                {isAdmin && (
-                  <div className="pt-4 border-t">
+                <div className="pt-4 border-t space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleShare}
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Поділитися статтею
+                  </Button>
+                  {isAdmin && (
                     <Link to={`/admin/knowledge-base/${id}/edit`}>
                       <Button variant="outline" className="w-full">
                         <Edit2 className="w-4 h-4 mr-2" />
                         Редагувати
                       </Button>
                     </Link>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -360,6 +403,62 @@ const KnowledgeArticleView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Модальне вікно поділу */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowShareModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Поділитися статтею</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Посилання на статтю
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={getShareUrl()}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyLink}
+                    disabled={copied}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Скопійовано
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Копіювати
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm text-gray-600 mb-3">
+                  Скопіюйте посилання та поділіться ним з іншими користувачами
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowShareModal(false)}
+                  >
+                    Закрити
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
