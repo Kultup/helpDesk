@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import RichTextEditor, { RichTextEditorRef } from '../components/RichTextEditor';
 import { ArrowLeft, Save, Eye, EyeOff, Tag, Plus, X, Image as ImageIcon, Upload, Trash2 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -49,7 +48,7 @@ const CreateKnowledgeArticle: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isEditMode = !!id;
-  const quillRef = useRef<ReactQuill>(null);
+  const quillRef = useRef<RichTextEditorRef | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
@@ -140,8 +139,10 @@ const CreateKnowledgeArticle: React.FC = () => {
           const quill = quillRef.current?.getEditor();
           if (quill) {
             const range = quill.getSelection(true);
-            quill.insertEmbed(range.index, 'image', uploadedFile.url);
-            quill.setSelection(range.index + 1);
+            if (range) {
+              quill.insertEmbed(range.index, 'image', uploadedFile.url);
+              quill.setSelection(range.index + 1);
+            }
           }
         } else {
           setError('Помилка завантаження зображення');
@@ -404,15 +405,15 @@ const CreateKnowledgeArticle: React.FC = () => {
                 </label>
                 {!showPreview ? (
                   <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <ReactQuill
+                    <RichTextEditor
                       ref={quillRef}
-                      theme="snow"
                       value={formData.content}
                       onChange={(value) => setFormData({ ...formData, content: value })}
                       modules={quillModules}
                       formats={quillFormats}
                       placeholder="Введіть контент статті..."
                       style={{ minHeight: '400px' }}
+                      onImageUpload={imageHandler}
                     />
                   </div>
                 ) : (
