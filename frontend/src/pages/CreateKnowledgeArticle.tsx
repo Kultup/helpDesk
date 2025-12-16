@@ -55,7 +55,6 @@ const CreateKnowledgeArticle: React.FC = () => {
   const [success, setSuccess] = useState<string>('');
   const [newTag, setNewTag] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  const [ticketId, setTicketId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const [formData, setFormData] = useState<KBArticleForm>({
@@ -184,35 +183,6 @@ const CreateKnowledgeArticle: React.FC = () => {
       setError(error.message || 'Помилка завантаження статті');
     } finally {
       setInitialLoading(false);
-    }
-  };
-
-  const handleGenerateFromTicket = async () => {
-    if (!ticketId) {
-      setError('Введіть ID тикету');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await apiService.generateKBArticleFromTicket(ticketId);
-      if (response.success && response.data) {
-        const article = response.data as { title?: string; content?: string; tags?: string[] };
-        setFormData({
-          ...formData,
-          title: article.title || formData.title,
-          content: article.content || formData.content,
-          tags: (article.tags || formData.tags) as string[]
-        });
-        setSuccess('Статтю згенеровано з тикету');
-        setTicketId(null);
-      } else {
-        setError(response.message || 'Помилка генерації статті');
-      }
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Помилка генерації статті');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -556,34 +526,6 @@ const CreateKnowledgeArticle: React.FC = () => {
                   </label>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Генерація з тикету */}
-        <Card className="mb-6">
-          <CardHeader title="Генерація з тикету (AI)" />
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  value={ticketId || ''}
-                  onChange={(e) => setTicketId(e.target.value)}
-                  placeholder="Введіть ID вирішеного тикету"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGenerateFromTicket}
-                  disabled={loading || !ticketId}
-                >
-                  Згенерувати
-                </Button>
-              </div>
-              <p className="text-sm text-gray-500">
-                Введіть ID вирішеного тикету для автоматичної генерації статті KB
-              </p>
             </div>
           </CardContent>
         </Card>
