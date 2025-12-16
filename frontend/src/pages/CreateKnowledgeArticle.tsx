@@ -9,13 +9,10 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Category } from '../types';
 
 interface KBArticleForm {
   title: string;
   content: string;
-  category: string;
-  subcategory: string;
   tags: string[];
   status: 'draft' | 'published' | 'archived';
   isPublic: boolean;
@@ -54,7 +51,6 @@ const CreateKnowledgeArticle: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [newTag, setNewTag] = useState('');
@@ -65,8 +61,6 @@ const CreateKnowledgeArticle: React.FC = () => {
   const [formData, setFormData] = useState<KBArticleForm>({
     title: '',
     content: '',
-    category: '',
-    subcategory: '',
     tags: [],
     status: 'draft',
     isPublic: true,
@@ -156,20 +150,10 @@ const CreateKnowledgeArticle: React.FC = () => {
   }
 
   useEffect(() => {
-    loadCategories();
     if (isEditMode && id) {
       loadArticle(id);
     }
   }, [id, isEditMode]);
-
-  const loadCategories = async () => {
-    try {
-      const response = await apiService.getCategories(true);
-      setCategories(response.data || []);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const loadArticle = async (articleId: string) => {
     try {
@@ -179,8 +163,6 @@ const CreateKnowledgeArticle: React.FC = () => {
         const article = response.data as { 
           title?: string; 
           content?: string; 
-          category?: { _id?: string }; 
-          subcategory?: string; 
           tags?: string[]; 
           status?: string; 
           isPublic?: boolean;
@@ -189,8 +171,6 @@ const CreateKnowledgeArticle: React.FC = () => {
         setFormData({
           title: article.title || '',
           content: article.content || '',
-          category: article.category?._id || '',
-          subcategory: article.subcategory || '',
           tags: article.tags || [],
           status: (article.status || 'draft') as 'published' | 'draft' | 'archived',
           isPublic: article.isPublic !== undefined ? article.isPublic : true,
@@ -217,12 +197,11 @@ const CreateKnowledgeArticle: React.FC = () => {
       setLoading(true);
       const response = await apiService.generateKBArticleFromTicket(ticketId);
       if (response.success && response.data) {
-        const article = response.data as { title?: string; content?: string; category?: string; tags?: string[] };
+        const article = response.data as { title?: string; content?: string; tags?: string[] };
         setFormData({
           ...formData,
           title: article.title || formData.title,
           content: article.content || formData.content,
-          category: article.category || formData.category,
           tags: (article.tags || formData.tags) as string[]
         });
         setSuccess('Статтю згенеровано з тикету');
@@ -500,37 +479,6 @@ const CreateKnowledgeArticle: React.FC = () => {
                 <p className="mt-2 text-xs text-gray-500">
                   Дозволені формати: зображення (JPEG, PNG, GIF, WebP), PDF, DOC, DOCX, TXT, ZIP, RAR. Максимальний розмір: 10MB на файл.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Категорія
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Виберіть категорію</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Підкатегорія
-                  </label>
-                  <Input
-                    value={formData.subcategory}
-                    onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-                    placeholder="Введіть підкатегорію (опціонально)"
-                  />
-                </div>
               </div>
 
               <div>
