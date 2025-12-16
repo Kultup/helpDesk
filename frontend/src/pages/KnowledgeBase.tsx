@@ -33,7 +33,7 @@ const KnowledgeBase: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('published');
+  const [selectedStatus, setSelectedStatus] = useState(isAdmin ? 'all' : 'published');
   const [sortBy, setSortBy] = useState<'relevance' | 'popularity' | 'date' | 'helpful'>('relevance');
   const [pagination, setPagination] = useState({
     page: 1,
@@ -47,7 +47,11 @@ const KnowledgeBase: React.FC = () => {
 
   useEffect(() => {
     loadCategories();
-  }, []);
+    // Для адмінів за замовчуванням показуємо всі статуси
+    if (isAdmin && selectedStatus === 'published') {
+      setSelectedStatus('all');
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     loadArticles();
@@ -60,7 +64,7 @@ const KnowledgeBase: React.FC = () => {
       const response = await apiService.getKBArticles({
         q: searchQuery,
         category: selectedCategory || undefined,
-        status: selectedStatus,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
         page: pagination.page,
         limit: pagination.limit,
         sortBy
@@ -196,6 +200,9 @@ const KnowledgeBase: React.FC = () => {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  {isAdmin && (
+                    <option value="all">Всі статуси</option>
+                  )}
                   <option value="published">Опубліковано</option>
                   {isAdmin && (
                     <>

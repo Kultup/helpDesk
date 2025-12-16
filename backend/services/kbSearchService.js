@@ -24,12 +24,14 @@ class KBSearchService {
         searchQuery.category = filters.category;
       }
 
-      if (filters.status) {
+      // Фільтр за статусом - якщо не передано або передано 'all', не фільтруємо
+      if (filters.status && filters.status !== 'all' && filters.status !== 'undefined' && filters.status !== 'null') {
         searchQuery.status = filters.status;
-      } else {
-        // За замовчуванням тільки published
+      } else if (!filters.status || filters.status === 'undefined' || filters.status === 'null') {
+        // Якщо статус не передано, за замовчуванням показуємо тільки published
         searchQuery.status = 'published';
       }
+      // Якщо filters.status === 'all', то не додаємо фільтр за статусом (показуємо всі)
 
       if (filters.isPublic !== undefined) {
         searchQuery.isPublic = filters.isPublic;
