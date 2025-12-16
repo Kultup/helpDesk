@@ -1274,6 +1274,38 @@ class ApiService {
     return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
   }
 
+  async uploadKBFiles(files: File[]): Promise<ApiResponse<Array<{
+    filename: string;
+    originalName: string;
+    mimetype: string;
+    size: number;
+    path: string;
+    url: string;
+    uploadedBy: string;
+    uploadedAt: string;
+  }>>> {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    const response: AxiosResponse<ApiResponse<Array<{
+      filename: string;
+      originalName: string;
+      mimetype: string;
+      size: number;
+      path: string;
+      url: string;
+      uploadedBy: string;
+      uploadedAt: string;
+    }>>> = await this.api.post('/kb/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  }
+
   // Оцінити якість вирішення тікету
   async rateTicket(ticketId: string, rating: number, feedback?: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/tickets/${ticketId}/rate`, { rating, feedback });

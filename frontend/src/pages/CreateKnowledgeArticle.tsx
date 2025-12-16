@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Save, Eye, EyeOff, Tag, Plus, X } from 'lucide-react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import { ArrowLeft, Save, Eye, EyeOff, Tag, Plus, X, Image as ImageIcon, Upload, Trash2 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
@@ -18,6 +20,27 @@ interface KBArticleForm {
   tags: string[];
   status: 'draft' | 'published' | 'archived';
   isPublic: boolean;
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    mimetype: string;
+    size: number;
+    path: string;
+    url: string;
+    uploadedBy: string;
+    uploadedAt: string;
+  }>;
+}
+
+interface UploadedFile {
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  path: string;
+  url: string;
+  uploadedBy: string;
+  uploadedAt: string;
 }
 
 const CreateKnowledgeArticle: React.FC = () => {
@@ -26,8 +49,11 @@ const CreateKnowledgeArticle: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isEditMode = !!id;
+  const quillRef = useRef<ReactQuill>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string>('');
@@ -35,6 +61,7 @@ const CreateKnowledgeArticle: React.FC = () => {
   const [newTag, setNewTag] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [ticketId, setTicketId] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const [formData, setFormData] = useState<KBArticleForm>({
     title: '',
@@ -43,8 +70,89 @@ const CreateKnowledgeArticle: React.FC = () => {
     subcategory: '',
     tags: [],
     status: 'draft',
-    isPublic: true
+    isPublic: true,
+    attachments: []
   });
+
+  // Налаштування Quill редактора
+  const quillModules = {
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        [{ 'font': [] }],
+        [{ 'size': [] }],
+        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'align': [] }],
+        ['link', 'image', 'video'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    }
+  };
+
+  const quillFormats = [
+    'header', 'font', 'size',
+    'bold', 'italic', 'underline', 'strike', 'blockquote',
+    'list', 'bullet', 'indent',
+    'color', 'background',
+    'align',
+    'link', 'image', 'video'
+  ];
+
+  // Обробник вставки зображення
+  function imageHandler() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      // Перевірка розміру файлу (максимум 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Розмір файлу не може перевищувати 10MB');
+        return;
+      }
+
+      // Перевірка типу файлу
+      if (!file.type.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+        setError('Дозволені тільки зображення (JPEG, PNG, GIF, WebP)');
+        return;
+      }
+
+      try {
+        setUploadingFiles(true);
+        const response = await apiService.uploadKBFiles([file]);
+        
+        if (response.success && response.data && response.data.length > 0) {
+          const uploadedFile = response.data[0];
+          
+          // Додаємо файл до списку завантажених
+          setUploadedFiles(prev => [...prev, uploadedFile]);
+          
+          // Вставляємо зображення в редактор
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', uploadedFile.url);
+            quill.setSelection(range.index + 1);
+          }
+        } else {
+          setError('Помилка завантаження зображення');
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Помилка завантаження зображення');
+      } finally {
+        setUploadingFiles(false);
+      }
+    };
+  }
 
   useEffect(() => {
     loadCategories();
@@ -67,7 +175,16 @@ const CreateKnowledgeArticle: React.FC = () => {
       setInitialLoading(true);
       const response = await apiService.getKBArticle(articleId);
       if (response.success && response.data) {
-        const article = response.data as { title?: string; content?: string; category?: { _id?: string }; subcategory?: string; tags?: string[]; status?: string; isPublic?: boolean };
+        const article = response.data as { 
+          title?: string; 
+          content?: string; 
+          category?: { _id?: string }; 
+          subcategory?: string; 
+          tags?: string[]; 
+          status?: string; 
+          isPublic?: boolean;
+          attachments?: UploadedFile[];
+        };
         setFormData({
           title: article.title || '',
           content: article.content || '',
@@ -75,8 +192,12 @@ const CreateKnowledgeArticle: React.FC = () => {
           subcategory: article.subcategory || '',
           tags: article.tags || [],
           status: (article.status || 'draft') as 'published' | 'draft' | 'archived',
-          isPublic: article.isPublic !== undefined ? article.isPublic : true
+          isPublic: article.isPublic !== undefined ? article.isPublic : true,
+          attachments: article.attachments || []
         });
+        if (article.attachments) {
+          setUploadedFiles(article.attachments);
+        }
       }
     } catch (error: any) {
       setError(error.message || 'Помилка завантаження статті');
@@ -132,6 +253,44 @@ const CreateKnowledgeArticle: React.FC = () => {
     });
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploadingFiles(true);
+      const filesArray = Array.from(files);
+      
+      // Перевірка розміру файлів
+      const oversizedFiles = filesArray.filter(file => file.size > 10 * 1024 * 1024);
+      if (oversizedFiles.length > 0) {
+        setError('Деякі файли перевищують максимальний розмір 10MB');
+        return;
+      }
+
+      const response = await apiService.uploadKBFiles(filesArray);
+      
+      if (response.success && response.data) {
+        setUploadedFiles(prev => [...prev, ...response.data]);
+        setSuccess(`Завантажено ${response.data.length} файл(ів)`);
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(response.message || 'Помилка завантаження файлів');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Помилка завантаження файлів');
+    } finally {
+      setUploadingFiles(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveFile = (filename: string) => {
+    setUploadedFiles(prev => prev.filter(file => file.filename !== filename));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -139,8 +298,13 @@ const CreateKnowledgeArticle: React.FC = () => {
       setError('');
       setSuccess('');
 
+      const submitData = {
+        ...formData,
+        attachments: uploadedFiles
+      };
+
       if (isEditMode && id) {
-        const response = await apiService.updateKBArticle(id, formData as unknown as Record<string, unknown>);
+        const response = await apiService.updateKBArticle(id, submitData as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('Статтю успішно оновлено');
           setTimeout(() => navigate('/admin/knowledge-base'), 2000);
@@ -148,7 +312,7 @@ const CreateKnowledgeArticle: React.FC = () => {
           setError(response.message || 'Помилка оновлення статті');
         }
       } else {
-        const response = await apiService.createKBArticle(formData as unknown as Record<string, unknown>);
+        const response = await apiService.createKBArticle(submitData as unknown as Record<string, unknown>);
         if (response.success) {
           setSuccess('Статтю успішно створено');
           setTimeout(() => navigate('/admin/knowledge-base'), 2000);
@@ -236,29 +400,105 @@ const CreateKnowledgeArticle: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Контент (Markdown)
+                  Контент
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <textarea
+                {!showPreview ? (
+                  <div className="border border-gray-300 rounded-lg overflow-hidden">
+                    <ReactQuill
+                      ref={quillRef}
+                      theme="snow"
                       value={formData.content}
-                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                      rows={20}
-                      placeholder="Введіть контент статті у форматі Markdown..."
-                      required
+                      onChange={(value) => setFormData({ ...formData, content: value })}
+                      modules={quillModules}
+                      formats={quillFormats}
+                      placeholder="Введіть контент статті..."
+                      style={{ minHeight: '400px' }}
                     />
                   </div>
-                  {showPreview && (
-                    <div className="p-4 border border-gray-300 rounded-lg bg-gray-50">
-                      <div className="prose max-w-none">
-                        <pre className="whitespace-pre-wrap text-sm text-gray-700">
-                          {formData.content || 'Попередній перегляд...'}
-                        </pre>
+                ) : (
+                  <div className="p-4 border border-gray-300 rounded-lg bg-gray-50 min-h-[400px]">
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{ __html: formData.content || '<p>Попередній перегляд...</p>' }}
+                    />
+                  </div>
+                )}
+                <p className="mt-2 text-sm text-gray-500">
+                  Використовуйте панель інструментів для форматування тексту, додавання посилань та зображень
+                </p>
+              </div>
+
+              {/* Завантажені файли */}
+              {uploadedFiles.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Завантажені файли ({uploadedFiles.length})
+                  </label>
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          {file.mimetype.startsWith('image/') ? (
+                            <ImageIcon className="w-5 h-5 text-blue-500" />
+                          ) : (
+                            <Upload className="w-5 h-5 text-gray-500" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {file.originalName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRemoveFile(file.filename)}
+                          className="ml-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* Кнопка завантаження файлів */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Додати файли (опціонально)
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,application/pdf,.doc,.docx,.txt,.zip,.rar"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={uploadingFiles}
+                    className="w-full"
+                    as="span"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingFiles ? 'Завантаження...' : 'Завантажити файли'}
+                  </Button>
+                </label>
+                <p className="mt-2 text-xs text-gray-500">
+                  Дозволені формати: зображення (JPEG, PNG, GIF, WebP), PDF, DOC, DOCX, TXT, ZIP, RAR. Максимальний розмір: 10MB на файл.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,7 +647,7 @@ const CreateKnowledgeArticle: React.FC = () => {
           >
             Скасувати
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || uploadingFiles}>
             <Save className="w-4 h-4 mr-2" />
             {loading ? 'Збереження...' : isEditMode ? 'Оновити' : 'Створити'}
           </Button>
@@ -418,4 +658,3 @@ const CreateKnowledgeArticle: React.FC = () => {
 };
 
 export default CreateKnowledgeArticle;
-

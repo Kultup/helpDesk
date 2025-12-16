@@ -24,6 +24,7 @@ router.get('/:filename', async (req, res) => {
       path.join(__dirname, '../uploads/telegram-photos', filename),
       path.join(__dirname, '../uploads/attachments', filename),
       path.join(__dirname, '../uploads/avatars', filename),
+      path.join(__dirname, '../uploads/kb', filename), // Файли з KB
       path.join(__dirname, '../uploads', filename)
     ];
 
