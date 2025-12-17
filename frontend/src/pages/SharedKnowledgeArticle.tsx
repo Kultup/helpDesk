@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
+// @ts-ignore - rehype-raw не має типів
+import rehypeRaw from 'rehype-raw';
 import { Calendar, Tag, User, BookOpen, Eye } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
@@ -145,7 +147,9 @@ const SharedKnowledgeArticle: React.FC = () => {
 
             {/* Контент */}
             <div className="prose prose-lg max-w-none mb-6">
-              <ReactMarkdown>{article.content}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                {article.content}
+              </ReactMarkdown>
             </div>
 
             {/* Статистика */}
