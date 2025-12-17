@@ -1,6 +1,7 @@
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
+const rateLimit = require('express-rate-limit');
 
 // Middleware для безпеки заголовків
 const securityHeaders = helmet({
@@ -67,8 +68,50 @@ const sanitizeData = [
   },
 ];
 
+// Rate limiting для різних ендпоінтів
+const rateLimits = {
+  // Загальний rate limit для всіх API
+  general: rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 хвилин
+    max: 100, // максимум 100 запитів з одного IP
+    message: 'Забагато запитів з цієї IP адреси, спробуйте пізніше',
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  
+  // Rate limit для авторизації (більш строгий)
+  auth: rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 хвилин
+    max: 5, // максимум 5 спроб входу
+    message: 'Забагато спроб входу, спробуйте пізніше',
+    skipSuccessfulRequests: true,
+  }),
+  
+  // Rate limit для завантаження файлів
+  upload: rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 година
+    max: 20, // максимум 20 завантажень на годину
+    message: 'Забагато завантажень файлів, спробуйте пізніше',
+  }),
+  
+  // Rate limit для Telegram webhook (більш м'який)
+  telegram: rateLimit({
+    windowMs: 60 * 1000, // 1 хвилина
+    max: 30, // максимум 30 запитів на хвилину
+    message: 'Забагато запитів від Telegram, спробуйте пізніше',
+  }),
+  
+  // Rate limit для аналітики
+  analytics: rateLimit({
+    windowMs: 60 * 1000, // 1 хвилина
+    max: 10, // максимум 10 запитів на хвилину
+    message: 'Забагато запитів до аналітики, спробуйте пізніше',
+  })
+};
+
 module.exports = {
   securityHeaders,
-  sanitizeData
+  sanitizeData,
+  rateLimits
 };
 
