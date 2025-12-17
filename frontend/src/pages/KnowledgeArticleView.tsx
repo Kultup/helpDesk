@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import ReactMarkdown from 'react-markdown';
-// @ts-ignore - rehype-raw не має типів
-import rehypeRaw from 'rehype-raw';
 import { ArrowLeft, ThumbsUp, ThumbsDown, Edit2, Eye, Calendar, Tag, User, Share2, Copy, Check } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -254,11 +251,10 @@ const KnowledgeArticleView: React.FC = () => {
 
               {/* Контент статті */}
               <div className="prose max-w-none mb-6">
-                <div className="text-gray-700 leading-relaxed">
-                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                    {article.content}
-                  </ReactMarkdown>
-                </div>
+                <div 
+                  className="text-gray-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: article.content }}
+                />
               </div>
 
               {/* Рейтинг корисності */}
