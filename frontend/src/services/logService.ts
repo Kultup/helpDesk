@@ -69,19 +69,55 @@ class LogService {
   private setupErrorHandling() {
     // Глобальний обробник помилок
     window.addEventListener('error', (event) => {
+      // Обробка "Script error" - зазвичай виникає через CORS
+      if (event.message === 'Script error.' || event.message === 'Script error') {
+        // Отримуємо src з event.target якщо це HTMLScriptElement або HTMLLinkElement
+        let origin = 'unknown';
+        if (event.target) {
+          const target = event.target as HTMLElement;
+          if ('src' in target) {
+            origin = (target as HTMLScriptElement | HTMLImageElement).src || 'unknown';
+          } else if ('href' in target) {
+            origin = (target as HTMLLinkElement).href || 'unknown';
+          }
+        }
+
+        console.warn('Script error detected (possibly CORS issue):', {
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          origin: origin
+        });
+        
+        // Не логуємо Script error на сервер, бо це зазвичай CORS проблема
+        return;
+      }
+
       this.sendLog('error', `Uncaught Error: ${event.message}`, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
-        stack: event.error?.stack
+        stack: event.error?.stack,
+        userAgent: navigator.userAgent,
+        url: window.location.href
       });
-    });
+    }, true); // Використовуємо capture phase для кращого перехоплення
 
     // Обробник для Promise rejections
     window.addEventListener('unhandledrejection', (event) => {
+      // Ігноруємо CORS помилки
+      if (event.reason?.message?.includes('CORS') || 
+          event.reason?.message?.includes('Network Error') ||
+          event.reason?.code === 'ERR_NETWORK') {
+        console.warn('Network/CORS error detected:', event.reason);
+        return;
+      }
+
       this.sendLog('error', `Unhandled Promise Rejection: ${event.reason}`, {
         reason: event.reason,
-        stack: event.reason?.stack
+        stack: event.reason?.stack,
+        userAgent: navigator.userAgent,
+        url: window.location.href
       });
     });
 

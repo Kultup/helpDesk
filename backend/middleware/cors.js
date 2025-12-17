@@ -99,7 +99,9 @@ const corsOptions = {
     'X-Page-Count',
     'X-Current-Page'
   ],
-  maxAge: 86400 // 24 години
+  maxAge: 86400, // 24 години
+  // Додаткові налаштування для мобільних пристроїв
+  optionsSuccessStatus: 200 // Для старих браузерів
 };
 
 // Middleware для розробки: використовує allowedOrigins якщо вони задані, інакше дозволяє будь-яке походження

@@ -3,8 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
     <meta name="theme-color" content="#000000" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Додаткові мета-теги для мобільних пристроїв -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta
       name="description"
       content="Help Desk система з інтеграцією Telegram"
@@ -29,6 +34,48 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script>
+      // Вимкнути React error overlay в production
+      // Перехоплюємо помилки до React error overlay
+      (function() {
+        // Перевіряємо, чи це production (немає source maps та інших dev індикаторів)
+        var isProduction = !window.location.hostname.includes('localhost') && 
+                          !window.location.hostname.includes('127.0.0.1');
+        
+        if (isProduction) {
+          // Перехоплюємо помилки до React error overlay
+          window.addEventListener('error', function(e) {
+            if (e.message === 'Script error.' || e.message === 'Script error') {
+              e.preventDefault();
+              e.stopPropagation();
+              e.stopImmediatePropagation();
+              return false;
+            }
+          }, true);
+          
+          window.addEventListener('unhandledrejection', function(e) {
+            var reason = e.reason;
+            if (reason && reason.message && (
+              reason.message.includes('Script error') ||
+              reason.message.includes('CORS') ||
+              reason.message.includes('Network Error')
+            )) {
+              e.preventDefault();
+            }
+          }, true);
+          
+          // Перехоплюємо console.error для фільтрації Script error
+          var originalError = console.error;
+          console.error = function() {
+            var message = Array.prototype.join.call(arguments, ' ');
+            if (message.includes('Script error') || message.includes('Script error.')) {
+              return; // Не показуємо Script error
+            }
+            originalError.apply(console, arguments);
+          };
+        }
+      })();
+    </script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
