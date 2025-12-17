@@ -114,8 +114,10 @@ router.get('/articles/:id', auth, async (req, res) => {
     }
 
     // Збільшуємо кількість переглядів (тільки для published статей)
+    // Передаємо userId, щоб не рахувати повторні перегляди від того самого користувача
     if (article.status === 'published') {
-      await article.incrementViews();
+      const userId = req.user?._id || null;
+      await article.incrementViews(userId);
     }
 
     // Знаходимо пов'язані статті
@@ -163,7 +165,8 @@ router.get('/articles/share/:token', async (req, res) => {
     }
 
     // Збільшуємо кількість переглядів
-    await article.incrementViews();
+    // Для публічного доступу не передаємо userId (завжди рахуємо перегляд)
+    await article.incrementViews(null);
 
     // Знаходимо пов'язані статті
     const relatedArticles = await kbSearchService.findRelatedArticles(article._id.toString(), 5);

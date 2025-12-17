@@ -31,7 +31,6 @@ interface KBArticle {
 
 const SharedKnowledgeArticle: React.FC = () => {
   const { token } = useParams<{ token: string }>();
-  const { t } = useTranslation();
 
   const [article, setArticle] = useState<KBArticle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +42,7 @@ const SharedKnowledgeArticle: React.FC = () => {
     }
   }, [token]);
 
-  const loadArticle = async (shareToken: string) => {
+  const loadArticle = async (shareToken: string): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -53,8 +52,9 @@ const SharedKnowledgeArticle: React.FC = () => {
       } else {
         setError(response.message || 'Помилка завантаження статті');
       }
-    } catch (err: any) {
-      setError(err.message || 'Помилка завантаження статті');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || 'Помилка завантаження статті');
     } finally {
       setIsLoading(false);
     }
@@ -165,7 +165,7 @@ const SharedKnowledgeArticle: React.FC = () => {
             {/* Пов'язані статті */}
             {article.relatedArticles && article.relatedArticles.length > 0 && (
               <div className="mt-8 pt-6 border-t">
-                <h3 className="text-lg font-semibold mb-4">Пов'язані статті</h3>
+                <h3 className="text-lg font-semibold mb-4">Пов&apos;язані статті</h3>
                 <div className="space-y-2">
                   {article.relatedArticles.map((related) => (
                     <div

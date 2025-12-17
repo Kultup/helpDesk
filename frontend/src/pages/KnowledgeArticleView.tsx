@@ -35,7 +35,7 @@ interface KBArticle {
     version: number;
     title: string;
     content: string;
-    updatedBy: any;
+    updatedBy: { email: string; position?: string };
     updatedAt: string;
     reason?: string;
   }>;
@@ -44,7 +44,6 @@ interface KBArticle {
 const KnowledgeArticleView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -64,7 +63,7 @@ const KnowledgeArticleView: React.FC = () => {
     }
   }, [id]);
 
-  const loadArticle = async (articleId: string) => {
+  const loadArticle = async (articleId: string): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -74,14 +73,15 @@ const KnowledgeArticleView: React.FC = () => {
       } else {
         setError(response.message || 'Помилка завантаження статті');
       }
-    } catch (err: any) {
-      setError(err.message || 'Помилка завантаження статті');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || 'Помилка завантаження статті');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMarkHelpful = async () => {
+  const handleMarkHelpful = async (): Promise<void> => {
     if (!id) return;
     try {
       setIsMarkingHelpful(true);
@@ -99,7 +99,7 @@ const KnowledgeArticleView: React.FC = () => {
     }
   };
 
-  const handleMarkNotHelpful = async () => {
+  const handleMarkNotHelpful = async (): Promise<void> => {
     if (!id) return;
     try {
       setIsMarkingNotHelpful(true);
@@ -117,7 +117,7 @@ const KnowledgeArticleView: React.FC = () => {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (): Promise<void> => {
     if (!id) return;
     
     try {
@@ -129,14 +129,15 @@ const KnowledgeArticleView: React.FC = () => {
       } else {
         toast.error(response.message || 'Не вдалося створити посилання для поділу');
       }
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as { message?: string };
       toast.error(error.message || 'Не вдалося створити посилання для поділу');
     } finally {
       setIsGeneratingToken(false);
     }
   };
 
-  const handleCopyLink = async () => {
+  const handleCopyLink = async (): Promise<void> => {
     if (!shareUrl) {
       await handleShare();
       return;
@@ -419,17 +420,29 @@ const KnowledgeArticleView: React.FC = () => {
 
       {/* Модальне вікно поділу */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowShareModal(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+          onClick={() => setShowShareModal(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setShowShareModal(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Закрити модальне вікно"
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4" 
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <h2 className="text-xl font-bold text-gray-900 mb-4">Поділитися статтею</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="share-url-input" className="block text-sm font-medium text-gray-700 mb-2">
                   Публічне посилання на статтю
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="share-url-input"
                     type="text"
                     value={shareUrl}
                     readOnly

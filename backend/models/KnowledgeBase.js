@@ -46,6 +46,10 @@ const knowledgeBaseSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  viewedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   helpfulCount: {
     type: Number,
     default: 0
@@ -167,6 +171,7 @@ knowledgeBaseSchema.index({ createdAt: -1 });
 knowledgeBaseSchema.index({ views: -1 });
 knowledgeBaseSchema.index({ helpfulCount: -1 });
 knowledgeBaseSchema.index({ shareToken: 1 });
+knowledgeBaseSchema.index({ viewedBy: 1 });
 
 // Віртуальні поля
 knowledgeBaseSchema.virtual('helpfulRate').get(function() {
@@ -180,7 +185,29 @@ knowledgeBaseSchema.virtual('isPopular').get(function() {
 });
 
 // Методи
-knowledgeBaseSchema.methods.incrementViews = function() {
+knowledgeBaseSchema.methods.incrementViews = function(userId = null) {
+  // Якщо передано userId, перевіряємо, чи користувач вже переглядав статтю
+  if (userId) {
+    // Перевіряємо, чи userId вже є в масиві viewedBy
+    // Використовуємо toString() для порівняння ObjectId
+    const userIdString = userId.toString ? userId.toString() : String(userId);
+    const hasViewed = this.viewedBy && this.viewedBy.some(
+      id => (id.toString ? id.toString() : String(id)) === userIdString
+    );
+    
+    if (!hasViewed) {
+      // Додаємо userId до масиву viewedBy
+      if (!this.viewedBy) {
+        this.viewedBy = [];
+      }
+      this.viewedBy.push(userId);
+      this.views += 1;
+      return this.save();
+    }
+    // Якщо користувач вже переглядав, не збільшуємо перегляди
+    return Promise.resolve(this);
+  }
+  // Якщо userId не передано (публічний доступ), завжди збільшуємо
   this.views += 1;
   return this.save();
 };
