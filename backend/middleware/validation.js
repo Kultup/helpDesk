@@ -2,6 +2,7 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
+const { validationResult } = require('express-validator');
 
 // Middleware для безпеки заголовків
 const securityHeaders = helmet({
@@ -116,9 +117,27 @@ const rateLimits = {
   })
 };
 
+// Middleware для обробки помилок валідації express-validator
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Помилки валідації',
+      errors: errors.array().map(err => ({
+        field: err.param || err.path,
+        message: err.msg,
+        value: err.value
+      }))
+    });
+  }
+  next();
+};
+
 module.exports = {
   securityHeaders,
   sanitizeData,
-  rateLimits
+  rateLimits,
+  handleValidationErrors
 };
 
