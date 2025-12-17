@@ -1192,15 +1192,14 @@ class ApiService {
     page?: number;
     limit?: number;
     sortBy?: string;
-  }): Promise<ApiResponse<{
-    data: Array<Record<string, unknown>>;
+  }): Promise<ApiResponse<Array<Record<string, unknown>>> & {
     pagination: {
       page: number;
       limit: number;
       total: number;
       pages: number;
     };
-  }>> {
+  }> {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -1215,6 +1214,14 @@ class ApiService {
 
   async getKBArticle(id: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get(`/kb/articles/${id}`);
+  }
+
+  async getSharedKBArticle(token: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get(`/kb/articles/share/${token}`);
+  }
+
+  async generateKBShareToken(id: string): Promise<ApiResponse<{ shareToken: string; shareUrl: string }>> {
+    return this.post(`/kb/articles/${id}/share-token`);
   }
 
   async createKBArticle(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {

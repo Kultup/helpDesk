@@ -37,6 +37,7 @@ import ErrorNotifications from './components/ErrorNotifications';
 import KnowledgeBase from './pages/KnowledgeBase';
 import KnowledgeArticleView from './pages/KnowledgeArticleView';
 import CreateKnowledgeArticle from './pages/CreateKnowledgeArticle';
+import SharedKnowledgeArticle from './pages/SharedKnowledgeArticle';
 
 
 // Компонент для розумного перенаправлення
@@ -220,6 +221,9 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } />
           </Route>
+          
+          {/* Публічні роути (без авторизації) */}
+          <Route path="/share/kb/:token" element={<SharedKnowledgeArticle />} />
           
           {/* 404 сторінка */}
           <Route path="*" element={<NotFound />} />

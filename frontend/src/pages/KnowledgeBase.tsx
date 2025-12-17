@@ -63,15 +63,17 @@ const KnowledgeBase: React.FC = () => {
       const response = await apiService.getKBArticles({
         q: searchQuery,
         category: selectedCategory || undefined,
-        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        status: selectedStatus === 'all' ? 'all' : selectedStatus,
         page: pagination.page,
         limit: pagination.limit,
         sortBy
       });
       if (response.success && response.data) {
-        const data = response.data as unknown as { data?: KBArticle[]; pagination?: typeof pagination };
-        setArticles(data.data || []);
-        setPagination(data.pagination || pagination);
+        // API повертає { success: true, data: [...], pagination: {...} }
+        setArticles(response.data as unknown as KBArticle[]);
+        if ('pagination' in response && response.pagination) {
+          setPagination(response.pagination as typeof pagination);
+        }
       } else {
         setError(response.message || 'Помилка завантаження статей');
       }

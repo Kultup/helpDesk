@@ -98,6 +98,12 @@ const knowledgeBaseSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  shareToken: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
   version: {
     type: Number,
     default: 1
@@ -160,6 +166,7 @@ knowledgeBaseSchema.index({ tags: 1 });
 knowledgeBaseSchema.index({ createdAt: -1 });
 knowledgeBaseSchema.index({ views: -1 });
 knowledgeBaseSchema.index({ helpfulCount: -1 });
+knowledgeBaseSchema.index({ shareToken: 1 });
 
 // Віртуальні поля
 knowledgeBaseSchema.virtual('helpfulRate').get(function() {
@@ -213,6 +220,23 @@ knowledgeBaseSchema.methods.restore = function() {
   this.deletedAt = null;
   this.deletedBy = null;
   return this.save();
+};
+
+knowledgeBaseSchema.methods.generateShareToken = async function() {
+  const crypto = require('crypto');
+  // Генеруємо унікальний токен
+  let token;
+  let exists = true;
+  
+  while (exists) {
+    token = crypto.randomBytes(32).toString('hex');
+    const existing = await this.constructor.findOne({ shareToken: token });
+    exists = !!existing;
+  }
+  
+  this.shareToken = token;
+  await this.save();
+  return token;
 };
 
 // Статичні методи

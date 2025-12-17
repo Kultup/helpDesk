@@ -220,9 +220,19 @@ const CreateKnowledgeArticle: React.FC = () => {
 
       const response = await apiService.uploadKBFiles(filesArray);
       
-      if (response.success && response.data) {
-        setUploadedFiles(prev => [...prev, ...response.data]);
-        setSuccess(`Завантажено ${response.data.length} файл(ів)`);
+      if (response.success && response.data && Array.isArray(response.data)) {
+        const files = response.data as Array<{
+          filename: string;
+          originalName: string;
+          mimetype: string;
+          size: number;
+          path: string;
+          url: string;
+          uploadedBy: string;
+          uploadedAt: string;
+        }>;
+        setUploadedFiles(prev => [...prev, ...files]);
+        setSuccess(`Завантажено ${files.length} файл(ів)`);
         setTimeout(() => setSuccess(''), 3000);
       } else {
         setError(response.message || 'Помилка завантаження файлів');
@@ -440,7 +450,6 @@ const CreateKnowledgeArticle: React.FC = () => {
                     variant="outline"
                     disabled={uploadingFiles}
                     className="w-full"
-                    as="span"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     {uploadingFiles ? 'Завантаження...' : 'Завантажити файли'}

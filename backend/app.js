@@ -430,6 +430,16 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+// Обробка публічних frontend роутів (для поділу статей)
+// Якщо запит йде на /share/*, це frontend роут, повертаємо 404 з повідомленням
+app.use('/share', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Це frontend роут. Будь ласка, відкрийте цю сторінку через frontend (http://localhost:3000/share/kb/:token)',
+    frontendUrl: `http://localhost:${process.env.FRONTEND_PORT || 3000}${req.originalUrl}`
+  });
+});
+
 // Обробка неіснуючих маршрутів
 app.use(notFoundHandler);
 

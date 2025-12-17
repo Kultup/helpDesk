@@ -46,11 +46,6 @@ const envSchema = Joi.object({
     .default('info'),
   LOG_DIR: Joi.string().default('./logs'),
 
-  // Zabbix (опціонально)
-  ZABBIX_URL: Joi.string().uri().allow('').optional(),
-  ZABBIX_API_TOKEN: Joi.string().allow('').optional(),
-  ZABBIX_POLL_INTERVAL: Joi.number().min(1).max(60).optional(),
-  ZABBIX_ENABLED: Joi.string().valid('true', 'false', '').optional(),
 }).unknown();
 
 /**

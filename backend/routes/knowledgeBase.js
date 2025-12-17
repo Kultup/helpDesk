@@ -65,7 +65,7 @@ router.get('/articles', auth, async (req, res) => {
 
     const filters = {
       category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
-      status: (status && status !== 'all' && status !== 'undefined' && status !== 'null') ? status : undefined,
+      status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined
     };
@@ -133,6 +133,109 @@ router.get('/articles/:id', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка отримання статті KB',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   GET /api/kb/articles/share/:token
+ * @desc    Отримати статтю KB за токеном поділу (публічний доступ)
+ * @access  Public
+ */
+router.get('/articles/share/:token', async (req, res) => {
+  try {
+    const article = await KnowledgeBase.findOne({ 
+      shareToken: req.params.token,
+      isDeleted: false,
+      status: 'published'
+    })
+      .populate('category', 'name color')
+      .populate('author', 'email position')
+      .populate('lastUpdatedBy', 'email position')
+      .populate('relatedArticles', 'title status');
+
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        message: 'Стаття не знайдена або недоступна'
+      });
+    }
+
+    // Збільшуємо кількість переглядів
+    await article.incrementViews();
+
+    // Знаходимо пов'язані статті
+    const relatedArticles = await kbSearchService.findRelatedArticles(article._id.toString(), 5);
+
+    res.json({
+      success: true,
+      data: {
+        ...article.toObject(),
+        relatedArticles
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching shared KB article:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка отримання статті KB',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route   POST /api/kb/articles/:id/share-token
+ * @desc    Генерувати або отримати токен поділу для статті
+ * @access  Private (Admin)
+ */
+router.post('/articles/:id/share-token', auth, adminAuth, async (req, res) => {
+  try {
+    const article = await KnowledgeBase.findById(req.params.id);
+
+    if (!article || article.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Стаття не знайдена'
+      });
+    }
+
+    // Визначаємо frontend URL
+    // В development використовуємо localhost:3000, в production - з env або з FRONTEND_URL
+    let frontendUrl;
+    if (process.env.NODE_ENV === 'development') {
+      frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    } else {
+      frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    }
+
+    // Якщо токен вже є, повертаємо його
+    if (article.shareToken) {
+      return res.json({
+        success: true,
+        data: {
+          shareToken: article.shareToken,
+          shareUrl: `${frontendUrl}/share/kb/${article.shareToken}`
+        }
+      });
+    }
+
+    // Генеруємо новий токен
+    const token = await article.generateShareToken();
+
+    res.json({
+      success: true,
+      data: {
+        shareToken: token,
+        shareUrl: `${frontendUrl}/share/kb/${token}`
+      }
+    });
+  } catch (error) {
+    logger.error('Error generating share token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка генерації токену поділу',
       error: error.message
     });
   }
@@ -258,7 +361,7 @@ router.get('/search', auth, async (req, res) => {
 
     const filters = {
       category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
-      status: (status && status !== 'all' && status !== 'undefined' && status !== 'null') ? status : undefined,
+      status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined
     };

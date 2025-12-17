@@ -55,6 +55,8 @@ const KnowledgeArticleView: React.FC = () => {
   const [isMarkingHelpful, setIsMarkingHelpful] = useState(false);
   const [isMarkingNotHelpful, setIsMarkingNotHelpful] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const { copied, copy } = useClipboard();
 
   useEffect(() => {
@@ -116,24 +118,36 @@ const KnowledgeArticleView: React.FC = () => {
     }
   };
 
-  const handleShare = () => {
-    setShowShareModal(true);
-  };
-
-  const handleCopyLink = async () => {
+  const handleShare = async () => {
     if (!id) return;
-    const articleUrl = `${window.location.origin}/admin/knowledge-base/${id}`;
-    const success = await copy(articleUrl);
-    if (success) {
-      toast.success('Посилання скопійовано в буфер обміну');
-    } else {
-      toast.error('Не вдалося скопіювати посилання');
+    
+    try {
+      setIsGeneratingToken(true);
+      const response = await apiService.generateKBShareToken(id);
+      if (response.success && response.data) {
+        setShareUrl(response.data.shareUrl);
+        setShowShareModal(true);
+      } else {
+        toast.error(response.message || 'Не вдалося створити посилання для поділу');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Не вдалося створити посилання для поділу');
+    } finally {
+      setIsGeneratingToken(false);
     }
   };
 
-  const getShareUrl = () => {
-    if (!id) return '';
-    return `${window.location.origin}/admin/knowledge-base/${id}`;
+  const handleCopyLink = async () => {
+    if (!shareUrl) {
+      await handleShare();
+      return;
+    }
+    const success = await copy(shareUrl);
+    if (success) {
+      toast.success('Публічне посилання скопійовано в буфер обміну');
+    } else {
+      toast.error('Не вдалося скопіювати посилання');
+    }
   };
 
   if (isLoading) {
@@ -190,9 +204,10 @@ const KnowledgeArticleView: React.FC = () => {
                     size="sm"
                     onClick={handleShare}
                     className="ml-4"
+                    disabled={isGeneratingToken}
                   >
                     <Share2 className="w-4 h-4 mr-2" />
-                    Поділитися
+                    {isGeneratingToken ? 'Генерація...' : 'Поділитися'}
                   </Button>
                 </div>
                 
@@ -413,19 +428,19 @@ const KnowledgeArticleView: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Посилання на статтю
+                  Публічне посилання на статтю
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={getShareUrl()}
+                    value={shareUrl}
                     readOnly
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
                   />
                   <Button
                     variant="outline"
                     onClick={handleCopyLink}
-                    disabled={copied}
+                    disabled={copied || !shareUrl}
                   >
                     {copied ? (
                       <>
@@ -444,7 +459,7 @@ const KnowledgeArticleView: React.FC = () => {
 
               <div className="pt-4 border-t">
                 <p className="text-sm text-gray-600 mb-3">
-                  Скопіюйте посилання та поділіться ним з іншими користувачами
+                  Це публічне посилання. Будь-хто з цим посиланням зможе переглянути статтю без входу в систему.
                 </p>
                 <div className="flex justify-end gap-2">
                   <Button

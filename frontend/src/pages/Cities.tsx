@@ -237,7 +237,7 @@ const Cities: React.FC = () => {
   const updateCityInstitutions = async (cityId: string, institutionIds: string[]) => {
     try {
       // Отримуємо всі заклади (з максимальним лімітом 100)
-      let allInstitutions: Institution[] = [];
+      const allInstitutions: Institution[] = [];
       let currentPage = 1;
       let hasMore = true;
       

@@ -93,7 +93,24 @@ helpDesk/
 
 ## Швидкий старт
 
-### Розробка
+### Локальний запуск (Розробка)
+
+#### Автоматичне налаштування (Windows)
+
+Для швидкого налаштування проекту використайте скрипт:
+
+```powershell
+.\setup-local.ps1
+```
+
+Скрипт автоматично:
+- Перевірить наявність Node.js та npm
+- Створить `.env` файли з прикладів
+- Згенерує безпечні JWT секрети
+- Встановить всі залежності
+- Створить необхідні директорії
+
+#### Ручне налаштування
 
 1. **Встановити залежності:**
 
@@ -101,20 +118,128 @@ helpDesk/
 npm run install-all
 ```
 
+Або окремо:
+```bash
+npm install                    # Кореневі залежності
+cd backend && npm install      # Backend залежності
+cd ../frontend && npm install --legacy-peer-deps  # Frontend залежності
+```
+
 2. **Налаштувати змінні середовища:**
 
+**Backend (.env):**
 ```bash
-# Backend
+# Windows
+copy backend\.env.example backend\.env
+
+# Linux/macOS
 cp backend/.env.example backend/.env
-# Frontend
+```
+
+Потім відредагуйте `backend/.env` та встановіть:
+- `MONGODB_URI` - URI підключення до MongoDB (за замовчуванням: `mongodb://localhost:27017/helpdesk`)
+- `JWT_SECRET` - мінімум 32 символи (скрипт згенерує автоматично)
+- `JWT_REFRESH_SECRET` - мінімум 32 символи (скрипт згенерує автоматично)
+- `FRONTEND_URL` - URL frontend (за замовчуванням: `http://localhost:3000`)
+
+**Frontend (.env):**
+```bash
+# Windows
+copy frontend\.env.example frontend\.env
+
+# Linux/macOS
 cp frontend/.env.example frontend/.env
 ```
 
-3. **Запустити в режимі розробки:**
+У режимі розробки frontend `.env` не обов'язковий - використовується автоматичний проксі.
+
+3. **Запустити MongoDB:**
+
+**Варіант 1: Локальна установка**
+```bash
+# Переконайтеся, що MongoDB запущена
+mongod
+```
+
+**Варіант 2: Docker**
+```bash
+docker run -d -p 27017:27017 --name mongodb mongo:latest
+```
+
+**Варіант 3: MongoDB Atlas (хмарна база)**
+- Зареєструйтеся на https://www.mongodb.com/cloud/atlas
+- Створіть кластер та отримайте connection string
+- Встановіть `MONGODB_URI` в `backend/.env`
+
+4. **Створити адміністратора системи:**
 
 ```bash
-npm run dev
+cd backend
+node scripts/createAdmin.js
 ```
+
+Це створить:
+- Адміністратора: `admin@test.com` / `admin123`
+- Користувача: `user@test.com` / `user123`
+- Базові дані (місто, позиції)
+
+5. **Запустити проект:**
+
+```bash
+# З кореневої директорії (запускає обидва сервери одночасно)
+npm run dev
+
+# Або окремо:
+npm run server  # Backend на http://localhost:5000
+npm run client  # Frontend на http://localhost:3000
+```
+
+6. **Відкрити браузер:**
+
+```
+http://localhost:3000
+```
+
+**Облікові дані:**
+- Email: `admin@test.com`
+- Пароль: `admin123`
+
+#### Перевірка налаштування
+
+Після запуску перевірте:
+
+1. **Backend працює:**
+   - Відкрийте: http://localhost:5000/api/health
+   - Має повернути JSON зі статусом
+
+2. **Frontend працює:**
+   - Відкрийте: http://localhost:3000
+   - Має відкритися сторінка входу
+
+3. **MongoDB підключена:**
+   - Перевірте логи backend - має бути "MongoDB connected successfully"
+
+#### Усунення проблем
+
+**Помилка підключення до MongoDB:**
+- Переконайтеся, що MongoDB запущена
+- Перевірте `MONGODB_URI` в `backend/.env`
+- Для Docker: `docker ps` - має показувати контейнер mongodb
+
+**Помилка CORS:**
+- Перевірте `FRONTEND_URL` в `backend/.env`
+- Має відповідати URL, з якого відкривається frontend
+
+**Помилка встановлення залежностей:**
+- Для frontend використовуйте `npm install --legacy-peer-deps`
+- Переконайтеся, що Node.js версії 18+
+- Спробуйте видалити `node_modules` та `package-lock.json` і встановити знову
+
+**Порт зайнятий:**
+- Backend: змініть `PORT` в `backend/.env` (за замовчуванням 5000)
+- Frontend: змініть порт через змінну середовища `PORT=3001 npm start`
+- **Швидке вирішення (Windows):** Запустіть `.\kill-port-5000.ps1` для автоматичного вивільнення порту 5000
+- **Альтернатива:** Знайдіть процес через `netstat -ano | findstr :5000` та зупиніть через `taskkill /F /PID <номер_процесу>`
 
 ### Продакшн розгортання
 

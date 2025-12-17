@@ -48,18 +48,34 @@ class TelegramService {
       const hasWebhookUrl = !!(cfg?.webhookUrl && cfg.webhookUrl.trim());
       const usePolling = !hasWebhookUrl;
       this.mode = usePolling ? 'polling' : 'webhook';
-      this.bot = new TelegramBot(token, usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false });
-      if (usePolling) {
-        this.bot.on('message', (msg) => this.handleMessage(msg));
-        this.bot.on('callback_query', (cq) => this.handleCallbackQuery(cq));
-        this.bot.on('polling_error', (err) => {
-          logger.error('Помилка polling:', err);
-        });
-        logger.info('✅ Telegram бот запущено у режимі polling');
-      } else {
-        logger.info('✅ Telegram бот запущено у режимі webhook');
+      
+      try {
+        this.bot = new TelegramBot(token, usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false });
+        if (usePolling) {
+          this.bot.on('message', (msg) => this.handleMessage(msg));
+          this.bot.on('callback_query', (cq) => this.handleCallbackQuery(cq));
+          this.bot.on('polling_error', (err) => {
+            // Якщо помилка 404 - токен невалідний, вимикаємо бота
+            if (err.code === 'ETELEGRAM' && err.response?.statusCode === 404) {
+              logger.warn('⚠️ Telegram токен невалідний або бот не знайдено. Telegram бот вимкнено.');
+              this.bot = null;
+              this.isInitialized = false;
+              return;
+            }
+            logger.error('Помилка polling:', err);
+          });
+          logger.info('✅ Telegram бот запущено у режимі polling');
+        } else {
+          logger.info('✅ Telegram бот запущено у режимі webhook');
+        }
+        this.isInitialized = true;
+      } catch (botError) {
+        // Якщо не вдалося створити бота (наприклад, невалідний токен)
+        logger.warn('⚠️ Не вдалося ініціалізувати Telegram бота:', botError.message);
+        this.bot = null;
+        this.isInitialized = false;
+        return;
       }
-      this.isInitialized = true;
 
       try {
         await this.loadBotSettings();

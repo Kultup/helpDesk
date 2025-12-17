@@ -13,13 +13,18 @@ const SocketNotifications = () => {
 
     const requestPermission = async () => {
       if ('Notification' in window && Notification.permission === 'default') {
-        try { await Notification.requestPermission(); } catch {}
+        try { await Notification.requestPermission(); } catch (error) {
+          // Ignore notification permission errors
+        }
       }
     };
 
     const showNotification = (title: string, body: string) => {
       if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(title, { body }); } catch {}
+        try { new Notification(title, { body }); } catch (error) {
+          // Fallback to toast if notification fails
+          toast(`${title}: ${body}`, { icon: '🔔' });
+        }
       } else {
         toast(`${title}: ${body}`, { icon: '🔔' });
       }
@@ -52,7 +57,13 @@ const SocketNotifications = () => {
     }
 
     return () => {
-      if (socket) { try { socket.disconnect(); } catch {} }
+      if (socket) { 
+        try { 
+          socket.disconnect(); 
+        } catch (error) {
+          // Ignore disconnect errors
+        }
+      }
     };
   }, [isAuthenticated, user]);
 
