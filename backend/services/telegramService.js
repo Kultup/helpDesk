@@ -252,6 +252,24 @@ class TelegramService {
         logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, { messageId: result.message_id });
         return result;
       } catch (error) {
+        // Якщо помилка пов'язана з парсингом Markdown, спробуємо відправити як звичайний текст
+        if (
+          error.message?.includes('can\'t parse entities') || 
+          error.message?.includes('Bad Request: can\'t parse entities')
+        ) {
+          logger.warn(`Помилка парсингу Markdown для чату ${chatId}, спроба відправки як звичайний текст`);
+          try {
+            const noMarkdownOptions = { ...defaultOptions };
+            delete noMarkdownOptions.parse_mode;
+            const result = await this.bot.sendMessage(chatId, text, noMarkdownOptions);
+            logger.info(`Повідомлення успішно відправлено в чат ${chatId} без Markdown`);
+            return result;
+          } catch (retryError) {
+            lastError = retryError;
+            // Продовжуємо цикл спроб, якщо це не помилка парсингу
+          }
+        }
+
         lastError = error;
         attempt += 1;
         if (attempt >= maxAttempts) {
@@ -4343,6 +4361,7 @@ class TelegramService {
       }
 
       // Відправляємо відповідь користувачу
+      // Використовуємо спробу відправки без Markdown, якщо основна відправка з Markdown не вдалася
       await this.sendMessage(chatId, aiResponse);
 
       // Оновлюємо історію розмов
@@ -4351,15 +4370,19 @@ class TelegramService {
       this.conversationHistory.set(chatId, history);
 
       // Опціонально: показуємо кнопки для швидких дій
-      await this.bot.sendMessage(chatId, '🤖 Чим ще можу допомогти?', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
-            [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
-            [{ text: '🔄 Головне меню', callback_data: 'show_dashboard' }]
-          ]
-        }
-      });
+      try {
+        await this.bot.sendMessage(chatId, '🤖 Чим ще можу допомогти?', {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
+              [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
+              [{ text: '🔄 Головне меню', callback_data: 'show_dashboard' }]
+            ]
+          }
+        });
+      } catch (uiError) {
+        logger.error('Помилка відправки кнопок після AI відповіді:', uiError);
+      }
     } catch (error) {
       logger.error('Помилка обробки AI чату:', error);
       await this.sendMessage(
