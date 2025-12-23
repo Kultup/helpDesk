@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Bell, User, LogOut, Settings, UserPlus, Calendar } from 'lucide-react';
+import { Menu, Bell, User, LogOut, Settings, UserPlus, Calendar, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 // Theme context is no longer used
 import { useClickOutside, useNotifications, useRegistrationNotifications } from '../../hooks';
 import { usePendingRegistrationsContext } from '../../contexts/PendingRegistrationsContext';
+import { apiService } from '../../services/api';
 import Button from '../UI/Button';
 import NotificationDropdown from '../UI/NotificationDropdown';
 import RegistrationDropdown from './RegistrationDropdown';
+import PositionRequestsDropdown from './PositionRequestsDropdown';
 import HeaderCalendar from './HeaderCalendar';
 
 import LanguageSelector from '../UI/LanguageSelector';
@@ -30,10 +32,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
   const [registrationAnimation, setRegistrationAnimation] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [registrationCount, setRegistrationCount] = useState(0);
+  const [positionRequestsMenuOpen, setPositionRequestsMenuOpen] = useState(false);
+  const [positionRequests, setPositionRequests] = useState<any[]>([]);
+  const [positionRequestsLoading, setPositionRequestsLoading] = useState(false);
+  const [positionRequestsCount, setPositionRequestsCount] = useState(0);
   const userMenuRef = useClickOutside(() => setUserMenuOpen(false));
   const notificationMenuRef = useClickOutside(() => setNotificationMenuOpen(false));
   const registrationMenuRef = useClickOutside(() => setRegistrationMenuOpen(false));
   const calendarMenuRef = useClickOutside(() => setCalendarMenuOpen(false));
+  const positionRequestsMenuRef = useClickOutside(() => setPositionRequestsMenuOpen(false));
   const { notifications } = useNotifications();
   const { registrations, newRegistrationCount, resetNewRegistrationCount } = useRegistrationNotifications();
   const { count: contextRegistrationCount } = usePendingRegistrationsContext();
@@ -99,6 +106,37 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     previousRegistrationCountRef.current = currentRegistrationCount;
   }, [contextRegistrationCount, newRegistrationCount]);
 
+  // Fetch position requests count
+  useEffect(() => {
+    const fetchPositionRequests = async () => {
+      if (user?.role === 'admin') {
+        try {
+          setPositionRequestsLoading(true);
+          // Only fetch if menu is open or we need the count
+          const response = await apiService.getPositionRequests({ status: 'pending', limit: 5 });
+          if (response.success && Array.isArray(response.data)) {
+            setPositionRequests(response.data);
+            const apiResponse = response as any;
+            if (apiResponse.pagination && (apiResponse.pagination.total !== undefined || apiResponse.pagination.totalItems !== undefined)) {
+              setPositionRequestsCount(apiResponse.pagination.total || apiResponse.pagination.totalItems);
+            } else {
+              setPositionRequestsCount(response.data.length);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch position requests', error);
+        } finally {
+          setPositionRequestsLoading(false);
+        }
+      }
+    };
+    
+    fetchPositionRequests();
+    // Poll every minute
+    const intervalId = setInterval(fetchPositionRequests, 60000);
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -112,6 +150,26 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     // Закриваємо інші меню якщо вони відкриті
     if (userMenuOpen) {
       setUserMenuOpen(false);
+    }
+    if (registrationMenuOpen) {
+      setRegistrationMenuOpen(false);
+    }
+    if (calendarMenuOpen) {
+      setCalendarMenuOpen(false);
+    }
+    if (positionRequestsMenuOpen) {
+      setPositionRequestsMenuOpen(false);
+    }
+  };
+
+  const handlePositionRequestsClick = () => {
+    setPositionRequestsMenuOpen(!positionRequestsMenuOpen);
+    // Закриваємо інші меню якщо вони відкриті
+    if (userMenuOpen) {
+      setUserMenuOpen(false);
+    }
+    if (notificationMenuOpen) {
+      setNotificationMenuOpen(false);
     }
     if (registrationMenuOpen) {
       setRegistrationMenuOpen(false);
@@ -135,6 +193,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     if (calendarMenuOpen) {
       setCalendarMenuOpen(false);
     }
+    if (positionRequestsMenuOpen) {
+      setPositionRequestsMenuOpen(false);
+    }
   };
 
   const handleCalendarClick = () => {
@@ -149,6 +210,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     if (registrationMenuOpen) {
       setRegistrationMenuOpen(false);
     }
+    if (positionRequestsMenuOpen) {
+      setPositionRequestsMenuOpen(false);
+    }
   };
 
   const handleUserMenuClick = () => {
@@ -162,6 +226,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
     }
     if (calendarMenuOpen) {
       setCalendarMenuOpen(false);
+    }
+    if (positionRequestsMenuOpen) {
+      setPositionRequestsMenuOpen(false);
     }
   };
 
