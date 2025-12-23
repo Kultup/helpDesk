@@ -16,9 +16,7 @@ const BotSettings = require('../models/BotSettings');
     const settings = new BotSettings({
       key: 'default',
       cancelButtonText: '❌ Скасувати',
-      categoryPromptText: 'Крок 4/5: Оберіть категорію:',
       priorityPromptText: 'Крок 5/5: Оберіть пріоритет:',
-      categoryButtonRowSize: 2,
       priorityTexts: new Map([
         ['low', '🟢 Низький'],
         ['medium', '🟡 Середній'],

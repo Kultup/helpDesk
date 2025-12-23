@@ -13,11 +13,6 @@ const knowledgeBaseSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50000, 'Content cannot exceed 50000 characters']
   },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
-    default: null
-  },
   subcategory: {
     type: String,
     trim: true,

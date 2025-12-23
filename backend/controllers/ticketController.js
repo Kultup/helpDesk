@@ -196,7 +196,6 @@ exports.createTicket = async (req, res) => {
       title,
       description,
       priority = 'medium',
-      category,
       subcategory,
       city,
       assignedTo,
@@ -220,7 +219,6 @@ exports.createTicket = async (req, res) => {
       title,
       description,
       priority,
-      category,
       subcategory,
       city,
       createdBy: req.user._id,
@@ -320,7 +318,6 @@ exports.updateTicket = async (req, res) => {
       description,
       status,
       priority,
-      category,
       subcategory,
       city,
       assignedTo,
@@ -340,7 +337,6 @@ exports.updateTicket = async (req, res) => {
     if (title !== undefined) ticket.title = title;
     if (description !== undefined) ticket.description = description;
     if (priority !== undefined) ticket.priority = priority;
-    if (category !== undefined) ticket.category = category;
     if (subcategory !== undefined) ticket.subcategory = subcategory;
     if (city !== undefined) ticket.city = city;
     if (dueDate !== undefined) ticket.dueDate = dueDate ? new Date(dueDate) : null;
@@ -826,7 +822,6 @@ exports.exportTickets = async (req, res) => {
         
         // Опис та категорія
         'Опис': ticket.description,
-        'Категорія': getCategoryLabel(ticket.category),
         'Підкатегорія': ticket.subcategory || 'Не вказано',
         'Тип': getTypeLabel(ticket.type),
         
@@ -971,16 +966,6 @@ function getPriorityLabel(priority) {
     'urgent': 'Терміновий'
   };
   return priorityLabels[priority] || priority;
-}
-
-function getCategoryLabel(category) {
-  const categoryLabels = {
-    'technical': 'Технічна',
-    'account': 'Обліковий запис',
-    'billing': 'Біллінг',
-    'general': 'Загальна'
-  };
-  return categoryLabels[category] || category;
 }
 
 function getTypeLabel(type) {

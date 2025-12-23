@@ -11,7 +11,6 @@ const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const Category = require('../models/Category');
 const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
@@ -25,12 +24,10 @@ class TelegramService {
     this.userSessions = new Map();
     this.userStates = new Map();
     this.stateStack = new Map();
-    this.categoryCache = new Map(); // Кеш для категорій
     this.botSettings = null; // Налаштування бота з БД
     this.mode = 'webhook';
     this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
-    this.loadCategories(); // Завантажуємо категорії при ініціалізації
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -81,10 +78,9 @@ class TelegramService {
 
       try {
         await this.loadBotSettings();
-        await this.loadCategories();
         await groqService.initialize();
       } catch (catErr) {
-        logger.warn('⚠️ Не вдалося оновити категорії після ініціалізації:', catErr);
+        logger.warn('⚠️ Не вдалося оновити налаштування після ініціалізації:', catErr);
       }
     } catch (error) {
       logger.error('Помилка ініціалізації Telegram бота:', error);
@@ -973,20 +969,12 @@ class TelegramService {
       } else if (data === 'cancel_ticket') {
         await this.handleCancelTicketCallback(chatId, user);
         await this.answerCallbackQuery(callbackQuery.id);
-      } else if (data.startsWith('category_')) {
-        const categoryId = data.replace('category_', '');
-        await this.handleDynamicCategoryCallback(chatId, user, categoryId);
-      } else if (data === 'priority_low') {
-           await this.handlePriorityCallback(chatId, user, 'low');
-         } else if (data === 'priority_medium') {
-           await this.handlePriorityCallback(chatId, user, 'medium');
-         } else if (data === 'priority_high') {
-           await this.handlePriorityCallback(chatId, user, 'high');
-         } else if (data === 'priority_urgent') {
-           await this.handlePriorityCallback(chatId, user, 'urgent');
-        } else {
-          await this.answerCallbackQuery(callbackQuery.id, 'Невідома команда');
-        }
+      } else if (data.startsWith('priority_')) {
+        const priority = data.replace('priority_', '');
+        await this.handlePriorityCallback(chatId, user, priority);
+      } else {
+        await this.answerCallbackQuery(callbackQuery.id, 'Невідома команда');
+      }
         return;
       }
 
@@ -1034,47 +1022,11 @@ class TelegramService {
     if (!session || session.step !== 'priority') return;
 
     session.ticketData.priority = priority;
-    session.step = 'photo';
-
-    await this.sendMessage(chatId, 
-      `✅ *Пріоритет встановлено:* ${this.getPriorityText(priority)}\n\n` +
-      `📸 *Крок 4/4:* Бажаєте додати фото до заявки?`, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-            [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-            [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-          ]
-        }
-      }
-    );
+    await this.completeTicketCreation(chatId, user, session);
   }
 
-  async handleDynamicCategoryCallback(chatId, user, categoryId) {
-    const session = this.userSessions.get(chatId);
-    if (!session || session.step !== 'category') return;
+  
 
-    session.ticketData.category = categoryId;
-    
-    // Якщо пріоритет вже встановлено (наприклад AI), переходимо до фото
-    if (session.ticketData.priority && session.ticketData.priority !== 'medium') {
-      session.step = 'photo';
-      await this.sendMessage(chatId, 
-        `📸 *Крок 4/4:* Бажаєте додати фото до заявки?`, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-              [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-            ]
-          }
-        }
-      );
-    } else {
-      session.step = 'priority';
-      await this.showPrioritySelection(chatId, session);
-    }
-  }
 
   async handleMyTicketsCallback(chatId, user) {
     try {
@@ -1128,7 +1080,6 @@ class TelegramService {
       const tickets = await Ticket.find({ createdBy: user._id })
         .sort({ createdAt: -1 })
         .limit(20)
-        .populate('category', 'name')
         .lean();
 
       if (tickets.length === 0) {
@@ -1191,7 +1142,6 @@ class TelegramService {
     try {
       // Знаходимо оригінальний тікет
       const originalTicket = await Ticket.findById(ticketId)
-        .populate('category', 'name')
         .lean();
 
       if (!originalTicket) {
@@ -1218,7 +1168,6 @@ class TelegramService {
           title: originalTicket.title,
           description: originalTicket.description || '',
           priority: originalTicket.priority || 'medium',
-          categoryId: originalTicket.category?._id || originalTicket.category || null,
           photos: [],
           isRecreated: true,
           originalTicketId: ticketId
@@ -1233,7 +1182,7 @@ class TelegramService {
         `📋 *Заголовок:* \`${originalTicket.title}\`\n` +
         `📝 *Опис:* \`${originalTicket.description || 'Без опису'}\`\n` +
         `\n✏️ Ви можете змінити заголовок або описати нову проблему\n` +
-        `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+        `📋 *Крок 1/3:* Введіть заголовок тікету\n` +
         `💡 Опишіть коротко суть проблеми`;
 
       await this.sendMessage(chatId, message, {
@@ -1259,7 +1208,6 @@ class TelegramService {
     try {
       const ticket = await Ticket.findById(ticketId)
         .populate('city', 'name')
-        .populate('category', 'name')
         .lean();
 
       if (!ticket) {
@@ -1516,16 +1464,18 @@ class TelegramService {
       }
 
       // Використовуємо попередній опис і переходимо до фото
+      // session.ticketData.description вже містить опис з попереднього тікету
+      
+      // Переходимо до фото
       session.step = 'photo';
       
       await this.sendMessage(chatId,
         `✅ *Опис використано*\n` +
         `📝 ${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}\n` +
-        `\n📷 *Крок 3/4:* Прикріпіть фото (необов'язково)\n` +
-        `💡 Ви можете прикріпити фото для кращого опису проблеми`, {
+        `\n📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📷 Прикріпити фото', callback_data: 'attach_photo' }],
+              [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
               [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
               [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
             ]
@@ -1995,9 +1945,6 @@ class TelegramService {
 
   async handleTicketCreationStep(chatId, text, session) {
     try {
-      const Category = require('../models/Category');
-      const activeCategories = await Category.find({ isActive: true });
-
       switch (session.step) {
         case 'title':
           session.ticketData.title = text;
@@ -2014,34 +1961,23 @@ class TelegramService {
         case 'description':
           session.ticketData.description = text;
           
-          // Якщо категорію вже встановлено (наприклад AI), перевіряємо пріоритет
-          if (session.ticketData.category) {
-            if (session.ticketData.priority && session.ticketData.priority !== 'medium') {
-              session.step = 'photo';
-              await this.sendMessage(chatId, 
-                'Крок 3/4: Прикріпіть фото (необов\'язково)', {
-                  reply_markup: {
-                    inline_keyboard: [
-                      [{ text: '📷 Прикріпити фото', callback_data: 'attach_photo' }],
-                      [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                    ]
-                  }
-                }
-              );
-            } else {
-              session.step = 'priority';
-              await this.showPrioritySelection(chatId, session);
+          // Переходимо до додавання фото
+          session.step = 'photo';
+          await this.sendMessage(chatId, 
+            `📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                ]
+              }
             }
-          } else {
-            session.step = 'category';
-            await this.showCategorySelection(chatId, session);
-          }
+          );
           break;
 
-        case 'category':
-           // Логіка для категорії - пропущено, не використовується
-           break;
+  
+
 
          case 'priority':
            // Логіка для пріоритету - очікуємо callback
@@ -2290,9 +2226,7 @@ class TelegramService {
   async handleSkipPhotoCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      // Пропускаємо вибір категорії, переходимо одразу на пріоритет
       session.step = 'priority';
-      session.ticketData.categoryId = null; // Категорія не обов'язкова
       
       await this.sendMessage(chatId, 
         this.getPriorityPromptText(), {
@@ -2318,9 +2252,7 @@ class TelegramService {
   async handleFinishTicketCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      // Пропускаємо вибір категорії, переходимо одразу на пріоритет
       session.step = 'priority';
-      session.ticketData.categoryId = null; // Категорія не обов'язкова
       
       await this.sendMessage(chatId, 
         this.getPriorityPromptText(), {
@@ -2388,82 +2320,43 @@ class TelegramService {
   }
 
 
-  // Обробники для категорій та пріоритетів
-   async handleCategoryCallback(chatId, user, categoryId) {
-     const session = this.userSessions.get(chatId);
-     if (session) {
-       session.ticketData.categoryId = categoryId;
-       session.step = 'priority';
-       
-       await this.sendMessage(chatId, 
-         this.getPriorityPromptText(), {
-           reply_markup: {
-             inline_keyboard: [
-               [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
-               [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
-               [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
-               [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-             ]
-           }
-         }
-       );
-     }
-   }
 
-   async handlePriorityCallback(chatId, user, priority) {
-     const session = this.userSessions.get(chatId);
-     if (session) {
-       session.ticketData.priority = priority;
-       await this.completeTicketCreation(chatId, user, session);
-     }
-   }
 
    async completeTicketCreation(chatId, user, session) {
-     try {
-       // Якщо категорія не вказана, використовуємо дефолтну або першу доступну
-       let categoryId = session.ticketData.categoryId;
-       if (!categoryId) {
-         // Шукаємо першу активну категорію як дефолтну
-         const defaultCategory = await Category.findOne({ isActive: true }).sort({ name: 1 });
-         if (defaultCategory) {
-           categoryId = defaultCategory._id;
-         }
-       }
-       
-       const ticketData = {
-         title: session.ticketData.title,
-         description: session.ticketData.description,
-         category: categoryId,
-         priority: session.ticketData.priority,
-         createdBy: user._id,
-         city: user.city,
-         status: 'open',
-         metadata: {
-           source: 'telegram'
-         },
-         attachments: session.ticketData.photos.map(photo => {
-           let fileSize = 0;
-           try {
-             const stats = fs.statSync(photo.path);
-             fileSize = stats.size;
-           } catch (error) {
-             logger.error(`Помилка отримання розміру файлу ${photo.path}:`, error);
-           }
-           
-           return {
-             filename: path.basename(photo.path),
-             originalName: photo.caption || path.basename(photo.path),
-             mimetype: 'image/jpeg', // Можна визначити тип файлу пізніше
-             size: fileSize,
-             path: photo.path,
-             uploadedBy: user._id,
-             caption: photo.caption
-           };
-         })
-       };
+    try {
+      const ticketData = {
+        title: session.ticketData.title,
+        description: session.ticketData.description,
+        priority: session.ticketData.priority,
+        createdBy: user._id,
+        city: user.city,
+        status: 'open',
+        metadata: {
+          source: 'telegram'
+        },
+        attachments: session.ticketData.photos.map(photo => {
+          let fileSize = 0;
+          try {
+            const stats = fs.statSync(photo.path);
+            fileSize = stats.size;
+          } catch (error) {
+            logger.error(`Помилка отримання розміру файлу ${photo.path}:`, error);
+          }
+          
+          return {
+            filename: path.basename(photo.path),
+            originalName: photo.caption || path.basename(photo.path),
+            mimetype: 'image/jpeg', // Можна визначити тип файлу пізніше
+            size: fileSize,
+            path: photo.path,
+            uploadedBy: user._id,
+            caption: photo.caption
+          };
+        })
+      };
 
-       const ticket = new Ticket(ticketData);
-       await ticket.save();
+      const ticket = new Ticket(ticketData);
+      await ticket.save();
 
        // Заповнюємо дані для WebSocket сповіщення
        await ticket.populate([
@@ -2564,30 +2457,6 @@ class TelegramService {
        );
      }
    }
-
-  async getCategoryText(categoryId) {
-    try {
-      if (typeof categoryId === 'string' && categoryId.length === 24) {
-        // ObjectId – шукаємо в БД та використовуємо icon, якщо задано
-        const category = await Category.findById(categoryId);
-        if (!category) return 'Невідома категорія';
-        const icon = category.icon && category.icon.trim() !== '' ? category.icon : '';
-        return icon ? `${icon} ${category.name}` : category.name;
-      }
-
-      // Підтримка старого формату: шукаємо категорію за назвою
-      const byName = await Category.findByName(categoryId);
-      if (byName) {
-        const icon = byName.icon && byName.icon.trim() !== '' ? byName.icon : '';
-        return icon ? `${icon} ${byName.name}` : byName.name;
-      }
-
-      return 'Невідома категорія';
-    } catch (error) {
-      logger.error('Помилка отримання тексту категорії:', error);
-      return 'Невідома категорія';
-    }
-  }
 
   /**
    * Відправка сповіщення користувачу про підтвердження посади
@@ -2845,13 +2714,11 @@ class TelegramService {
       logger.info('📋 Заповнення даних тікету...');
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email login telegramId' },
-        { path: 'city', select: 'name region' },
-        { path: 'category', select: 'name' }
+        { path: 'city', select: 'name region' }
       ]);
       logger.info('✅ Дані тікету заповнено', {
         createdBy: ticket.createdBy?._id,
-        city: ticket.city?.name,
-        category: ticket.category?.name
+        city: ticket.city?.name
       });
 
       logger.info('📝 Формування повідомлення...');
@@ -2975,8 +2842,7 @@ class TelegramService {
 
       // Завантажуємо тікет з повною інформацією
       await ticket.populate([
-        { path: 'createdBy', select: 'firstName lastName email telegramId telegramChatId' },
-        { path: 'category', select: 'name' }
+        { path: 'createdBy', select: 'firstName lastName email telegramId telegramChatId' }
       ]);
 
       // Перевіряємо, чи користувач має Telegram ID або Chat ID
@@ -3048,11 +2914,6 @@ class TelegramService {
     return priorityMap[priority] || priority;
   }
 
-  getCategoryPromptText() {
-    return `🏷️ *Оберіть категорію тікету*\n` +
-      `Категорія допоможе швидше обробити ваш запит.`;
-  }
-
   getPriorityPromptText() {
     return `⚡ *Оберіть пріоритет тікету*\n` +
       `Пріоритет визначає швидкість обробки вашого запиту.`;
@@ -3101,82 +2962,8 @@ class TelegramService {
     // ➡️ для вказівки, що текст продовжується (створює ефект руху)
     return truncated + ' ➡️';
   }
+  
 
-  async generateCategoryButtons() {
-    try {
-      const categories = this.getAllCategories();
-      const buttons = [];
-      
-      // Якщо категорій немає, повертаємо порожній масив
-      if (!categories || categories.length === 0) {
-        logger.warn('Немає категорій для відображення');
-        return buttons;
-      }
-      
-      // Групуємо категорії по дві в рядку для кращого відображення
-      for (let i = 0; i < categories.length; i += 2) {
-        const row = [];
-        
-        // Перша категорія в рядку
-        const category1 = categories[i];
-        if (category1 && category1._id) {
-          const icon1 = category1.icon && category1.icon.trim() !== '' ? category1.icon : '';
-          const text1 = icon1 ? `${icon1} ${category1.name}` : category1.name;
-          // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
-          const buttonText1 = this.truncateButtonText(text1, 30);
-          row.push({
-            text: buttonText1,
-            callback_data: `category_${category1._id}`
-          });
-        }
-        
-        // Друга категорія в рядку (якщо є)
-        const category2 = categories[i + 1];
-        if (category2 && category2._id) {
-          const icon2 = category2.icon && category2.icon.trim() !== '' ? category2.icon : '';
-          const text2 = icon2 ? `${icon2} ${category2.name}` : category2.name;
-          // Обмежуємо довжину тексту кнопки (Telegram має обмеження)
-          const buttonText2 = this.truncateButtonText(text2, 30);
-          row.push({
-            text: buttonText2,
-            callback_data: `category_${category2._id}`
-          });
-        }
-        
-        if (row.length > 0) {
-          buttons.push(row);
-        }
-      }
-      
-      logger.debug(`Згенеровано ${buttons.length} рядків кнопок категорій`);
-      return buttons;
-    } catch (error) {
-      logger.error('Помилка генерації кнопок категорій:', error);
-      return [];
-    }
-  }
-
-  getAllCategories() {
-    return Array.from(this.categoryCache.values());
-  }
-
-  async loadCategories() {
-    try {
-      const categories = await Category.find({ isActive: true })
-        .select('name icon color')
-        .sort({ name: 1 })
-        .lean();
-      
-      this.categoryCache.clear();
-      categories.forEach(cat => {
-        this.categoryCache.set(cat._id.toString(), cat);
-      });
-      
-      logger.debug(`Завантажено ${categories.length} категорій в кеш`);
-    } catch (error) {
-      logger.error('Помилка завантаження категорій:', error);
-    }
-  }
 
   async loadBotSettings() {
     try {
@@ -3189,25 +2976,6 @@ class TelegramService {
     }
   }
 
-  async handleDynamicCategoryCallback(chatId, user, categoryId) {
-    const session = this.userSessions.get(chatId);
-    if (session) {
-      session.ticketData.categoryId = categoryId;
-      session.step = 'priority';
-      await this.sendMessage(chatId, 
-        this.getPriorityPromptText(), {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
-              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
-              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-            ]
-          }
-        }
-      );
-    }
-  }
 
   async handleUserRegistrationCallback(chatId, userId) {
     try {
@@ -4464,36 +4232,7 @@ class TelegramService {
     return texts[priority] || 'Середній';
   }
 
-  async showCategorySelection(chatId, session) {
-    try {
-      const Category = require('../models/Category');
-      const activeCategories = await Category.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });
-      
-      const keyboard = [];
-      const rowSize = 2;
-      
-      for (let i = 0; i < activeCategories.length; i += rowSize) {
-        const row = activeCategories.slice(i, i + rowSize).map(cat => ({
-          text: cat.name,
-          callback_data: `category_${cat._id}`
-        }));
-        keyboard.push(row);
-      }
-      
-      keyboard.push([{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]);
 
-      await this.sendMessage(chatId, 
-        `📁 *Крок 3/4:* Оберіть категорію проблеми`, {
-          reply_markup: {
-            inline_keyboard: keyboard
-          }
-        }
-      );
-    } catch (error) {
-      logger.error('Помилка показу категорій:', error);
-      await this.sendMessage(chatId, 'Помилка завантаження категорій. Введіть категорію текстом або спробуйте пізніше.');
-    }
-  }
 
   async showPrioritySelection(chatId, session) {
     const keyboard = [
@@ -4525,10 +4264,6 @@ class TelegramService {
       // Показуємо індикатор набору тексту відразу
       await this.bot.sendChatAction(chatId, 'typing');
 
-      // Отримуємо активні категорії для AI та для перевірки
-      const Category = require('../models/Category');
-      const activeCategories = await Category.find({ isActive: true }).select('name _id');
-
       // Використовуємо AI для аналізу наміру (це точніше за ключові слова)
       const intentAnalysis = await groqService.analyzeIntent(userMessage);
       
@@ -4552,12 +4287,11 @@ class TelegramService {
 
         // Ініціалізуємо сесію створення тікета
         const session = {
-          step: title ? (description ? (intentAnalysis.categoryId ? (intentAnalysis.priority ? 'photo' : 'priority') : 'category') : 'description') : 'title',
+          step: title ? (description ? (intentAnalysis.priority ? 'photo' : 'priority') : 'description') : 'title',
           ticketData: {
             createdBy: user._id,
             title: title,
             description: description,
-            category: intentAnalysis.categoryId || null,
             priority: intentAnalysis.priority || 'medium',
             photos: []
           }
@@ -4568,7 +4302,7 @@ class TelegramService {
         if (session.step === 'title') {
           await this.sendMessage(chatId, 
             `📝 *Створення нового тікету*\n` +
-            `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+            `📋 *Крок 1/3:* Введіть заголовок тікету\n` +
             `💡 Опишіть коротко суть проблеми`, {
               reply_markup: {
                 inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
@@ -4579,26 +4313,22 @@ class TelegramService {
           await this.sendMessage(chatId, 
             `🚀 *Починаю створення тікета.*\n\n` +
             `📌 *Заголовок:* ${session.ticketData.title}\n` +
-            `📋 *Крок 2/4:* Будь ласка, введіть детальний опис проблеми:`, {
+            `📋 *Крок 2/3:* Будь ласка, введіть детальний опис проблеми:`, {
               reply_markup: {
                 inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
               }
             }
           );
-        } else if (session.step === 'category') {
-          await this.showCategorySelection(chatId, session);
         } else if (session.step === 'priority') {
           await this.showPrioritySelection(chatId, session);
         } else {
-          // Якщо ми вже маємо і заголовок, і опис, і категорію, і пріоритет
-          const categoryName = activeCategories.find(c => String(c._id) === String(session.ticketData.category))?.name || 'Не вказано';
+          // Якщо ми вже маємо і заголовок, і опис, і пріоритет
           const priorityText = this.getPriorityText(session.ticketData.priority);
           
           await this.sendMessage(chatId, 
             `✅ *Тікет майже готовий!*\n\n` +
             `📌 *Заголовок:* ${session.ticketData.title}\n` +
             `📝 *Опис:* ${session.ticketData.description}\n` +
-            `📁 *Категорія:* ${categoryName}\n` +
             `⚡ *Пріоритет:* ${priorityText}\n\n` +
             `📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
               reply_markup: {

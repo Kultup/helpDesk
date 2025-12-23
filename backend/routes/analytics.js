@@ -688,14 +688,7 @@ router.get('/charts/weekly-tickets',
   analyticsController.getWeeklyTicketsChart
 );
 
-// @route   GET /api/analytics/charts/category-distribution
-// @desc    Дані для розподілу за категоріями
-// @access  Private
-router.get('/charts/category-distribution', 
-  authenticateToken,
-  requirePermission('view_analytics'),
-  analyticsController.getCategoryDistribution
-);
+
 
 // @route   GET /api/analytics/charts/workload-by-day
 // @desc    Дані для навантаження по днях тижня

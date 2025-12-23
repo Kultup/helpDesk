@@ -333,7 +333,6 @@ app.use('/api/cities', require('./routes/cities'));
 app.use('/api/positions', require('./routes/positions'));
 app.use('/api/position-requests', require('./routes/positionRequests'));
 app.use('/api/institutions', require('./routes/institutions'));
-app.use('/api/categories', require('./routes/categories'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));

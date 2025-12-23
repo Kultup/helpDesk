@@ -9,7 +9,6 @@ const Joi = require('joi');
 const { body, query, param, validationResult } = require('express-validator');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
-const Category = require('../models/Category');
 const ticketController = require('../controllers/ticketController');
 const commentController = require('../controllers/commentController');
 const attachmentController = require('../controllers/attachmentController');
@@ -65,7 +64,6 @@ const createTicketSchema = Joi.object({
     'any.required': 'Опис є обов\'язковим'
   }),
   priority: Joi.string().valid('low', 'medium', 'high').default('medium'),
-  category: Joi.string().valid('technical', 'account', 'billing', 'general').optional().allow(null),
   city: Joi.string().optional().allow(null),
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).optional(),
@@ -77,7 +75,6 @@ const updateTicketSchema = Joi.object({
   description: Joi.string().max(2000).optional(),
   status: Joi.string().valid('open', 'in_progress', 'resolved', 'closed').optional(),
   priority: Joi.string().valid('low', 'medium', 'high').optional(),
-  category: Joi.string().valid('technical', 'account', 'billing', 'general').optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).allow(null).optional(),
   actualTime: Joi.number().min(0).allow(null).optional(),
@@ -102,7 +99,6 @@ router.get('/', authenticateToken, async (req, res) => {
       limit = 10,
       status,
       priority,
-      category,
       city,
       createdBy,
       search,
@@ -115,7 +111,6 @@ router.get('/', authenticateToken, async (req, res) => {
     
     if (status) filters.status = status;
     if (priority) filters.priority = priority;
-    if (category) filters.category = category;
     if (city) filters.city = city;
     if (createdBy) filters.createdBy = createdBy;
     
@@ -270,80 +265,6 @@ router.post('/',
         }
       }
 
-      // Конвертація category зі строки в ObjectId (опціонально)
-      let categoryId = null;
-      if (value.category) {
-        if (typeof value.category === 'string' && !mongoose.Types.ObjectId.isValid(value.category)) {
-        // Мапінг англійських назв enum на українські назви категорій в базі
-        const categoryNameMap = {
-          'technical': ['Технічні', 'Технічні питання', 'Технічні проблеми'],
-          'account': ['Акаунт', 'Обліковий запис', 'Авторизація'],
-          'billing': ['Фінанси', 'Біллінг'],
-          'general': ['Загальні', 'Загальні питання', 'Інструкції']
-        };
-        
-        const categoryNames = categoryNameMap[value.category.toLowerCase()] || [];
-        
-        // Спочатку шукаємо точний збіг
-        let category = await Category.findOne({ 
-          name: { $in: categoryNames },
-          isActive: true 
-        });
-        
-        // Якщо не знайдено, шукаємо по частковому збігу (на початку назви)
-        if (!category && categoryNames.length > 0) {
-          const regexPatterns = categoryNames.map(name => new RegExp(`^${name}`, 'i'));
-          category = await Category.findOne({ 
-            name: { $regex: regexPatterns[0] },
-            isActive: true 
-          });
-        }
-        
-        // Якщо все ще не знайдено, спробуємо знайти за англійською назвою
-        if (!category) {
-          category = await Category.findOne({ 
-            name: new RegExp(`^${value.category.toLowerCase()}$`, 'i'),
-            isActive: true 
-          });
-        }
-        
-        if (!category) {
-          logger.warn('❌ Категорія не знайдена:', value.category);
-          logger.warn('❌ Шукали за назвами:', categoryNames);
-          // Логуємо всі доступні категорії для діагностики
-          const allCategories = await Category.find({ isActive: true }).select('name');
-          logger.warn('❌ Доступні категорії в базі:', allCategories.map(c => c.name));
-          
-          // Якщо категорія не знайдена, використовуємо першу активну категорію (як в боті)
-          const fallbackCategory = await Category.findOne({ isActive: true }).sort({ name: 1 });
-          if (fallbackCategory) {
-            category = fallbackCategory;
-            logger.info('✅ Використано резервну категорію:', { 
-              requested: value.category,
-              categoryId: fallbackCategory._id,
-              name: fallbackCategory.name 
-            });
-          } else {
-            // Якщо категорія не знайдена і немає резервної, просто не встановлюємо категорію
-            logger.warn('⚠️ Категорія не знайдена, створюємо тікет без категорії');
-            categoryId = null;
-          }
-        }
-        
-        if (category) {
-          categoryId = category._id;
-          logger.info('✅ Категорія знайдена за назвою:', { 
-            category: value.category, 
-            categoryId: category._id,
-            foundName: category.name 
-          });
-        }
-      } else if (typeof value.category === 'string' && mongoose.Types.ObjectId.isValid(value.category)) {
-          // Якщо category - це валідний ObjectId
-          categoryId = new mongoose.Types.ObjectId(value.category);
-        }
-      }
-
       // Обробка вкладених файлів
       const attachments = req.files ? req.files.map(file => ({
         filename: file.filename,
@@ -397,13 +318,7 @@ router.post('/',
         metadata: {
           source: source // 'web' або 'mobile' в залежності від наявності активних пристроїв
         }
-      };
-      
-      // Додаємо категорію тільки якщо вона вказана
-      if (categoryId) {
-        ticketData.category = categoryId;
-      }
-      
+      };      
       const ticket = new Ticket(ticketData);
 
       await ticket.save();
@@ -413,8 +328,7 @@ router.post('/',
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email telegramId' },
         { path: 'assignedTo', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' },
-        { path: 'category', select: 'name color' }
+        { path: 'city', select: 'name region' }
       ]);
 
       // При створенні тікету - ВСІ тікети отримують сповіщення в Telegram групу

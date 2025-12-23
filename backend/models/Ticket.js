@@ -35,11 +35,6 @@ const ticketSchema = new mongoose.Schema({
     },
     default: 'medium'
   },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Category',
-    required: false
-  },
   subcategory: {
     type: String,
     trim: true,
@@ -329,7 +324,6 @@ ticketSchema.index({ ticketNumber: 1 });
 ticketSchema.index({ status: 1, priority: 1 });
 ticketSchema.index({ createdBy: 1, status: 1 });
 ticketSchema.index({ city: 1, status: 1 });
-ticketSchema.index({ category: 1, subcategory: 1 });
 ticketSchema.index({ createdAt: -1 });
 ticketSchema.index({ dueDate: 1 });
 ticketSchema.index({ tags: 1 });
@@ -461,10 +455,6 @@ ticketSchema.statics.findByStatus = function(status) {
 
 ticketSchema.statics.findByPriority = function(priority) {
   return this.find({ priority, isDeleted: false });
-};
-
-ticketSchema.statics.findByCategory = function(category) {
-  return this.find({ category, isDeleted: false });
 };
 
 ticketSchema.statics.findByCity = function(cityId) {
@@ -673,7 +663,6 @@ ticketSchema.post('save', async function(doc) {
         description: `Тікет створено: ${this.title}`,
         metadata: {
           ticketNumber: this.ticketNumber,
-          category: this.category,
           priority: this.priority,
           status: this.status
         }
@@ -713,8 +702,6 @@ ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {
       return 'title_changed';
     case 'description':
       return 'description_changed';
-    case 'category':
-      return 'category_changed';
     case 'dueDate':
       return 'due_date_changed';
     case 'tags':
@@ -736,8 +723,6 @@ ticketSchema.methods._getChangeDescription = function(change) {
       return `Заголовок змінено`;
     case 'description_changed':
       return `Опис оновлено`;
-    case 'category_changed':
-      return `Категорію змінено з "${oldValue}" на "${newValue}"`;
     case 'due_date_changed':
       return `Термін виконання змінено`;
     default:

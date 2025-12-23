@@ -104,15 +104,10 @@ class GroqService {
         return { isTicketIntent: false };
       }
 
-      // Отримуємо активні категорії
-      const activeCategories = await Category.find({ isActive: true }).select('name _id');
-      const categoryList = activeCategories.map(c => `"${c.name}" (ID: ${c._id})`).join(', ');
-
       const systemPrompt = `
         Ви - аналізатор намірів користувача для системи HelpDesk. 
         Ваше завдання - визначити, чи хоче користувач створити заявку (тікет) або повідомити про проблему.
         
-        Доступні категорії: [${categoryList}]
         Доступні пріоритети: "low", "medium", "high", "urgent"
         
         Поверніть відповідь ТІЛЬКИ у форматі JSON:
@@ -120,7 +115,6 @@ class GroqService {
           "isTicketIntent": boolean, // чи є намір створити тікет/повідомити про проблему
           "title": string | null,    // короткий заголовок (до 50 символів)
           "description": string | null, // детальний опис проблеми
-          "categoryId": string | null, // ID категорії зі списку вище, яка найкраще підходить
           "priority": string | null, // пріоритет (low, medium, high, urgent)
           "confidence": number // впевненість від 0 до 1
         }

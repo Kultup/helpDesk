@@ -6,7 +6,6 @@ const Ticket = require('./Ticket');
 const City = require('./City');
 const Position = require('./Position');
 const Comment = require('./Comment');
-const Category = require('./Category');
 const TimeEntry = require('./TimeEntry');
 const NotificationTemplate = require('./NotificationTemplate');
 const QuickTip = require('./QuickTip');
@@ -30,7 +29,6 @@ module.exports = {
   City,
   Position,
   Comment,
-  Category,
   TimeEntry,
   NotificationTemplate,
   QuickTip,

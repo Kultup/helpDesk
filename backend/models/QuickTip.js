@@ -1,11 +1,6 @@
 const mongoose = require('mongoose');
 
 const quickTipSchema = new mongoose.Schema({
-  category: {
-    type: String,
-    required: true,
-    trim: true
-  },
   title: {
     type: String,
     required: true,
@@ -59,7 +54,7 @@ const quickTipSchema = new mongoose.Schema({
 });
 
 // Індекси для швидкого пошуку
-quickTipSchema.index({ category: 1, isActive: 1 });
+quickTipSchema.index({ isActive: 1 });
 quickTipSchema.index({ priority: -1 });
 quickTipSchema.index({ tags: 1 });
 
@@ -70,19 +65,8 @@ quickTipSchema.virtual('helpfulnessRatio').get(function() {
   return (this.helpfulCount / total) * 100;
 });
 
-// Статичний метод для отримання порад по категорії
-quickTipSchema.statics.getByCategoryId = function(categoryId, limit = 5) {
-  return this.find({ 
-    category: categoryId, 
-    isActive: true 
-  })
-  .sort({ priority: -1, helpfulCount: -1 })
-  .limit(limit)
-  .lean();
-};
-
 // Статичний метод для пошуку порад
-quickTipSchema.statics.searchTips = function(query, categoryId = null) {
+quickTipSchema.statics.searchTips = function(query) {
   const searchCriteria = {
     isActive: true,
     $or: [
@@ -91,10 +75,6 @@ quickTipSchema.statics.searchTips = function(query, categoryId = null) {
       { tags: { $in: [new RegExp(query, 'i')] } }
     ]
   };
-
-  if (categoryId) {
-    searchCriteria.category = categoryId;
-  }
 
   return this.find(searchCriteria)
     .sort({ priority: -1, helpfulCount: -1 })
