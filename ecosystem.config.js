@@ -1,5 +1,3 @@
-require('dotenv').config({ path: './backend/.env' });
-
 module.exports = {
   apps: [
     {
@@ -9,9 +7,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        PORT: 5000
+        NODE_ENV: 'production'
       },
       error_file: './backend/logs/pm2-error.log',
       out_file: './backend/logs/pm2-out.log',
@@ -29,8 +25,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: {
-        NODE_ENV: 'production',
-        PORT: 3000
+        NODE_ENV: 'production'
       },
       autorestart: true,
       watch: false,
