@@ -390,6 +390,33 @@ class ApiService {
     return response.data;
   }
 
+  async getPositionRequests(params?: {
+    status?: 'pending' | 'approved' | 'rejected';
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const response: AxiosResponse<ApiResponse<any[]>> = 
+      await this.api.get(`/position-requests${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+    return response.data;
+  }
+
+  async approvePositionRequest(id: string): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = 
+      await this.api.post(`/position-requests/${id}/approve`);
+    return response.data;
+  }
+
+  async rejectPositionRequest(id: string, reason?: string): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = 
+      await this.api.post(`/position-requests/${id}/reject`, { reason });
+    return response.data;
+  }
+
   // Методи для категорій
   async getCategories(includeInactive?: boolean): Promise<ApiResponse<Category[]>> {
     const params = new URLSearchParams();

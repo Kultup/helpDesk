@@ -74,6 +74,7 @@ const navGroups: NavGroup[] = [
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },
       { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
       { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
+      { nameKey: 'sidebar.positionRequests', href: '/position-requests', icon: FileText, adminOnly: true },
       { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },
     ]
   },

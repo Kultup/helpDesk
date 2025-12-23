@@ -19,6 +19,7 @@ import TicketDetails from './pages/TicketDetails';
 import CreateTicket from './pages/CreateTicket';
 import Cities from './pages/Cities';
 import Positions from './pages/Positions';
+import PositionRequests from './pages/PositionRequests';
 import Institutions from './pages/Institutions';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
@@ -158,6 +159,11 @@ const App: React.FC = () => {
             <Route path="admin/positions" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Positions />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/position-requests" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <PositionRequests />
               </ProtectedRoute>
             } />
             <Route path="admin/institutions" element={
