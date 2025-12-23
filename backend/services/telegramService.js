@@ -4340,54 +4340,44 @@ class TelegramService {
     const userMessage = msg.text;
 
     try {
-      // Перевіряємо намір створення тікета за ключовими словами
+      // Показуємо індикатор набору тексту відразу
+      await this.bot.sendChatAction(chatId, 'typing');
+
+      // Використовуємо AI для аналізу наміру (це точніше за ключові слова)
+      const intentAnalysis = await groqService.analyzeIntent(userMessage);
+      
       const createTicketKeywords = [
-        'створи тікет', 'створити тікет', 'нова заявка', 'проблема', 
-        'не працює', 'зламай', 'зламалося', 'помилка', 'допомога',
-        'создать тикет', 'проблема', 'не работает', 'сломалось', 'ошибка', 'помощь',
-        'ticket', 'problem', 'error', 'help', 'створи тикет', 'создай тикет'
+        'створи тікет', 'створити тікет', 'nova заявка', 'створи тикет', 'создай тикет'
       ];
-
       const lowerMessage = userMessage.toLowerCase().trim();
-      const wantsToCreateTicket = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
+      const hasManualKeyword = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
 
-      if (wantsToCreateTicket) {
-        logger.info(`Користувач ${user.email} хоче створити тікет через AI чат`);
+      // Якщо AI впевнений, що це намір створити тікет, або є пряме ключове слово
+      if ((intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.6) || hasManualKeyword) {
+        logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
         
-        // Спробуємо витягнути заголовок, якщо він йде після "створи тікет" або аналогічних фраз
-        let extractedTitle = '';
-        const commandPrefixes = [
-          'створи тікет:', 'створити тікет:', 'створи тікет', 'створити тікет',
-          'создай тикет:', 'создать тикет:', 'создай тикет', 'создать тикет',
-          'створи тикет:', 'створи тикет'
-        ];
+        let title = intentAnalysis.title || '';
+        let description = intentAnalysis.description || '';
 
-        for (const prefix of commandPrefixes) {
-          if (lowerMessage.startsWith(prefix)) {
-            extractedTitle = userMessage.substring(prefix.length).trim();
-            if (extractedTitle.startsWith(':')) {
-              extractedTitle = extractedTitle.substring(1).trim();
-            }
-            break;
-          }
+        // Якщо заголовок надто короткий, а опис є - використовуємо опис як заголовок (обрізаний)
+        if (!title && description) {
+          title = description.length > 50 ? description.substring(0, 47) + '...' : description;
         }
-
-        const titleToUse = extractedTitle || (userMessage.length > 100 ? userMessage.substring(0, 97) + '...' : userMessage);
-        const isVeryShort = titleToUse.trim().split(/\s+/).length < 2 || titleToUse.length < 5;
 
         // Ініціалізуємо сесію створення тікета
         const session = {
-          step: isVeryShort ? 'title' : 'description',
+          step: title ? (description ? 'photo' : 'description') : 'title',
           ticketData: {
             createdBy: user._id,
-            title: isVeryShort ? '' : titleToUse,
+            title: title,
+            description: description,
             photos: []
           }
         };
         
         this.userSessions.set(chatId, session);
 
-        if (isVeryShort) {
+        if (session.step === 'title') {
           await this.sendMessage(chatId, 
             `📝 *Створення нового тікету*\n` +
             `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
@@ -4397,13 +4387,29 @@ class TelegramService {
               }
             }
           );
-        } else {
+        } else if (session.step === 'description') {
           await this.sendMessage(chatId, 
-            `🚀 *Починаю створення тікета на основі вашого запиту.*\n\n` +
+            `🚀 *Починаю створення тікета.*\n\n` +
             `📌 *Заголовок:* ${session.ticketData.title}\n` +
             `📋 *Крок 2/4:* Будь ласка, введіть детальний опис проблеми:`, {
               reply_markup: {
                 inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
+              }
+            }
+          );
+        } else {
+          // Якщо ми вже маємо і заголовок, і опис
+          await this.sendMessage(chatId, 
+            `✅ *Тікет майже готовий!*\n\n` +
+            `📌 *Заголовок:* ${session.ticketData.title}\n` +
+            `📝 *Опис:* ${session.ticketData.description}\n\n` +
+            `📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                ]
               }
             }
           );
