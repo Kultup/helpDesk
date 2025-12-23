@@ -198,23 +198,20 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
               onClick={handleNotificationClick}
+              className={`relative p-2 rounded-full transition-all duration-200 ${
+                notificationMenuOpen ? 'bg-primary-100 text-primary-600' : 'text-gray-500 hover:bg-gray-100'
+              }`}
+              title={t('header.notifications')}
             >
-              <Bell 
-                className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 ${
-                  bellAnimation ? 'animate-bounce text-red-500' : ''
-                }`} 
-              />
+              <Bell className={`h-5 w-5 sm:h-6 sm:w-6 ${bellAnimation ? 'animate-bell-ring text-primary-500' : ''}`} />
               {unreadCount > 0 && (
-                <span className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white font-medium ${
-                  bellAnimation ? 'animate-pulse' : ''
-                }`}>
+                <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full min-w-[18px] h-[18px]">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Button>
-
+            
             {/* Notification Dropdown */}
             <NotificationDropdown
               tickets={notifications || []}
@@ -223,7 +220,37 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
             />
           </div>
 
-          {/* Registration Requests - Only for admins */}
+          {/* Position Requests - Admin Only */}
+          {user?.role === 'admin' && (
+            <div className="relative" ref={positionRequestsMenuRef}>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handlePositionRequestsClick}
+                className={`relative p-2 rounded-full transition-all duration-200 ${
+                  positionRequestsMenuOpen ? 'bg-primary-100 text-primary-600' : 'text-gray-500 hover:bg-gray-100'
+                }`}
+                title={t('positionRequests.title', 'Запити на посади')}
+              >
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+                {positionRequestsCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-blue-500 rounded-full min-w-[18px] h-[18px]">
+                    {positionRequestsCount > 99 ? '99+' : positionRequestsCount}
+                  </span>
+                )}
+              </Button>
+              
+              {positionRequestsMenuOpen && (
+                <PositionRequestsDropdown 
+                  requests={positionRequests} 
+                  isLoading={positionRequestsLoading}
+                  onClose={() => setPositionRequestsMenuOpen(false)} 
+                />
+              )}
+            </div>
+          )}
+
+          {/* Registration Requests - Admin Only */}
           {user?.role === 'admin' && (
             <div className="relative" ref={registrationMenuRef}>
               <Button 

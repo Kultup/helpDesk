@@ -376,6 +376,10 @@
     "telegramId": "Telegram ID",
     "telegramUsername": "Telegram Username"
   },
+  "positionRequests": {
+    "title": "Запити на посади",
+    "noRequests": "Немає нових запитів"
+  },
   "settings": {
     "title": "Налаштування",
     "profile": "Профіль",
