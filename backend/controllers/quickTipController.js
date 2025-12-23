@@ -201,7 +201,6 @@ const deleteQuickTip = async (req, res) => {
 };
 
 module.exports = {
-  getQuickTipsByCategory,
   searchQuickTips,
   rateQuickTip,
   getAllQuickTips,
