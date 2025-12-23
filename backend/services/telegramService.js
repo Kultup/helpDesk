@@ -4345,23 +4345,42 @@ class TelegramService {
         'створи тікет', 'створити тікет', 'нова заявка', 'проблема', 
         'не працює', 'зламай', 'зламалося', 'помилка', 'допомога',
         'создать тикет', 'проблема', 'не работает', 'сломалось', 'ошибка', 'помощь',
-        'ticket', 'problem', 'error', 'help'
+        'ticket', 'problem', 'error', 'help', 'створи тикет', 'создай тикет'
       ];
 
-      const lowerMessage = userMessage.toLowerCase();
+      const lowerMessage = userMessage.toLowerCase().trim();
       const wantsToCreateTicket = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
 
       if (wantsToCreateTicket) {
         logger.info(`Користувач ${user.email} хоче створити тікет через AI чат`);
         
-        const isVeryShort = userMessage.trim().split(/\s+/).length < 2 || userMessage.length < 5;
+        // Спробуємо витягнути заголовок, якщо він йде після "створи тікет" або аналогічних фраз
+        let extractedTitle = '';
+        const commandPrefixes = [
+          'створи тікет:', 'створити тікет:', 'створи тікет', 'створити тікет',
+          'создай тикет:', 'создать тикет:', 'создай тикет', 'создать тикет',
+          'створи тикет:', 'створи тикет'
+        ];
+
+        for (const prefix of commandPrefixes) {
+          if (lowerMessage.startsWith(prefix)) {
+            extractedTitle = userMessage.substring(prefix.length).trim();
+            if (extractedTitle.startsWith(':')) {
+              extractedTitle = extractedTitle.substring(1).trim();
+            }
+            break;
+          }
+        }
+
+        const titleToUse = extractedTitle || (userMessage.length > 100 ? userMessage.substring(0, 97) + '...' : userMessage);
+        const isVeryShort = titleToUse.trim().split(/\s+/).length < 2 || titleToUse.length < 5;
 
         // Ініціалізуємо сесію створення тікета
         const session = {
           step: isVeryShort ? 'title' : 'description',
           ticketData: {
             createdBy: user._id,
-            title: isVeryShort ? '' : (userMessage.length > 100 ? userMessage.substring(0, 97) + '...' : userMessage),
+            title: isVeryShort ? '' : titleToUse,
             photos: []
           }
         };
