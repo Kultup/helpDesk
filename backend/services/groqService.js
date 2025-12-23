@@ -1,6 +1,8 @@
 const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 const BotSettings = require('../models/BotSettings');
+const Category = require('../models/Category');
+const fs = require('fs');
 
 class GroqService {
   constructor() {
@@ -34,7 +36,7 @@ class GroqService {
     }
   }
 
-  async getAIResponse(userMessage, conversationHistory = []) {
+  async getAIResponse(userMessage, conversationHistory = [], context = {}) {
     try {
       if (!this.client) {
         await this.initialize();
@@ -44,10 +46,20 @@ class GroqService {
         return null;
       }
 
+      let systemPrompt = this.settings.aiSystemPrompt || 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.';
+      
+      if (context.tickets && context.tickets.length > 0) {
+        const ticketsInfo = context.tickets.map(t => 
+          `- Тікет №${t.ticketNumber || t._id}: "${t.title}" (Статус: ${t.status}, Створено: ${new Date(t.createdAt).toLocaleDateString('uk-UA')})`
+        ).join('\n');
+        
+        systemPrompt += `\n\nІнформація про тікети користувача:\n${ticketsInfo}\n\nЯкщо користувач запитує про статус своїх заявок, використовуй ці дані.`;
+      }
+
       const messages = [
         {
           role: 'system',
-          content: this.settings.aiSystemPrompt || 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.'
+          content: systemPrompt
         },
         ...conversationHistory,
         {
@@ -92,20 +104,30 @@ class GroqService {
         return { isTicketIntent: false };
       }
 
+      // Отримуємо активні категорії
+      const activeCategories = await Category.find({ isActive: true }).select('name _id');
+      const categoryList = activeCategories.map(c => `"${c.name}" (ID: ${c._id})`).join(', ');
+
       const systemPrompt = `
         Ви - аналізатор намірів користувача для системи HelpDesk. 
         Ваше завдання - визначити, чи хоче користувач створити заявку (тікет) або повідомити про проблему.
+        
+        Доступні категорії: [${categoryList}]
+        Доступні пріоритети: "low", "medium", "high", "urgent"
         
         Поверніть відповідь ТІЛЬКИ у форматі JSON:
         {
           "isTicketIntent": boolean, // чи є намір створити тікет/повідомити про проблему
           "title": string | null,    // короткий заголовок (до 50 символів)
           "description": string | null, // детальний опис проблеми
+          "categoryId": string | null, // ID категорії зі списку вище, яка найкраще підходить
+          "priority": string | null, // пріоритет (low, medium, high, urgent)
           "confidence": number // впевненість від 0 до 1
         }
         
         Якщо користувач просто вітається або задає загальне питання, isTicketIntent = false.
         Якщо користувач описує технічну проблему (не працює інтернет, зламався принтер тощо), isTicketIntent = true.
+        Для пріоритету: "high" - критично для роботи багатьох, "urgent" - аварія/зупинка роботи.
       `;
 
       const chatCompletion = await this.client.chat.completions.create({
@@ -153,6 +175,33 @@ class GroqService {
 
   isEnabled() {
     return this.client !== null && this.settings?.aiEnabled === true;
+  }
+
+  /**
+   * Транскрибує аудіофайл за допомогою Groq Whisper
+   */
+  async transcribeAudio(filePath) {
+    try {
+      if (!this.client) {
+        await this.initialize();
+      }
+
+      if (!this.client) {
+        return null;
+      }
+
+      const transcription = await this.client.audio.transcriptions.create({
+        file: fs.createReadStream(filePath),
+        model: 'whisper-large-v3',
+        response_format: 'json',
+        language: 'uk' // Пріоритет для української
+      });
+
+      return transcription.text;
+    } catch (error) {
+      logger.error('Помилка транскрибації аудіо через Groq:', error);
+      return null;
+    }
   }
 }
 
