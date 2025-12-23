@@ -2568,6 +2568,11 @@ class TelegramService {
    */
   async notifyAdminsAboutPositionRequest(positionRequest, pendingRegistration) {
     try {
+      logger.info('🔔 Початок відправки сповіщення адмінам про запит на посаду', {
+        requestId: positionRequest._id,
+        telegramId: positionRequest.telegramId
+      });
+
       if (!this.bot) {
         logger.warn('Telegram бот не ініціалізований для відправки сповіщення про запит на посаду');
         return;
@@ -2575,19 +2580,23 @@ class TelegramService {
 
       // Отримуємо chatId з бази даних (налаштування з адмін панелі)
       let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+      
       if (!groupChatId) {
         try {
           const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
           if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
             groupChatId = telegramConfig.chatId.trim();
+            logger.info('✅ ChatId для сповіщень отримано з БД');
           }
         } catch (configError) {
           logger.error('❌ Помилка отримання TelegramConfig:', configError);
         }
+      } else {
+        logger.info('✅ ChatId для сповіщень отримано з env');
       }
 
       if (!groupChatId) {
-        logger.warn('TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД)');
+        logger.warn('⚠️ TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД). Сповіщення адмінам не буде відправлено.');
         return;
       }
 

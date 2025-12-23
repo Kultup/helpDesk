@@ -53,6 +53,10 @@ const positionRequestSchema = new mongoose.Schema({
     trim: true,
     maxlength: [500, 'Rejection reason cannot exceed 500 characters']
   },
+  adminMessageId: {
+    type: String,
+    default: null // ID повідомлення в адмін чаті
+  },
   createdPositionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Position',
