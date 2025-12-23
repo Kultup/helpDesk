@@ -1,20 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const knowledgeBaseController = require('../controllers/knowledgeBaseController');
-const { protect, authorize } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 // Всі маршрути захищені
-router.use(protect);
+router.use(authenticateToken);
 
 // Отримання списку документів
 router.get('/', knowledgeBaseController.getAllDocuments);
 
 // Завантаження нового документа (тільки адміни та менеджери)
-router.post('/upload', authorize('admin', 'manager'), upload.single('file'), knowledgeBaseController.uploadDocument);
+// Використовуємо requireAdmin для спрощення, або можна додати кастомний middleware для менеджерів
+router.post('/upload', requireAdmin, upload.single('file'), knowledgeBaseController.uploadDocument);
 
 // Видалення документа (тільки адміни)
-router.delete('/:id', authorize('admin'), knowledgeBaseController.deleteDocument);
+router.delete('/:id', requireAdmin, knowledgeBaseController.deleteDocument);
 
 // Маршрут для категорій (поки повертає статичний список або унікальні теги)
 router.get('/categories', async (req, res) => {
