@@ -52,8 +52,13 @@ const BotSettings: React.FC = () => {
       setIsSaving(true);
       setMessage(null);
 
+      // Відправляємо API ключ тільки якщо він був змінений (не замаскований)
+      const apiKeyToSend = settings.groqApiKey && !settings.groqApiKey.includes('...')
+        ? settings.groqApiKey
+        : undefined;
+
       const response = await apiService.updateBotSettings({
-        groqApiKey: showApiKey ? settings.groqApiKey : undefined,
+        groqApiKey: apiKeyToSend,
         groqModel: settings.groqModel,
         aiEnabled: settings.aiEnabled,
         aiSystemPrompt: settings.aiSystemPrompt
