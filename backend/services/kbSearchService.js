@@ -70,7 +70,6 @@ class KBSearchService {
         articles = await KnowledgeBase.find(searchQuery, {
           score: { $meta: 'textScore' }
         })
-          .populate('category', 'name color')
           .populate('author', 'email position')
           .populate('lastUpdatedBy', 'email position')
           .sort(sort)
@@ -78,7 +77,6 @@ class KBSearchService {
           .skip((parseInt(page) - 1) * parseInt(limit));
       } else {
         articles = await KnowledgeBase.find(searchQuery)
-          .populate('category', 'name color')
           .populate('author', 'email position')
           .populate('lastUpdatedBy', 'email position')
           .sort(sort)
@@ -116,7 +114,7 @@ class KBSearchService {
         return [];
       }
 
-      // Знаходимо статті з такими ж категоріями та тегами
+      // Знаходимо статті з такими ж тегами
       let relatedQuery = {
         _id: { $ne: articleId },
         status: 'published',
@@ -124,16 +122,11 @@ class KBSearchService {
         isPublic: true
       };
 
-      if (article.category) {
-        relatedQuery.category = article.category;
-      }
-
       if (article.tags && article.tags.length > 0) {
         relatedQuery.tags = { $in: article.tags };
       }
 
       const relatedArticles = await KnowledgeBase.find(relatedQuery)
-        .populate('category', 'name color')
         .populate('author', 'email position')
         .sort({ views: -1, helpfulCount: -1 })
         .limit(limit);
