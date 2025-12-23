@@ -4340,6 +4340,58 @@ class TelegramService {
     const userMessage = msg.text;
 
     try {
+      // Перевіряємо намір створення тікета за ключовими словами
+      const createTicketKeywords = [
+        'створи тікет', 'створити тікет', 'нова заявка', 'проблема', 
+        'не працює', 'зламай', 'зламалося', 'помилка', 'допомога',
+        'создать тикет', 'проблема', 'не работает', 'сломалось', 'ошибка', 'помощь',
+        'ticket', 'problem', 'error', 'help'
+      ];
+
+      const lowerMessage = userMessage.toLowerCase();
+      const wantsToCreateTicket = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
+
+      if (wantsToCreateTicket) {
+        logger.info(`Користувач ${user.email} хоче створити тікет через AI чат`);
+        
+        const isVeryShort = userMessage.trim().split(/\s+/).length < 2 || userMessage.length < 5;
+
+        // Ініціалізуємо сесію створення тікета
+        const session = {
+          step: isVeryShort ? 'title' : 'description',
+          ticketData: {
+            createdBy: user._id,
+            title: isVeryShort ? '' : (userMessage.length > 100 ? userMessage.substring(0, 97) + '...' : userMessage),
+            photos: []
+          }
+        };
+        
+        this.userSessions.set(chatId, session);
+
+        if (isVeryShort) {
+          await this.sendMessage(chatId, 
+            `📝 *Створення нового тікету*\n` +
+            `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+            `💡 Опишіть коротко суть проблеми`, {
+              reply_markup: {
+                inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
+              }
+            }
+          );
+        } else {
+          await this.sendMessage(chatId, 
+            `🚀 *Починаю створення тікета на основі вашого запиту.*\n\n` +
+            `📌 *Заголовок:* ${session.ticketData.title}\n` +
+            `📋 *Крок 2/4:* Будь ласка, введіть детальний опис проблеми:`, {
+              reply_markup: {
+                inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
+              }
+            }
+          );
+        }
+        return;
+      }
+
       // Отримуємо історію розмов для цього користувача
       let history = this.conversationHistory.get(chatId) || [];
 

@@ -12,7 +12,7 @@ const botSettingsSchema = new mongoose.Schema({
   groqApiKey: { type: String, trim: true },
   groqModel: { type: String, trim: true, default: 'llama-3.3-70b-versatile' },
   aiEnabled: { type: Boolean, default: false },
-  aiSystemPrompt: { type: String, trim: true, default: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.' }
+  aiSystemPrompt: { type: String, trim: true, default: 'Ви - корисний AI асистент служби підтримки. Якщо користувач описує проблему або просить про допомогу, запропонуйте йому створити тікет. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('BotSettings', botSettingsSchema);
