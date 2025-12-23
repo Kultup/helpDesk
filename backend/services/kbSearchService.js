@@ -70,15 +70,13 @@ class KBSearchService {
         articles = await KnowledgeBase.find(searchQuery, {
           score: { $meta: 'textScore' }
         })
-          .populate('author', 'email position')
-          .populate('lastUpdatedBy', 'email position')
+          .populate('createdBy', 'email firstName lastName')
           .sort(sort)
           .limit(parseInt(limit))
           .skip((parseInt(page) - 1) * parseInt(limit));
       } else {
         articles = await KnowledgeBase.find(searchQuery)
-          .populate('author', 'email position')
-          .populate('lastUpdatedBy', 'email position')
+          .populate('createdBy', 'email firstName lastName')
           .sort(sort)
           .limit(parseInt(limit))
           .skip((parseInt(page) - 1) * parseInt(limit));
