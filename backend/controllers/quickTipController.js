@@ -1,42 +1,10 @@
 const QuickTip = require('../models/QuickTip');
-const Category = require('../models/Category');
 const logger = require('../utils/logger');
-
-// Отримати швидкі поради по категорії
-const getQuickTipsByCategory = async (req, res) => {
-  try {
-    const { categoryId } = req.params;
-    const { limit = 5 } = req.query;
-
-    // Перевіряємо чи існує категорія
-    const category = await Category.findById(categoryId);
-    if (!category) {
-      return res.status(404).json({
-        success: false,
-        message: 'Категорію не знайдено'
-      });
-    }
-
-    const quickTips = await QuickTip.getByCategoryId(categoryId, parseInt(limit));
-
-    res.json({
-      success: true,
-      data: quickTips,
-      category: category.name
-    });
-  } catch (error) {
-    logger.error('Помилка при отриманні швидких порад:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка сервера при отриманні швидких порад'
-    });
-  }
-};
 
 // Пошук швидких порад
 const searchQuickTips = async (req, res) => {
   try {
-    const { query, categoryId } = req.query;
+    const { query } = req.query;
 
     if (!query || query.trim().length < 2) {
       return res.status(400).json({
@@ -45,7 +13,7 @@ const searchQuickTips = async (req, res) => {
       });
     }
 
-    const quickTips = await QuickTip.searchTips(query.trim(), categoryId);
+    const quickTips = await QuickTip.searchTips(query.trim());
 
     res.json({
       success: true,
@@ -110,15 +78,13 @@ const rateQuickTip = async (req, res) => {
 // Отримати всі швидкі поради (для адміністраторів)
 const getAllQuickTips = async (req, res) => {
   try {
-    const { page = 1, limit = 10, category, isActive } = req.query;
+    const { page = 1, limit = 10, isActive } = req.query;
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (category) filter.category = category;
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
     const quickTips = await QuickTip.find(filter)
-      .populate('category', 'name')
       .populate('createdBy', 'firstName lastName')
       .populate('updatedBy', 'firstName lastName')
       .sort({ priority: -1, createdAt: -1 })
@@ -148,19 +114,9 @@ const getAllQuickTips = async (req, res) => {
 // Створити нову швидку пораду (для адміністраторів)
 const createQuickTip = async (req, res) => {
   try {
-    const { category, title, description, steps, priority, tags } = req.body;
-
-    // Перевіряємо чи існує категорія
-    const categoryExists = await Category.findById(category);
-    if (!categoryExists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Категорію не знайдено'
-      });
-    }
+    const { title, description, steps, priority, tags } = req.body;
 
     const quickTip = new QuickTip({
-      category,
       title,
       description,
       steps,
@@ -170,7 +126,6 @@ const createQuickTip = async (req, res) => {
     });
 
     await quickTip.save();
-    await quickTip.populate('category', 'name');
 
     res.status(201).json({
       success: true,
@@ -196,7 +151,7 @@ const updateQuickTip = async (req, res) => {
       tipId,
       updateData,
       { new: true, runValidators: true }
-    ).populate('category', 'name');
+    );
 
     if (!quickTip) {
       return res.status(404).json({

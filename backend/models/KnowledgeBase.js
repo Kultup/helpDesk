@@ -158,7 +158,6 @@ const knowledgeBaseSchema = new mongoose.Schema({
 
 // Індекси для швидкого пошуку
 knowledgeBaseSchema.index({ title: 'text', content: 'text', tags: 'text', searchKeywords: 'text' });
-knowledgeBaseSchema.index({ category: 1, status: 1 });
 knowledgeBaseSchema.index({ status: 1, isPublic: 1 });
 knowledgeBaseSchema.index({ author: 1 });
 knowledgeBaseSchema.index({ tags: 1 });

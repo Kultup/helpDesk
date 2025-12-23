@@ -6,9 +6,6 @@ const quickTipController = require('../controllers/quickTipController');
 
 // Публічні маршрути (доступні всім авторизованим користувачам)
 
-// GET /api/quick-tips/category/:categoryId - отримати швидкі поради по категорії
-router.get('/category/:categoryId', authenticateToken, quickTipController.getQuickTipsByCategory);
-
 // GET /api/quick-tips/search - пошук швидких порад
 router.get('/search', authenticateToken, quickTipController.searchQuickTips);
 

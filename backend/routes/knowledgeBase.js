@@ -55,7 +55,6 @@ router.get('/articles', auth, async (req, res) => {
   try {
     const {
       q = '',
-      category,
       status,
       tags,
       page = 1,
@@ -64,7 +63,6 @@ router.get('/articles', auth, async (req, res) => {
     } = req.query;
 
     const filters = {
-      category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
       status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined
@@ -101,7 +99,6 @@ router.get('/articles', auth, async (req, res) => {
 router.get('/articles/:id', auth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id)
-      .populate('category', 'name color')
       .populate('author', 'email position')
       .populate('lastUpdatedBy', 'email position')
       .populate('relatedArticles', 'title status');
@@ -152,7 +149,6 @@ router.get('/articles/share/:token', async (req, res) => {
       isDeleted: false,
       status: 'published'
     })
-      .populate('category', 'name color')
       .populate('author', 'email position')
       .populate('lastUpdatedBy', 'email position')
       .populate('relatedArticles', 'title status');
@@ -354,7 +350,6 @@ router.get('/search', auth, async (req, res) => {
   try {
     const {
       q = '',
-      category,
       status,
       tags,
       page = 1,
@@ -363,7 +358,6 @@ router.get('/search', auth, async (req, res) => {
     } = req.query;
 
     const filters = {
-      category: (category && category !== 'undefined' && category !== 'null') ? category : undefined,
       status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
       isPublic: true,
       tags: tags ? tags.split(',') : undefined
@@ -459,48 +453,6 @@ router.post('/articles/:id/not-helpful', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка позначення статті',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @route   GET /api/kb/categories
- * @desc    Отримати список категорій з кількістю статей
- * @access  Private
- */
-router.get('/categories', auth, async (req, res) => {
-  try {
-    const Category = require('../models/Category');
-    const categories = await Category.find({ isActive: true }).sort({ sortOrder: 1 });
-
-    const categoriesWithCount = await Promise.all(
-      categories.map(async (category) => {
-        const count = await KnowledgeBase.countDocuments({
-          category: category._id,
-          status: 'published',
-          isDeleted: false,
-          isPublic: true
-        });
-        return {
-          _id: category._id,
-          name: category.name,
-          color: category.color,
-          icon: category.icon,
-          articleCount: count
-        };
-      })
-    );
-
-    res.json({
-      success: true,
-      data: categoriesWithCount
-    });
-  } catch (error) {
-    logger.error('Error fetching KB categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка отримання категорій KB',
       error: error.message
     });
   }

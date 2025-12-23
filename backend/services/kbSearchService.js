@@ -19,11 +19,6 @@ class KBSearchService {
 
       let searchQuery = { isDeleted: false };
 
-      // Фільтри
-      if (filters.category && filters.category !== 'undefined' && filters.category !== 'null') {
-        searchQuery.category = filters.category;
-      }
-
       // Фільтр за статусом - якщо не передано або передано 'all', не фільтруємо
       if (filters.status && filters.status !== 'all' && filters.status !== 'undefined' && filters.status !== 'null') {
         searchQuery.status = filters.status;
@@ -159,7 +154,6 @@ class KBSearchService {
     try {
       const Ticket = require('../models/Ticket');
       const ticket = await Ticket.findById(ticketId)
-        .populate('category', 'name')
         .populate('assignedTo', 'email position');
 
       if (!ticket || ticket.status !== 'resolved' && ticket.status !== 'closed') {
@@ -169,8 +163,7 @@ class KBSearchService {
       // Створюємо базову структуру статті
       const articleData = {
         title: `Рішення: ${ticket.title}`,
-        content: `## Проблема\n\n${ticket.description}\n\n## Рішення\n\n${ticket.comments && ticket.comments.length > 0 ? ticket.comments[ticket.comments.length - 1].content : 'Рішення не вказано'}\n\n## Додаткова інформація\n\n- Тикет: ${ticket.ticketNumber}\n- Категорія: ${ticket.category?.name || 'Не вказано'}\n- Пріоритет: ${ticket.priority}\n- Статус: ${ticket.status}`,
-        category: ticket.category?._id,
+        content: `## Проблема\n\n${ticket.description}\n\n## Рішення\n\n${ticket.comments && ticket.comments.length > 0 ? ticket.comments[ticket.comments.length - 1].content : 'Рішення не вказано'}\n\n## Додаткова інформація\n\n- Тикет: ${ticket.ticketNumber}\n- Пріоритет: ${ticket.priority}\n- Статус: ${ticket.status}`,
         tags: ticket.tags || [],
         status: 'draft', // Стаття створюється як чернетка
         metadata: {
@@ -194,7 +187,6 @@ class KBSearchService {
   async getPopularArticles(limit = 10) {
     try {
       return await KnowledgeBase.findPopular(limit)
-        .populate('category', 'name color')
         .populate('author', 'email position');
     } catch (error) {
       logger.error('Error getting popular articles:', error);
@@ -210,29 +202,9 @@ class KBSearchService {
   async getRecentArticles(limit = 10) {
     try {
       return await KnowledgeBase.findRecent(limit)
-        .populate('category', 'name color')
         .populate('author', 'email position');
     } catch (error) {
       logger.error('Error getting recent articles:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Отримати статті по категорії
-   * @param {String} categoryId - ID категорії
-   * @param {Number} limit - Максимальна кількість статей
-   * @returns {Array} - Масив статей
-   */
-  async getArticlesByCategory(categoryId, limit = 10) {
-    try {
-      return await KnowledgeBase.findPublished({ category: categoryId })
-        .populate('category', 'name color')
-        .populate('author', 'email position')
-        .sort({ createdAt: -1 })
-        .limit(limit);
-    } catch (error) {
-      logger.error('Error getting articles by category:', error);
       return [];
     }
   }

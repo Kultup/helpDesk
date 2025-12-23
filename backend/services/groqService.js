@@ -1,7 +1,6 @@
 const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 const BotSettings = require('../models/BotSettings');
-const Category = require('../models/Category');
 const fs = require('fs');
 
 class GroqService {
