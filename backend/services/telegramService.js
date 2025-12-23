@@ -7,6 +7,7 @@ const Position = require('../models/Position');
 const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
 const PositionRequest = require('../models/PositionRequest');
+const Notification = require('../models/Notification');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,7 @@ const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
 const groqService = require('./groqService');
+const fcmService = require('./fcmService');
 
 class TelegramService {
   constructor() {
@@ -2573,6 +2575,60 @@ class TelegramService {
         telegramId: positionRequest.telegramId
       });
 
+      const positionName = positionRequest.title;
+      const telegramId = positionRequest.telegramId;
+      const requestId = positionRequest._id.toString();
+
+      // Відправка FCM сповіщення всім адміністраторам
+      try {
+        const notificationData = {
+          title: '📝 Новий запит на посаду',
+          body: `Користувач просить додати посаду: ${positionName}`,
+          type: 'position_request',
+          data: {
+            requestId: requestId,
+            positionName: positionName,
+            telegramId: telegramId
+          }
+        };
+        
+        await fcmService.sendToAdmins(notificationData);
+        logger.info('✅ FCM сповіщення про запит на посаду відправлено адміністраторам');
+      } catch (fcmError) {
+        logger.error('❌ Помилка відправки FCM сповіщення про запит на посаду:', fcmError);
+      }
+
+      // Створення сповіщення в базі даних для адмін-панелі
+      try {
+        // Знаходимо всіх активних адміністраторів
+        const admins = await User.find({
+          role: { $in: ['admin', 'super_admin', 'administrator'] },
+          isActive: true
+        }).select('_id');
+
+        if (admins.length > 0) {
+          const notifications = admins.map(admin => ({
+            userId: admin._id,
+            type: 'system',
+            title: 'Новий запит на посаду',
+            message: `Користувач (Telegram ID: ${telegramId}) просить додати посаду: ${positionName}`,
+            priority: 'medium',
+            read: false,
+            createdAt: new Date(),
+            metadata: {
+              requestId: requestId,
+              positionName: positionName,
+              telegramId: telegramId
+            }
+          }));
+
+          await Notification.insertMany(notifications);
+          logger.info(`✅ Створено ${notifications.length} сповіщень в БД про запит на посаду`);
+        }
+      } catch (dbError) {
+        logger.error('❌ Помилка створення сповіщень в БД про запит на посаду:', dbError);
+      }
+
       if (!this.bot) {
         logger.warn('Telegram бот не ініціалізований для відправки сповіщення про запит на посаду');
         return;
@@ -2599,10 +2655,6 @@ class TelegramService {
         logger.warn('⚠️ TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД). Сповіщення адмінам не буде відправлено.');
         return;
       }
-
-      const positionName = positionRequest.title;
-      const telegramId = positionRequest.telegramId;
-      const requestId = positionRequest._id.toString();
 
       // Формуємо повідомлення з кнопками для швидкого підтвердження/відхилення
       const message = 
