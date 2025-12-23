@@ -2608,13 +2608,17 @@ class TelegramService {
 
         if (admins.length > 0) {
           const notifications = admins.map(admin => ({
-            userId: admin._id,
-            type: 'system',
+            recipient: admin._id,
+            userId: admin._id, // Для зворотної сумісності
+            category: 'system',
+            type: 'system', // Переконайтеся, що це значення є в enum в моделі Notification
             title: 'Новий запит на посаду',
             message: `Користувач (Telegram ID: ${telegramId}) просить додати посаду: ${positionName}`,
             priority: 'medium',
-            read: false,
+            isRead: false,
+            read: false, // Для зворотної сумісності
             createdAt: new Date(),
+            channels: [{ type: 'web', status: 'pending' }],
             metadata: {
               requestId: requestId,
               positionName: positionName,
