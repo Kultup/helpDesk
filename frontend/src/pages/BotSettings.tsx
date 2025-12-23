@@ -21,6 +21,7 @@ const BotSettings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [originalApiKey, setOriginalApiKey] = useState<string>('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -32,7 +33,9 @@ const BotSettings: React.FC = () => {
       setIsLoading(true);
       const response = await apiService.getBotSettings();
       if (response.success && response.data) {
-        setSettings(response.data as unknown as BotSettings);
+        const data = response.data as unknown as BotSettings;
+        setSettings(data);
+        setOriginalApiKey(data.groqApiKey || '');
       }
     } catch (error) {
       console.error('Помилка завантаження налаштувань бота:', error);
@@ -52,8 +55,8 @@ const BotSettings: React.FC = () => {
       setIsSaving(true);
       setMessage(null);
 
-      // Відправляємо API ключ тільки якщо він був змінений (не замаскований)
-      const apiKeyToSend = settings.groqApiKey && !settings.groqApiKey.includes('...')
+      // Відправляємо API ключ тільки якщо він був змінений
+      const apiKeyToSend = settings.groqApiKey !== originalApiKey
         ? settings.groqApiKey
         : undefined;
 

@@ -566,7 +566,13 @@ exports.updateBotSettings = async (req, res) => {
     // Оновлюємо Groq налаштування
     if (groqApiKey !== undefined) {
       // Якщо ключ порожній - видаляємо його
-      settings.groqApiKey = groqApiKey === '' ? null : groqApiKey;
+      const cleanedKey = typeof groqApiKey === 'string' ? groqApiKey.trim() : groqApiKey;
+      settings.groqApiKey = cleanedKey === '' ? null : cleanedKey;
+      if (cleanedKey) {
+        logger.info(`🔑 Оновлено Groq API ключ: ${cleanedKey.substring(0, 10)}...`);
+      } else {
+        logger.info('🗑️ Видалено Groq API ключ');
+      }
     }
 
     if (groqModel !== undefined) {
