@@ -83,7 +83,6 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.users', href: '/users', icon: Users, adminOnly: true },
-      { nameKey: 'sidebar.pendingRegistrations', href: '/pending-registrations', icon: UserCheck, adminOnly: true },
       { nameKey: 'sidebar.quickNotifications', href: '/quick-notifications', icon: AlertTriangle, adminOnly: true },
     ]
   }
