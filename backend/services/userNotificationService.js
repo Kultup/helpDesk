@@ -24,6 +24,28 @@ class UserNotificationService {
 
       // Формуємо повідомлення для кожної зміни
       for (const [field, change] of Object.entries(statusChanges)) {
+        // Спеціальна обробка активації акаунта: показуємо меню замість повідомлення
+        if (field === 'isActive' && change.new === true) {
+          try {
+            if (telegramService.isInitialized) {
+              await telegramService.showUserDashboard(user.telegramId, user);
+              logger.info(`Користувачу ${user.email} показано головне меню після активації`);
+            }
+          } catch (error) {
+            logger.error(`Помилка відображення меню після активації для ${user.email}:`, error);
+          }
+          
+          // Зберігаємо факт зміни статусу в базу, але без відправки повідомлення
+          await this.saveNotificationToDatabase(user, field, change, this.getNotificationType(field));
+          continue;
+        }
+
+        // Пропускаємо сповіщення про підтвердження реєстрації, оскільки воно відправляється окремо
+        if (field === 'registrationStatus' && change.new === 'approved') {
+          await this.saveNotificationToDatabase(user, field, change, this.getNotificationType(field));
+          continue;
+        }
+
         const message = this.formatStatusChangeMessage(user, field, change);
         const notificationType = this.getNotificationType(field);
 

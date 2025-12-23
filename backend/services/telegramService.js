@@ -165,7 +165,7 @@ class TelegramService {
         return;
       }
 
-      const message = `Реєстрацію підтверджено`;
+      const message = `Реєстрація завершена. Очікуйте активації вашого акаунта.`;
 
       await this.sendMessage(String(user.telegramId), message);
 

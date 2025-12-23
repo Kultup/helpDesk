@@ -1330,7 +1330,7 @@ exports.approveRegistration = async (req, res) => {
     }
 
     user.registrationStatus = 'approved';
-    user.isActive = true;
+    user.isActive = false;
     await user.save();
 
     // Відправити сповіщення в Telegram
