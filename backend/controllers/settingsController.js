@@ -511,7 +511,7 @@ exports.getBotSettings = async (req, res) => {
       settings = new BotSettings({
         key: 'default',
         aiEnabled: false,
-        groqModel: 'llama3-8b-8192',
+        groqModel: 'llama-3.3-70b-versatile',
         aiSystemPrompt: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.'
       });
       await settings.save();

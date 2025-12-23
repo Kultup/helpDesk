@@ -10,7 +10,7 @@ const botSettingsSchema = new mongoose.Schema({
   statusTexts: { type: Map, of: String, default: {} },
   statusEmojis: { type: Map, of: String, default: {} },
   groqApiKey: { type: String, trim: true },
-  groqModel: { type: String, trim: true, default: 'llama3-8b-8192' },
+  groqModel: { type: String, trim: true, default: 'llama-3.3-70b-versatile' },
   aiEnabled: { type: Boolean, default: false },
   aiSystemPrompt: { type: String, trim: true, default: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.' }
 }, { timestamps: true });

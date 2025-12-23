@@ -177,14 +177,15 @@ const BotSettings: React.FC = () => {
               {t('settings.bot.groqModel', 'Модель AI')}
             </label>
             <select
-              value={settings?.groqModel || 'llama3-8b-8192'}
+              value={settings?.groqModel || 'llama-3.3-70b-versatile'}
               onChange={(e): void => handleChange('groqModel', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
-              <option value="llama3-8b-8192">Llama 3 8B (швидка, рекомендована)</option>
+              <option value="llama-3.3-70b-versatile">Llama 3.3 70B (рекомендована, найновіша)</option>
+              <option value="llama3-8b-8192">Llama 3 8B (швидка)</option>
               <option value="llama3-70b-8192">Llama 3 70B (потужна)</option>
               <option value="mixtral-8x7b-32768">Mixtral 8x7B (великий контекст)</option>
-              <option value="gemma-7b-it">Gemma 7B</option>
+              <option value="gemma2-9b-it">Gemma 2 9B</option>
             </select>
             <p className="mt-1 text-sm text-gray-500">
               {t('settings.bot.groqModelDescription', 'Виберіть модель AI для відповідей')}
