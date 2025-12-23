@@ -564,8 +564,9 @@ exports.updateBotSettings = async (req, res) => {
     }
 
     // Оновлюємо Groq налаштування
-    if (groqApiKey !== undefined && groqApiKey !== '') {
-      settings.groqApiKey = groqApiKey;
+    if (groqApiKey !== undefined) {
+      // Якщо ключ порожній - видаляємо його
+      settings.groqApiKey = groqApiKey === '' ? null : groqApiKey;
     }
 
     if (groqModel !== undefined) {

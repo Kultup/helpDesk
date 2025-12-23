@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Save, Eye, EyeOff, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { Bot, Save, Eye, EyeOff, CheckCircle, XCircle, Sparkles, Trash2 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
@@ -162,15 +162,33 @@ const BotSettings: React.FC = () => {
                 value={settings?.groqApiKey || ''}
                 onChange={(e): void => handleChange('groqApiKey', e.target.value)}
                 placeholder="gsk_..."
-                className="pr-10"
+                className="pr-20"
               />
-              <button
-                type="button"
-                onClick={(): void => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showApiKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={(): void => setShowApiKey(!showApiKey)}
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Показати/Приховати ключ"
+                >
+                  {showApiKey ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+                {settings?.hasGroqApiKey && (
+                  <button
+                    type="button"
+                    onClick={(): void => {
+                      if (window.confirm('Ви впевнені, що хочете видалити Groq API ключ?')) {
+                        handleChange('groqApiKey', '');
+                        setShowApiKey(true);
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                    title="Видалити ключ"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-1 text-sm text-gray-500">
               {t('settings.bot.groqApiKeyDescription', 'API ключ для доступу до Groq AI')}
