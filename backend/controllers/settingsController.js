@@ -1,8 +1,10 @@
 const TelegramConfig = require('../models/TelegramConfig');
 const ActiveDirectoryConfig = require('../models/ActiveDirectoryConfig');
+const BotSettings = require('../models/BotSettings');
 const logger = require('../utils/logger');
 const telegramService = require('../services/telegramServiceInstance');
 const activeDirectoryService = require('../services/activeDirectoryService');
+const groqService = require('../services/groqService');
 const axios = require('axios');
 
 /**
@@ -59,7 +61,20 @@ exports.updateTelegramSettings = async (req, res) => {
 
     // Оновлюємо тільки якщо передано новий токен
     if (botToken && botToken !== `${config.botToken?.substring(0, 10)}...`) {
-      config.botToken = botToken;
+      // Видаляємо всі зайві пробіли та невидимі символи
+      const cleanedToken = botToken.trim();
+
+      // Перевіряємо формат токена (має бути: числа:буквиЦифри)
+      const tokenPattern = /^\d+:[A-Za-z0-9_-]+$/;
+      if (!tokenPattern.test(cleanedToken)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Невірний формат токена. Токен має бути у форматі: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz'
+        });
+      }
+
+      config.botToken = cleanedToken;
+      logger.info(`🔑 Оновлюю токен бота: ${cleanedToken.substring(0, 10)}...`);
     }
 
     if (chatId !== undefined) {
@@ -479,6 +494,148 @@ exports.updateActiveDirectorySettings = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань Active Directory',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Отримати налаштування бота
+ */
+exports.getBotSettings = async (req, res) => {
+  try {
+    let settings = await BotSettings.findOne({ key: 'default' });
+
+    if (!settings) {
+      // Якщо немає в БД, створюємо з дефолтними значеннями
+      settings = new BotSettings({
+        key: 'default',
+        aiEnabled: false,
+        groqModel: 'llama3-8b-8192',
+        aiSystemPrompt: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.'
+      });
+      await settings.save();
+    }
+
+    // Не повертаємо повний API ключ з міркувань безпеки
+    const safeSettings = {
+      ...settings.toObject(),
+      groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
+      hasGroqApiKey: !!settings.groqApiKey
+    };
+
+    res.json({
+      success: true,
+      data: safeSettings
+    });
+  } catch (error) {
+    logger.error('Помилка отримання налаштувань бота:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка отримання налаштувань бота',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Оновити налаштування бота
+ */
+exports.updateBotSettings = async (req, res) => {
+  try {
+    const {
+      groqApiKey,
+      groqModel,
+      aiEnabled,
+      aiSystemPrompt,
+      cancelButtonText,
+      categoryPromptText,
+      priorityPromptText,
+      categoryButtonRowSize,
+      priorityTexts,
+      statusTexts,
+      statusEmojis
+    } = req.body;
+
+    let settings = await BotSettings.findOne({ key: 'default' });
+
+    if (!settings) {
+      settings = new BotSettings({ key: 'default' });
+    }
+
+    // Оновлюємо Groq налаштування
+    if (groqApiKey !== undefined && groqApiKey !== '') {
+      settings.groqApiKey = groqApiKey;
+    }
+
+    if (groqModel !== undefined) {
+      settings.groqModel = groqModel;
+    }
+
+    if (aiEnabled !== undefined) {
+      settings.aiEnabled = aiEnabled;
+    }
+
+    if (aiSystemPrompt !== undefined) {
+      settings.aiSystemPrompt = aiSystemPrompt;
+    }
+
+    // Оновлюємо інші налаштування бота
+    if (cancelButtonText !== undefined) {
+      settings.cancelButtonText = cancelButtonText;
+    }
+
+    if (categoryPromptText !== undefined) {
+      settings.categoryPromptText = categoryPromptText;
+    }
+
+    if (priorityPromptText !== undefined) {
+      settings.priorityPromptText = priorityPromptText;
+    }
+
+    if (categoryButtonRowSize !== undefined) {
+      settings.categoryButtonRowSize = categoryButtonRowSize;
+    }
+
+    if (priorityTexts !== undefined) {
+      settings.priorityTexts = priorityTexts;
+    }
+
+    if (statusTexts !== undefined) {
+      settings.statusTexts = statusTexts;
+    }
+
+    if (statusEmojis !== undefined) {
+      settings.statusEmojis = statusEmojis;
+    }
+
+    await settings.save();
+
+    // Перезавантажуємо Groq сервіс
+    try {
+      await groqService.reloadSettings();
+      logger.info('✅ Groq AI сервіс перезавантажено після оновлення налаштувань');
+    } catch (reloadError) {
+      logger.error('Помилка перезавантаження Groq сервісу:', reloadError);
+    }
+
+    // Не повертаємо API ключ
+    const safeSettings = {
+      ...settings.toObject(),
+      groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
+      hasGroqApiKey: !!settings.groqApiKey
+    };
+
+    res.json({
+      success: true,
+      message: 'Налаштування бота успішно оновлено',
+      data: safeSettings
+    });
+  } catch (error) {
+    logger.error('Помилка оновлення налаштувань бота:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка оновлення налаштувань бота',
       error: error.message
     });
   }

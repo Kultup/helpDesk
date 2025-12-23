@@ -26,6 +26,7 @@ import ActiveDirectoryPage from './pages/ActiveDirectory';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
 import TelegramSettings from './pages/TelegramSettings';
+import BotSettings from './pages/BotSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
 
@@ -188,6 +189,11 @@ const App: React.FC = () => {
             <Route path="admin/settings/telegram" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <TelegramSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/settings/bot" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <BotSettings />
               </ProtectedRoute>
             } />
             <Route path="admin/settings/active-directory" element={

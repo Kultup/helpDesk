@@ -33,6 +33,20 @@ router.post('/telegram/webhook', authenticateToken, adminAuth, settingsControlle
 router.get('/telegram/webhook', authenticateToken, adminAuth, settingsController.getWebhookInfo);
 
 /**
+ * @route   GET /api/settings/bot
+ * @desc    Отримати налаштування бота
+ * @access  Private (Admin only)
+ */
+router.get('/bot', authenticateToken, adminAuth, settingsController.getBotSettings);
+
+/**
+ * @route   PUT /api/settings/bot
+ * @desc    Оновити налаштування бота
+ * @access  Private (Admin only)
+ */
+router.put('/bot', authenticateToken, adminAuth, settingsController.updateBotSettings);
+
+/**
  * @route   GET /api/settings/active-directory
  * @desc    Отримати налаштування Active Directory
  * @access  Private (Admin only)

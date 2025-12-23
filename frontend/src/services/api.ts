@@ -1346,6 +1346,15 @@ class ApiService {
     return this.get('/settings/telegram/webhook');
   }
 
+  // Налаштування бота
+  async getBotSettings(): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get('/settings/bot');
+  }
+
+  async updateBotSettings(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put('/settings/bot', data);
+  }
+
   // Налаштування Active Directory
   async getActiveDirectorySettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/active-directory');

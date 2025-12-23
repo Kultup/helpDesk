@@ -1,14 +1,14 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  Home, 
-  Ticket, 
-  BarChart3, 
-  MapPin, 
-  Briefcase, 
+import {
+  Home,
+  Ticket,
+  BarChart3,
+  MapPin,
+  Briefcase,
   Building2,
-  Users, 
+  Users,
   X,
   Server,
   FileText,
@@ -19,7 +19,8 @@ import {
   Settings,
   Bot,
   Activity,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
@@ -67,6 +68,7 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
       { nameKey: 'sidebar.telegramSettings', href: '/settings/telegram', icon: Bot, adminOnly: true },
+      { nameKey: 'sidebar.botSettings', href: '/settings/bot', icon: Sparkles, adminOnly: true },
       { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },

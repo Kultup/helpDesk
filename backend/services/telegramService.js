@@ -16,6 +16,7 @@ const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
+const groqService = require('./groqService');
 
 class TelegramService {
   constructor() {
@@ -28,6 +29,7 @@ class TelegramService {
     this.botSettings = null; // Налаштування бота з БД
     this.mode = 'webhook';
     this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
+    this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
     this.loadCategories(); // Завантажуємо категорії при ініціалізації
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
@@ -80,6 +82,7 @@ class TelegramService {
       try {
         await this.loadBotSettings();
         await this.loadCategories();
+        await groqService.initialize();
       } catch (catErr) {
         logger.warn('⚠️ Не вдалося оновити категорії після ініціалізації:', catErr);
       }
@@ -336,7 +339,14 @@ class TelegramService {
             await this.handleTextMessage(msg);
             return;
           }
-          // Якщо немає активної сесії, показуємо головне меню
+
+          // Якщо немає активної сесії, спробуємо отримати AI відповідь
+          if (msg.text && groqService.isEnabled()) {
+            await this.handleAIChat(msg, existingUser);
+            return;
+          }
+
+          // Якщо AI вимкнено або немає тексту, показуємо головне меню
           await this.showUserDashboard(chatId, existingUser);
           return;
         }
@@ -4304,6 +4314,59 @@ class TelegramService {
     } catch (error) {
       logger.error('Помилка обробки callback запиту на посаду:', error);
       await this.answerCallbackQuery(callbackQuery.id, 'Виникла помилка');
+    }
+  }
+
+  async handleAIChat(msg, user) {
+    const chatId = msg.chat.id;
+    const userMessage = msg.text;
+
+    try {
+      // Отримуємо історію розмов для цього користувача
+      let history = this.conversationHistory.get(chatId) || [];
+
+      // Обмежуємо історію до останніх 10 повідомлень для економії токенів
+      if (history.length > 10) {
+        history = history.slice(-10);
+      }
+
+      // Показуємо індикатор набору тексту
+      await this.bot.sendChatAction(chatId, 'typing');
+
+      // Отримуємо відповідь від AI
+      const aiResponse = await groqService.getAIResponse(userMessage, history);
+
+      if (!aiResponse) {
+        // Якщо AI не зміг відповісти, показуємо головне меню
+        await this.showUserDashboard(chatId, user);
+        return;
+      }
+
+      // Відправляємо відповідь користувачу
+      await this.sendMessage(chatId, aiResponse);
+
+      // Оновлюємо історію розмов
+      history.push({ role: 'user', content: userMessage });
+      history.push({ role: 'assistant', content: aiResponse });
+      this.conversationHistory.set(chatId, history);
+
+      // Опціонально: показуємо кнопки для швидких дій
+      await this.bot.sendMessage(chatId, '🤖 Чим ще можу допомогти?', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
+            [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
+            [{ text: '🔄 Головне меню', callback_data: 'show_dashboard' }]
+          ]
+        }
+      });
+    } catch (error) {
+      logger.error('Помилка обробки AI чату:', error);
+      await this.sendMessage(
+        chatId,
+        '❌ Виникла помилка при обробці вашого запиту. Спробуйте пізніше або скористайтеся меню.'
+      );
+      await this.showUserDashboard(chatId, user);
     }
   }
 }
