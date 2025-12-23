@@ -4344,6 +4344,12 @@ class TelegramService {
         
         let title = intentAnalysis.title || '';
         let description = intentAnalysis.description || '';
+        let priority = intentAnalysis.priority || 'medium';
+
+        // Автоматичне підвищення пріоритету, якщо користувач злий
+        if (intentAnalysis.sentiment === 'negative' && priority === 'low') {
+            priority = 'medium';
+        }
 
         // Якщо заголовок надто короткий, а опис є - використовуємо опис як заголовок (обрізаний)
         if (!title && description) {
@@ -4352,12 +4358,14 @@ class TelegramService {
 
         // Ініціалізуємо сесію створення тікета
         const session = {
-          step: title ? (description ? (intentAnalysis.priority ? 'photo' : 'priority') : 'description') : 'title',
+          step: title ? (description ? (priority ? 'photo' : 'priority') : 'description') : 'title',
           ticketData: {
             createdBy: user._id,
             title: title,
             description: description,
-            priority: intentAnalysis.priority || 'medium',
+            priority: priority,
+            subcategory: intentAnalysis.category || 'Other',
+            type: intentAnalysis.ticketType || 'incident',
             photos: []
           }
         };
