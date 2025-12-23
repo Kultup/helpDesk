@@ -253,7 +253,9 @@ const KnowledgeBase: React.FC = () => {
       ) : (
         <>
           <div className="space-y-4 mb-6">
-            {articles.map((article) => (
+            {articles.map((article) => {
+              if (!article || !article._id) return null; // Захист від null/undefined
+              return (
               <Card key={article._id} className="hover:shadow-lg transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
@@ -291,19 +293,19 @@ const KnowledgeBase: React.FC = () => {
                       )}
 
                       <p className="text-gray-600 mb-3 line-clamp-2">
-                        {article.content.substring(0, 200)}...
+                        {article.content ? article.content.substring(0, 200) : ''}...
                       </p>
 
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Eye className="w-4 h-4" />
-                          <span>{article.views} переглядів</span>
+                          <span>{article.views || 0} переглядів</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-green-600">✓ {article.helpfulCount}</span>
-                          <span className="text-red-600">✗ {article.notHelpfulCount}</span>
+                          <span className="text-green-600">✓ {article.helpfulCount || 0}</span>
+                          <span className="text-red-600">✗ {article.notHelpfulCount || 0}</span>
                         </div>
-                        {article.tags.length > 0 && (
+                        {article.tags && article.tags.length > 0 && (
                           <div className="flex items-center gap-1">
                             <Tag className="w-4 h-4" />
                             <span>{article.tags.slice(0, 3).join(', ')}</span>
@@ -336,7 +338,8 @@ const KnowledgeBase: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
 
           {/* Пагінація */}
