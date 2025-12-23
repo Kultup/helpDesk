@@ -5,7 +5,7 @@ const Position = require('../models/Position');
 const PendingRegistration = require('../models/PendingRegistration');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
 const logger = require('../utils/logger');
-const telegramService = require('../services/telegramService');
+const telegramService = require('../services/telegramServiceInstance');
 
 /**
  * @route   GET /api/position-requests

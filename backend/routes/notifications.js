@@ -332,6 +332,16 @@ router.patch('/:id/read',
   notificationController.markAsRead
 );
 
+// Позначити сповіщення як прочитане (PUT alias for compatibility)
+router.put('/:id/read', 
+  authenticateToken,
+  param('id')
+    .isMongoId()
+    .withMessage('Невірний ID сповіщення'),
+  logAction('mark_notification_read'),
+  notificationController.markAsRead
+);
+
 // Позначити сповіщення як непрочитане
 router.patch('/:id/unread', 
   authenticateToken,
