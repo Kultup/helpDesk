@@ -48,7 +48,31 @@ router.get('/', knowledgeBaseController.getAllDocuments);
 router.post('/upload', requireAdmin, upload.single('file'), knowledgeBaseController.uploadDocument);
 
 // Видалення документа (тільки адміни)
+// Підтримуємо обидва варіанти шляху для сумісності
 router.delete('/:id', requireAdmin, knowledgeBaseController.deleteDocument);
+router.delete('/articles/:id', requireAdmin, knowledgeBaseController.deleteDocument);
+
+// Отримання однієї статті (за ID)
+router.get('/articles/:id', async (req, res) => {
+  try {
+    const KnowledgeBase = require('../models/KnowledgeBase');
+    const article = await KnowledgeBase.findById(req.params.id)
+      .populate('createdBy', 'email firstName lastName');
+    
+    if (!article) {
+      return res.status(404).json({ success: false, message: 'Статтю не знайдено' });
+    }
+    
+    // Інкремент переглядів
+    article.views = (article.views || 0) + 1;
+    await article.save({ validateBeforeSave: false }); // Пропускаємо валідацію для швидкості
+    
+    res.json({ success: true, data: article });
+  } catch (error) {
+    logger.error('Error fetching article:', error);
+    res.status(500).json({ success: false, message: 'Помилка отримання статті' });
+  }
+});
 
 // Маршрут для категорій (поки повертає статичний список або унікальні теги)
 router.get('/categories', async (req, res) => {
