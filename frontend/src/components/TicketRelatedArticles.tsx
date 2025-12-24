@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BookOpen, ExternalLink } from 'lucide-react';
+import { Sparkles, ExternalLink } from 'lucide-react';
 import { apiService } from '../services/api';
 import Card from './UI/Card';
 import LoadingSpinner from './UI/LoadingSpinner';
@@ -11,15 +11,11 @@ interface TicketRelatedArticlesProps {
   tags?: string[];
 }
 
-interface KBArticle {
+interface AIArticle {
   _id: string;
   title: string;
   content: string;
-  category?: { _id: string; name: string; color: string };
   tags: string[];
-  views: number;
-  helpfulCount: number;
-  status: string;
 }
 
 const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
@@ -27,7 +23,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
   categoryId,
   tags = []
 }) => {
-  const [articles, setArticles] = useState<KBArticle[]>([]);
+  const [articles, setArticles] = useState<AIArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,31 +32,15 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
       setIsLoading(true);
       setError(null);
       
-      // Пошук статей по категорії та тегах
-      const searchParams: Record<string, string | number> = {
-        status: 'published',
-        page: 1,
-        limit: 5,
-        sortBy: 'relevance'
-      };
-
-      if (categoryId) {
-        searchParams.category = categoryId;
-      }
-
-      if (tags && tags.length > 0) {
-        searchParams.tags = tags.join(',');
-      }
-
-      const response = await apiService.searchKBArticles(searchParams);
-      if (response.success && response.data) {
-        const resData = response.data as unknown as { data?: KBArticle[] };
-        setArticles(resData.data || []);
+      const q = tags && tags.length > 0 ? tags.join(' ') : '';
+      const response = await apiService.getAIKnowledge({ q, tags: tags.join(','), page: 1, limit: 5 });
+      if ((response as any).success && (response as any).data) {
+        setArticles(((response as any).data as AIArticle[]) || []);
       } else {
-        setError('Помилка завантаження пов\'язаних статей');
+        setError('Помилка завантаження пов’язаних знань');
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Помилка завантаження пов\'язаних статей';
+      const errorMessage = err instanceof Error ? err.message : 'Помилка завантаження пов’язаних знань';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -76,7 +56,7 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
       <Card>
         <div className="p-6 text-center">
           <LoadingSpinner />
-          <p className="mt-2 text-sm text-gray-600">Завантаження пов&apos;язаних статей...</p>
+          <p className="mt-2 text-sm text-gray-600">Завантаження пов’язаних знань...</p>
         </div>
       </Card>
     );
@@ -90,15 +70,15 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
     <Card>
       <div className="p-6">
         <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Пов&apos;язані статті KB</h3>
+          <Sparkles className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Пов’язані знання AI</h3>
         </div>
 
         <div className="space-y-3">
           {articles.map((article) => (
             <Link
               key={article._id}
-              to={`/admin/knowledge-base/${article._id}`}
+              to={`/admin/ai-knowledge/${article._id}`}
               className="block p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors"
             >
               <div className="flex items-start justify-between">
@@ -108,16 +88,11 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
                     {article.content.substring(0, 150)}...
                   </p>
                   <div className="flex items-center gap-3 text-xs text-gray-500">
-                    {article.category && (
-                      <span
-                        className="px-2 py-0.5 rounded text-white text-xs"
-                        style={{ backgroundColor: article.category.color }}
-                      >
-                        {article.category.name}
+                    {article.tags && article.tags.length > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                        {article.tags.slice(0, 2).join(', ')}
                       </span>
                     )}
-                    <span>{article.views} переглядів</span>
-                    <span className="text-green-600">✓ {article.helpfulCount}</span>
                   </div>
                 </div>
                 <ExternalLink className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
@@ -128,10 +103,10 @@ const TicketRelatedArticles: React.FC<TicketRelatedArticlesProps> = ({
 
         <div className="mt-4 pt-4 border-t border-gray-200">
           <Link
-            to="/admin/knowledge-base"
+            to="/admin/ai-knowledge"
             className="text-sm text-blue-600 hover:text-blue-800 font-medium"
           >
-            Переглянути всі статті KB →
+            Переглянути всі знання AI →
           </Link>
         </div>
       </div>

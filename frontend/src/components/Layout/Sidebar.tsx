@@ -52,7 +52,7 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: Home },
       { nameKey: 'sidebar.tickets', href: '/tickets', icon: Ticket },
-      { nameKey: 'sidebar.knowledgeBase', href: '/knowledge-base', icon: BookOpen, adminOnly: true },
+      { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Sparkles, adminOnly: true },
     ]
   },
   {

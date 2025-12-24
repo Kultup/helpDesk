@@ -36,10 +36,9 @@ import PendingRegistrations from './pages/PendingRegistrations';
 import Settings from './pages/Settings';
 import PhotoViewer from './components/PhotoViewer';
 import ErrorNotifications from './components/ErrorNotifications';
-import KnowledgeBase from './pages/KnowledgeBase';
-import KnowledgeArticleView from './pages/KnowledgeArticleView';
-import CreateKnowledgeArticle from './pages/CreateKnowledgeArticle';
-import SharedKnowledgeArticle from './pages/SharedKnowledgeArticle';
+import AIKnowledge from './pages/AIKnowledge';
+import CreateAIKnowledge from './pages/CreateAIKnowledge';
+import AIKnowledgeItem from './pages/AIKnowledgeItem';
 
 
 // Компонент для розумного перенаправлення
@@ -212,30 +211,25 @@ const App: React.FC = () => {
                 <ZabbixSettings />
               </ProtectedRoute>
             } />
-            <Route path="admin/knowledge-base" element={
+            <Route path="admin/ai-knowledge" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <KnowledgeBase />
+                <AIKnowledge />
               </ProtectedRoute>
             } />
-            <Route path="admin/knowledge-base/:id" element={
+            <Route path="admin/ai-knowledge/:id" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <KnowledgeArticleView />
+                <AIKnowledgeItem />
               </ProtectedRoute>
             } />
-            <Route path="admin/knowledge-base/:id/edit" element={
+            <Route path="admin/ai-knowledge/create" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateKnowledgeArticle />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/knowledge-base/create" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateKnowledgeArticle />
+                <CreateAIKnowledge />
               </ProtectedRoute>
             } />
           </Route>
           
           {/* Публічні роути (без авторизації) */}
-          <Route path="/share/kb/:token" element={<SharedKnowledgeArticle />} />
+          
           
           {/* 404 сторінка */}
           <Route path="*" element={<NotFound />} />

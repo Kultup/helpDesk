@@ -92,28 +92,34 @@ class GroqService {
 `;
       }
       
-      // RAG: Пошук у базі знань
-      const KnowledgeBase = require('../models/KnowledgeBase');
+      const AIKnowledge = require('../models/AIKnowledge');
       let kbContext = '';
       try {
-        // Простий пошук за ключовими словами (в ідеалі - векторний пошук)
-        const keywords = userMessage.split(' ').filter(w => w.length > 3).slice(0, 5);
-        if (keywords.length > 0) {
-            const regex = new RegExp(keywords.join('|'), 'i');
-            const docs = await KnowledgeBase.find({ 
-                isActive: true,
-                $or: [{ title: regex }, { content: regex }, { tags: regex }]
-            }).limit(3);
-            
-            if (docs.length > 0) {
-                kbContext = `\n\nДОВІДКОВА ІНФОРМАЦІЯ З БАЗИ ЗНАНЬ (Використовуйте це для відповіді):\n`;
-                docs.forEach(doc => {
-                    kbContext += `--- ${doc.title} ---\n${doc.content.substring(0, 500)}...\n\n`;
-                });
+        // Пошук по текстовому індексу (за наявності), fallback на regex
+        const q = userMessage.trim();
+        let docs = [];
+        if (q.length > 3) {
+          try {
+            docs = await AIKnowledge.find({ isActive: true, $text: { $search: q } })
+              .sort({ score: { $meta: 'textScore' }, updatedAt: -1 })
+              .limit(3);
+          } catch (_err) {
+            const keywords = q.split(' ').filter(w => w.length > 3).slice(0, 5);
+            if (keywords.length > 0) {
+              const regex = new RegExp(keywords.join('|'), 'i');
+              docs = await AIKnowledge.find({ isActive: true, $or: [{ title: regex }, { content: regex }, { tags: regex }] }).limit(3);
             }
+          }
+        }
+        if (docs.length > 0) {
+          kbContext = `\n\nДОВІДКОВА ІНФОРМАЦІЯ З AI ЗНАНЬ (використай це для відповіді):\n`;
+          docs.forEach(doc => {
+            const snippet = typeof doc.content === 'string' ? doc.content.substring(0, 500) : '';
+            kbContext += `--- ${doc.title} ---\n${snippet}...\n\n`;
+          });
         }
       } catch (kbError) {
-        logger.error('Помилка пошуку в базі знань:', kbError);
+        logger.error('Помилка пошуку AI знань:', kbError);
       }
 
       if (context.tickets && context.tickets.length > 0) {

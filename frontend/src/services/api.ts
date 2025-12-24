@@ -1211,14 +1211,12 @@ class ApiService {
 
 
   // Knowledge Base API methods
-  async getKBArticles(params?: {
+  async getAIKnowledge(params?: {
     q?: string;
     category?: string;
-    status?: string;
     tags?: string;
     page?: number;
     limit?: number;
-    sortBy?: string;
   }): Promise<ApiResponse<Array<Record<string, unknown>>> & {
     pagination: {
       page: number;
@@ -1236,108 +1234,23 @@ class ApiService {
       });
     }
     const queryString = queryParams.toString();
-    return this.get(`/kb/articles${queryString ? `?${queryString}` : ''}`);
+    return this.get(`/ai-knowledge${queryString ? `?${queryString}` : ''}`);
   }
 
-  async getKBArticle(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.get(`/kb/articles/${id}`);
+  async getAIKnowledgeItem(id: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get(`/ai-knowledge/${id}`);
   }
 
-  async getSharedKBArticle(token: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.get(`/kb/articles/share/${token}`);
+  async createAIKnowledge(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post('/ai-knowledge', data);
   }
 
-  async generateKBShareToken(id: string): Promise<ApiResponse<{ shareToken: string; shareUrl: string }>> {
-    return this.post(`/kb/articles/${id}/share-token`);
+  async updateAIKnowledge(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put(`/ai-knowledge/${id}`, data);
   }
 
-  async createKBArticle(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post('/kb/articles', data);
-  }
-
-  async updateKBArticle(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.put(`/kb/articles/${id}`, data);
-  }
-
-  async deleteKBArticle(id: string): Promise<ApiResponse<null>> {
-    return this.delete(`/kb/articles/${id}`);
-  }
-
-  async searchKBArticles(params?: {
-    q?: string;
-    category?: string;
-    status?: string;
-    tags?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-  }): Promise<ApiResponse<{
-    data: Array<Record<string, unknown>>;
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      pages: number;
-    };
-  }>> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, value.toString());
-        }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.get(`/kb/search${queryString ? `?${queryString}` : ''}`);
-  }
-
-  async markKBArticleHelpful(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post(`/kb/articles/${id}/helpful`);
-  }
-
-  async markKBArticleNotHelpful(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post(`/kb/articles/${id}/not-helpful`);
-  }
-
-  async getKBCategories(): Promise<ApiResponse<Array<Record<string, unknown>>>> {
-    return this.get('/kb/categories');
-  }
-
-  async generateKBArticleFromTicket(ticketId: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post(`/kb/articles/generate-from-ticket/${ticketId}`);
-  }
-
-  async uploadKBFiles(files: File[]): Promise<ApiResponse<Array<{
-    filename: string;
-    originalName: string;
-    mimetype: string;
-    size: number;
-    path: string;
-    url: string;
-    uploadedBy: string;
-    uploadedAt: string;
-  }>>> {
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('files', file);
-    });
-
-    const response: AxiosResponse<ApiResponse<Array<{
-      filename: string;
-      originalName: string;
-      mimetype: string;
-      size: number;
-      path: string;
-      url: string;
-      uploadedBy: string;
-      uploadedAt: string;
-    }>>> = await this.api.post('/kb/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return response.data;
+  async deleteAIKnowledge(id: string): Promise<ApiResponse<null>> {
+    return this.delete(`/ai-knowledge/${id}`);
   }
 
   // Оцінити якість вирішення тікету
