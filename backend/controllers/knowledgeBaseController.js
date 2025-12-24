@@ -104,7 +104,7 @@ class KnowledgeBaseController {
       // Soft delete: просто деактивуємо, не видаляємо з БД і не видаляємо файл
       // Якщо треба буде повне видалення - можна додати окремий метод
       document.isActive = false;
-      await document.save();
+      await document.save({ validateBeforeSave: false });
 
       res.json({ success: true, message: 'Документ видалено (переміщено в архів)' });
     } catch (error) {
