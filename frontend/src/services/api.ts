@@ -1245,6 +1245,13 @@ class ApiService {
     return this.post('/ai-knowledge', data);
   }
 
+  async createAIKnowledgeWithFiles(formData: FormData): Promise<ApiResponse<Record<string, unknown>>> {
+    const response = await this.api.post('/ai-knowledge', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  }
+
   async updateAIKnowledge(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
     return this.put(`/ai-knowledge/${id}`, data);
   }

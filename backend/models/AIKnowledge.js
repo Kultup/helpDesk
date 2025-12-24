@@ -6,7 +6,8 @@ const aiKnowledgeSchema = new mongoose.Schema({
   tags: [{ type: String, trim: true }],
   category: { type: String, trim: true },
   isActive: { type: Boolean, default: true },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  attachments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Attachment' }]
 }, { timestamps: true });
 
 aiKnowledgeSchema.index({ title: 'text', content: 'text', tags: 'text' });
