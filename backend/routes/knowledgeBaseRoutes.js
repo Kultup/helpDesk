@@ -43,6 +43,12 @@ router.get('/articles', async (req, res) => {
 // Отримання списку документів (для адмінки)
 router.get('/', knowledgeBaseController.getAllDocuments);
 
+// Створення нової статті
+router.post('/articles', requireAdmin, knowledgeBaseController.createArticle);
+
+// Оновлення статті
+router.put('/articles/:id', requireAdmin, knowledgeBaseController.updateArticle);
+
 // Завантаження нового документа (тільки адміни та менеджери)
 // Використовуємо requireAdmin для спрощення, або можна додати кастомний middleware для менеджерів
 router.post('/upload', requireAdmin, upload.single('file'), knowledgeBaseController.uploadDocument);

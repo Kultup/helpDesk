@@ -23,6 +23,31 @@ const knowledgeBaseSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  category: {
+    type: String,
+    trim: true
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'published', 'archived'],
+    default: 'published'
+  },
+  isPublic: {
+    type: Boolean,
+    default: true
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  helpfulCount: {
+    type: Number,
+    default: 0
+  },
+  notHelpfulCount: {
+    type: Number,
+    default: 0
+  },
   isActive: {
     type: Boolean,
     default: true

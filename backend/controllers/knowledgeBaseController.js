@@ -8,6 +8,73 @@ const Tesseract = require('tesseract.js');
 const logger = require('../utils/logger');
 
 class KnowledgeBaseController {
+  // Створення нової статті
+  async createArticle(req, res) {
+    try {
+      const { title, content, tags, category, isPublic, status } = req.body;
+      const userId = req.user._id;
+
+      if (!title) {
+        return res.status(400).json({ success: false, message: 'Заголовок обов\'язковий' });
+      }
+
+      const kbEntry = new KnowledgeBase({
+        title,
+        content,
+        type: 'text', // Звичайні статті мають тип text
+        tags: tags || [],
+        category,
+        isPublic: isPublic !== undefined ? isPublic : true,
+        status: status || 'published',
+        createdBy: userId
+      });
+
+      await kbEntry.save();
+
+      res.status(201).json({
+        success: true,
+        data: kbEntry,
+        message: 'Статтю успішно створено'
+      });
+    } catch (error) {
+      logger.error('Error creating article:', error);
+      res.status(500).json({ success: false, message: 'Помилка створення статті' });
+    }
+  }
+
+  // Оновлення статті
+  async updateArticle(req, res) {
+    try {
+      const { id } = req.params;
+      const { title, content, tags, category, isPublic, status } = req.body;
+
+      const article = await KnowledgeBase.findById(id);
+
+      if (!article) {
+        return res.status(404).json({ success: false, message: 'Статтю не знайдено' });
+      }
+
+      // Оновлюємо поля
+      if (title) article.title = title;
+      if (content !== undefined) article.content = content;
+      if (tags) article.tags = tags;
+      if (category) article.category = category;
+      if (isPublic !== undefined) article.isPublic = isPublic;
+      if (status) article.status = status;
+
+      await article.save();
+
+      res.json({
+        success: true,
+        data: article,
+        message: 'Статтю успішно оновлено'
+      });
+    } catch (error) {
+      logger.error('Error updating article:', error);
+      res.status(500).json({ success: false, message: 'Помилка оновлення статті' });
+    }
+  }
+
   // Завантаження та обробка файлу
   async uploadDocument(req, res) {
     try {
@@ -51,7 +118,9 @@ class KnowledgeBaseController {
         }
       } catch (parseError) {
         logger.error('Помилка парсингу файлу:', parseError);
-        return res.status(500).json({ success: false, message: 'Помилка обробки файлу' });
+        // Не перериваємо завантаження, якщо не вдалося розпізнати текст
+        content = ''; 
+        // return res.status(500).json({ success: false, message: 'Помилка обробки файлу' });
       }
 
       const kbEntry = new KnowledgeBase({

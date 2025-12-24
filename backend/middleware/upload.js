@@ -59,7 +59,11 @@ const fileFilter = (req, file, cb) => {
       'image/png'
     ];
     
-    if (allowedTypes.includes(file.mimetype)) {
+    // Перевірка розширення файлу, якщо mime-type generic
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
+
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
       cb(new Error('Непідтримуваний тип файлу. Дозволені: PDF, DOC, DOCX, TXT, XLS, XLSX, JPG, PNG'), false);
