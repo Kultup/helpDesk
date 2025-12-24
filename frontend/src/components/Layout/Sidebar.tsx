@@ -19,11 +19,10 @@ import {
   Settings,
   Bot,
   Activity,
-  BookOpen,
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole } from '../../types';
+import { UserRole, isAdminRole } from '../../types';
 import { cn } from '../../utils';
 import Button from '../UI/Button';
 
@@ -90,7 +89,7 @@ const navGroups: NavGroup[] = [
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user?.role ? isAdminRole(user.role) : false;
   const basePath = isAdmin ? '/admin' : '';
 
   const filteredNavGroups = navGroups.filter(group => 
