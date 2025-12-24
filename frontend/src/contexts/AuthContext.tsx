@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { User, AuthContextType, UserRole } from '../types';
+import { User, AuthContextType, UserRole, isAdminRole } from '../types';
 import { apiService } from '../services/api';
 
 // Типи для reducer
@@ -230,12 +230,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    // Перенаправляємо користувача на відповідну сторінку залежно від його ролі
-    if (user?.role === UserRole.ADMIN) {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else {
-      return <Navigate to="/dashboard" replace />;
+  if (requiredRole) {
+    const hasAccess = requiredRole === UserRole.ADMIN ? (user ? isAdminRole(user.role as UserRole) : false) : user?.role === requiredRole;
+    if (!hasAccess) {
+      if (user && isAdminRole(user.role as UserRole)) {
+        return <Navigate to="/admin/dashboard" replace />;
+      } else {
+        return <Navigate to="/dashboard" replace />;
+      }
     }
   }
 
