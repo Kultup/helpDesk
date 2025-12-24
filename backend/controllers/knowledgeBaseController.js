@@ -91,7 +91,7 @@ class KnowledgeBaseController {
     }
   }
 
-  // Видалення документа
+  // Видалення документа (Soft Delete)
   async deleteDocument(req, res) {
     try {
       const { id } = req.params;
@@ -101,14 +101,12 @@ class KnowledgeBaseController {
         return res.status(404).json({ success: false, message: 'Документ не знайдено' });
       }
 
-      // Видалення файлу з диска
-      if (document.filePath && fs.existsSync(document.filePath)) {
-        fs.unlinkSync(document.filePath);
-      }
+      // Soft delete: просто деактивуємо, не видаляємо з БД і не видаляємо файл
+      // Якщо треба буде повне видалення - можна додати окремий метод
+      document.isActive = false;
+      await document.save();
 
-      await KnowledgeBase.findByIdAndDelete(id);
-
-      res.json({ success: true, message: 'Документ видалено' });
+      res.json({ success: true, message: 'Документ видалено (переміщено в архів)' });
     } catch (error) {
       logger.error('Error deleting document:', error);
       res.status(500).json({ success: false, message: 'Помилка видалення документа' });
