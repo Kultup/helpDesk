@@ -116,7 +116,7 @@ class KBSearchService {
       let relatedQuery = {
         _id: { $ne: articleId },
         status: 'published',
-        isDeleted: false,
+        isActive: true,
         isPublic: true
       };
 
