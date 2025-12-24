@@ -2,8 +2,10 @@ const AIKnowledge = require('../models/AIKnowledge');
 const Attachment = require('../models/Attachment');
 const fs = require('fs').promises;
 const crypto = require('crypto');
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
+const pdfParseModule = require('pdf-parse');
+const pdfParse = pdfParseModule && pdfParseModule.default ? pdfParseModule.default : pdfParseModule;
+const mammothModule = require('mammoth');
+const mammoth = mammothModule && mammothModule.default ? mammothModule.default : mammothModule;
 const xlsx = require('xlsx');
 const path = require('path');
 
@@ -56,24 +58,30 @@ class AIKnowledgeController {
       await attachment.save();
       attachments.push(attachment._id);
       if (file.mimetype === 'application/pdf') {
-        const parsed = await pdfParse(buffer);
-        if (parsed && parsed.text) extractedTexts.push(parsed.text);
+        try {
+          const parsed = await pdfParse(buffer);
+          if (parsed && parsed.text) extractedTexts.push(parsed.text);
+        } catch (e) {}
       } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const result = await mammoth.extractRawText({ path: file.path });
-        if (result && result.value) extractedTexts.push(result.value);
+        try {
+          const result = await mammoth.extractRawText({ path: file.path });
+          if (result && result.value) extractedTexts.push(result.value);
+        } catch (e) {}
       } else if (file.mimetype === 'text/plain' || file.mimetype === 'text/csv') {
         extractedTexts.push(buffer.toString('utf8'));
       } else if (file.mimetype === 'application/vnd.ms-excel' || file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        const wb = xlsx.readFile(file.path);
-        const sheets = wb.SheetNames || [];
-        let txt = '';
-        for (const name of sheets) {
-          const sheet = wb.Sheets[name];
-          if (sheet) {
-            txt += xlsx.utils.sheet_to_csv(sheet) + '\n';
+        try {
+          const wb = xlsx.readFile(file.path);
+          const sheets = wb.SheetNames || [];
+          let txt = '';
+          for (const name of sheets) {
+            const sheet = wb.Sheets[name];
+            if (sheet) {
+              txt += xlsx.utils.sheet_to_csv(sheet) + '\n';
+            }
           }
-        }
-        if (txt) extractedTexts.push(txt);
+          if (txt) extractedTexts.push(txt);
+        } catch (e) {}
       }
     }
     const combinedContent = [content, ...extractedTexts].filter(Boolean).join('\n\n');
@@ -122,24 +130,30 @@ class AIKnowledgeController {
       await attachment.save();
       newAttachmentIds.push(attachment._id);
       if (file.mimetype === 'application/pdf') {
-        const parsed = await pdfParse(buffer);
-        if (parsed && parsed.text) extractedTexts.push(parsed.text);
+        try {
+          const parsed = await pdfParse(buffer);
+          if (parsed && parsed.text) extractedTexts.push(parsed.text);
+        } catch (e) {}
       } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const result = await mammoth.extractRawText({ path: file.path });
-        if (result && result.value) extractedTexts.push(result.value);
+        try {
+          const result = await mammoth.extractRawText({ path: file.path });
+          if (result && result.value) extractedTexts.push(result.value);
+        } catch (e) {}
       } else if (file.mimetype === 'text/plain' || file.mimetype === 'text/csv') {
         extractedTexts.push(buffer.toString('utf8'));
       } else if (file.mimetype === 'application/vnd.ms-excel' || file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        const wb = xlsx.readFile(file.path);
-        const sheets = wb.SheetNames || [];
-        let txt = '';
-        for (const name of sheets) {
-          const sheet = wb.Sheets[name];
-          if (sheet) {
-            txt += xlsx.utils.sheet_to_csv(sheet) + '\n';
+        try {
+          const wb = xlsx.readFile(file.path);
+          const sheets = wb.SheetNames || [];
+          let txt = '';
+          for (const name of sheets) {
+            const sheet = wb.Sheets[name];
+            if (sheet) {
+              txt += xlsx.utils.sheet_to_csv(sheet) + '\n';
+            }
           }
-        }
-        if (txt) extractedTexts.push(txt);
+          if (txt) extractedTexts.push(txt);
+        } catch (e) {}
       }
     }
     if (newAttachmentIds.length > 0) {
