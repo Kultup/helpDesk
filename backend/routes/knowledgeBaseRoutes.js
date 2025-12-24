@@ -3,11 +3,8 @@ const router = express.Router();
 const knowledgeBaseController = require('../controllers/knowledgeBaseController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
-const KBSearchService = require('../services/kbSearchService');
+const kbSearchService = require('../services/kbSearchService');
 const logger = require('../utils/logger');
-
-// Ініціалізація сервісу пошуку
-const kbSearchService = new KBSearchService();
 
 // Всі маршрути захищені
 router.use(authenticateToken);
