@@ -15,7 +15,7 @@ router.get('/articles', async (req, res) => {
     const { q, status, category, tags, page, limit, sortBy, isPublic } = req.query;
     
     const filters = {
-      status: status !== 'all' ? status : undefined,
+      status,
       category,
       tags: tags ? tags.split(',') : undefined,
       isPublic: isPublic === 'true' ? true : undefined

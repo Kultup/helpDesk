@@ -19,14 +19,15 @@ class KBSearchService {
 
       let searchQuery = { isDeleted: false };
 
-      // Фільтр за статусом - якщо не передано або передано 'all', не фільтруємо
-      if (filters.status && filters.status !== 'all' && filters.status !== 'undefined' && filters.status !== 'null') {
+      // Фільтр за статусом
+      if (filters.status === 'all') {
+        // Не додаємо фільтр за статусом (показуємо всі)
+      } else if (filters.status && filters.status !== 'undefined' && filters.status !== 'null') {
         searchQuery.status = filters.status;
-      } else if (!filters.status || filters.status === 'undefined' || filters.status === 'null') {
+      } else {
         // Якщо статус не передано, за замовчуванням показуємо тільки published
         searchQuery.status = 'published';
       }
-      // Якщо filters.status === 'all', то не додаємо фільтр за статусом (показуємо всі)
 
       if (filters.isPublic !== undefined) {
         searchQuery.isPublic = filters.isPublic;

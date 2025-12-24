@@ -63,6 +63,8 @@ const server = createServer(app);
 // Налаштування trust proxy для express-rate-limit
 // Встановлюємо trust proxy, якщо додаток працює за проксі (nginx, load balancer)
 app.set('trust proxy', 1); // Довіряємо першому проксі
+// Вимикаємо ETag для динамічних відповідей, щоб уникнути 304 та показувати актуальні дані
+app.set('etag', false);
 
 // Socket.IO конфігурація
 // Використовуємо ту саму логіку для origins, що й для HTTP CORS
