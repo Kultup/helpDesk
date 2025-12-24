@@ -30,11 +30,14 @@ class AIKnowledgeController {
 
   async create(req, res) {
     const { title, content, tags, category } = req.body;
-    if (!title || !content) return res.status(400).json({ success: false, message: 'Поля title та content обов\'язкові' });
+    if (!title) return res.status(400).json({ success: false, message: 'Поле title обов\'язкове' });
     const files = Array.isArray(req.files) ? req.files : [];
     const attachments = [];
     const extractedTexts = [];
     const getCategory = m => m.startsWith('image/') ? 'image' : m.startsWith('video/') ? 'video' : m.startsWith('audio/') ? 'audio' : (m === 'application/pdf' || m === 'application/msword' || m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || m === 'application/vnd.ms-excel' || m === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || m === 'text/plain' || m === 'text/csv') ? 'document' : (m.includes('zip') || m.includes('rar') || m.includes('7z')) ? 'archive' : 'other';
+    if (!content && files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Необхідно надати контент або принаймні один файл' });
+    }
     for (const file of files) {
       const buffer = await fs.readFile(file.path);
       const checksum = crypto.createHash('sha256').update(buffer).digest('hex');
@@ -74,6 +77,9 @@ class AIKnowledgeController {
       }
     }
     const combinedContent = [content, ...extractedTexts].filter(Boolean).join('\n\n');
+    if (!combinedContent || !combinedContent.trim()) {
+      return res.status(400).json({ success: false, message: 'Не вдалося отримати текст. Додайте текст вручну або завантажте текстові документи (PDF, DOCX, TXT, CSV, XLSX).' });
+    }
     const item = new AIKnowledge({
       title,
       content: combinedContent,
