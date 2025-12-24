@@ -39,6 +39,7 @@ import ErrorNotifications from './components/ErrorNotifications';
 import AIKnowledge from './pages/AIKnowledge';
 import CreateAIKnowledge from './pages/CreateAIKnowledge';
 import AIKnowledgeItem from './pages/AIKnowledgeItem';
+import EditAIKnowledge from './pages/EditAIKnowledge';
 
 
 // Компонент для розумного перенаправлення
@@ -224,6 +225,11 @@ const App: React.FC = () => {
             <Route path="admin/ai-knowledge/create" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <CreateAIKnowledge />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/ai-knowledge/:id/edit" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <EditAIKnowledge />
               </ProtectedRoute>
             } />
           </Route>

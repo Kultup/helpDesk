@@ -1256,6 +1256,12 @@ class ApiService {
     return this.put(`/ai-knowledge/${id}`, data);
   }
 
+  async updateAIKnowledgeWithFiles(id: string, formData: FormData): Promise<ApiResponse<Record<string, unknown>>> {
+    const response = await this.api.put(`/ai-knowledge/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  }
   async deleteAIKnowledge(id: string): Promise<ApiResponse<null>> {
     return this.delete(`/ai-knowledge/${id}`);
   }
