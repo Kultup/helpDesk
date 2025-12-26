@@ -30,6 +30,7 @@ class TelegramService {
     this.mode = 'webhook';
     this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
+    this.aiSessionState = new Map(); // Зберігаємо стан сесії AI (chatId -> { steps: number })
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -427,11 +428,14 @@ class TelegramService {
 
       switch (command) {
         case '/start':
+          // Скидаємо сесію AI при старті
+          this.aiSessionState.delete(chatId);
           await this.handleStartCommand(chatId, userId, msg);
           break;
         case '/menu':
-          // Очищаємо активний тікет та показуємо головне меню
+          // Очищаємо активний тікет, сесію AI та показуємо головне меню
           this.clearActiveTicketForUser(chatId, user);
+          this.aiSessionState.delete(chatId);
           if (user) {
             await this.showUserDashboard(chatId, user);
           } else {
@@ -2436,6 +2440,7 @@ class TelegramService {
 
       // Очищуємо сесію
       this.userSessions.delete(chatId);
+      this.aiSessionState.delete(chatId);
 
       let confirmText = 
         `🎉 *Тікет успішно створено!*\n` +
@@ -4331,7 +4336,7 @@ class TelegramService {
 
       // Використовуємо AI для аналізу наміру (це точніше за ключові слова)
       const intentAnalysis = await groqService.analyzeIntent(userMessage);
-      
+
       const createTicketKeywords = [
         'створи тікет', 'створити тікет', 'nova заявка', 'створи тикет', 'создай тикет'
       ];
@@ -4339,7 +4344,12 @@ class TelegramService {
       const hasManualKeyword = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
 
       // Якщо AI впевнений, що це намір створити тікет, або є пряме ключове слово
-      if ((intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.6) || hasManualKeyword) {
+      const stepsDoneEarly = (this.aiSessionState.get(chatId)?.steps || 0);
+      const maxStepsEarly = this.botSettings?.aiMaxSteps || 6;
+      const shouldStartTicketWizard =
+        hasManualKeyword ||
+        (intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.85 && stepsDoneEarly >= maxStepsEarly);
+      if (shouldStartTicketWizard) {
         logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
         
         let title = intentAnalysis.title || '';
@@ -4443,9 +4453,7 @@ class TelegramService {
         return;
       }
 
-      // Відправляємо відповідь користувачу
-      // Використовуємо спробу відправки без Markdown, якщо основна відправка з Markdown не вдалася
-      await this.sendMessage(chatId, aiResponse);
+      // Парсинг для автоматичного створення тікету\n      const ticketRegex = /<<<CREATE_TICKET>>>(.*?)<<<END_TICKET>>>/s;\n      let match = aiResponse.match(ticketRegex);\n      if (match) {\n        const jsonStr = match[1].trim();\n        try {\n          const ticketData = JSON.parse(jsonStr);\n          // Створюємо тікет\n          const ticket = await this.createTicketFromAI(user, ticketData);\n          await this.sendMessage(chatId, `✅ Тікет створено автоматично! Номер: ${ticket.ticketNumber}`);\n        } catch (e) {\n          logger.error('Помилка створення тікету з AI:', e);\n          await this.sendMessage(chatId, '❌ Помилка при створенні тікету. Будь ласка, створіть вручну.');\n        }\n        // Видаляємо блок з відповіді\n        aiResponse = aiResponse.replace(match[0], '').trim();\n      }\n\n      // Відправляємо відповідь користувачу\n      await this.sendMessage(chatId, aiResponse);\n\n      // Інкремент кроків\n      let sessionState = this.aiSessionState.get(chatId) || { steps: 0 };\n      sessionState.steps += 1;\n      this.aiSessionState.set(chatId, sessionState);
 
       // Оновлюємо історію розмов
       history.push({ role: 'user', content: userMessage });

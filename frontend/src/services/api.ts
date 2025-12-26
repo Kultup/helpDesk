@@ -1266,6 +1266,21 @@ class ApiService {
     return this.delete(`/ai-knowledge/${id}`);
   }
 
+  // Aliases for KnowledgeBase.tsx compatibility
+  async getKBArticles(params?: any): Promise<any> {
+    return this.getAIKnowledge(params);
+  }
+
+  async deleteKBArticle(id: string): Promise<ApiResponse<null>> {
+    return this.deleteAIKnowledge(id);
+  }
+
+  async getKBCategories(): Promise<ApiResponse<string[]>> {
+    // Return unique categories or use existing endpoint if available
+    // For now, let's try to get them from a new endpoint or return empty
+    return this.get('/ai-knowledge/categories');
+  }
+
   // Оцінити якість вирішення тікету
   async rateTicket(ticketId: string, rating: number, feedback?: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/tickets/${ticketId}/rate`, { rating, feedback });
