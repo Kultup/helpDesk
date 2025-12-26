@@ -332,7 +332,7 @@ class TelegramService {
           { telegramId: userId }
         ]
       })
-        .populate('position', 'title')
+        .populate('position', 'title department')
         .populate('city', 'name');
       
       // Якщо користувач вже зареєстрований, показуємо головне меню
