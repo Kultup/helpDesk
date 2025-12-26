@@ -4483,6 +4483,66 @@ class TelegramService {
       await this.showUserDashboard(chatId, user);
     }
   }
+
+  /**
+   * Створення тікету на основі даних від AI
+   */
+  async createTicketFromAI(user, ticketData) {
+    try {
+      const Ticket = require('../models/Ticket');
+      
+      // Формуємо розширений опис з урахуванням root_cause
+      let finalDescription = ticketData.description;
+      if (ticketData.root_cause) {
+        finalDescription += `\n\n🔍 Ймовірна причина (AI): ${ticketData.root_cause}`;
+      }
+
+      const ticket = new Ticket({
+        title: ticketData.title,
+        description: finalDescription,
+        priority: ticketData.priority || 'medium',
+        subcategory: ticketData.subcategory, // Зберігаємо підкатегорію
+        createdBy: user._id,
+        status: 'open',
+        type: 'incident',
+        city: user.city // Прив'язуємо до міста користувача
+      });
+
+      await ticket.save();
+      await ticket.populate('createdBy', 'firstName lastName email');
+      if (ticket.city) await ticket.populate('city', 'name');
+
+      // Сповіщення
+      try {
+        const ticketWebSocketService = require('./ticketWebSocketService');
+        ticketWebSocketService.notifyNewTicket(ticket);
+        
+        const fcmService = require('./fcmService');
+        await fcmService.sendToAdmins({
+          title: '🤖 Новий тікет (AI)',
+          body: `${ticket.title} (Пріоритет: ${ticket.priority})`,
+          type: 'ticket_created',
+          data: {
+            ticketId: ticket._id.toString(),
+            ticketTitle: ticket.title,
+            ticketStatus: ticket.status,
+            ticketPriority: ticket.priority,
+            createdBy: `${user.firstName} ${user.lastName}`
+          }
+        });
+
+        // Сповіщення в групу
+        await this.sendNewTicketNotificationToGroup(ticket, user);
+      } catch (notifyError) {
+        logger.error('Помилка відправки сповіщень для AI тікету:', notifyError);
+      }
+
+      return ticket;
+    } catch (error) {
+      logger.error('Помилка збереження AI тікету:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = TelegramService;
