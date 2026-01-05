@@ -636,8 +636,10 @@ exports.createComment = async (req, res) => {
       logger.info('Відправка коментарів в Telegram:', {
         recipients: recipients,
         uniqueRecipients: uniqueRecipients,
+        uniqueRecipientsCount: uniqueRecipients.length,
         commentAuthorId: commentAuthorId,
-        ticketId: ticket._id.toString()
+        ticketId: ticket._id.toString(),
+        isInternal: finalIsInternal
       });
       
       const authorName = comment.author?.firstName && comment.author?.lastName
@@ -653,7 +655,10 @@ exports.createComment = async (req, res) => {
         { path: 'assignedTo', select: 'firstName lastName email telegramId telegramChatId' }
       ]);
       
+      logger.info(`Початок циклу відправки для ${uniqueRecipients.length} отримувачів`);
+      
       for (const userId of uniqueRecipients) {
+        logger.info(`Обробка отримувача ${userId} для коментаря`);
         // FCM сповіщення
         try {
           await fcmService.sendToUser(userId, {
@@ -720,9 +725,11 @@ exports.createComment = async (req, res) => {
           }
         } catch (telegramError) {
           logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, telegramError);
+          logger.error('Деталі помилки:', telegramError.stack || telegramError.message);
         }
       }
       
+      logger.info(`✅ Завершено обробку відправки коментарів для ${uniqueRecipients.length} отримувачів`);
       logger.info('✅ Сповіщення про новий коментар відправлено');
     } catch (error) {
       logger.error('❌ Помилка відправки сповіщень про коментар:', error);
