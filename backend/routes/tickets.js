@@ -1112,6 +1112,83 @@ router.post('/:id/send-telegram-message',
   }
 );
 
+// POST /api/tickets/:id/analyze - Аналіз тікета через AI
+router.post('/:id/analyze',
+  authenticateToken,
+  requirePermission('view_tickets'),
+  param('id').isMongoId().withMessage('Невірний ID тікету'),
+  async (req, res) => {
+    try {
+      const groqService = require('../services/groqService');
+      
+      if (!groqService.isEnabled()) {
+        return res.status(503).json({
+          success: false,
+          message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
+        });
+      }
+
+      const ticket = await Ticket.findById(req.params.id)
+        .populate('createdBy', 'firstName lastName email position')
+        .populate('assignedTo', 'firstName lastName email position')
+        .populate('city', 'name region')
+        .populate('institution', 'name')
+        .populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            select: 'firstName lastName email'
+          },
+          options: { sort: { createdAt: -1 } }
+        });
+
+      if (!ticket) {
+        return res.status(404).json({
+          success: false,
+          message: 'Тікет не знайдено'
+        });
+      }
+
+      // Отримуємо історію змін тікета
+      const TicketHistory = require('../models/TicketHistory');
+      const history = await TicketHistory.find({ ticketId: ticket._id })
+        .sort({ timestamp: -1 })
+        .limit(10)
+        .lean();
+
+      const ticketWithHistory = {
+        ...ticket.toObject(),
+        history: history
+      };
+
+      // Викликаємо AI аналіз
+      const analysis = await groqService.analyzeTicket(ticketWithHistory, {
+        user: req.user,
+        timestamp: new Date()
+      });
+
+      if (!analysis) {
+        return res.status(500).json({
+          success: false,
+          message: 'Не вдалося проаналізувати тікет. Спробуйте пізніше.'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      logger.error('Помилка AI аналізу тікета:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка сервера при аналізі тікета',
+        error: error.message
+      });
+    }
+  }
+);
+
 // GET /api/tickets/:id/telegram-messages - Отримати всі Telegram повідомлення для тікету
 router.get('/:id/telegram-messages',
   authenticateToken,

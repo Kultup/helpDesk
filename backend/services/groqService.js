@@ -268,6 +268,122 @@ class GroqService {
   }
 
   /**
+   * Аналізує тікет та надає рекомендації
+   * @param {Object} ticket - Об'єкт тікета з полями title, description, status, priority, comments, history
+   * @param {Object} context - Додатковий контекст (користувач, місто, заклад тощо)
+   * @returns {Promise<Object>} - Результат аналізу з рекомендаціями
+   */
+  async analyzeTicket(ticket, context = {}) {
+    try {
+      if (!this.client) {
+        await this.initialize();
+      }
+
+      if (!this.client) {
+        return null;
+      }
+
+      const systemPrompt = `
+Ви - експерт-аналітик системи HelpDesk. Ваше завдання - проаналізувати заявку (тікет) та надати корисні рекомендації для її вирішення.
+
+ОСНОВНІ ЗАВДАННЯ:
+1. Проаналізувати опис проблеми та визначити ймовірну причину
+2. Запропонувати кроки для діагностики та вирішення
+3. Визначити, чи потрібна додаткова інформація від користувача
+4. Оцінити правильність встановленого пріоритету
+5. Запропонувати категорію/підкатегорію, якщо не вказано
+6. Надати рекомендації щодо призначення відповідального (якщо не призначено)
+
+ФОРМАТ ВІДПОВІДІ (JSON):
+{
+  "summary": "Короткий опис проблеми та її суть",
+  "rootCause": "Ймовірна причина проблеми",
+  "diagnosticSteps": ["Крок 1", "Крок 2", "Крок 3"],
+  "solutionSteps": ["Рішення 1", "Рішення 2"],
+  "requiredInfo": ["Яка інформація потрібна від користувача"],
+  "priorityAssessment": {
+    "current": "low|medium|high|urgent",
+    "recommended": "low|medium|high|urgent",
+    "reason": "Чому рекомендовано змінити пріоритет"
+  },
+  "categoryRecommendation": {
+    "category": "Hardware|Software|Network|Access|Other",
+    "subcategory": "Конкретна підкатегорія",
+    "reason": "Чому ця категорія"
+  },
+  "assignmentRecommendation": {
+    "shouldAssign": true|false,
+    "reason": "Чому потрібно/не потрібно призначати"
+  },
+  "estimatedComplexity": "low|medium|high",
+  "estimatedTime": "Оцінка часу на вирішення",
+  "relatedIssues": ["Можливі пов'язані проблеми"],
+  "preventiveMeasures": ["Заходи для запобігання подібним проблемам"]
+}
+
+ВАЖЛИВО:
+- Будьте конкретними та практичними
+- Використовуйте технічну термінологію, але зрозумілу
+- Якщо інформації недостатньо, вкажіть це
+- Не вигадуйте проблеми, яких немає в описі
+- МОВА: Відповідайте українською мовою
+`;
+
+      // Формуємо контекст тікета
+      const ticketContext = `
+АНАЛІЗ ЗАЯВКИ:
+
+Заголовок: ${ticket.title || 'Не вказано'}
+Опис: ${ticket.description || 'Не вказано'}
+Статус: ${ticket.status || 'Не вказано'}
+Пріоритет: ${ticket.priority || 'Не вказано'}
+Тип: ${ticket.type || 'Не вказано'}
+Категорія: ${ticket.subcategory || 'Не вказано'}
+Створено: ${ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('uk-UA') : 'Не вказано'}
+${ticket.dueDate ? `Термін виконання: ${new Date(ticket.dueDate).toLocaleString('uk-UA')}` : ''}
+${ticket.assignedTo ? `Призначено: ${ticket.assignedTo.firstName || ''} ${ticket.assignedTo.lastName || ''}` : 'Не призначено'}
+${ticket.createdBy ? `Автор: ${ticket.createdBy.firstName || ''} ${ticket.createdBy.lastName || ''}` : ''}
+${ticket.city ? `Місто: ${ticket.city.name || ''}` : ''}
+${ticket.institution ? `Заклад: ${ticket.institution.name || ''}` : ''}
+
+${ticket.comments && ticket.comments.length > 0 ? `
+КОМЕНТАРІ (${ticket.comments.length}):
+${ticket.comments.map((c, i) => `${i + 1}. ${c.content} (${c.author?.firstName || 'Невідомо'} ${c.author?.lastName || ''}, ${new Date(c.createdAt).toLocaleString('uk-UA')})`).join('\n')}
+` : ''}
+
+${ticket.history && ticket.history.length > 0 ? `
+ІСТОРІЯ ЗМІН:
+${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Date(h.timestamp).toLocaleString('uk-UA')})`).join('\n')}
+` : ''}
+`;
+
+      const chatCompletion = await this.client.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: ticketContext }
+        ],
+        model: this.settings.groqModel || 'llama-3.3-70b-versatile',
+        temperature: 0.3, // Низька температура для більш точного аналізу
+        max_tokens: 2048,
+        response_format: { type: 'json_object' }
+      });
+
+      const responseText = chatCompletion.choices[0]?.message?.content;
+      if (!responseText) {
+        logger.warn('Groq повернув порожню відповідь при аналізі тікета');
+        return null;
+      }
+
+      const result = JSON.parse(responseText);
+      logger.info('Результат AI аналізу тікета:', { ticketId: ticket._id, result });
+      return result;
+    } catch (error) {
+      logger.error('Помилка аналізу тікета через Groq:', error);
+      return null;
+    }
+  }
+
+  /**
    * Транскрибує аудіофайл за допомогою Groq Whisper
    */
   async transcribeAudio(filePath) {

@@ -11,6 +11,7 @@ import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
+import { Sparkles, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Lightbulb, Clock, Target } from 'lucide-react';
 
 import { formatDate } from '../utils';
 
@@ -24,6 +25,9 @@ const TicketDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
   const [editingPriority, setEditingPriority] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const { user } = useAuth();
   const isAdmin = user?.role === UserRole.ADMIN;
   const basePath = isAdmin ? '/admin' : '';
@@ -120,6 +124,27 @@ const TicketDetails: React.FC = () => {
   const canChangeStatus = isAdmin; // Тільки адміністратор може змінювати статус
   const canChangePriority = isAdmin; // Тільки адміністратор може змінювати пріоритет
 
+  const handleAnalyzeTicket = async () => {
+    if (!ticket || isAnalyzing) return;
+
+    try {
+      setIsAnalyzing(true);
+      setError(null);
+      const response = await apiService.analyzeTicket(ticket._id);
+      
+      if (response.success && response.data) {
+        setAiAnalysis(response.data);
+        setShowAnalysis(true);
+      } else {
+        setError(response.message || 'Не вдалося проаналізувати тікет');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Помилка аналізу тікета');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -212,10 +237,224 @@ const TicketDetails: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900">{t('common.description')}</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">{t('common.description')}</h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAnalyzeTicket}
+                    isLoading={isAnalyzing}
+                    disabled={isAnalyzing}
+                    className="flex items-center space-x-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>{isAnalyzing ? 'Аналізуємо...' : 'Аналізувати через AI'}</span>
+                  </Button>
+                </div>
                 <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
               </div>
             </Card>
+
+            {/* AI Аналіз тікета */}
+            {aiAnalysis && (
+              <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
+                <div className="p-6">
+                  <div 
+                    className="flex items-center justify-between cursor-pointer mb-4"
+                    onClick={() => setShowAnalysis(!showAnalysis)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-purple-100 p-2 rounded-full">
+                        <Sparkles className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900">AI Аналіз заявки</h2>
+                    </div>
+                    {showAnalysis ? (
+                      <ChevronUp className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                    )}
+                  </div>
+
+                  {showAnalysis && (
+                    <div className="space-y-6 mt-4">
+                      {/* Короткий опис */}
+                      {aiAnalysis.summary && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                            <Target className="h-4 w-4 mr-2 text-purple-600" />
+                            Короткий опис
+                          </h3>
+                          <p className="text-gray-700">{aiAnalysis.summary}</p>
+                        </div>
+                      )}
+
+                      {/* Ймовірна причина */}
+                      {aiAnalysis.rootCause && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-2 text-orange-600" />
+                            Ймовірна причина
+                          </h3>
+                          <p className="text-gray-700">{aiAnalysis.rootCause}</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Кроки діагностики */}
+                        {aiAnalysis.diagnosticSteps && aiAnalysis.diagnosticSteps.length > 0 && (
+                          <div className="bg-white rounded-lg p-4 border border-blue-200">
+                            <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                              <Lightbulb className="h-4 w-4 mr-2 text-blue-600" />
+                              Кроки діагностики
+                            </h3>
+                            <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                              {aiAnalysis.diagnosticSteps.map((step: string, index: number) => (
+                                <li key={index}>{step}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+
+                        {/* Кроки вирішення */}
+                        {aiAnalysis.solutionSteps && aiAnalysis.solutionSteps.length > 0 && (
+                          <div className="bg-white rounded-lg p-4 border border-green-200">
+                            <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                              Кроки вирішення
+                            </h3>
+                            <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                              {aiAnalysis.solutionSteps.map((step: string, index: number) => (
+                                <li key={index}>{step}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Потрібна інформація */}
+                      {aiAnalysis.requiredInfo && aiAnalysis.requiredInfo.length > 0 && (
+                        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                          <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-2 text-yellow-600" />
+                            Потрібна додаткова інформація
+                          </h3>
+                          <ul className="list-disc list-inside space-y-1 text-gray-700">
+                            {aiAnalysis.requiredInfo.map((info: string, index: number) => (
+                              <li key={index}>{info}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Оцінка пріоритету */}
+                      {aiAnalysis.priorityAssessment && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h3 className="font-semibold text-gray-900 mb-2">Оцінка пріоритету</h3>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Поточний:</span>
+                              <span className={`font-medium px-2 py-1 rounded ${
+                                aiAnalysis.priorityAssessment.current === 'high' || aiAnalysis.priorityAssessment.current === 'urgent' 
+                                  ? 'bg-red-100 text-red-700' 
+                                  : aiAnalysis.priorityAssessment.current === 'medium'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {aiAnalysis.priorityAssessment.current}
+                              </span>
+                            </div>
+                            {aiAnalysis.priorityAssessment.recommended && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-600">Рекомендований:</span>
+                                <span className={`font-medium px-2 py-1 rounded ${
+                                  aiAnalysis.priorityAssessment.recommended === 'high' || aiAnalysis.priorityAssessment.recommended === 'urgent' 
+                                    ? 'bg-red-100 text-red-700' 
+                                    : aiAnalysis.priorityAssessment.recommended === 'medium'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  {aiAnalysis.priorityAssessment.recommended}
+                                </span>
+                              </div>
+                            )}
+                            {aiAnalysis.priorityAssessment.reason && (
+                              <p className="text-gray-600 text-xs mt-2 italic">{aiAnalysis.priorityAssessment.reason}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Рекомендація категорії */}
+                      {aiAnalysis.categoryRecommendation && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h3 className="font-semibold text-gray-900 mb-2">Рекомендація категорії</h3>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">Категорія:</span>
+                              <span className="font-medium text-gray-900">{aiAnalysis.categoryRecommendation.category}</span>
+                            </div>
+                            {aiAnalysis.categoryRecommendation.subcategory && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-600">Підкатегорія:</span>
+                                <span className="font-medium text-gray-900">{aiAnalysis.categoryRecommendation.subcategory}</span>
+                              </div>
+                            )}
+                            {aiAnalysis.categoryRecommendation.reason && (
+                              <p className="text-gray-600 text-xs mt-2 italic">{aiAnalysis.categoryRecommendation.reason}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Оцінка складності та часу */}
+                      {(aiAnalysis.estimatedComplexity || aiAnalysis.estimatedTime) && (
+                        <div className="bg-white rounded-lg p-4 border border-purple-200">
+                          <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                            <Clock className="h-4 w-4 mr-2 text-purple-600" />
+                            Оцінка
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            {aiAnalysis.estimatedComplexity && (
+                              <div>
+                                <span className="text-gray-600">Складність:</span>
+                                <span className={`ml-2 font-medium px-2 py-1 rounded ${
+                                  aiAnalysis.estimatedComplexity === 'high' 
+                                    ? 'bg-red-100 text-red-700' 
+                                    : aiAnalysis.estimatedComplexity === 'medium'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-green-100 text-green-700'
+                                }`}>
+                                  {aiAnalysis.estimatedComplexity}
+                                </span>
+                              </div>
+                            )}
+                            {aiAnalysis.estimatedTime && (
+                              <div>
+                                <span className="text-gray-600">Час вирішення:</span>
+                                <span className="ml-2 font-medium text-gray-900">{aiAnalysis.estimatedTime}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Запобіжні заходи */}
+                      {aiAnalysis.preventiveMeasures && aiAnalysis.preventiveMeasures.length > 0 && (
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                          <h3 className="font-semibold text-gray-900 mb-2">Запобіжні заходи</h3>
+                          <ul className="list-disc list-inside space-y-1 text-gray-700">
+                            {aiAnalysis.preventiveMeasures.map((measure: string, index: number) => (
+                              <li key={index}>{measure}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Прикріплені файли */}
             {ticket.attachments && ticket.attachments.length > 0 && (

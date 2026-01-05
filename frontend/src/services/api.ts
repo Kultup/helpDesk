@@ -267,6 +267,36 @@ class ApiService {
     return response.data;
   }
 
+  // Аналіз тікета через AI
+  async analyzeTicket(id: string): Promise<ApiResponse<{
+    summary: string;
+    rootCause: string;
+    diagnosticSteps: string[];
+    solutionSteps: string[];
+    requiredInfo: string[];
+    priorityAssessment: {
+      current: string;
+      recommended: string;
+      reason: string;
+    };
+    categoryRecommendation: {
+      category: string;
+      subcategory: string;
+      reason: string;
+    };
+    assignmentRecommendation: {
+      shouldAssign: boolean;
+      reason: string;
+    };
+    estimatedComplexity: string;
+    estimatedTime: string;
+    relatedIssues: string[];
+    preventiveMeasures: string[];
+  }>> {
+    const response = await this.api.post(`/tickets/${id}/analyze`);
+    return response.data;
+  }
+
   async bulkDeleteTickets(ticketIds: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
     const response: AxiosResponse<ApiResponse<{ deletedCount: number }>> = 
       await this.api.delete('/tickets/bulk/delete', { data: { ticketIds } });
