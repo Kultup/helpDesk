@@ -1330,7 +1330,7 @@ exports.approveRegistration = async (req, res) => {
     }
 
     user.registrationStatus = 'approved';
-    user.isActive = false;
+    user.isActive = true; // Активуємо користувача після підтвердження реєстрації
     await user.save();
 
     // Відправити сповіщення в Telegram

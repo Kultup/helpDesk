@@ -165,9 +165,15 @@ class TelegramService {
         return;
       }
 
-      const message = `Реєстрація завершена. Очікуйте активації вашого акаунта.`;
+      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || user.login;
+      const message = 
+        `✅ *Реєстрацію підтверджено!*\n\n` +
+        `🎉 Вітаємо, ${userName}!\n\n` +
+        `Ваш обліковий запис успішно активовано адміністратором.\n` +
+        `Тепер ви можете використовувати всі функції Telegram бота.\n\n` +
+        `💡 Надішліть /start або /menu для доступу до меню.`;
 
-      await this.sendMessage(String(user.telegramId), message);
+      await this.sendMessage(String(user.telegramId), message, { parse_mode: 'Markdown' });
 
       logger.info(`✅ Сповіщення про підтвердження реєстрації відправлено користувачу ${user.email} (${user.telegramId})`);
     } catch (error) {
