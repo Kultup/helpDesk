@@ -612,8 +612,12 @@ exports.createComment = async (req, res) => {
     ]);
 
     // Відправка FCM сповіщення автору тікету та призначеному користувачу про новий коментар
+    // Відправка сповіщень через FCM та Telegram
     try {
       const fcmService = require('../services/fcmService');
+      const telegramService = require('../services/telegramService');
+      const User = require('../models/User');
+      
       const recipients = [];
       if (ticket.createdBy) recipients.push(ticket.createdBy._id.toString());
       if (ticket.assignedTo) recipients.push(ticket.assignedTo._id.toString());
@@ -626,23 +630,71 @@ exports.createComment = async (req, res) => {
         ? `${comment.author.firstName} ${comment.author.lastName}`
         : 'Користувач';
       
+      const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
+      const roleLabel = isAdminComment ? '👨‍💼 Адміністратор' : '👤 Користувач';
+      
+      // Отримуємо повну інформацію про тікет для Telegram
+      await ticket.populate([
+        { path: 'createdBy', select: 'firstName lastName email telegramId telegramChatId' },
+        { path: 'assignedTo', select: 'firstName lastName email telegramId telegramChatId' }
+      ]);
+      
       for (const userId of uniqueRecipients) {
-        await fcmService.sendToUser(userId, {
-          title: '💬 Новий коментар до тікету',
-          body: `${authorName} додав коментар до тікету "${ticket.title}"`,
-          type: 'ticket_comment',
-          data: {
-            ticketId: ticket._id.toString(),
-            ticketTitle: ticket.title,
-            commentId: comment._id.toString(),
-            commentAuthor: authorName,
-            commentPreview: content.substring(0, 100)
+        // FCM сповіщення
+        try {
+          await fcmService.sendToUser(userId, {
+            title: '💬 Новий коментар до тікету',
+            body: `${authorName} додав коментар до тікету "${ticket.title}"`,
+            type: 'ticket_comment',
+            data: {
+              ticketId: ticket._id.toString(),
+              ticketTitle: ticket.title,
+              commentId: comment._id.toString(),
+              commentAuthor: authorName,
+              commentPreview: content.substring(0, 100)
+            }
+          });
+        } catch (fcmError) {
+          logger.error(`❌ Помилка відправки FCM сповіщення для користувача ${userId}:`, fcmError);
+        }
+        
+        // Telegram сповіщення
+        try {
+          const recipientUser = await User.findById(userId).select('telegramId telegramChatId');
+          
+          if (recipientUser && recipientUser.telegramId && !finalIsInternal) {
+            // Формуємо повідомлення для Telegram
+            const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
+            
+            // Встановлюємо активний тікет для користувача, щоб він міг відповідати
+            telegramService.setActiveTicketForUser(recipientUser.telegramId, ticket._id.toString());
+            
+            const message = 
+              `💬 *Новий коментар до тікету*\n\n` +
+              `📋 *Тікет:* ${ticket.title}\n` +
+              `🆔 \`${ticketNumber}\`\n\n` +
+              `${roleLabel}: *${authorName}*\n\n` +
+              `💭 *Коментар:*\n${content}\n\n` +
+              `---\n` +
+              `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
+              `Або надішліть /menu для виходу.`;
+            
+            await telegramService.sendMessage(
+              recipientUser.telegramId,
+              message,
+              { parse_mode: 'Markdown' }
+            );
+            
+            logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.telegramId}`);
           }
-        });
+        } catch (telegramError) {
+          logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, telegramError);
+        }
       }
-      logger.info('✅ FCM сповіщення про новий коментар відправлено');
+      
+      logger.info('✅ Сповіщення про новий коментар відправлено');
     } catch (error) {
-      logger.error('❌ Помилка відправки FCM сповіщення про коментар:', error);
+      logger.error('❌ Помилка відправки сповіщень про коментар:', error);
     }
 
     res.status(201).json({

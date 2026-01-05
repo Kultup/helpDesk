@@ -36,6 +36,11 @@ const telegramMessageSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  commentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Comment',
+    default: null
+  },
   isRead: {
     type: Boolean,
     default: false

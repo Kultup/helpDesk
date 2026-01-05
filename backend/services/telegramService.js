@@ -360,8 +360,71 @@ class TelegramService {
           return;
         }
 
-        // Якщо це не команда, показуємо головне меню або обробляємо повідомлення
-        if (!msg.text?.startsWith('/')) {
+        // Якщо це не команда, перевіряємо активний тікет або обробляємо повідомлення
+        if (!msg.text?.startsWith('/') && msg.text) {
+          // Перевіряємо, чи є активний тікет для відповіді
+          const chatIdString = String(chatId);
+          const userIdString = String(userId);
+          
+          // Перевіряємо активний тікет за chatId
+          let activeTicketId = this.activeTickets.get(chatIdString);
+          
+          // Якщо не знайдено, перевіряємо за telegramId
+          if (!activeTicketId && existingUser.telegramId) {
+            activeTicketId = this.activeTickets.get(String(existingUser.telegramId));
+          }
+          
+          // Якщо не знайдено, перевіряємо за telegramChatId
+          if (!activeTicketId && existingUser.telegramChatId) {
+            activeTicketId = this.activeTickets.get(String(existingUser.telegramChatId));
+          }
+          
+          // Якщо користувач відповідає на повідомлення від бота (reply), це може бути відповідь на тікет
+          if (!activeTicketId && msg.reply_to_message) {
+            // Перевіряємо, чи це reply на повідомлення про коментар або тікет
+            const replyText = msg.reply_to_message.text || '';
+            if (replyText.includes('💬') || replyText.includes('Новий коментар') || 
+                replyText.includes('Тікет:') || replyText.includes('🆔')) {
+              // Шукаємо тікет за ID користувача або в останніх повідомленнях
+              activeTicketId = this.activeTickets.get(userIdString);
+              
+              // Якщо все ще не знайдено, намагаємося знайти тікет користувача
+              if (!activeTicketId) {
+                const Ticket = require('../models/Ticket');
+                const userTicket = await Ticket.findOne({ 
+                  createdBy: existingUser._id 
+                })
+                  .sort({ updatedAt: -1 })
+                  .limit(1)
+                  .select('_id');
+                
+                if (userTicket) {
+                  activeTicketId = userTicket._id.toString();
+                  // Встановлюємо активний тікет для майбутніх повідомлень
+                  this.setActiveTicketForUser(chatId, activeTicketId);
+                }
+              }
+            }
+          }
+          
+          logger.info('Перевірка активного тікету в handleMessage:', {
+            chatId: chatIdString,
+            userId: userIdString,
+            userTelegramId: existingUser.telegramId,
+            userTelegramChatId: existingUser.telegramChatId,
+            activeTicketId,
+            hasReply: !!msg.reply_to_message,
+            replyText: msg.reply_to_message?.text?.substring(0, 50)
+          });
+          
+          // Якщо знайдено активний тікет, обробляємо як відповідь
+          if (activeTicketId) {
+            const handled = await this.handleTicketReply(chatId, msg.text, activeTicketId, existingUser);
+            if (handled) {
+              return; // Повідомлення оброблено як відповідь на тікет
+            }
+          }
+          
           // Перевіряємо, чи є активна сесія для створення тікету
           const session = this.userSessions.get(chatId);
           if (session) {
@@ -369,13 +432,13 @@ class TelegramService {
             return;
           }
 
-          // Якщо немає активної сесії, спробуємо отримати AI відповідь
-          if (msg.text && groqService.isEnabled()) {
+          // Якщо немає активної сесії та активного тікету, спробуємо отримати AI відповідь
+          if (groqService.isEnabled()) {
             await this.handleAIChat(msg, existingUser);
             return;
           }
 
-          // Якщо AI вимкнено або немає тексту, показуємо головне меню
+          // Якщо AI вимкнено, показуємо головне меню
           await this.showUserDashboard(chatId, existingUser);
           return;
         }
@@ -980,6 +1043,16 @@ class TelegramService {
       } else if (data.startsWith('priority_')) {
         const priority = data.replace('priority_', '');
         await this.handlePriorityCallback(chatId, user, priority);
+      } else if (data.startsWith('reply_ticket_')) {
+        const ticketId = data.replace('reply_ticket_', '');
+        this.setActiveTicketForUser(chatId, ticketId);
+        await this.sendMessage(chatId,
+          `💬 *Відповідь на тікет*\n\n` +
+          `Тепер ви можете надіслати повідомлення, і воно буде додано як коментар до тікету.\n\n` +
+          `Надішліть ваше повідомлення або /menu для виходу.`,
+          { parse_mode: 'Markdown' }
+        );
+        await this.answerCallbackQuery(callbackQuery.id);
       } else {
         await this.answerCallbackQuery(callbackQuery.id, 'Невідома команда');
       }
@@ -1214,8 +1287,10 @@ class TelegramService {
 
   async handleViewTicketCallback(chatId, user, ticketId) {
     try {
+      const Comment = require('../models/Comment');
       const ticket = await Ticket.findById(ticketId)
         .populate('city', 'name')
+        .populate('createdBy', 'firstName lastName')
         .lean();
 
       if (!ticket) {
@@ -1226,7 +1301,7 @@ class TelegramService {
         return;
       }
 
-      if (String(ticket.createdBy) !== String(user._id)) {
+      if (String(ticket.createdBy._id || ticket.createdBy) !== String(user._id)) {
         await this.sendMessage(chatId,
           `❌ *Доступ заборонено*\n\n` +
           `Цей тікет не належить вам.`
@@ -1234,22 +1309,65 @@ class TelegramService {
         return;
       }
 
+      // Отримуємо коментарі до тікету
+      const comments = await Comment.find({ 
+        ticket: ticketId, 
+        isDeleted: false,
+        isInternal: false 
+      })
+        .populate('author', 'firstName lastName role')
+        .sort({ createdAt: 1 })
+        .limit(20)
+        .lean();
+
       const statusEmoji = this.getStatusEmoji(ticket.status);
       const statusText = this.getStatusText(ticket.status);
       const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const priorityText = this.getPriorityText(ticket.priority);
+      const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
 
-      const message =
+      let message =
         `🎫 *Деталі тікету*\n` +
         `📋 ${ticket.title}\n` +
         `📊 ${statusEmoji} ${statusText} | ⚡ ${priorityText}\n` +
         `🏙️ ${ticket.city?.name || 'Не вказано'} | 📅 \`${date}\`\n` +
-        `🆔 \`${ticket._id}\``;
+        `🆔 \`${ticketNumber}\`\n\n` +
+        `📝 *Опис:*\n${ticket.description}\n\n`;
+
+      // Додаємо коментарі
+      if (comments.length > 0) {
+        message += `💬 *Коментарі (${comments.length}):*\n\n`;
+        comments.forEach((comment, index) => {
+          const commentAuthor = comment.author;
+          const authorName = commentAuthor?.firstName && commentAuthor?.lastName
+            ? `${commentAuthor.firstName} ${commentAuthor.lastName}`
+            : 'Користувач';
+          const isAdmin = commentAuthor?.role === 'admin' || commentAuthor?.role === 'manager';
+          const roleLabel = isAdmin ? '👨‍💼 Адмін' : '👤 Користувач';
+          const commentDate = new Date(comment.createdAt).toLocaleString('uk-UA', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          message += `${index + 1}. ${roleLabel} *${authorName}* (\`${commentDate}\`):\n`;
+          message += `${comment.content}\n\n`;
+        });
+      } else {
+        message += `💬 *Коментарі:*\nПоки що немає коментарів.\n\n`;
+      }
+
+      message += `💡 *Відповісти:*\nНадішліть повідомлення в цьому чаті, щоб додати коментар до тікету.`;
+
+      // Встановлюємо активний тікет для відповіді
+      this.setActiveTicketForUser(chatId, ticketId);
 
       await this.sendMessage(chatId, message, {
         reply_markup: {
           inline_keyboard: [
             [{ text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50), callback_data: `recreate_ticket_${ticket._id}` }],
+            [{ text: '💬 Відповісти на тікет', callback_data: `reply_ticket_${ticket._id}` }],
             [{ text: '🏠 Головне меню', callback_data: 'back' }]
           ]
         },
@@ -3904,7 +4022,32 @@ class TelegramService {
    * Встановити активний тікет для користувача (для обробки відповідей)
    */
   setActiveTicketForUser(chatId, ticketId) {
-    this.activeTickets.set(String(chatId), ticketId);
+    const chatIdString = String(chatId);
+    this.activeTickets.set(chatIdString, ticketId);
+    
+    // Також встановлюємо за userId, якщо можна отримати користувача
+    // Це допомагає, коли користувач відповідає на повідомлення
+    try {
+      const User = require('../models/User');
+      User.findOne({ 
+        $or: [
+          { telegramChatId: chatIdString },
+          { telegramId: chatIdString }
+        ]
+      }).then(user => {
+        if (user && user.telegramId && String(user.telegramId) !== chatIdString) {
+          this.activeTickets.set(String(user.telegramId), ticketId);
+        }
+        if (user && user.telegramChatId && String(user.telegramChatId) !== chatIdString) {
+          this.activeTickets.set(String(user.telegramChatId), ticketId);
+        }
+      }).catch(err => {
+        // Ігноруємо помилки, це не критично
+      });
+    } catch (err) {
+      // Ігноруємо помилки
+    }
+    
     logger.info(`Встановлено активний тікет ${ticketId} для користувача ${chatId}`);
   }
 
@@ -3987,6 +4130,35 @@ class TelegramService {
         recipientAdminId = admin ? admin._id : null;
       }
 
+      // Створюємо коментар в системі
+      const Comment = require('../models/Comment');
+      const comment = new Comment({
+        content: text.trim(),
+        ticket: ticket._id,
+        author: user._id,
+        type: 'comment',
+        isInternal: false
+      });
+      await comment.save();
+      
+      // Оновлюємо час останньої активності тікету
+      ticket.updatedAt = new Date();
+      await ticket.save();
+
+      // Заповнюємо дані коментаря для відповіді
+      await comment.populate([
+        { 
+          path: 'author', 
+          select: 'firstName lastName email avatar',
+          populate: {
+            path: 'position',
+            select: 'title department'
+          }
+        }
+      ]);
+
+      // Зберігаємо повідомлення в окрему колекцію TelegramMessage
+      const TelegramMessage = require('../models/TelegramMessage');
       const telegramMsg = new TelegramMessage({
         ticketId: ticket._id,
         senderId: user._id,
@@ -3994,10 +4166,19 @@ class TelegramService {
         content: text.trim(),
         direction: 'user_to_admin',
         telegramChatId: String(chatId),
+        commentId: comment._id, // Зв'язуємо з коментарем
         sentAt: new Date(),
         deliveredAt: new Date()
       });
       await telegramMsg.save();
+
+      // Відправляємо WebSocket сповіщення про новий коментар
+      try {
+        const ticketWebSocketService = require('./ticketWebSocketService');
+        ticketWebSocketService.notifyNewComment(ticket._id.toString(), comment);
+      } catch (wsError) {
+        logger.error('Помилка відправки WebSocket сповіщення про коментар:', wsError);
+      }
 
       // Відправляємо WebSocket сповіщення про нове Telegram повідомлення
       try {
@@ -4011,11 +4192,51 @@ class TelegramService {
         logger.error('Помилка відправки WebSocket сповіщення:', wsError);
       }
 
+      // Відправляємо сповіщення адмінам про новий коментар від користувача
+      try {
+        const User = require('../models/User');
+        const admins = await User.find({ 
+          role: { $in: ['admin', 'manager'] },
+          telegramId: { $exists: true, $ne: null }
+        }).select('telegramId firstName lastName');
+        
+        const authorName = comment.author?.firstName && comment.author?.lastName
+          ? `${comment.author.firstName} ${comment.author.lastName}`
+          : 'Користувач';
+        const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
+        
+        for (const admin of admins) {
+          try {
+            const adminMessage = 
+              `💬 *Новий коментар від користувача*\n\n` +
+              `📋 *Тікет:* ${ticket.title}\n` +
+              `🆔 \`${ticketNumber}\`\n\n` +
+              `👤 *Користувач:* ${authorName}\n\n` +
+              `💭 *Коментар:*\n${text.trim()}\n\n` +
+              `---\n` +
+              `💡 Ви можете відповісти через веб-інтерфейс або надіславши коментар до тікету.`;
+            
+            await this.sendMessage(
+              admin.telegramId,
+              adminMessage,
+              { parse_mode: 'Markdown' }
+            );
+            
+            logger.info(`✅ Telegram сповіщення про коментар від користувача відправлено адміну ${admin.telegramId}`);
+          } catch (adminError) {
+            logger.error(`❌ Помилка відправки Telegram сповіщення адміну ${admin.telegramId}:`, adminError);
+          }
+        }
+      } catch (notifyError) {
+        logger.error('Помилка відправки сповіщень адмінам про коментар:', notifyError);
+      }
+
       // Відправляємо підтвердження користувачу
+      const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
       await this.sendMessage(chatId,
         `✅ *Ваша відповідь додана до тікету*\n\n` +
         `📋 *Тікет:* ${ticket.title}\n` +
-        `🆔 \`${ticket._id}\`\n\n` +
+        `🆔 \`${ticketNumber}\`\n\n` +
         `Ваше повідомлення було додано як коментар до тікету.\n` +
         `Продовжуйте відповідати, або надішліть /menu для виходу.`,
         { parse_mode: 'Markdown' }
