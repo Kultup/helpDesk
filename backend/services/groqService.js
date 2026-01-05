@@ -341,7 +341,6 @@ class GroqService {
 Категорія: ${ticket.subcategory || 'Не вказано'}
 Створено: ${ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('uk-UA') : 'Не вказано'}
 ${ticket.dueDate ? `Термін виконання: ${new Date(ticket.dueDate).toLocaleString('uk-UA')}` : ''}
-${ticket.assignedTo ? `Призначено: ${ticket.assignedTo.firstName || ''} ${ticket.assignedTo.lastName || ''}` : 'Не призначено'}
 ${ticket.createdBy ? `Автор: ${ticket.createdBy.firstName || ''} ${ticket.createdBy.lastName || ''}` : ''}
 ${ticket.city ? `Місто: ${ticket.city.name || ''}` : ''}
 ${ticket.institution ? `Заклад: ${ticket.institution.name || ''}` : ''}

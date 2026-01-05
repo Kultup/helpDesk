@@ -42,7 +42,6 @@ router.post('/analyze',
       // Отримуємо реальні тікети для аналізу (до 100 найновіших)
       const tickets = await Ticket.find(filter)
         .populate('createdBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName email')
         .populate('city', 'name region')
         .populate('institution', 'name')
         .populate({
