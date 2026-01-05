@@ -12,6 +12,167 @@ const analyticsController = require('../controllers/analyticsController');
 
 const router = express.Router();
 
+// POST /api/analytics/analyze - AI аналіз статистики заявок
+router.post('/analyze',
+  authenticateToken,
+  requirePermission('view_analytics'),
+  async (req, res) => {
+    try {
+      const groqService = require('../services/groqService');
+      
+      if (!groqService.isEnabled()) {
+        return res.status(503).json({
+          success: false,
+          message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
+        });
+      }
+
+      const { startDate, endDate } = req.body;
+
+      // Отримуємо дані аналітики через контролер
+      const mockRes = {
+        json: (data) => data,
+        status: () => mockRes
+      };
+      
+      // Викликаємо getOverview для отримання даних
+      const overviewData = await analyticsController.getOverview({
+        ...req,
+        query: { startDate, endDate }
+      }, mockRes);
+
+      // Якщо це Promise, очікуємо його
+      let analyticsData;
+      if (overviewData && typeof overviewData.then === 'function') {
+        analyticsData = await overviewData;
+      } else {
+        // Створюємо структуру даних для AI
+        const dateFilter = {};
+        if (startDate) dateFilter.$gte = new Date(startDate);
+        if (endDate) dateFilter.$lte = new Date(endDate);
+        
+        const filter = {};
+        if (Object.keys(dateFilter).length > 0) {
+          filter.createdAt = dateFilter;
+        }
+
+        const totalTickets = await Ticket.countDocuments(filter);
+        const statusStats = await Ticket.aggregate([
+          { $match: filter },
+          { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
+        const priorityStats = await Ticket.aggregate([
+          { $match: filter },
+          { $group: { _id: '$priority', count: { $sum: 1 } } }
+        ]);
+        const avgResolutionTime = await Ticket.aggregate([
+          { 
+            $match: { 
+              ...filter, 
+              status: 'resolved',
+              resolvedAt: { $exists: true }
+            } 
+          },
+          {
+            $project: {
+              resolutionTime: {
+                $divide: [
+                  { $subtract: ['$resolvedAt', '$createdAt'] },
+                  1000 * 60 * 60
+                ]
+              }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              avgTime: { $avg: '$resolutionTime' }
+            }
+          }
+        ]);
+        const ticketsByDay = await Ticket.aggregate([
+          { $match: filter },
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { _id: 1 } }
+        ]);
+        const topCities = await Ticket.aggregate([
+          { $match: filter },
+          {
+            $group: {
+              _id: '$city',
+              count: { $sum: 1 },
+              resolved: {
+                $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+              }
+            }
+          },
+          { $sort: { count: -1 } },
+          { $limit: 10 },
+          {
+            $lookup: {
+              from: 'cities',
+              localField: '_id',
+              foreignField: '_id',
+              as: 'cityInfo'
+            }
+          },
+          {
+            $project: {
+              count: 1,
+              resolved: 1,
+              cityName: { $arrayElemAt: ['$cityInfo.name', 0] }
+            }
+          }
+        ]);
+
+        analyticsData = {
+          overview: {
+            totalTickets,
+            activeUsers: await User.countDocuments({ isActive: true })
+          },
+          ticketsByStatus: statusStats,
+          ticketsByPriority: priorityStats,
+          avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
+          ticketsByDay,
+          topCities
+        };
+      }
+
+      // Викликаємо AI аналіз
+      const analysis = await groqService.analyzeAnalytics(analyticsData, {
+        startDate,
+        endDate,
+        user: req.user,
+        timestamp: new Date()
+      });
+
+      if (!analysis) {
+        return res.status(500).json({
+          success: false,
+          message: 'Не вдалося проаналізувати статистику. Спробуйте пізніше.'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      logger.error('Помилка AI аналізу аналітики:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка сервера при аналізі статистики',
+        error: error.message
+      });
+    }
+  }
+);
+
 // @route   GET /api/analytics/overview
 // @desc    Загальна статистика системи
 // @access  Private

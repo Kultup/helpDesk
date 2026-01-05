@@ -13,7 +13,14 @@ import {
   RefreshCw,
   BookmarkPlus,
   Bookmark,
-  Trash2
+  Trash2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  CheckCircle,
+  Lightbulb,
+  Target
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -42,6 +49,7 @@ import { formatDate, formatDateWithLocale } from '../utils';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import ExportTicketsModal from '../components/ExportTicketsModal';
+import { apiService } from '../services/api';
 
 ChartJS.register(
   CategoryScale,
@@ -85,6 +93,9 @@ const Analytics: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'general'>('general');
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   // Presets state
   type FilterPreset = {
@@ -141,6 +152,24 @@ const Analytics: React.FC = () => {
     const next = presets.filter(p => p.id !== id);
     setPresets(next);
     savePresetsToStorage(next);
+  };
+
+  const handleAnalyzeAnalytics = async () => {
+    if (isAnalyzing) return;
+
+    try {
+      setIsAnalyzing(true);
+      const response = await apiService.analyzeAnalytics(dateRange.start, dateRange.end);
+      
+      if (response.success && response.data) {
+        setAiAnalysis(response.data);
+        setShowAnalysis(true);
+      }
+    } catch (error: any) {
+      console.error('Помилка аналізу аналітики:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
 
@@ -545,7 +574,20 @@ const Analytics: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('analytics.title')}</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('analytics.title')}</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAnalyzeAnalytics}
+              isLoading={isAnalyzing}
+              disabled={isAnalyzing}
+              className="flex items-center space-x-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>{isAnalyzing ? 'Аналізуємо...' : 'AI Аналіз'}</span>
+            </Button>
+          </div>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
             {t('analytics.periodStats', { 
               start: formatDateWithLocale(dateRange.start, { 
@@ -836,6 +878,158 @@ const Analytics: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Аналіз */}
+      {aiAnalysis && (
+        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50">
+          <div className="p-6">
+            <div 
+              className="flex items-center justify-between cursor-pointer mb-4"
+              onClick={() => setShowAnalysis(!showAnalysis)}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 p-2 rounded-full">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900">AI Аналіз статистики</h2>
+              </div>
+              {showAnalysis ? (
+                <ChevronUp className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-500" />
+              )}
+            </div>
+
+            {showAnalysis && (
+              <div className="space-y-6 mt-4">
+                {/* Короткий огляд */}
+                {aiAnalysis.summary && (
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
+                      <Target className="h-4 w-4 mr-2 text-purple-600" />
+                      Короткий огляд
+                    </h3>
+                    <p className="text-gray-700">{aiAnalysis.summary}</p>
+                  </div>
+                )}
+
+                {/* Ключові інсайти */}
+                {aiAnalysis.keyInsights && aiAnalysis.keyInsights.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <Lightbulb className="h-4 w-4 mr-2 text-blue-600" />
+                      Ключові інсайти
+                    </h3>
+                    <ul className="list-disc list-inside space-y-2 text-gray-700">
+                      {aiAnalysis.keyInsights.map((insight: string, index: number) => (
+                        <li key={index}>{insight}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Проблеми */}
+                {aiAnalysis.problems && aiAnalysis.problems.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-red-200">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+                      Виявлені проблеми
+                    </h3>
+                    <div className="space-y-4">
+                      {aiAnalysis.problems.map((problem: any, index: number) => (
+                        <div key={index} className="border-l-4 border-red-400 pl-4">
+                          <h4 className="font-medium text-gray-900">{problem.title}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{problem.description}</p>
+                          {problem.recommendation && (
+                            <p className="text-sm text-blue-600 mt-2">
+                              <strong>Рекомендація:</strong> {problem.recommendation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Рекомендації */}
+                {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-green-200">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                      Рекомендації
+                    </h3>
+                    <div className="space-y-4">
+                      {aiAnalysis.recommendations.map((rec: any, index: number) => (
+                        <div key={index} className="border-l-4 border-green-400 pl-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-gray-900">{rec.title}</h4>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              rec.priority === 'high' || rec.priority === 'urgent'
+                                ? 'bg-red-100 text-red-700'
+                                : rec.priority === 'medium'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {rec.priority}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                          {rec.expectedImpact && (
+                            <p className="text-xs text-gray-500 mt-2 italic">
+                              Очікуваний ефект: {rec.expectedImpact}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* План дій */}
+                {aiAnalysis.actionItems && aiAnalysis.actionItems.length > 0 && (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-semibold text-gray-900 mb-3">План дій</h3>
+                    <div className="space-y-3">
+                      {aiAnalysis.actionItems.map((item: any, index: number) => (
+                        <div key={index} className="flex items-start space-x-3">
+                          <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            item.priority === 'urgent' || item.priority === 'high'
+                              ? 'bg-red-500 text-white'
+                              : item.priority === 'medium'
+                              ? 'bg-yellow-500 text-white'
+                              : 'bg-green-500 text-white'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{item.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                            {item.timeline && (
+                              <p className="text-xs text-gray-500 mt-1">⏱️ {item.timeline}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Прогнози */}
+                {aiAnalysis.predictions && aiAnalysis.predictions.length > 0 && (
+                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                    <h3 className="font-semibold text-gray-900 mb-3">Прогнози</h3>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700">
+                      {aiAnalysis.predictions.map((prediction: string, index: number) => (
+                        <li key={index}>{prediction}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">

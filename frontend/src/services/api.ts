@@ -670,6 +670,47 @@ class ApiService {
     return response.data;
   }
 
+  // AI аналіз статистики заявок
+  async analyzeAnalytics(startDate?: string, endDate?: string): Promise<ApiResponse<{
+    summary: string;
+    keyInsights: string[];
+    trends: {
+      positive: string[];
+      negative: string[];
+      neutral: string[];
+    };
+    problems: Array<{
+      title: string;
+      description: string;
+      severity: string;
+      impact: string;
+      recommendation: string;
+    }>;
+    recommendations: Array<{
+      category: string;
+      title: string;
+      description: string;
+      priority: string;
+      expectedImpact: string;
+    }>;
+    metrics: {
+      performance: string;
+      efficiency: string;
+      quality: string;
+      overall: string;
+    };
+    actionItems: Array<{
+      title: string;
+      description: string;
+      priority: string;
+      timeline: string;
+    }>;
+    predictions: string[];
+  }>> {
+    const response = await this.api.post('/analytics/analyze', { startDate, endDate });
+    return response.data;
+  }
+
   async getDashboardStats(): Promise<ApiResponse<Record<string, unknown>>> {
     const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.api.get('/analytics/dashboard');
     return response.data;

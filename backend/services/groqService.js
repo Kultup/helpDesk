@@ -384,6 +384,153 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
   }
 
   /**
+   * Аналізує загальну статистику заявок та надає інсайти
+   * @param {Object} analyticsData - Дані аналітики (статистика, тренди, метрики)
+   * @param {Object} context - Додатковий контекст (дата діапазон, фільтри)
+   * @returns {Promise<Object>} - Результат аналізу з інсайтами та рекомендаціями
+   */
+  async analyzeAnalytics(analyticsData, context = {}) {
+    try {
+      if (!this.client) {
+        await this.initialize();
+      }
+
+      if (!this.client) {
+        return null;
+      }
+
+      const systemPrompt = `
+Ви - експерт-аналітик системи HelpDesk. Ваше завдання - проаналізувати статистику заявок та надати корисні інсайти та рекомендації для покращення роботи системи.
+
+ОСНОВНІ ЗАВДАННЯ:
+1. Виявити проблемні зони та тренди
+2. Оцінити ефективність роботи з заявками
+3. Запропонувати конкретні рекомендації для покращення
+4. Визначити пріоритетні напрямки для оптимізації
+5. Виявити аномалії або незвичайні патерни
+
+ФОРМАТ ВІДПОВІДІ (JSON):
+{
+  "summary": "Короткий огляд стану системи",
+  "keyInsights": ["Інсайт 1", "Інсайт 2", "Інсайт 3"],
+  "trends": {
+    "positive": ["Позитивні тренди"],
+    "negative": ["Негативні тренди"],
+    "neutral": ["Нейтральні спостереження"]
+  },
+  "problems": [
+    {
+      "title": "Назва проблеми",
+      "description": "Опис проблеми",
+      "severity": "low|medium|high|critical",
+      "impact": "Вплив на систему",
+      "recommendation": "Рекомендація для вирішення"
+    }
+  ],
+  "recommendations": [
+    {
+      "category": "Категорія (performance|process|resources|quality)",
+      "title": "Назва рекомендації",
+      "description": "Детальний опис",
+      "priority": "low|medium|high",
+      "expectedImpact": "Очікуваний ефект"
+    }
+  ],
+  "metrics": {
+    "performance": "Оцінка продуктивності (good|average|poor)",
+    "efficiency": "Оцінка ефективності (good|average|poor)",
+    "quality": "Оцінка якості (good|average|poor)",
+    "overall": "Загальна оцінка (good|average|poor)"
+  },
+  "actionItems": [
+    {
+      "title": "Назва дії",
+      "description": "Що потрібно зробити",
+      "priority": "low|medium|high|urgent",
+      "timeline": "Оцінка часу виконання"
+    }
+  ],
+  "predictions": [
+    "Прогноз 1",
+    "Прогноз 2"
+  ]
+}
+
+ВАЖЛИВО:
+- Будьте конкретними та практичними
+- Використовуйте дані для підтвердження висновків
+- Надавайте дії, які можна виконати
+- МОВА: Відповідайте українською мовою
+- Фокусуйтеся на покращенні продуктивності та якості
+`;
+
+      // Формуємо контекст аналітики
+      const analyticsContext = `
+АНАЛІЗ СТАТИСТИКИ ЗАЯВОК:
+
+Період: ${context.startDate || 'Не вказано'} - ${context.endDate || 'Не вказано'}
+
+ЗАГАЛЬНА СТАТИСТИКА:
+- Всього заявок: ${analyticsData?.overview?.totalTickets || 0}
+- Відкритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'open')?.count || 0}
+- В процесі: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'in_progress')?.count || 0}
+- Вирішених: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0}
+- Закритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'closed')?.count || 0}
+- Активних користувачів: ${analyticsData?.overview?.activeUsers || 0}
+
+ПРІОРИТЕТИ:
+- Низький: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'low')?.count || 0}
+- Середній: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'medium')?.count || 0}
+- Високий: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'high')?.count || 0}
+
+ПРОДУКТИВНІСТЬ:
+- Середній час вирішення: ${analyticsData?.avgResolutionTime || 0} годин
+- Коефіцієнт вирішення: ${analyticsData?.overview?.totalTickets > 0 
+  ? Math.round(((analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0) / analyticsData.overview.totalTickets) * 100) 
+  : 0}%
+
+${analyticsData?.ticketsByDay && analyticsData.ticketsByDay.length > 0 ? `
+ТРЕНДИ (останні дні):
+${analyticsData.ticketsByDay.slice(-7).map(day => 
+  `- ${day._id}: ${day.count} заявок`
+).join('\n')}
+` : ''}
+
+${analyticsData?.topCities && analyticsData.topCities.length > 0 ? `
+ТОП МІСТА ЗА КІЛЬКІСТЮ ЗАЯВОК:
+${analyticsData.topCities.slice(0, 5).map((city, i) => 
+  `${i + 1}. ${city.cityName || 'Невідомо'}: ${city.count} заявок (вирішено: ${city.resolved || 0})`
+).join('\n')}
+` : ''}
+`;
+
+      const chatCompletion = await this.client.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: analyticsContext }
+        ],
+        model: this.settings.groqModel || 'llama-3.3-70b-versatile',
+        temperature: 0.4, // Середня температура для балансу креативності та точності
+        max_tokens: 2048,
+        response_format: { type: 'json_object' }
+      });
+
+      const responseText = chatCompletion.choices[0]?.message?.content;
+      if (!responseText) {
+        logger.warn('Groq повернув порожню відповідь при аналізі аналітики');
+        return null;
+      }
+
+      const result = JSON.parse(responseText);
+      logger.info('Результат AI аналізу аналітики:', { result });
+      return result;
+    } catch (error) {
+      logger.error('Помилка аналізу аналітики через Groq:', error);
+      return null;
+    }
+  }
+
+  /**
    * Транскрибує аудіофайл за допомогою Groq Whisper
    */
   async transcribeAudio(filePath) {
