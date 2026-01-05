@@ -4098,19 +4098,6 @@ class TelegramService {
         // Відправляємо сповіщення користувачу
         await this.notifyUserAboutPositionApproval(positionRequest, createdPosition);
 
-        // Якщо є активна реєстрація, продовжуємо її
-        if (positionRequest.pendingRegistrationId) {
-          const pendingRegistration = positionRequest.pendingRegistrationId;
-          if (pendingRegistration && pendingRegistration.step === 'position_request') {
-            pendingRegistration.data.positionId = createdPosition._id.toString();
-            pendingRegistration.step = 'completed'; // Після створення посади завершуємо реєстрацію
-            await pendingRegistration.save();
-
-            const telegramUserId = pendingRegistration.telegramId;
-            const telegramChatId = pendingRegistration.telegramChatId;
-            await this.processRegistrationStep(telegramChatId, telegramUserId, pendingRegistration);
-          }
-        }
 
         await this.answerCallbackQuery(callbackQuery.id, 'Посаду додано успішно');
         // Оновлюємо повідомлення

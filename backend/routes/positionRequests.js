@@ -112,21 +112,6 @@ router.post('/:id/approve', authenticateToken, requirePermission('manage_positio
     // Відправляємо сповіщення користувачу через Telegram
     await telegramService.notifyUserAboutPositionApproval(positionRequest, createdPosition);
 
-    // Якщо є активна реєстрація, продовжуємо її
-    if (positionRequest.pendingRegistrationId) {
-      const pendingRegistration = positionRequest.pendingRegistrationId;
-      if (pendingRegistration && pendingRegistration.step === 'position_request') {
-        // Оновлюємо реєстрацію з ID нової посади
-        pendingRegistration.data.positionId = createdPosition._id.toString();
-        pendingRegistration.step = 'institution';
-        await pendingRegistration.save();
-
-        // Продовжуємо реєстрацію
-        const userId = pendingRegistration.telegramId;
-        const chatId = pendingRegistration.telegramChatId;
-        await telegramService.processRegistrationStep(chatId, userId, pendingRegistration);
-      }
-    }
 
     res.json({
       success: true,
