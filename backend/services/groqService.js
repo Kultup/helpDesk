@@ -343,7 +343,6 @@ class GroqService {
 ${ticket.dueDate ? `Термін виконання: ${new Date(ticket.dueDate).toLocaleString('uk-UA')}` : ''}
 ${ticket.createdBy ? `Автор: ${ticket.createdBy.firstName || ''} ${ticket.createdBy.lastName || ''}` : ''}
 ${ticket.city ? `Місто: ${ticket.city.name || ''}` : ''}
-${ticket.institution ? `Заклад: ${ticket.institution.name || ''}` : ''}
 
 ${ticket.comments && ticket.comments.length > 0 ? `
 КОМЕНТАРІ (${ticket.comments.length}):

@@ -43,7 +43,6 @@ router.post('/analyze',
       const tickets = await Ticket.find(filter)
         .populate('createdBy', 'firstName lastName email')
         .populate('city', 'name region')
-        .populate('institution', 'name')
         .populate({
           path: 'comments',
           populate: {
@@ -52,7 +51,7 @@ router.post('/analyze',
           },
           options: { sort: { createdAt: -1 }, limit: 5 }
         })
-        .select('title description status priority type subcategory city institution createdAt resolvedAt metrics comments')
+        .select('title description status priority type subcategory city createdAt resolvedAt metrics comments')
         .sort({ createdAt: -1 })
         .limit(100)
         .lean();
