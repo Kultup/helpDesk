@@ -1791,47 +1791,6 @@ class TelegramService {
           }
           break;
 
-        case 'position_request':
-          // Перевіряємо, чи користувач хоче скасувати і повернутися до вибору посади
-          if (text && (text.trim().toLowerCase() === '/cancel' || text.trim().toLowerCase() === 'скасувати' || text.trim().toLowerCase() === 'відмінити')) {
-            // Повертаємося до вибору посади
-            pendingRegistration.step = 'position';
-            await pendingRegistration.save();
-            await this.sendPositionSelection(chatId, userId, pendingRegistration);
-            return;
-          }
-          
-          if (text && text.trim().length >= 2 && text.trim().length <= 100) {
-            const positionName = text.trim();
-            // Створюємо запит на додавання посади
-            const positionRequest = new PositionRequest({
-              title: positionName,
-              telegramId: String(userId),
-              telegramChatId: String(chatId),
-              pendingRegistrationId: pendingRegistration._id,
-              status: 'pending'
-            });
-            await positionRequest.save();
-
-            // Відправляємо сповіщення адмінам
-            await this.notifyAdminsAboutPositionRequest(positionRequest, pendingRegistration);
-
-            await this.sendMessage(chatId,
-              `✅ *Запит на додавання посади відправлено!*\n\n` +
-              `📝 *Посада:* ${this.escapeMarkdown(positionName)}\n\n` +
-              `⏳ Ваш запит буде розглянуто адміністратором.\n` +
-              `Ви отримаєте сповіщення, коли посада буде додана до системи.\n\n` +
-              `💡 Після додавання посади ви зможете продовжити реєстрацію.`,
-              { parse_mode: 'Markdown' }
-            );
-            // Не переходимо до наступного кроку, чекаємо на додавання посади
-            return;
-          } else {
-            isValid = false;
-            errorMessage = '❌ *Некоректна назва посади*\n\nНазва посади повинна бути довжиною від 2 до 100 символів.\n\n💡 Спробуйте ще раз або введіть "скасувати" для повернення до вибору посади:';
-          }
-          break;
-
         default:
           await this.sendMessage(chatId, '❌ Помилка в процесі реєстрації. Спробуйте почати заново.');
           return;
@@ -3224,18 +3183,6 @@ class TelegramService {
           await this.sendPositionSelection(chatId, userId, pendingRegistration);
           break;
 
-        case 'position_request':
-          // Відправляємо повідомлення користувачу про необхідність ввести назву посади
-          await this.sendMessage(chatId,
-            `📝 *Введіть назву вашої посади*\n\n` +
-            `Будь ласка, введіть назву посади, яку ви хочете додати до системи.\n\n` +
-            `💡 *Приклад:* Менеджер проекту, тощо\n\n` +
-            `Після додавання посади адміністратором, ви отримаєте сповіщення та зможете продовжити реєстрацію.\n\n` +
-            `💬 *Щоб повернутися до вибору посади, введіть:* скасувати`,
-            { parse_mode: 'Markdown' }
-          );
-          break;
-          
         case 'institution':
           await this.sendInstitutionSelection(chatId, userId, pendingRegistration);
           break;
@@ -3394,11 +3341,6 @@ class TelegramService {
         }]);
       });
 
-      // Додаємо кнопку "Не знайшов свою посаду"
-      keyboard.push([{
-        text: '❓ Не знайшов свою посаду',
-        callback_data: 'position_not_found'
-      }]);
 
       const institutionMessage = institutionId ? '\n🏢 Показано посади для обраного закладу' : '';
       
@@ -3538,19 +3480,6 @@ class TelegramService {
           dataKeys: Object.keys(pendingRegistration.data || {})
         });
         await this.processRegistrationStep(chatId, userId, pendingRegistration);
-      } else if (data === 'position_not_found') {
-        // Користувач натиснув "Не знайшов свою посаду"
-        // Перевіряємо це ПЕРЕД перевіркою position_, щоб уникнути помилки
-        pendingRegistration.step = 'position_request';
-        await pendingRegistration.save();
-        await this.sendMessage(chatId,
-          `📝 *Введіть назву вашої посади*\n\n` +
-          `Будь ласка, введіть назву посади, яку ви хочете додати до системи.\n\n` +
-          `💡 *Приклад:* Менеджер проекту, тощо\n\n` +
-          `Після додавання посади адміністратором, ви отримаєте сповіщення та зможете продовжити реєстрацію.\n\n` +
-          `💬 *Щоб повернутися до вибору посади, введіть:* скасувати`,
-          { parse_mode: 'Markdown' }
-        );
       } else if (data.startsWith('position_')) {
         const positionId = data.replace('position_', '');
         logger.info('Position selected:', positionId);
