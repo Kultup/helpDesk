@@ -339,7 +339,7 @@ app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 app.use('/api/settings', require('./routes/settings')); // Налаштування системи
-// app.use('/api/kb', require('./routes/knowledgeBaseRoutes'));
+app.use('/api/kb', require('./routes/knowledgeBase'));
 app.use('/api/ai-knowledge', require('./routes/aiKnowledge'));
 app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція
 // Сповіщення
