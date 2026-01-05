@@ -27,7 +27,7 @@ router.post('/generate-report',
         });
       }
 
-      const { startDate, endDate, reportType = 'general' } = req.body;
+      const { startDate, endDate, reportType = 'general', format = 'text' } = req.body;
 
       // Створюємо фільтр дат
       const dateFilter = {};
@@ -39,9 +39,16 @@ router.post('/generate-report',
         filter.createdAt = dateFilter;
       }
 
-      // Отримуємо тікети для звіту
+      // Отримуємо тікети для звіту з повною інформацією
       const tickets = await Ticket.find(filter)
-        .populate('createdBy', 'firstName lastName email')
+        .populate({
+          path: 'createdBy',
+          select: 'firstName lastName email position',
+          populate: {
+            path: 'position',
+            select: 'title'
+          }
+        })
         .populate('city', 'name region')
         .populate({
           path: 'comments',
@@ -51,9 +58,9 @@ router.post('/generate-report',
           },
           options: { sort: { createdAt: -1 }, limit: 3 }
         })
-        .select('title description status priority type subcategory city createdAt resolvedAt metrics comments')
+        .select('ticketNumber title description status priority type subcategory city createdAt resolvedAt metrics comments qualityRating')
         .sort({ createdAt: -1 })
-        .limit(100)
+        .limit(1000) // Збільшуємо ліміт для Excel звіту
         .lean();
 
       // Отримуємо статистику
@@ -143,7 +150,127 @@ router.post('/generate-report',
         topCities
       };
 
-      // Генеруємо звіт
+      // Якщо формат Excel, генеруємо Excel файл
+      if (format === 'excel') {
+        const ExcelJS = require('exceljs');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Звіт по заявках');
+
+        // Заголовки колонок
+        const headers = [
+          '№ Тікету',
+          'Назва тікету',
+          'Хто створив',
+          'Посада',
+          'Місто',
+          'Дата та час створення',
+          'Статус',
+          'Пріоритет',
+          'Опис',
+          'Оцінка'
+        ];
+
+        worksheet.addRow(headers);
+
+        // Стилізація заголовків
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF2C3E50' }
+        };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        headerRow.height = 25;
+
+        // Додавання даних
+        tickets.forEach(ticket => {
+          const createdBy = ticket.createdBy;
+          const creatorName = createdBy 
+            ? `${createdBy.firstName || ''} ${createdBy.lastName || ''}`.trim() || createdBy.email || 'Невідомо'
+            : 'Невідомо';
+          
+          const position = createdBy?.position?.title || 'Не вказано';
+          const city = ticket.city?.name || 'Не вказано';
+          const createdAt = ticket.createdAt 
+            ? new Date(ticket.createdAt).toLocaleString('uk-UA', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+            : 'Не вказано';
+          
+          const statusMap = {
+            'open': 'Відкритий',
+            'in_progress': 'В процесі',
+            'resolved': 'Вирішений',
+            'closed': 'Закритий'
+          };
+          const status = statusMap[ticket.status] || ticket.status || 'Не вказано';
+          
+          const priorityMap = {
+            'low': 'Низький',
+            'medium': 'Середній',
+            'high': 'Високий',
+            'urgent': 'Терміновий'
+          };
+          const priority = priorityMap[ticket.priority] || ticket.priority || 'Не вказано';
+          
+          const description = ticket.description || 'Опис відсутній';
+          const rating = ticket.qualityRating?.rating !== undefined && ticket.qualityRating?.rating !== null 
+            ? ticket.qualityRating.rating.toString() 
+            : 'Не оцінено';
+
+          worksheet.addRow([
+            ticket.ticketNumber || ticket._id.toString().substring(0, 8),
+            ticket.title || 'Без назви',
+            creatorName,
+            position,
+            city,
+            createdAt,
+            status,
+            priority,
+            description,
+            rating
+          ]);
+        });
+
+        // Налаштування ширини колонок
+        worksheet.columns = [
+          { width: 15 }, // № Тікету
+          { width: 40 }, // Назва тікету
+          { width: 25 }, // Хто створив
+          { width: 25 }, // Посада
+          { width: 20 }, // Місто
+          { width: 20 }, // Дата та час
+          { width: 15 }, // Статус
+          { width: 15 }, // Пріоритет
+          { width: 50 }, // Опис
+          { width: 12 }  // Оцінка
+        ];
+
+        // Перенос тексту для колонки опису
+        worksheet.getColumn(9).alignment = { wrapText: true, vertical: 'top' };
+
+        // Заморожуємо перший рядок
+        worksheet.views = [
+          { state: 'frozen', ySplit: 1 }
+        ];
+
+        // Встановлення заголовків відповіді
+        const filename = `ai_report_${startDate || 'all'}_${endDate || 'all'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
+        // Відправка файлу
+        await workbook.xlsx.write(res);
+        res.end();
+        return;
+      }
+
+      // Генеруємо текстовий звіт
       const report = await groqService.generateReport(tickets, analyticsData, {
         startDate,
         endDate,

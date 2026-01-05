@@ -14,6 +14,7 @@ const AIReports: React.FC = () => {
     end: new Date().toISOString().split('T')[0]
   });
   const [reportType, setReportType] = useState<'general' | 'weekly' | 'monthly' | 'detailed'>('general');
+  const [format, setFormat] = useState<'text' | 'excel'>('text');
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,47 @@ const AIReports: React.FC = () => {
       setReport(null);
       setReportMeta(null);
 
+      // Якщо формат Excel, завантажуємо файл напряму
+      if (format === 'excel') {
+        const response = await fetch('/api/analytics/generate-report', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            startDate: dateRange.start,
+            endDate: dateRange.end,
+            reportType,
+            format: 'excel'
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Помилка генерації Excel звіту');
+        }
+
+        // Завантажуємо файл
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition 
+          ? decodeURIComponent(contentDisposition.split('filename=')[1].replace(/"/g, ''))
+          : `ai_report_${dateRange.start}_${dateRange.end}.xlsx`;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setIsGenerating(false);
+        return;
+      }
+
+      // Текстовий звіт
       const response = await apiService.generateAIReport(
         dateRange.start,
         dateRange.end,
@@ -118,21 +160,42 @@ const AIReports: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <FileText className="h-4 w-4 inline mr-1" />
-              Тип звіту
-            </label>
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="general">Загальний звіт</option>
-              <option value="weekly">Тижневий звіт</option>
-              <option value="monthly">Місячний звіт</option>
-              <option value="detailed">Детальний звіт</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FileText className="h-4 w-4 inline mr-1" />
+                Тип звіту
+              </label>
+              <select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="general">Загальний звіт</option>
+                <option value="weekly">Тижневий звіт</option>
+                <option value="monthly">Місячний звіт</option>
+                <option value="detailed">Детальний звіт</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Download className="h-4 w-4 inline mr-1" />
+                Формат звіту
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value as 'text' | 'excel')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="text">Текстовий звіт</option>
+                <option value="excel">Excel звіт (для керівника)</option>
+              </select>
+              {format === 'excel' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Excel звіт містить детальну інформацію про всі заявки
+                </p>
+              )}
+            </div>
           </div>
 
           <Button
