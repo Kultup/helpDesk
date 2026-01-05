@@ -53,22 +53,22 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           variantClasses[variant],
           sizeClasses[size],
           fullWidth && 'w-full',
-          className
+          className,
+          'relative' // Add relative positioning for absolute spinner
         )}
         disabled={disabled || isLoading}
         {...props}
       >
-        {isLoading ? (
-          <>
-            <LoadingSpinner size="sm" className="mr-2" />
-            {t('common.loading')}
-          </>
-        ) : (
-          <>
-            {leftIcon && <span className="mr-2">{leftIcon}</span>}
-            {children}
-            {rightIcon && <span className="ml-2">{rightIcon}</span>}
-          </>
+        <span className={cn('inline-flex items-center', isLoading && 'opacity-0 pointer-events-none')}>
+          {leftIcon && <span className="mr-2">{leftIcon}</span>}
+          {children}
+          {rightIcon && <span className="ml-2">{rightIcon}</span>}
+        </span>
+        {isLoading && (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <LoadingSpinner size="sm" />
+            <span className="ml-2">{t('common.loading')}</span>
+          </span>
         )}
       </button>
     );

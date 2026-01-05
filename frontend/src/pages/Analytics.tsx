@@ -158,17 +158,23 @@ const Analytics: React.FC = () => {
     if (isAnalyzing) return;
 
     try {
-      setIsAnalyzing(true);
+      // Використовуємо setTimeout для затримки оновлення стану, щоб уникнути DOM конфліктів
+      setTimeout(() => setIsAnalyzing(true), 0);
+      
       const response = await apiService.analyzeAnalytics(dateRange.start, dateRange.end);
       
       if (response.success && response.data) {
         setAiAnalysis(response.data);
-        setShowAnalysis(true);
+        setTimeout(() => {
+          setShowAnalysis(true);
+          setIsAnalyzing(false);
+        }, 0);
+      } else {
+        setTimeout(() => setIsAnalyzing(false), 0);
       }
     } catch (error: any) {
       console.error('Помилка аналізу аналітики:', error);
-    } finally {
-      setIsAnalyzing(false);
+      setTimeout(() => setIsAnalyzing(false), 0);
     }
   };
 
@@ -577,6 +583,7 @@ const Analytics: React.FC = () => {
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('analytics.title')}</h1>
             <Button
+              key={`ai-analyze-button-${isAnalyzing}`}
               variant="outline"
               size="sm"
               onClick={handleAnalyzeAnalytics}
@@ -585,7 +592,7 @@ const Analytics: React.FC = () => {
               className="flex items-center space-x-2"
             >
               <Sparkles className="h-4 w-4" />
-              <span>{isAnalyzing ? 'Аналізуємо...' : 'AI Аналіз'}</span>
+              <span>AI Аналіз</span>
             </Button>
           </div>
           <p className="text-sm sm:text-base text-gray-600 mt-1">
