@@ -674,6 +674,19 @@ class ApiService {
   async analyzeAnalytics(startDate?: string, endDate?: string): Promise<ApiResponse<{
     summary: string;
     keyInsights: string[];
+    commonProblems?: Array<{
+      title: string;
+      description: string;
+      frequency?: string;
+      examples?: string[];
+      recommendation: string;
+    }>;
+    qualityAnalysis?: {
+      descriptionQuality: string;
+      descriptionIssues?: string[];
+      commentQuality: string;
+      commentIssues?: string[];
+    };
     trends: {
       positive: string[];
       negative: string[];
