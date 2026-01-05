@@ -384,12 +384,13 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
   }
 
   /**
-   * Аналізує загальну статистику заявок та надає інсайти
+   * Аналізує заявки (тікети) системи та надає інсайти
+   * @param {Array} tickets - Масив тікетів для аналізу
    * @param {Object} analyticsData - Дані аналітики (статистика, тренди, метрики)
    * @param {Object} context - Додатковий контекст (дата діапазон, фільтри)
    * @returns {Promise<Object>} - Результат аналізу з інсайтами та рекомендаціями
    */
-  async analyzeAnalytics(analyticsData, context = {}) {
+  async analyzeAnalytics(tickets = [], analyticsData = {}, context = {}) {
     try {
       if (!this.client) {
         await this.initialize();
@@ -400,28 +401,45 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
       }
 
       const systemPrompt = `
-Ви - експерт-аналітик системи HelpDesk. Ваше завдання - проаналізувати статистику заявок та надати корисні інсайти та рекомендації для покращення роботи системи.
+Ви - експерт-аналітик системи HelpDesk. Ваше завдання - проаналізувати ЗАЯВКИ (ТІКЕТИ) системи та надати корисні інсайти та рекомендації для покращення роботи.
 
 ОСНОВНІ ЗАВДАННЯ:
-1. Виявити проблемні зони та тренди
-2. Оцінити ефективність роботи з заявками
-3. Запропонувати конкретні рекомендації для покращення
-4. Визначити пріоритетні напрямки для оптимізації
-5. Виявити аномалії або незвичайні патерни
+1. Проаналізувати описи заявок та виявити типові проблеми
+2. Виявити проблемні зони та тренди на основі реальних заявок
+3. Оцінити якість описів заявок та коментарів
+4. Виявити повторювані проблеми та патерни
+5. Запропонувати конкретні рекомендації для покращення обробки заявок
+6. Визначити пріоритетні напрямки для оптимізації на основі аналізу заявок
+7. Виявити аномалії або незвичайні патерни в заявках
 
 ФОРМАТ ВІДПОВІДІ (JSON):
 {
-  "summary": "Короткий огляд стану системи",
+  "summary": "Короткий огляд стану заявок системи на основі аналізу реальних заявок",
   "keyInsights": ["Інсайт 1", "Інсайт 2", "Інсайт 3"],
+  "commonProblems": [
+    {
+      "title": "Назва типової проблеми",
+      "description": "Опис проблеми на основі аналізу заявок",
+      "frequency": "Кількість подібних заявок",
+      "examples": ["Приклад заявки 1", "Приклад заявки 2"],
+      "recommendation": "Рекомендація для вирішення"
+    }
+  ],
+  "qualityAnalysis": {
+    "descriptionQuality": "Оцінка якості описів заявок (good|average|poor)",
+    "descriptionIssues": ["Проблеми з описами заявок"],
+    "commentQuality": "Оцінка якості коментарів та рішень (good|average|poor)",
+    "commentIssues": ["Проблеми з коментарями"]
+  },
   "trends": {
-    "positive": ["Позитивні тренди"],
-    "negative": ["Негативні тренди"],
+    "positive": ["Позитивні тренди на основі заявок"],
+    "negative": ["Негативні тренди на основі заявок"],
     "neutral": ["Нейтральні спостереження"]
   },
   "problems": [
     {
       "title": "Назва проблеми",
-      "description": "Опис проблеми",
+      "description": "Опис проблеми на основі аналізу заявок",
       "severity": "low|medium|high|critical",
       "impact": "Вплив на систему",
       "recommendation": "Рекомендація для вирішення"
@@ -429,9 +447,9 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
   ],
   "recommendations": [
     {
-      "category": "Категорія (performance|process|resources|quality)",
+      "category": "Категорія (performance|process|resources|quality|training)",
       "title": "Назва рекомендації",
-      "description": "Детальний опис",
+      "description": "Детальний опис на основі аналізу заявок",
       "priority": "low|medium|high",
       "expectedImpact": "Очікуваний ефект"
     }
@@ -439,19 +457,19 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
   "metrics": {
     "performance": "Оцінка продуктивності (good|average|poor)",
     "efficiency": "Оцінка ефективності (good|average|poor)",
-    "quality": "Оцінка якості (good|average|poor)",
+    "quality": "Оцінка якості заявок (good|average|poor)",
     "overall": "Загальна оцінка (good|average|poor)"
   },
   "actionItems": [
     {
       "title": "Назва дії",
-      "description": "Що потрібно зробити",
+      "description": "Що потрібно зробити на основі аналізу заявок",
       "priority": "low|medium|high|urgent",
       "timeline": "Оцінка часу виконання"
     }
   ],
   "predictions": [
-    "Прогноз 1",
+    "Прогноз 1 на основі аналізу заявок",
     "Прогноз 2"
   ]
 }
@@ -464,19 +482,43 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
 - Фокусуйтеся на покращенні продуктивності та якості
 `;
 
-      // Формуємо контекст аналітики
+      // Формуємо контекст з реальними заявками
+      const ticketsSample = tickets.slice(0, 50); // Аналізуємо до 50 заявок для економії токенів
+      
+      const ticketsContext = ticketsSample.map((ticket, index) => {
+        const comments = ticket.comments && ticket.comments.length > 0 
+          ? ticket.comments.slice(0, 3).map(c => `  - ${c.content?.substring(0, 200)}`).join('\n')
+          : '  (немає коментарів)';
+        
+        return `
+ЗАЯВКА #${index + 1}:
+- Заголовок: ${ticket.title || 'Не вказано'}
+- Опис: ${(ticket.description || 'Не вказано').substring(0, 500)}
+- Статус: ${ticket.status || 'Не вказано'}
+- Пріоритет: ${ticket.priority || 'Не вказано'}
+- Тип: ${ticket.type || 'Не вказано'}
+- Категорія: ${ticket.subcategory || 'Не вказано'}
+- Місто: ${ticket.city?.name || 'Не вказано'}
+- Створено: ${ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('uk-UA') : 'Не вказано'}
+- Вирішено: ${ticket.resolvedAt ? new Date(ticket.resolvedAt).toLocaleDateString('uk-UA') : 'Не вирішено'}
+- Час вирішення: ${ticket.metrics?.resolutionTime ? `${Math.round(ticket.metrics.resolutionTime)} год` : 'Н/Д'}
+- Коментарі (останні 3):
+${comments}
+`;
+      }).join('\n---\n');
+
       const analyticsContext = `
-АНАЛІЗ СТАТИСТИКИ ЗАЯВОК:
+АНАЛІЗ ЗАЯВОК (ТІКЕТІВ) СИСТЕМИ:
 
 Період: ${context.startDate || 'Не вказано'} - ${context.endDate || 'Не вказано'}
 
 ЗАГАЛЬНА СТАТИСТИКА:
 - Всього заявок: ${analyticsData?.overview?.totalTickets || 0}
+- Проаналізовано заявок: ${ticketsSample.length}
 - Відкритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'open')?.count || 0}
 - В процесі: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'in_progress')?.count || 0}
 - Вирішених: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0}
 - Закритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'closed')?.count || 0}
-- Активних користувачів: ${analyticsData?.overview?.activeUsers || 0}
 
 ПРІОРИТЕТИ:
 - Низький: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'low')?.count || 0}
@@ -489,19 +531,14 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
   ? Math.round(((analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0) / analyticsData.overview.totalTickets) * 100) 
   : 0}%
 
-${analyticsData?.ticketsByDay && analyticsData.ticketsByDay.length > 0 ? `
-ТРЕНДИ (останні дні):
-${analyticsData.ticketsByDay.slice(-7).map(day => 
-  `- ${day._id}: ${day.count} заявок`
-).join('\n')}
-` : ''}
+${ticketsContext}
 
-${analyticsData?.topCities && analyticsData.topCities.length > 0 ? `
-ТОП МІСТА ЗА КІЛЬКІСТЮ ЗАЯВОК:
-${analyticsData.topCities.slice(0, 5).map((city, i) => 
-  `${i + 1}. ${city.cityName || 'Невідомо'}: ${city.count} заявок (вирішено: ${city.resolved || 0})`
-).join('\n')}
-` : ''}
+ВАЖЛИВО: Проаналізуйте саме ЗАЯВКИ вище. Виявіть:
+1. Типові проблеми та їх описи
+2. Якість описів заявок (чи достатньо деталей)
+3. Повторювані проблеми
+4. Ефективність вирішення (чи є коментарі з рішеннями)
+5. Патерни в заявках (які типи проблем найчастіші)
 `;
 
       const chatCompletion = await this.client.chat.completions.create({

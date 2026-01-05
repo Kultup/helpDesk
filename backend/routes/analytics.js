@@ -29,122 +29,124 @@ router.post('/analyze',
 
       const { startDate, endDate } = req.body;
 
-      // Отримуємо дані аналітики через контролер
-      const mockRes = {
-        json: (data) => data,
-        status: () => mockRes
-      };
+      // Створюємо фільтр дат
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
       
-      // Викликаємо getOverview для отримання даних
-      const overviewData = await analyticsController.getOverview({
-        ...req,
-        query: { startDate, endDate }
-      }, mockRes);
-
-      // Якщо це Promise, очікуємо його
-      let analyticsData;
-      if (overviewData && typeof overviewData.then === 'function') {
-        analyticsData = await overviewData;
-      } else {
-        // Створюємо структуру даних для AI
-        const dateFilter = {};
-        if (startDate) dateFilter.$gte = new Date(startDate);
-        if (endDate) dateFilter.$lte = new Date(endDate);
-        
-        const filter = {};
-        if (Object.keys(dateFilter).length > 0) {
-          filter.createdAt = dateFilter;
-        }
-
-        const totalTickets = await Ticket.countDocuments(filter);
-        const statusStats = await Ticket.aggregate([
-          { $match: filter },
-          { $group: { _id: '$status', count: { $sum: 1 } } }
-        ]);
-        const priorityStats = await Ticket.aggregate([
-          { $match: filter },
-          { $group: { _id: '$priority', count: { $sum: 1 } } }
-        ]);
-        const avgResolutionTime = await Ticket.aggregate([
-          { 
-            $match: { 
-              ...filter, 
-              status: 'resolved',
-              resolvedAt: { $exists: true }
-            } 
-          },
-          {
-            $project: {
-              resolutionTime: {
-                $divide: [
-                  { $subtract: ['$resolvedAt', '$createdAt'] },
-                  1000 * 60 * 60
-                ]
-              }
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              avgTime: { $avg: '$resolutionTime' }
-            }
-          }
-        ]);
-        const ticketsByDay = await Ticket.aggregate([
-          { $match: filter },
-          {
-            $group: {
-              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-              count: { $sum: 1 }
-            }
-          },
-          { $sort: { _id: 1 } }
-        ]);
-        const topCities = await Ticket.aggregate([
-          { $match: filter },
-          {
-            $group: {
-              _id: '$city',
-              count: { $sum: 1 },
-              resolved: {
-                $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
-              }
-            }
-          },
-          { $sort: { count: -1 } },
-          { $limit: 10 },
-          {
-            $lookup: {
-              from: 'cities',
-              localField: '_id',
-              foreignField: '_id',
-              as: 'cityInfo'
-            }
-          },
-          {
-            $project: {
-              count: 1,
-              resolved: 1,
-              cityName: { $arrayElemAt: ['$cityInfo.name', 0] }
-            }
-          }
-        ]);
-
-        analyticsData = {
-          overview: {
-            totalTickets,
-            activeUsers: await User.countDocuments({ isActive: true })
-          },
-          ticketsByStatus: statusStats,
-          ticketsByPriority: priorityStats,
-          avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
-          ticketsByDay,
-          topCities
-        };
+      const filter = {};
+      if (Object.keys(dateFilter).length > 0) {
+        filter.createdAt = dateFilter;
       }
 
-      // Викликаємо AI аналіз
-      const analysis = await groqService.analyzeAnalytics(analyticsData, {
+      // Отримуємо реальні тікети для аналізу (до 100 найновіших)
+      const tickets = await Ticket.find(filter)
+        .populate('createdBy', 'firstName lastName email')
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('city', 'name region')
+        .populate('institution', 'name')
+        .populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            select: 'firstName lastName email'
+          },
+          options: { sort: { createdAt: -1 }, limit: 5 }
+        })
+        .select('title description status priority type subcategory city institution createdAt resolvedAt metrics comments')
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+
+      // Отримуємо статистику для контексту
+      const totalTickets = await Ticket.countDocuments(filter);
+      const statusStats = await Ticket.aggregate([
+        { $match: filter },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]);
+      const priorityStats = await Ticket.aggregate([
+        { $match: filter },
+        { $group: { _id: '$priority', count: { $sum: 1 } } }
+      ]);
+      const avgResolutionTime = await Ticket.aggregate([
+        { 
+          $match: { 
+            ...filter, 
+            status: 'resolved',
+            resolvedAt: { $exists: true }
+          } 
+        },
+        {
+          $project: {
+            resolutionTime: {
+              $divide: [
+                { $subtract: ['$resolvedAt', '$createdAt'] },
+                1000 * 60 * 60
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgTime: { $avg: '$resolutionTime' }
+          }
+        }
+      ]);
+      const ticketsByDay = await Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      const topCities = await Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$city',
+            count: { $sum: 1 },
+            resolved: {
+              $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+            }
+          }
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'cities',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'cityInfo'
+          }
+        },
+        {
+          $project: {
+            count: 1,
+            resolved: 1,
+            cityName: { $arrayElemAt: ['$cityInfo.name', 0] }
+          }
+        }
+      ]);
+
+      const analyticsData = {
+        overview: {
+          totalTickets,
+          activeUsers: await User.countDocuments({ isActive: true })
+        },
+        ticketsByStatus: statusStats,
+        ticketsByPriority: priorityStats,
+        avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
+        ticketsByDay,
+        topCities
+      };
+
+      // Викликаємо AI аналіз з реальними тікетами
+      const analysis = await groqService.analyzeAnalytics(tickets, analyticsData, {
         startDate,
         endDate,
         user: req.user,
