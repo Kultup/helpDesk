@@ -619,12 +619,26 @@ exports.createComment = async (req, res) => {
       const User = require('../models/User');
       
       const recipients = [];
-      if (ticket.createdBy) recipients.push(ticket.createdBy._id.toString());
-      if (ticket.assignedTo) recipients.push(ticket.assignedTo._id.toString());
+      // Перевіряємо, чи createdBy вже populate'ний або це ObjectId
+      if (ticket.createdBy) {
+        const createdById = ticket.createdBy._id ? ticket.createdBy._id.toString() : ticket.createdBy.toString();
+        recipients.push(createdById);
+      }
+      if (ticket.assignedTo) {
+        const assignedToId = ticket.assignedTo._id ? ticket.assignedTo._id.toString() : ticket.assignedTo.toString();
+        recipients.push(assignedToId);
+      }
       
       // Видаляємо автора коментаря зі списку отримувачів (він сам додав коментар)
       const commentAuthorId = req.user._id.toString();
       const uniqueRecipients = [...new Set(recipients)].filter(id => id !== commentAuthorId);
+      
+      logger.info('Відправка коментарів в Telegram:', {
+        recipients: recipients,
+        uniqueRecipients: uniqueRecipients,
+        commentAuthorId: commentAuthorId,
+        ticketId: ticket._id.toString()
+      });
       
       const authorName = comment.author?.firstName && comment.author?.lastName
         ? `${comment.author.firstName} ${comment.author.lastName}`
@@ -660,14 +674,27 @@ exports.createComment = async (req, res) => {
         
         // Telegram сповіщення
         try {
-          const recipientUser = await User.findById(userId).select('telegramId telegramChatId');
+          const recipientUser = await User.findById(userId).select('telegramId telegramChatId email firstName lastName');
           
-          if (recipientUser && recipientUser.telegramId && !finalIsInternal) {
+          logger.info(`Перевірка отримувача для Telegram:`, {
+            userId: userId,
+            recipientUser: recipientUser ? {
+              email: recipientUser.email,
+              telegramId: recipientUser.telegramId,
+              telegramChatId: recipientUser.telegramChatId,
+              hasTelegramId: !!recipientUser.telegramId
+            } : null
+          });
+          
+          // Перевіряємо обидва варіанти - telegramId та telegramChatId
+          const telegramId = recipientUser?.telegramId || recipientUser?.telegramChatId;
+          
+          if (recipientUser && telegramId && !finalIsInternal) {
             // Формуємо повідомлення для Telegram
             const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
             
             // Встановлюємо активний тікет для користувача, щоб він міг відповідати
-            telegramService.setActiveTicketForUser(recipientUser.telegramId, ticket._id.toString());
+            telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
             
             const message = 
               `💬 *Новий коментар до тікету*\n\n` +
@@ -680,12 +707,16 @@ exports.createComment = async (req, res) => {
               `Або надішліть /menu для виходу.`;
             
             await telegramService.sendMessage(
-              recipientUser.telegramId,
+              telegramId,
               message,
               { parse_mode: 'Markdown' }
             );
             
-            logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.telegramId}`);
+            logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+          } else if (recipientUser && !telegramId) {
+            logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
+          } else if (!recipientUser) {
+            logger.warn(`⚠️ Користувач з ID ${userId} не знайдено`);
           }
         } catch (telegramError) {
           logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, telegramError);
