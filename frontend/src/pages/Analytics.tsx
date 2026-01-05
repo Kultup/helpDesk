@@ -935,6 +935,106 @@ const Analytics: React.FC = () => {
                   </div>
                 )}
 
+                {/* Типові проблеми */}
+                {aiAnalysis.commonProblems && aiAnalysis.commonProblems.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-orange-200">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-2 text-orange-600" />
+                      Типові проблеми в заявках
+                    </h3>
+                    <div className="space-y-4">
+                      {aiAnalysis.commonProblems.map((problem: any, index: number) => (
+                        <div key={index} className="border-l-4 border-orange-400 pl-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-gray-900">{problem.title}</h4>
+                            {problem.frequency && (
+                              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                {problem.frequency} заявок
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">{problem.description}</p>
+                          {problem.examples && problem.examples.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-gray-500 mb-1">Приклади:</p>
+                              <ul className="list-disc list-inside text-xs text-gray-600 space-y-1">
+                                {problem.examples.map((example: string, exIndex: number) => (
+                                  <li key={exIndex}>{example}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {problem.recommendation && (
+                            <p className="text-sm text-blue-600 mt-2">
+                              <strong>Рекомендація:</strong> {problem.recommendation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Аналіз якості */}
+                {aiAnalysis.qualityAnalysis && (
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <Target className="h-4 w-4 mr-2 text-purple-600" />
+                      Аналіз якості заявок
+                    </h3>
+                    <div className="space-y-3">
+                      {aiAnalysis.qualityAnalysis.descriptionQuality && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">Якість описів:</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              aiAnalysis.qualityAnalysis.descriptionQuality === 'good'
+                                ? 'bg-green-100 text-green-700'
+                                : aiAnalysis.qualityAnalysis.descriptionQuality === 'average'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {aiAnalysis.qualityAnalysis.descriptionQuality === 'good' ? 'Добре' :
+                               aiAnalysis.qualityAnalysis.descriptionQuality === 'average' ? 'Середньо' : 'Погано'}
+                            </span>
+                          </div>
+                          {aiAnalysis.qualityAnalysis.descriptionIssues && aiAnalysis.qualityAnalysis.descriptionIssues.length > 0 && (
+                            <ul className="list-disc list-inside text-xs text-gray-600 mt-1 space-y-1">
+                              {aiAnalysis.qualityAnalysis.descriptionIssues.map((issue: string, index: number) => (
+                                <li key={index}>{issue}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      {aiAnalysis.qualityAnalysis.commentQuality && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">Якість коментарів:</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              aiAnalysis.qualityAnalysis.commentQuality === 'good'
+                                ? 'bg-green-100 text-green-700'
+                                : aiAnalysis.qualityAnalysis.commentQuality === 'average'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {aiAnalysis.qualityAnalysis.commentQuality === 'good' ? 'Добре' :
+                               aiAnalysis.qualityAnalysis.commentQuality === 'average' ? 'Середньо' : 'Погано'}
+                            </span>
+                          </div>
+                          {aiAnalysis.qualityAnalysis.commentIssues && aiAnalysis.qualityAnalysis.commentIssues.length > 0 && (
+                            <ul className="list-disc list-inside text-xs text-gray-600 mt-1 space-y-1">
+                              {aiAnalysis.qualityAnalysis.commentIssues.map((issue: string, index: number) => (
+                                <li key={index}>{issue}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Проблеми */}
                 {aiAnalysis.problems && aiAnalysis.problems.length > 0 && (
                   <div className="bg-white rounded-lg p-4 border border-red-200">
