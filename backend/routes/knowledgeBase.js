@@ -487,6 +487,117 @@ router.post('/articles/generate-from-ticket/:ticketId', auth, adminAuth, async (
 });
 
 /**
+ * @route   POST /api/kb/generate-faq
+ * @desc    Згенерувати FAQ статті на основі аналізу заявок
+ * @access  Private (Admin)
+ */
+router.post('/generate-faq', auth, adminAuth, async (req, res) => {
+  try {
+    const groqService = require('../services/groqService');
+    
+    if (!groqService.isEnabled()) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
+      });
+    }
+
+    const { startDate, endDate, minFrequency = 2, maxItems = 20, autoSave = false } = req.body;
+
+    // Створюємо фільтр дат
+    const dateFilter = {};
+    if (startDate) dateFilter.$gte = new Date(startDate);
+    if (endDate) dateFilter.$lte = new Date(endDate);
+    
+    const filter = {};
+    if (Object.keys(dateFilter).length > 0) {
+      filter.createdAt = dateFilter;
+    }
+
+    // Отримуємо тікети з коментарями (вирішені або закриті)
+    const Ticket = require('../models/Ticket');
+    const tickets = await Ticket.find({
+      ...filter,
+      status: { $in: ['resolved', 'closed'] },
+      'comments.0': { $exists: true } // Тільки тікети з коментарями
+    })
+      .populate('createdBy', 'firstName lastName email')
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'author',
+          select: 'firstName lastName email'
+        }
+      })
+      .select('title description status priority type subcategory city createdAt resolvedAt comments')
+      .sort({ createdAt: -1 })
+      .limit(200) // Обмежуємо для швидкості
+      .lean();
+
+    if (!tickets || tickets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Не знайдено вирішених заявок з коментарями для генерації FAQ.'
+      });
+    }
+
+    // Генеруємо FAQ
+    const faqResult = await groqService.generateFAQ(tickets, {
+      minFrequency: parseInt(minFrequency),
+      maxItems: parseInt(maxItems)
+    });
+
+    if (!faqResult || !faqResult.faqItems || faqResult.faqItems.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Не вдалося згенерувати FAQ. Спробуйте змінити параметри або перевірте наявність вирішених заявок.'
+      });
+    }
+
+    // Якщо autoSave, зберігаємо FAQ в KnowledgeBase
+    let savedArticles = [];
+    if (autoSave && req.user) {
+      for (const faqItem of faqResult.faqItems) {
+        const article = new KnowledgeBase({
+          title: faqItem.question,
+          content: `## Питання\n\n${faqItem.question}\n\n## Відповідь\n\n${faqItem.answer}\n\n${faqItem.examples && faqItem.examples.length > 0 ? `\n## Приклади заявок\n\n${faqItem.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}` : ''}`,
+          type: 'text',
+          tags: ['FAQ', 'AI Generated', ...(faqItem.tags || []), faqItem.category],
+          category: faqItem.category || 'FAQ',
+          status: 'draft', // Створюємо як чернетку для перегляду
+          isPublic: true,
+          createdBy: req.user._id,
+          metadata: {
+            source: 'ai_faq_generation',
+            frequency: faqItem.frequency,
+            priority: faqItem.priority,
+            generatedAt: new Date().toISOString()
+          }
+        });
+        await article.save();
+        savedArticles.push(article._id);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...faqResult,
+        savedArticles: autoSave ? savedArticles : null,
+        analyzedTickets: tickets.length
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка генерації FAQ:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера при генерації FAQ',
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route   POST /api/kb/upload
  * @desc    Завантажити файли для статті KB
  * @access  Private (Admin)

@@ -670,6 +670,50 @@ class ApiService {
     return response.data;
   }
 
+  // Генерація FAQ на основі заявок
+  async generateFAQ(startDate?: string, endDate?: string, minFrequency: number = 2, maxItems: number = 20, autoSave: boolean = false): Promise<ApiResponse<{
+    faqItems: Array<{
+      question: string;
+      answer: string;
+      category: string;
+      tags: string[];
+      frequency: number;
+      examples: string[];
+      priority: string;
+    }>;
+    summary: string;
+    totalQuestions: number;
+    categories: string[];
+    savedArticles?: string[];
+    analyzedTickets: number;
+  }>> {
+    const response = await this.api.post('/kb/generate-faq', { 
+      startDate, 
+      endDate, 
+      minFrequency, 
+      maxItems, 
+      autoSave 
+    });
+    return response.data;
+  }
+
+  // Генерація AI звіту
+  async generateAIReport(startDate?: string, endDate?: string, reportType: 'general' | 'weekly' | 'monthly' | 'detailed' = 'general'): Promise<ApiResponse<{
+    report: string;
+    generatedAt: string;
+    period: {
+      start?: string;
+      end?: string;
+    };
+    statistics: {
+      totalTickets: number;
+      analyzedTickets: number;
+    };
+  }>> {
+    const response = await this.api.post('/analytics/generate-report', { startDate, endDate, reportType });
+    return response.data;
+  }
+
   // AI аналіз статистики заявок
   async analyzeAnalytics(startDate?: string, endDate?: string): Promise<ApiResponse<{
     summary: string;

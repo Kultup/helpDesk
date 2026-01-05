@@ -59,6 +59,8 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
+      { nameKey: 'sidebar.aiReports', href: '/ai-reports', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.aiFAQ', href: '/ai-faq', icon: FileText, adminOnly: true },
     ]
   },
   {

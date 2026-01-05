@@ -566,6 +566,273 @@ ${ticketsContext}
   }
 
   /**
+   * Генерує AI звіт на основі статистики та заявок
+   * @param {Array} tickets - Масив тікетів за період
+   * @param {Object} analyticsData - Дані аналітики
+   * @param {Object} context - Контекст (дата діапазон, тип звіту)
+   * @returns {Promise<Object>} - Згенерований звіт
+   */
+  async generateReport(tickets = [], analyticsData = {}, context = {}) {
+    try {
+      if (!this.client) {
+        await this.initialize();
+      }
+
+      if (!this.client) {
+        return null;
+      }
+
+      const reportType = context.reportType || 'general'; // general, weekly, monthly, detailed
+
+      const systemPrompt = `
+Ви - професійний аналітик системи HelpDesk. Ваше завдання - створити детальний текстовий звіт на основі аналізу заявок та статистики.
+
+ТИП ЗВІТУ: ${reportType === 'weekly' ? 'Тижневий звіт' : reportType === 'monthly' ? 'Місячний звіт' : reportType === 'detailed' ? 'Детальний звіт' : 'Загальний звіт'}
+
+ФОРМАТ ЗВІТУ (текстовий, структурований):
+1. ВСТУП
+   - Короткий огляд періоду
+   - Загальна статистика
+
+2. ОСНОВНІ ПОКАЗНИКИ
+   - Кількість заявок
+   - Статистика по статусах
+   - Статистика по пріоритетах
+   - Продуктивність
+
+3. АНАЛІЗ ЗАЯВОК
+   - Типові проблеми
+   - Найчастіші категорії
+   - Тренди та патерни
+
+4. ПРОДУКТИВНІСТЬ
+   - Середній час вирішення
+   - Коефіцієнт вирішення
+   - Ефективність роботи
+
+5. ВИСНОВКИ ТА РЕКОМЕНДАЦІЇ
+   - Ключові висновки
+   - Рекомендації для покращення
+   - Пріоритетні напрямки
+
+ВАЖЛИВО:
+- Використовуйте конкретні цифри та факти
+- Будьте професійними та об'єктивними
+- Надавайте практичні рекомендації
+- МОВА: Українська
+- СТИЛЬ: Діловий, структурований
+`;
+
+      const ticketsSample = tickets.slice(0, 30);
+      const ticketsContext = ticketsSample.map((ticket, index) => {
+        return `Заявка #${index + 1}: "${ticket.title}" - ${ticket.status} (${ticket.priority}) - ${ticket.city?.name || 'Невідомо'}`;
+      }).join('\n');
+
+      const reportContext = `
+ПЕРІОД ЗВІТУ: ${context.startDate || 'Не вказано'} - ${context.endDate || 'Не вказано'}
+
+ЗАГАЛЬНА СТАТИСТИКА:
+- Всього заявок: ${analyticsData?.overview?.totalTickets || 0}
+- Відкритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'open')?.count || 0}
+- В процесі: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'in_progress')?.count || 0}
+- Вирішених: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0}
+- Закритих: ${analyticsData?.ticketsByStatus?.find(s => s._id === 'closed')?.count || 0}
+
+ПРІОРИТЕТИ:
+- Низький: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'low')?.count || 0}
+- Середній: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'medium')?.count || 0}
+- Високий: ${analyticsData?.ticketsByPriority?.find(p => p._id === 'high')?.count || 0}
+
+ПРОДУКТИВНІСТЬ:
+- Середній час вирішення: ${analyticsData?.avgResolutionTime ? Math.round(analyticsData.avgResolutionTime) : 0} годин
+- Коефіцієнт вирішення: ${analyticsData?.overview?.totalTickets > 0 
+  ? Math.round(((analyticsData?.ticketsByStatus?.find(s => s._id === 'resolved')?.count || 0) / analyticsData.overview.totalTickets) * 100) 
+  : 0}%
+
+ПРИКЛАДИ ЗАЯВОК (${ticketsSample.length} з ${tickets.length}):
+${ticketsContext}
+
+${analyticsData?.topCities && analyticsData.topCities.length > 0 ? `
+ТОП МІСТА:
+${analyticsData.topCities.slice(0, 5).map((city, i) => 
+  `${i + 1}. ${city.cityName || 'Невідомо'}: ${city.count} заявок`
+).join('\n')}
+` : ''}
+
+Створіть детальний професійний звіт на основі цих даних. Використовуйте конкретні цифри, виявіть тренди та надайте практичні рекомендації.
+`;
+
+      const chatCompletion = await this.client.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: reportContext }
+        ],
+        model: this.settings.groqModel || 'llama-3.3-70b-versatile',
+        temperature: 0.5, // Середня температура для балансу структурованості та креативності
+        max_tokens: 3000, // Більше токенів для детального звіту
+        stream: false
+      });
+
+      const reportText = chatCompletion.choices[0]?.message?.content;
+      if (!reportText) {
+        logger.warn('Groq повернув порожню відповідь при генерації звіту');
+        return null;
+      }
+
+      return {
+        report: reportText,
+        generatedAt: new Date().toISOString(),
+        period: {
+          start: context.startDate,
+          end: context.endDate
+        },
+        statistics: {
+          totalTickets: analyticsData?.overview?.totalTickets || 0,
+          analyzedTickets: ticketsSample.length
+        }
+      };
+    } catch (error) {
+      logger.error('Помилка генерації AI звіту:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Генерує FAQ статті на основі аналізу заявок та коментарів
+   * @param {Array} tickets - Масив тікетів для аналізу
+   * @param {Object} options - Опції генерації (minFrequency, maxItems)
+   * @returns {Promise<Array>} - Масив згенерованих FAQ статей
+   */
+  async generateFAQ(tickets = [], options = {}) {
+    try {
+      if (!this.client) {
+        await this.initialize();
+      }
+
+      if (!this.client) {
+        return null;
+      }
+
+      const minFrequency = options.minFrequency || 2; // Мінімальна кількість подібних заявок
+      const maxItems = options.maxItems || 20; // Максимальна кількість FAQ
+
+      const systemPrompt = `
+Ви - експерт зі створення FAQ (Часті питання) для системи HelpDesk. Ваше завдання - проаналізувати заявки та коментарі та створити корисні FAQ статті.
+
+ЗАВДАННЯ:
+1. Виявити найчастіші питання/проблеми на основі аналізу заявок
+2. Створити чіткі питання та відповіді
+3. Використати рішення з коментарів для формулювання відповідей
+4. Групувати подібні питання
+5. Створити структуровані FAQ статті
+
+ФОРМАТ ВІДПОВІДІ (JSON):
+{
+  "faqItems": [
+    {
+      "question": "Точне формулювання питання українською мовою",
+      "answer": "Детальна відповідь на основі аналізу заявок та коментарів",
+      "category": "Категорія (Hardware|Software|Network|Access|Other|General)",
+      "tags": ["тег1", "тег2"],
+      "frequency": 5, // Кількість подібних заявок
+      "examples": ["Приклад заявки 1", "Приклад заявки 2"], // Приклади заявок
+      "priority": "high|medium|low" // Пріоритет на основі частоти
+    }
+  ],
+  "summary": "Короткий опис згенерованих FAQ",
+  "totalQuestions": 15, // Загальна кількість питань
+  "categories": ["Hardware", "Software", "Network"] // Список категорій
+}
+
+ВАЖЛИВО:
+- Питання мають бути конкретними та зрозумілими
+- Відповіді мають бути практичними та корисними
+- Використовуйте реальні рішення з коментарів
+- МОВА: Українська
+- Мінімальна частота для включення: ${minFrequency} заявок
+- Максимум ${maxItems} FAQ статей
+`;
+
+      // Формуємо контекст з заявками та коментарями
+      const ticketsWithComments = tickets
+        .filter(t => t.comments && t.comments.length > 0)
+        .slice(0, 100); // Аналізуємо до 100 заявок з коментарями
+
+      const ticketsContext = ticketsWithComments.map((ticket, index) => {
+        const comments = ticket.comments
+          .filter(c => !c.isInternal) // Тільки публічні коментарі
+          .map(c => c.content)
+          .join(' | ');
+        
+        return `
+ЗАЯВКА #${index + 1}:
+- Заголовок: ${ticket.title || 'Не вказано'}
+- Опис: ${(ticket.description || 'Не вказано').substring(0, 300)}
+- Категорія: ${ticket.subcategory || 'Не вказано'}
+- Статус: ${ticket.status}
+- Коментарі з рішеннями: ${comments.substring(0, 500)}
+`;
+      }).join('\n---\n');
+
+      const analysisContext = `
+АНАЛІЗ ЗАЯВОК ДЛЯ ГЕНЕРАЦІЇ FAQ:
+
+Всього заявок проаналізовано: ${ticketsWithComments.length}
+Всього заявок в системі: ${tickets.length}
+
+ЗАЯВКИ З КОМЕНТАРЯМИ (рішеннями):
+${ticketsContext || 'Немає заявок з коментарями'}
+
+ЗАВДАННЯ:
+1. Виявіть найчастіші питання/проблеми
+2. Створіть чіткі FAQ статті з питаннями та відповідями
+3. Використайте рішення з коментарів для формулювання відповідей
+4. Групуйте подібні питання
+5. Вкажіть категорії та теги
+
+Створіть корисні FAQ статті на основі цих даних. Включіть тільки питання, які зустрічаються принаймні ${minFrequency} рази.
+`;
+
+      const chatCompletion = await this.client.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: analysisContext }
+        ],
+        model: this.settings.groqModel || 'llama-3.3-70b-versatile',
+        temperature: 0.4, // Середня температура для балансу структурованості та креативності
+        max_tokens: 4000, // Більше токенів для багатьох FAQ
+        response_format: { type: 'json_object' }
+      });
+
+      const responseText = chatCompletion.choices[0]?.message?.content;
+      if (!responseText) {
+        logger.warn('Groq повернув порожню відповідь при генерації FAQ');
+        return null;
+      }
+
+      const result = JSON.parse(responseText);
+      
+      // Фільтруємо FAQ за мінімальною частотою
+      if (result.faqItems) {
+        result.faqItems = result.faqItems
+          .filter(item => item.frequency >= minFrequency)
+          .slice(0, maxItems);
+        result.totalQuestions = result.faqItems.length;
+      }
+
+      logger.info('Результат AI генерації FAQ:', { 
+        totalFAQ: result.faqItems?.length || 0,
+        categories: result.categories || []
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Помилка генерації FAQ через Groq:', error);
+      return null;
+    }
+  }
+
+  /**
    * Транскрибує аудіофайл за допомогою Groq Whisper
    */
   async transcribeAudio(filePath) {

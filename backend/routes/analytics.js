@@ -12,6 +12,168 @@ const analyticsController = require('../controllers/analyticsController');
 
 const router = express.Router();
 
+// POST /api/analytics/generate-report - Генерація AI звіту
+router.post('/generate-report',
+  authenticateToken,
+  requirePermission('view_analytics'),
+  async (req, res) => {
+    try {
+      const groqService = require('../services/groqService');
+      
+      if (!groqService.isEnabled()) {
+        return res.status(503).json({
+          success: false,
+          message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
+        });
+      }
+
+      const { startDate, endDate, reportType = 'general' } = req.body;
+
+      // Створюємо фільтр дат
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+      
+      const filter = {};
+      if (Object.keys(dateFilter).length > 0) {
+        filter.createdAt = dateFilter;
+      }
+
+      // Отримуємо тікети для звіту
+      const tickets = await Ticket.find(filter)
+        .populate('createdBy', 'firstName lastName email')
+        .populate('city', 'name region')
+        .populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            select: 'firstName lastName email'
+          },
+          options: { sort: { createdAt: -1 }, limit: 3 }
+        })
+        .select('title description status priority type subcategory city createdAt resolvedAt metrics comments')
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean();
+
+      // Отримуємо статистику
+      const totalTickets = await Ticket.countDocuments(filter);
+      const statusStats = await Ticket.aggregate([
+        { $match: filter },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]);
+      const priorityStats = await Ticket.aggregate([
+        { $match: filter },
+        { $group: { _id: '$priority', count: { $sum: 1 } } }
+      ]);
+      const avgResolutionTime = await Ticket.aggregate([
+        { 
+          $match: { 
+            ...filter, 
+            status: 'resolved',
+            resolvedAt: { $exists: true }
+          } 
+        },
+        {
+          $project: {
+            resolutionTime: {
+              $divide: [
+                { $subtract: ['$resolvedAt', '$createdAt'] },
+                1000 * 60 * 60
+              ]
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            avgTime: { $avg: '$resolutionTime' }
+          }
+        }
+      ]);
+      const ticketsByDay = await Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      const topCities = await Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$city',
+            count: { $sum: 1 },
+            resolved: {
+              $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] }
+            }
+          }
+        },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'cities',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'cityInfo'
+          }
+        },
+        {
+          $project: {
+            count: 1,
+            resolved: 1,
+            cityName: { $arrayElemAt: ['$cityInfo.name', 0] }
+          }
+        }
+      ]);
+
+      const analyticsData = {
+        overview: {
+          totalTickets,
+          activeUsers: await User.countDocuments({ isActive: true })
+        },
+        ticketsByStatus: statusStats,
+        ticketsByPriority: priorityStats,
+        avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
+        ticketsByDay,
+        topCities
+      };
+
+      // Генеруємо звіт
+      const report = await groqService.generateReport(tickets, analyticsData, {
+        startDate,
+        endDate,
+        reportType,
+        user: req.user,
+        timestamp: new Date()
+      });
+
+      if (!report) {
+        return res.status(500).json({
+          success: false,
+          message: 'Не вдалося згенерувати звіт. Спробуйте пізніше.'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: report
+      });
+    } catch (error) {
+      logger.error('Помилка генерації AI звіту:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Помилка сервера при генерації звіту',
+        error: error.message
+      });
+    }
+  }
+);
+
 // POST /api/analytics/analyze - AI аналіз статистики заявок
 router.post('/analyze',
   authenticateToken,

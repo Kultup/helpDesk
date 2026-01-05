@@ -129,6 +129,8 @@
     "pendingRegistrations": "Oczekujące rejestracje",
     "quickNotifications": "Szybkie powiadomienia",
     "aiKnowledge": "AI Wiedza",
+    "aiReports": "Raporty AI",
+    "aiFAQ": "Generator FAQ",
     "groups": {
       "main": "Główne",
       "analytics": "Analityka i raporty",

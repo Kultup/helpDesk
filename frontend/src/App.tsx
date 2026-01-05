@@ -23,6 +23,8 @@ import PositionRequests from './pages/PositionRequests';
 import Institutions from './pages/Institutions';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
+import AIReports from './pages/AIReports';
+import AIFAQGenerator from './pages/AIFAQGenerator';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
@@ -179,6 +181,16 @@ const App: React.FC = () => {
             <Route path="admin/analytics" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Analytics />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/ai-reports" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AIReports />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/ai-faq" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AIFAQGenerator />
               </ProtectedRoute>
             } />
 

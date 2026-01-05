@@ -131,6 +131,8 @@
     "pendingRegistrations": "Заявки на реєстрацію",
     "quickNotifications": "Швидкі сповіщення",
     "aiKnowledge": "AI Знання",
+    "aiReports": "AI Звіти",
+    "aiFAQ": "Генерація FAQ",
     "groups": {
       "main": "Основне",
       "analytics": "Аналітика та звіти",
