@@ -182,7 +182,8 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
         // Перевіряємо, чи це масив ID (рядки, що виглядають як ObjectId)
         const isIdArray = value.every(item => typeof item === 'string' && item.length === 24);
         if (isIdArray) {
-          return `Додано ${value.length} ${value.length === 1 ? 'коментар' : value.length < 5 ? 'коментарі' : 'коментарів'}`;
+          // Не показуємо технічні деталі, тільки кількість
+          return null; // Повертаємо null, щоб не показувати це поле окремо
         }
       }
       
@@ -339,7 +340,8 @@ const TicketHistory = forwardRef<TicketHistoryRef, TicketHistoryProps>(({ ticket
       'qualityRating.requestedAt', // Технічне поле
       'qualityRating.ratingRequested', // Технічне поле
       'qualityRating.hasRating', // Технічне поле
-      'comments' // Коментарі показуємо окремо через опис
+      'comments', // Коментарі показуємо тільки через опис
+      'statusHistory' // Історія статусів показується тільки через опис
     ];
     
     if (hiddenFields.includes(field)) {

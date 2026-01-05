@@ -4158,7 +4158,6 @@ class TelegramService {
       ]);
 
       // Зберігаємо повідомлення в окрему колекцію TelegramMessage
-      const TelegramMessage = require('../models/TelegramMessage');
       const telegramMsg = new TelegramMessage({
         ticketId: ticket._id,
         senderId: user._id,

@@ -714,19 +714,74 @@ ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {
 ticketSchema.methods._getChangeDescription = function(change) {
   const { field, oldValue, newValue, action } = change;
   
+  // Мапінг статусів для зрозумілих назв
+  const statusMap = {
+    'open': 'Відкритий',
+    'in_progress': 'У роботі',
+    'resolved': 'Вирішено',
+    'closed': 'Закрито'
+  };
+  
+  // Мапінг пріоритетів
+  const priorityMap = {
+    'low': 'Низький',
+    'medium': 'Середній',
+    'high': 'Високий'
+  };
+  
   switch (action) {
     case 'status_changed':
-      return `Статус змінено з "${oldValue}" на "${newValue}"`;
+      const oldStatus = statusMap[oldValue] || oldValue || 'Не вказано';
+      const newStatus = statusMap[newValue] || newValue || 'Не вказано';
+      return `Статус змінено: ${oldStatus} → ${newStatus}`;
+      
     case 'priority_changed':
-      return `Пріоритет змінено з "${oldValue}" на "${newValue}"`;
+      const oldPriority = priorityMap[oldValue] || oldValue || 'Не вказано';
+      const newPriority = priorityMap[newValue] || newValue || 'Не вказано';
+      return `Пріоритет змінено: ${oldPriority} → ${newPriority}`;
+      
     case 'title_changed':
-      return `Заголовок змінено`;
+      return `Заголовок оновлено`;
+      
     case 'description_changed':
       return `Опис оновлено`;
+      
     case 'due_date_changed':
       return `Термін виконання змінено`;
+      
+    case 'assigned':
+      return `Тікет призначено`;
+      
+    case 'unassigned':
+      return `Призначення знято`;
+      
+    case 'comment_added':
+      return `Додано коментар`;
+      
     default:
-      return `Поле "${field}" оновлено`;
+      // Спеціальна обробка для технічних полів
+      if (field === 'comments' && Array.isArray(newValue)) {
+        const count = newValue.length;
+        if (count > 0) {
+          return `Додано ${count} ${count === 1 ? 'коментар' : count < 5 ? 'коментарі' : 'коментарів'}`;
+        }
+      }
+      
+      if (field === 'statusHistory' && Array.isArray(newValue)) {
+        return `Історія статусів оновлена`;
+      }
+      
+      // Для інших полів - простий опис
+      const fieldLabels = {
+        'assignedTo': 'Призначення',
+        'city': 'Місто',
+        'category': 'Категорія',
+        'tags': 'Теги',
+        'watchers': 'Спостерігачі'
+      };
+      
+      const fieldLabel = fieldLabels[field] || field;
+      return `${fieldLabel} оновлено`;
   }
 };
 
