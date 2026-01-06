@@ -463,8 +463,8 @@ const TicketDetails: React.FC = () => {
                   <h2 className="text-xl font-semibold mb-4 text-gray-900">{t('tickets.attachments')} ({ticket.attachments.length})</h2>
                   <div className="space-y-3">
                     {ticket.attachments.map((attachment) => (
-                      <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm text-gray-900">
-                        <div className="flex items-center space-x-3">
+                      <div key={attachment._id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm text-gray-900">
+                        <div className="flex items-start space-x-3">
                           <div className="flex-shrink-0">
                             {attachment.mimetype.startsWith('image/') ? (
                               <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,7 +484,7 @@ const TicketDetails: React.FC = () => {
                             <p className="text-sm font-medium text-gray-900 break-words" title={attachment.originalName}>
                               {attachment.originalName || attachment.filename}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 mt-1">
                               {(() => {
                                 const sizeInMB = attachment.size / 1024 / 1024;
                                 const sizeInKB = attachment.size / 1024;
@@ -506,31 +506,31 @@ const TicketDetails: React.FC = () => {
                                 <> • {attachment.uploadedBy.firstName} {attachment.uploadedBy.lastName || ''}</>
                               )}
                             </p>
+                            <div className="flex items-center space-x-2 mt-3">
+                              {attachment.mimetype.startsWith('image/') && (
+                                <button
+                                  onClick={() => navigate(`/photo/${attachment.filename}`)}
+                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  {t('common.view')}
+                                </button>
+                              )}
+                              <a
+                                href={`/api/files/${attachment.filename}`}
+                                download={attachment.originalName}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                {t('common.download')}
+                              </a>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {attachment.mimetype.startsWith('image/') && (
-                            <button
-                              onClick={() => navigate(`/photo/${attachment.filename}`)}
-                              className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                              {t('common.view')}
-                            </button>
-                          )}
-                          <a
-                            href={`/api/files/${attachment.filename}`}
-                            download={attachment.originalName}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            {t('common.download')}
-                          </a>
                         </div>
                       </div>
                     ))}
