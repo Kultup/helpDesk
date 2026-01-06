@@ -613,15 +613,26 @@ exports.createComment = async (req, res) => {
 
     // Відправка FCM сповіщення автору тікету та призначеному користувачу про новий коментар
     // Відправка сповіщень через FCM та Telegram
+    logger.info('🔔 Початок відправки сповіщень про коментар (до try блоку)', {
+      ticketId: ticket._id.toString(),
+      commentId: comment._id.toString(),
+      authorId: req.user._id.toString(),
+      ticketCreatedBy: ticket.createdBy ? (ticket.createdBy._id ? ticket.createdBy._id.toString() : ticket.createdBy.toString()) : 'null',
+      ticketAssignedTo: ticket.assignedTo ? (ticket.assignedTo._id ? ticket.assignedTo._id.toString() : ticket.assignedTo.toString()) : 'null'
+    });
+    
     try {
+      logger.info('🔔 Завантаження сервісів для сповіщень');
       const fcmService = require('../services/fcmService');
       const telegramService = require('../services/telegramServiceInstance');
       const User = require('../models/User');
       
-      logger.info('Початок відправки сповіщень про коментар', {
+      logger.info('✅ Сервіси завантажено, початок відправки сповіщень про коментар', {
         ticketId: ticket._id.toString(),
         commentId: comment._id.toString(),
-        authorId: req.user._id.toString()
+        authorId: req.user._id.toString(),
+        telegramServiceInitialized: telegramService.isInitialized,
+        telegramBotExists: !!telegramService.bot
       });
       
       const recipients = [];
@@ -752,6 +763,12 @@ exports.createComment = async (req, res) => {
       logger.info('✅ Сповіщення про новий коментар відправлено');
     } catch (error) {
       logger.error('❌ Помилка відправки сповіщень про коментар:', error);
+      logger.error('❌ Деталі помилки відправки сповіщень:', {
+        message: error.message,
+        stack: error.stack,
+        ticketId: ticket._id.toString(),
+        commentId: comment._id.toString()
+      });
     }
 
     res.status(201).json({
