@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -42,11 +42,26 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         // Коментарі приходять разом з тікетом
         if (ticket.comments && Array.isArray(ticket.comments)) {
           // Фільтруємо коментарі, які мають контент
-          const validComments = ticket.comments.filter((c: any) => c && c.content);
+          const validComments = ticket.comments
+            .filter((c: any) => c && c.content)
+            .map((c: any) => {
+              // Переконуємося, що коментар має правильний формат
+              return {
+                ...c,
+                _id: c._id || c.id,
+                content: c.content || '',
+                author: c.author || { email: 'Невідомий користувач' },
+                createdAt: c.createdAt || c.created_at || new Date().toISOString()
+              };
+            });
           console.log('🔔 Валідні коментарі:', validComments.length, validComments);
           setComments(validComments);
         } else {
-          console.warn('⚠️ Коментарі не знайдено або не є масивом');
+          console.warn('⚠️ Коментарі не знайдено або не є масивом', {
+            hasComments: !!ticket.comments,
+            commentsType: typeof ticket.comments,
+            comments: ticket.comments
+          });
           setComments([]);
         }
       } else {
@@ -63,6 +78,64 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
 
   useEffect(() => {
     loadComments();
+  }, [ticketId]);
+
+  // WebSocket підписка для оновлення коментарів в реальному часі
+  useEffect(() => {
+    let socket: any = null;
+    
+    const setupSocket = async () => {
+      try {
+        const { io } = await import('socket.io-client');
+        const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || window.location.origin) as string;
+        const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+        
+        socket = io(socketUrl, { transports: ['websocket'] });
+        
+        socket.on('connect', () => {
+          console.log('🔔 WebSocket підключено для коментарів');
+          // Підключаємося до кімнати тікету
+          socket.emit('join-ticket-room', ticketId);
+        });
+
+        // Слухаємо сповіщення про нові коментарі
+        socket.on('ticket-comment', (data: { ticketId: string; comment: Comment }) => {
+          console.log('🔔 Отримано WebSocket сповіщення про новий коментар:', data);
+          if (data.ticketId === ticketId && data.comment) {
+            setComments(prev => {
+              // Перевіряємо, чи коментар вже є в списку
+              const exists = prev.some(c => c._id === data.comment._id);
+              if (!exists) {
+                return [...prev, data.comment];
+              }
+              return prev;
+            });
+          }
+        });
+
+        socket.on('disconnect', () => {
+          console.log('🔔 WebSocket відключено для коментарів');
+        });
+
+        socket.on('error', (error: any) => {
+          console.error('❌ WebSocket помилка для коментарів:', error);
+        });
+      } catch (error) {
+        console.error('❌ Помилка налаштування WebSocket для коментарів:', error);
+      }
+    };
+
+    setupSocket();
+
+    return () => {
+      if (socket) {
+        try {
+          socket.disconnect();
+        } catch (error) {
+          console.error('❌ Помилка відключення WebSocket:', error);
+        }
+      }
+    };
   }, [ticketId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +172,19 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   };
 
   const canDelete = (comment: Comment) => {
-    return user?._id === comment.author._id || user?.role === 'admin';
+    if (!comment.author) return false;
+    const authorId = typeof comment.author === 'object' && comment.author._id 
+      ? comment.author._id 
+      : comment.author;
+    return user?._id === authorId || user?.role === 'admin';
+  };
+
+  const getAuthorEmail = (comment: Comment) => {
+    if (!comment.author) return t('common.unknownUser');
+    if (typeof comment.author === 'object' && comment.author.email) {
+      return comment.author.email;
+    }
+    return t('common.unknownUser');
   };
 
   return (
@@ -160,7 +245,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm sm:text-base font-semibold text-gray-900">
-                          {comment.author?.email || t('common.unknownUser')}
+                          {getAuthorEmail(comment)}
                         </span>
                         <span className="text-xs sm:text-sm text-gray-500">
                           {formatDate(comment.createdAt)}
