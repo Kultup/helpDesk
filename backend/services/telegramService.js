@@ -30,6 +30,7 @@ class TelegramService {
     this.mode = 'webhook';
     this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
+    this.navigationHistory = new Map(); // Історія навігації для кожного користувача (chatId -> ['screen1', 'screen2', ...])
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -351,6 +352,12 @@ class TelegramService {
         // Обробка фото для зареєстрованих користувачів
         if (msg.photo) {
           await this.handlePhoto(msg);
+          return;
+        }
+
+        // Обробка документів (файлів) для зареєстрованих користувачів
+        if (msg.document) {
+          await this.handleDocument(msg);
           return;
         }
 
@@ -924,16 +931,69 @@ class TelegramService {
   }
 
   async showUserDashboard(chatId, user) {
-    // Перезавантажуємо користувача з populate, якщо дані не завантажені
-    if (!user.position || !user.city || typeof user.position === 'string' || typeof user.city === 'string') {
-      user = await User.findById(user._id)
-        .populate('position', 'title')
-        .populate('city', 'name');
+    // Очищаємо історію навігації при показі головного меню
+    this.clearNavigationHistory(chatId);
+    
+    // Завжди перезавантажуємо користувача з populate для отримання актуальних даних
+    try {
+      user = await User.findById(user._id || user)
+        .populate('position', 'title name')
+        .populate('city', 'name region');
+      
+      if (!user) {
+        logger.error('Користувач не знайдений при показі dashboard', { chatId, userId: user?._id });
+        await this.sendMessage(chatId, '❌ Помилка: користувач не знайдений. Зверніться до адміністратора.');
+        return;
+      }
+    } catch (error) {
+      logger.error('Помилка завантаження даних користувача для dashboard', { 
+        chatId, 
+        userId: user?._id, 
+        error: error.message 
+      });
+      await this.sendMessage(chatId, '❌ Помилка завантаження даних профілю. Спробуйте ще раз.');
+      return;
     }
     
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Не вказано';
-    const positionName = (user.position && typeof user.position === 'object' ? user.position.title : user.position) || 'Не вказано';
-    const cityName = (user.city && typeof user.city === 'object' ? user.city.name : user.city) || 'Не вказано';
+    
+    // Отримуємо назву посади
+    let positionName = 'Не вказано';
+    if (user.position) {
+      if (typeof user.position === 'object' && user.position !== null) {
+        positionName = user.position.title || user.position.name || 'Не вказано';
+      } else if (typeof user.position === 'string') {
+        positionName = user.position;
+      }
+    } else {
+      logger.info('Користувач не має посади', { userId: user._id, email: user.email });
+    }
+    
+    // Отримуємо назву міста
+    let cityName = 'Не вказано';
+    if (user.city) {
+      if (typeof user.city === 'object' && user.city !== null) {
+        cityName = user.city.name || 'Не вказано';
+      } else if (typeof user.city === 'string') {
+        cityName = user.city;
+      }
+    } else {
+      logger.info('Користувач не має міста', { userId: user._id, email: user.email });
+    }
+    
+    // Логування для діагностики
+    logger.info('Відображення dashboard користувача', {
+      userId: user._id,
+      email: user.email,
+      hasPosition: !!user.position,
+      positionType: typeof user.position,
+      positionValue: user.position,
+      hasCity: !!user.city,
+      cityType: typeof user.city,
+      cityValue: user.city,
+      positionName,
+      cityName
+    });
     
     const welcomeText = 
       `🎉 *Вітаємо в системі підтримки!*\n` +
@@ -1018,11 +1078,14 @@ class TelegramService {
       }
 
       if (data === 'my_tickets') {
+        this.pushNavigationHistory(chatId, 'my_tickets');
         await this.handleMyTicketsCallback(chatId, user);
       } else if (data === 'ticket_history') {
+        this.pushNavigationHistory(chatId, 'ticket_history');
         await this.handleTicketHistoryCallback(chatId, user);
       } else if (data.startsWith('view_ticket_')) {
         const ticketId = data.replace('view_ticket_', '');
+        this.pushNavigationHistory(chatId, `view_ticket_${ticketId}`);
         await this.handleViewTicketCallback(chatId, user, ticketId);
       } else if (data.startsWith('recreate_ticket_')) {
         const ticketId = data.replace('recreate_ticket_', '');
@@ -1036,9 +1099,16 @@ class TelegramService {
       } else if (data === 'create_ticket') {
         await this.handleCreateTicketCallback(chatId, user);
       } else if (data === 'statistics') {
+        this.pushNavigationHistory(chatId, 'statistics');
         await this.handleStatisticsCallback(chatId, user);
       } else if (data === 'back') {
+        await this.handleBackNavigation(chatId, user);
+      } else if (data === 'back_to_menu') {
+        this.clearNavigationHistory(chatId);
         await this.showUserDashboard(chatId, user);
+      } else if (data === 'back_to_tickets') {
+        this.popNavigationHistory(chatId);
+        await this.handleMyTicketsCallback(chatId, user);
       } else if (data.startsWith('rate_ticket_')) {
         const parts = data.split('_');
         const ticketId = parts[2];
@@ -1047,6 +1117,10 @@ class TelegramService {
         await this.answerCallbackQuery(callbackQuery.id, 'Дякуємо за оцінку');
       } else if (data === 'attach_photo') {
         await this.handleAttachPhotoCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'attach_document') {
+        await this.handleAttachDocumentCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'skip_photo') {
         await this.handleSkipPhotoCallback(chatId, user);
       } else if (data === 'add_more_photos') {
@@ -1137,7 +1211,7 @@ class TelegramService {
           `📄 У вас поки що немає тікетів\n` +
           `💡 Створіть новий тікет для отримання допомоги`, {
           reply_markup: {
-            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
           }
         });
         return;
@@ -1163,7 +1237,7 @@ class TelegramService {
         keyboard.push(ticketButtons.slice(i, i + 2));
       }
       
-      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
+      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]);
 
       await this.sendMessage(chatId, text, {
         reply_markup: { inline_keyboard: keyboard }
@@ -1193,7 +1267,7 @@ class TelegramService {
           `📄 У вас поки що немає тікетів\n` +
           `💡 Створіть новий тікет для отримання допомоги`, {
           reply_markup: {
-            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+            inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
           }
         });
         return;
@@ -1231,7 +1305,7 @@ class TelegramService {
       for (let i = 0; i < keyboard.length; i += 2) {
         historyKeyboard.push(keyboard.slice(i, i + 2));
       }
-      historyKeyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
+      historyKeyboard.push([{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]);
 
       await this.sendMessage(chatId, text, {
         reply_markup: { inline_keyboard: historyKeyboard },
@@ -1394,6 +1468,17 @@ class TelegramService {
       // Встановлюємо активний тікет для відповіді
       this.setActiveTicketForUser(chatId, ticketId);
 
+      // Визначаємо, звідки прийшов користувач для кнопки "Назад"
+      const history = this.getNavigationHistory(chatId);
+      const backButtons = [];
+      
+      if (history.length > 1 && (history[history.length - 2] === 'my_tickets' || history[history.length - 2] === 'ticket_history')) {
+        // Якщо прийшов зі списку тікетів, додаємо кнопку "Назад до списку"
+        backButtons.push({ text: '⬅️ Назад до списку', callback_data: 'back' });
+      }
+      
+      backButtons.push({ text: '🏠 Головне меню', callback_data: 'back_to_menu' });
+
       await this.sendMessage(chatId, message, {
         reply_markup: {
           inline_keyboard: [
@@ -1401,9 +1486,7 @@ class TelegramService {
               { text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50), callback_data: `recreate_ticket_${ticket._id}` },
               { text: '💬 Відповісти', callback_data: `reply_ticket_${ticket._id}` }
             ],
-            [
-              { text: '🏠 Головне меню', callback_data: 'back' }
-            ]
+            backButtons
           ]
         },
         parse_mode: 'Markdown'
@@ -1665,7 +1748,8 @@ class TelegramService {
       step: 'title',
       ticketData: {
         createdBy: user._id,
-        photos: []
+        photos: [],
+        documents: []
       }
     };
     
@@ -2087,13 +2171,16 @@ class TelegramService {
         case 'description':
           session.ticketData.description = text;
           
-          // Переходимо до додавання фото
+          // Переходимо до додавання фото/файлів
           session.step = 'photo';
           await this.sendMessage(chatId, 
-            `📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
+            `📎 *Крок 3/4:* Бажаєте додати фото або файли до заявки?`, {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                  [
+                    { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                    { text: '📎 Додати файл', callback_data: 'attach_document' }
+                  ],
                   [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
                   [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
                 ]
@@ -2124,6 +2211,148 @@ class TelegramService {
       await this.handleTicketPhoto(chatId, msg.photo, msg.caption);
     } else {
       await this.sendMessage(chatId, 'Фото можна прикріпляти тільки під час створення тікету.');
+    }
+  }
+
+  async handleDocument(msg) {
+    const chatId = msg.chat.id;
+    const session = this.userSessions.get(chatId);
+
+    if (session && session.step === 'photo') {
+      await this.handleTicketDocument(chatId, msg.document, msg.caption);
+    } else {
+      await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
+    }
+  }
+
+  async handleTicketDocument(chatId, document, caption) {
+    try {
+      const session = this.userSessions.get(chatId);
+      if (!session) {
+        await this.sendMessage(chatId, '❌ Сесія не знайдена. Почніть створення тікету спочатку.');
+        return;
+      }
+
+      if (!document || !document.file_id) {
+        logger.error('Документ не містить file_id', { document });
+        await this.sendMessage(chatId, 'Помилка: не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.');
+        return;
+      }
+
+      const fileId = document.file_id;
+      const fileSizeBytes = document.file_size || 0;
+      const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+
+      if (fileSizeBytes > maxSizeBytes) {
+        await this.sendMessage(chatId, 
+          `❌ Файл занадто великий!\n\n` +
+          `Розмір: ${formatFileSize(fileSizeBytes)}\n` +
+          `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
+          `Будь ласка, надішліть файл меншого розміру.`
+        );
+        return;
+      }
+
+      // Отримуємо інформацію про файл
+      let file;
+      try {
+        file = await this.bot.getFile(fileId);
+      } catch (error) {
+        logger.error('Помилка отримання інформації про файл', { fileId, error: error.message });
+        await this.sendMessage(chatId, 'Помилка: не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.');
+        return;
+      }
+
+      if (!file || !file.file_path) {
+        logger.error('Файл не містить file_path', { fileId, file });
+        await this.sendMessage(chatId, 'Помилка: не вдалося отримати шлях до файлу. Спробуйте надіслати ще раз.');
+        return;
+      }
+
+      // Визначаємо розширення файлу
+      const filePath = file.file_path;
+      const fileName = document.file_name || path.basename(filePath);
+      const fileExtension = path.extname(fileName).toLowerCase() || path.extname(filePath).toLowerCase() || '.bin';
+
+      // Ініціалізуємо масив документів, якщо його немає
+      if (!session.ticketData.documents) {
+        session.ticketData.documents = [];
+      }
+
+      // Перевіряємо кількість файлів (загальна кількість фото + документів)
+      const totalFiles = (session.ticketData.photos?.length || 0) + (session.ticketData.documents?.length || 0);
+      if (totalFiles >= 10) {
+        await this.sendMessage(chatId, 
+          `❌ Досягнуто максимальну кількість файлів!\n\n` +
+          `Максимум: 10 файлів на тікет\n` +
+          `Поточна кількість: ${totalFiles}\n\n` +
+          `Натисніть "Завершити" для продовження.`
+        );
+        return;
+      }
+      
+      // Завантажуємо та зберігаємо файл
+      let savedPath;
+      try {
+        savedPath = await this.downloadTelegramFileByFileId(fileId, fileExtension);
+        logger.info('Файл успішно завантажено', { filePath, savedPath, fileId, fileName });
+      } catch (downloadError) {
+        logger.error('Помилка завантаження файлу з Telegram', {
+          filePath,
+          fileId,
+          fileName,
+          error: downloadError.message,
+          stack: downloadError.stack
+        });
+        await this.sendMessage(chatId, 
+          `❌ Помилка завантаження файлу!\n\n` +
+          `Не вдалося завантажити файл з Telegram серверів.\n` +
+          `Спробуйте надіслати файл ще раз або зверніться до адміністратора.`
+        );
+        return;
+      }
+      
+      // Додаємо файл до сесії
+      session.ticketData.documents.push({
+        fileId: fileId,
+        path: savedPath,
+        fileName: fileName,
+        caption: caption || '',
+        size: fileSizeBytes,
+        extension: fileExtension,
+        mimeType: document.mime_type || 'application/octet-stream'
+      });
+
+      await this.sendMessage(chatId, 
+        `✅ Файл додано! (${totalFiles + 1}/10)\n\n` +
+        `📄 Назва: ${fileName}\n` +
+        `📏 Розмір: ${formatFileSize(fileSizeBytes)}\n` +
+        `📋 Формат: ${fileExtension.toUpperCase() || 'невідомий'}\n\n` +
+        'Хочете додати ще файли?', {
+          reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📎 Додати ще файл', callback_data: 'add_more_photos' },
+                  { text: '✅ Завершити', callback_data: 'finish_ticket' }
+                ],
+                [
+                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+                ]
+              ]
+            }
+          }
+        );
+    } catch (error) {
+      logger.error('Помилка обробки документа:', {
+        error: error.message,
+        stack: error.stack,
+        chatId
+      });
+      await this.sendMessage(chatId, 
+        `❌ Помилка обробки файлу!\n\n` +
+        `Виникла несподівана помилка. Спробуйте надіслати файл ще раз.\n` +
+        `Якщо проблема повторюється, зверніться до адміністратора.`
+      );
     }
   }
 
@@ -2169,14 +2398,14 @@ class TelegramService {
        }
 
        const fileSizeBytes = file.file_size || 0;
-       const maxSizeBytes = 20 * 1024 * 1024; // 20MB
+       const maxSizeBytes = 50 * 1024 * 1024; // 50MB
 
        if (fileSizeBytes > maxSizeBytes) {
          await this.sendMessage(chatId, 
-           `❌ Фото занадто велике!\n\n` +
+           `❌ Файл занадто великий!\n\n` +
            `Розмір: ${formatFileSize(fileSizeBytes)}\n` +
            `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
-           `Будь ласка, надішліть фото меншого розміру.`
+           `Будь ласка, надішліть файл меншого розміру.`
          );
          return;
        }
@@ -2385,7 +2614,7 @@ class TelegramService {
       }
 
       // Створюємо папку для фото якщо не існує
-      const uploadsDir = path.join(__dirname, '../uploads/telegram-photos');
+      const uploadsDir = path.join(__dirname, '../uploads/telegram-files');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -2462,7 +2691,7 @@ class TelegramService {
       const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
       
       // Створюємо папку для фото якщо не існує
-      const uploadsDir = path.join(__dirname, '../uploads/telegram-photos');
+      const uploadsDir = path.join(__dirname, '../uploads/telegram-files');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -2559,6 +2788,22 @@ class TelegramService {
     await this.sendMessage(chatId, 
       '📷 Надішліть фото для прикріплення до тікету.\n\n' +
       'Ви можете додати підпис до фото для додаткової інформації.'
+    );
+  }
+
+  async handleAttachDocumentCallback(chatId, user) {
+    const session = this.userSessions.get(chatId);
+    if (!session || session.step !== 'photo') {
+      await this.sendMessage(chatId, 'Помилка: не вдалося знайти сесію створення тікету.');
+      return;
+    }
+
+    await this.sendMessage(chatId, 
+      `📎 *Додавання файлу*\n\n` +
+      `Надішліть файл, який хочете прикріпити до заявки.\n\n` +
+      `📏 *Максимальний розмір:* 50 МБ\n` +
+      `📋 *Підтримувані формати:* Всі типи файлів\n\n` +
+      `💡 Ви можете додати до 10 файлів (фото + документи разом).`
     );
   }
 
@@ -2680,7 +2925,7 @@ class TelegramService {
 
       await this.sendMessage(chatId, text, {
         reply_markup: {
-          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
         },
         parse_mode: 'Markdown'
       });
@@ -2776,7 +3021,7 @@ class TelegramService {
               { text: '📊 Статистика', callback_data: 'statistics' }
             ],
             [
-              { text: '🏠 Головне меню', callback_data: 'back' }
+              { text: '🏠 Головне меню', callback_data: 'back_to_menu' }
             ]
           ]
         },
@@ -2816,25 +3061,67 @@ class TelegramService {
         metadata: {
           source: 'telegram'
         },
-        attachments: session.ticketData.photos.map(photo => {
-          let fileSize = 0;
-          try {
-            const stats = fs.statSync(photo.path);
-            fileSize = stats.size;
-          } catch (error) {
-            logger.error(`Помилка отримання розміру файлу ${photo.path}:`, error);
-          }
-          
-          return {
-            filename: path.basename(photo.path),
-            originalName: photo.caption || path.basename(photo.path),
-            mimetype: 'image/jpeg', // Можна визначити тип файлу пізніше
-            size: fileSize,
-            path: photo.path,
-            uploadedBy: user._id,
-            caption: photo.caption
-          };
-        })
+        attachments: [
+          // Додаємо фото
+          ...(session.ticketData.photos || []).map(photo => {
+            let fileSize = 0;
+            try {
+              const stats = fs.statSync(photo.path);
+              fileSize = stats.size;
+            } catch (error) {
+              logger.error(`Помилка отримання розміру файлу ${photo.path}:`, error);
+            }
+            
+            return {
+              filename: path.basename(photo.path),
+              originalName: photo.caption || path.basename(photo.path),
+              mimetype: 'image/jpeg', // Можна визначити тип файлу пізніше
+              size: fileSize,
+              path: photo.path,
+              uploadedBy: user._id,
+              caption: photo.caption
+            };
+          }),
+          // Додаємо документи
+          ...(session.ticketData.documents || []).map(doc => {
+            let fileSize = 0;
+            try {
+              const stats = fs.statSync(doc.path);
+              fileSize = stats.size;
+            } catch (error) {
+              logger.error(`Помилка отримання розміру файлу ${doc.path}:`, error);
+            }
+            
+            // Визначаємо MIME тип на основі розширення
+            const mimeTypes = {
+              '.pdf': 'application/pdf',
+              '.doc': 'application/msword',
+              '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              '.xls': 'application/vnd.ms-excel',
+              '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              '.txt': 'text/plain',
+              '.zip': 'application/zip',
+              '.rar': 'application/x-rar-compressed',
+              '.7z': 'application/x-7z-compressed',
+              '.mp3': 'audio/mpeg',
+              '.mp4': 'video/mp4',
+              '.avi': 'video/x-msvideo',
+              '.mov': 'video/quicktime'
+            };
+            
+            const mimeType = mimeTypes[doc.extension.toLowerCase()] || doc.mimeType || 'application/octet-stream';
+            
+            return {
+              filename: path.basename(doc.path),
+              originalName: doc.fileName || doc.caption || path.basename(doc.path),
+              mimetype: mimeType,
+              size: fileSize,
+              path: doc.path,
+              uploadedBy: user._id,
+              caption: doc.caption
+            };
+          })
+        ]
       };
 
       const ticket = new Ticket(ticketData);
@@ -2924,7 +3211,7 @@ class TelegramService {
 
        await this.sendMessage(chatId, confirmText, {
          reply_markup: {
-           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
          }
        });
 
@@ -5005,7 +5292,7 @@ class TelegramService {
             inline_keyboard: [
               [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
               [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
-              [{ text: '🔄 Головне меню', callback_data: 'show_dashboard' }]
+              [{ text: '🔄 Головне меню', callback_data: 'back_to_menu' }]
             ]
           }
         });
@@ -5018,6 +5305,71 @@ class TelegramService {
         chatId,
         '❌ Виникла помилка при обробці вашого запиту. Спробуйте пізніше або скористайтеся меню.'
       );
+      await this.showUserDashboard(chatId, user);
+    }
+  }
+
+  // Методи для навігації
+  pushNavigationHistory(chatId, screen) {
+    if (!this.navigationHistory.has(chatId)) {
+      this.navigationHistory.set(chatId, []);
+    }
+    const history = this.navigationHistory.get(chatId);
+    // Додаємо екран, якщо він відрізняється від останнього
+    if (history.length === 0 || history[history.length - 1] !== screen) {
+      history.push(screen);
+      // Обмежуємо історію до 10 екранів
+      if (history.length > 10) {
+        history.shift();
+      }
+    }
+  }
+
+  popNavigationHistory(chatId) {
+    if (this.navigationHistory.has(chatId)) {
+      const history = this.navigationHistory.get(chatId);
+      if (history.length > 0) {
+        history.pop();
+      }
+    }
+  }
+
+  getNavigationHistory(chatId) {
+    return this.navigationHistory.get(chatId) || [];
+  }
+
+  clearNavigationHistory(chatId) {
+    this.navigationHistory.delete(chatId);
+  }
+
+  async handleBackNavigation(chatId, user) {
+    const history = this.getNavigationHistory(chatId);
+    
+    if (history.length <= 1) {
+      // Якщо історія порожня або містить тільки поточний екран, повертаємося до головного меню
+      this.clearNavigationHistory(chatId);
+      await this.showUserDashboard(chatId, user);
+      return;
+    }
+
+    // Видаляємо поточний екран
+    this.popNavigationHistory(chatId);
+    
+    // Отримуємо попередній екран
+    const previousScreen = history[history.length - 2];
+    
+    if (previousScreen === 'my_tickets') {
+      await this.handleMyTicketsCallback(chatId, user);
+    } else if (previousScreen === 'ticket_history') {
+      await this.handleTicketHistoryCallback(chatId, user);
+    } else if (previousScreen === 'statistics') {
+      await this.handleStatisticsCallback(chatId, user);
+    } else if (previousScreen && previousScreen.startsWith('view_ticket_')) {
+      const ticketId = previousScreen.replace('view_ticket_', '');
+      await this.handleViewTicketCallback(chatId, user, ticketId);
+    } else {
+      // Якщо не вдалося визначити попередній екран, повертаємося до головного меню
+      this.clearNavigationHistory(chatId);
       await this.showUserDashboard(chatId, user);
     }
   }
