@@ -606,10 +606,21 @@ exports.createComment = async (req, res) => {
     ]);
     
     // Заповнити тікет для отримання інформації про автора та призначеного
+    logger.info('🔔 Перед populate тікету для сповіщень', {
+      ticketId: ticket._id.toString(),
+      commentId: comment._id.toString()
+    });
+    
     await ticket.populate([
       { path: 'createdBy', select: '_id' },
       { path: 'assignedTo', select: '_id' }
     ]);
+    
+    logger.info('🔔 Після populate тікету для сповіщень', {
+      ticketId: ticket._id.toString(),
+      hasCreatedBy: !!ticket.createdBy,
+      hasAssignedTo: !!ticket.assignedTo
+    });
 
     // Відправка FCM сповіщення автору тікету та призначеному користувачу про новий коментар
     // Відправка сповіщень через FCM та Telegram
