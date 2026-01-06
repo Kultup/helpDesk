@@ -615,7 +615,7 @@ exports.createComment = async (req, res) => {
     // Відправка сповіщень через FCM та Telegram
     try {
       const fcmService = require('../services/fcmService');
-      const telegramService = require('../services/telegramService');
+      const telegramService = require('../services/telegramServiceInstance');
       const User = require('../models/User');
       
       const recipients = [];
