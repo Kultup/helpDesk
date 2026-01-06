@@ -159,8 +159,8 @@ const mongoOptions = {
   maxIdleTimeMS: 30000, // Час очікування перед закриттям неактивного з'єднання
   heartbeatFrequencyMS: 10000, // Частота перевірки з'єднання
   retryWrites: true,
-  bufferMaxEntries: 0, // Вимкнути буферизацію операцій
-  bufferCommands: false // Вимкнути буферизацію команд
+  bufferMaxEntries: 0, // Необмежена буферизація операцій
+  bufferCommands: true // Увімкнути буферизацію команд до підключення
 };
 
 // Обробка подій підключення MongoDB
@@ -237,6 +237,55 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   const errorNotificationService = require('./services/errorNotificationService');
   errorNotificationService.initialize(io);
   logger.info('✅ Error Notification Service ініціалізовано');
+  
+  // Запускаємо сервер тільки після успішного підключення до MongoDB
+  const PORT = process.env.PORT || 5000;
+  
+  server.listen(PORT, async () => {
+    logger.info(`🚀 Сервер запущено на порту ${PORT}`);
+    logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
+    const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
+    logger.info(`🌐 API базова адреса: ${apiBase}`);
+    logger.info(
+      `🔌 Дозволені CORS origins для WebSocket: ${
+        allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
+      }`
+    );
+    
+    // Логуємо старт сервера у щоденний audit лог
+    try {
+      const { auditLogger } = require('./middleware/logging');
+      const fs = require('fs').promises;
+      const path = require('path');
+      const logsDir = path.join(__dirname, 'logs');
+      
+      // Функція для отримання локальної дати
+      const getLocalDateString = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      await fs.mkdir(logsDir, { recursive: true });
+      const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
+      const startupLog = {
+        timestamp: new Date().toISOString(),
+        action: 'SERVER_START',
+        details: {
+          port: PORT,
+          nodeEnv: process.env.NODE_ENV || 'development',
+          apiBase: apiBase,
+          pid: process.pid
+        }
+      };
+      await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
+    } catch (error) {
+      // Не критична помилка, просто логуємо
+      logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
+    }
+  });
   
   // WebSocket обробка підключень
   io.on('connection', (socket) => {
@@ -494,53 +543,7 @@ app.use(notFoundHandler);
 // Глобальна обробка помилок
 app.use(globalErrorHandler);
 
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, async () => {
-  logger.info(`🚀 Сервер запущено на порту ${PORT}`);
-  logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
-  const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
-  logger.info(`🌐 API базова адреса: ${apiBase}`);
-  logger.info(
-    `🔌 Дозволені CORS origins для WebSocket: ${
-      allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
-    }`
-  );
-  
-  // Логуємо старт сервера у щоденний audit лог
-  try {
-    const { auditLogger } = require('./middleware/logging');
-    const fs = require('fs').promises;
-    const path = require('path');
-    const logsDir = path.join(__dirname, 'logs');
-    
-    // Функція для отримання локальної дати
-    const getLocalDateString = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    
-    await fs.mkdir(logsDir, { recursive: true });
-    const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
-    const startupLog = {
-      timestamp: new Date().toISOString(),
-      action: 'SERVER_START',
-      details: {
-        port: PORT,
-        nodeEnv: process.env.NODE_ENV || 'development',
-        apiBase: apiBase,
-        pid: process.pid
-      }
-    };
-    await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
-  } catch (error) {
-    // Не критична помилка, просто логуємо
-    logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
-  }
-});
+// PORT та server.listen() тепер викликаються всередині .then() блоку після підключення MongoDB
 
 // Graceful shutdown
 const { gracefulShutdownHandler } = require('./middleware');
