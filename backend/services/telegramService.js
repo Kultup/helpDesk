@@ -2116,22 +2116,52 @@ class TelegramService {
   async handleTicketPhoto(chatId, photos, caption) {
      try {
        const session = this.userSessions.get(chatId);
-       if (!session) return;
+       if (!session) {
+         logger.warn('Спроба додати фото без активної сесії', { chatId });
+         await this.sendMessage(chatId, 'Ви не в процесі створення тікету. Використайте /start для початку.');
+         return;
+       }
+
+       if (!photos || photos.length === 0) {
+         logger.warn('Отримано порожній масив фото', { chatId });
+         await this.sendMessage(chatId, 'Не вдалося отримати фото. Спробуйте надіслати ще раз.');
+         return;
+       }
 
        // Беремо найбільше фото
        const photo = photos[photos.length - 1];
+       if (!photo || !photo.file_id) {
+         logger.error('Фото не містить file_id', { chatId, photos });
+         await this.sendMessage(chatId, 'Помилка: фото не містить необхідних даних. Спробуйте надіслати ще раз.');
+         return;
+       }
+
        const fileId = photo.file_id;
 
        // Перевіряємо розмір фото
-       const file = await this.bot.getFile(fileId);
-       const fileSizeBytes = file.file_size;
+       let file;
+       try {
+         file = await this.bot.getFile(fileId);
+       } catch (error) {
+         logger.error('Помилка отримання інформації про файл з Telegram', { fileId, error: error.message });
+         await this.sendMessage(chatId, 'Помилка отримання інформації про фото. Спробуйте надіслати ще раз.');
+         return;
+       }
+
+       if (!file || !file.file_path) {
+         logger.error('Файл не містить file_path', { fileId, file });
+         await this.sendMessage(chatId, 'Помилка: не вдалося отримати шлях до файлу. Спробуйте надіслати ще раз.');
+         return;
+       }
+
+       const fileSizeBytes = file.file_size || 0;
        const maxSizeBytes = 20 * 1024 * 1024; // 20MB
 
        if (fileSizeBytes > maxSizeBytes) {
          await this.sendMessage(chatId, 
            `❌ Фото занадто велике!\n\n` +
            `Розмір: ${formatFileSize(fileSizeBytes)}\n` +
-      `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
+           `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
            `Будь ласка, надішліть фото меншого розміру.`
          );
          return;
@@ -2153,6 +2183,10 @@ class TelegramService {
        }
 
        // Перевіряємо кількість фото
+       if (!session.ticketData.photos) {
+         session.ticketData.photos = [];
+       }
+
        if (session.ticketData.photos.length >= 5) {
          await this.sendMessage(chatId, 
            `❌ Досягнуто максимальну кількість фото!\n\n` +
@@ -2164,7 +2198,24 @@ class TelegramService {
        }
        
        // Завантажуємо та зберігаємо фото
-       const savedPath = await this.downloadTelegramFile(filePath);
+       let savedPath;
+       try {
+         savedPath = await this.downloadTelegramFile(filePath);
+         logger.info('Фото успішно завантажено', { filePath, savedPath, fileId });
+       } catch (downloadError) {
+         logger.error('Помилка завантаження фото з Telegram', {
+           filePath,
+           fileId,
+           error: downloadError.message,
+           stack: downloadError.stack
+         });
+         await this.sendMessage(chatId, 
+           `❌ Помилка завантаження фото!\n\n` +
+           `Не вдалося завантажити фото з Telegram серверів.\n` +
+           `Спробуйте надіслати фото ще раз або зверніться до адміністратора.`
+         );
+         return;
+       }
        
        // Додаємо фото до сесії
        session.ticketData.photos.push({
@@ -2194,8 +2245,16 @@ class TelegramService {
            }
          );
      } catch (error) {
-       logger.error('Помилка обробки фото:', error);
-       await this.sendMessage(chatId, 'Помилка обробки фото. Спробуйте ще раз.');
+       logger.error('Помилка обробки фото:', {
+         error: error.message,
+         stack: error.stack,
+         chatId
+       });
+       await this.sendMessage(chatId, 
+         `❌ Помилка обробки фото!\n\n` +
+         `Виникла несподівана помилка. Спробуйте надіслати фото ще раз.\n` +
+         `Якщо проблема повторюється, зверніться до адміністратора.`
+       );
      }
    }
 
