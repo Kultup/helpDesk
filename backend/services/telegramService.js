@@ -881,9 +881,13 @@ class TelegramService {
             parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [
-                  [{ text: '🔐 Авторизуватися', callback_data: 'login_user' }],
-                [{ text: '📝 Зареєструватися', callback_data: 'register_user' }],
-                [{ text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }]
+                [
+                  { text: '🔐 Авторизуватися', callback_data: 'login_user' },
+                  { text: '📝 Зареєструватися', callback_data: 'register_user' }
+                ],
+                [
+                  { text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }
+                ]
               ]
             }
           }
@@ -930,9 +934,7 @@ class TelegramService {
           { text: '📋 Мої тікети', callback_data: 'my_tickets' }
         ],
         [
-          { text: '📜 Історія тікетів', callback_data: 'ticket_history' }
-        ],
-        [
+          { text: '📜 Історія тікетів', callback_data: 'ticket_history' },
           { text: '📊 Статистика', callback_data: 'statistics' }
         ]
       ]
@@ -1131,14 +1133,22 @@ class TelegramService {
       
       const keyboard = [];
 
+      // Групуємо кнопки по 2 в рядок
+      const ticketButtons = [];
       tickets.forEach((ticket, index) => {
         const emoji = this.getStatusEmoji(ticket.status);
         const statusText = this.getStatusText(ticket.status);
         const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const title = this.truncateButtonText(ticket.title, 50);
         text += `\n${index + 1}. ${emoji} *${title}* — ${statusText}, \`${date}\``;
-        keyboard.push([{ text: '🔎 Деталі', callback_data: `view_ticket_${ticket._id}` }]);
+        ticketButtons.push({ text: '🔎 Деталі', callback_data: `view_ticket_${ticket._id}` });
       });
+      
+      // Розбиваємо кнопки на рядки по 2
+      for (let i = 0; i < ticketButtons.length; i += 2) {
+        keyboard.push(ticketButtons.slice(i, i + 2));
+      }
+      
       keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
@@ -1194,13 +1204,20 @@ class TelegramService {
           `   📊 ${statusText} | 📅 ${date}`;
         
         // Кнопка для повторного створення тікету
-        keyboard.push([{
+        keyboard.push({
           text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50),
           callback_data: `recreate_ticket_${ticket._id}`
-        }]);
+        });
       });
 
       text += `\n\n💡 Натисніть кнопку, щоб створити новий тікет на основі попереднього`;
+      
+      // Розбиваємо кнопки на рядки по 2
+      const historyKeyboard = [];
+      for (let i = 0; i < keyboard.length; i += 2) {
+        historyKeyboard.push(keyboard.slice(i, i + 2));
+      }
+      historyKeyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
       
       keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
@@ -1269,8 +1286,10 @@ class TelegramService {
       await this.sendMessage(chatId, message, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '✅ Використати попередній заголовок', callback_data: 'use_previous_title' }],
-            [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            [
+              { text: '✅ Використати попередній заголовок', callback_data: 'use_previous_title' },
+              { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+            ]
           ]
         },
         parse_mode: 'Markdown'
@@ -1366,9 +1385,13 @@ class TelegramService {
       await this.sendMessage(chatId, message, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50), callback_data: `recreate_ticket_${ticket._id}` }],
-            [{ text: '💬 Відповісти на тікет', callback_data: `reply_ticket_${ticket._id}` }],
-            [{ text: '🏠 Головне меню', callback_data: 'back' }]
+            [
+              { text: this.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50), callback_data: `recreate_ticket_${ticket._id}` },
+              { text: '💬 Відповісти', callback_data: `reply_ticket_${ticket._id}` }
+            ],
+            [
+              { text: '🏠 Головне меню', callback_data: 'back' }
+            ]
           ]
         },
         parse_mode: 'Markdown'
@@ -1560,8 +1583,10 @@ class TelegramService {
         `💡 Опишіть детально вашу проблему`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '✅ Використати попередній опис', callback_data: 'use_previous_description' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+              [
+                { text: '✅ Використати попередній опис', callback_data: 'use_previous_description' },
+                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+              ]
             ]
           },
           parse_mode: 'Markdown'
@@ -1601,9 +1626,13 @@ class TelegramService {
         `\n📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-              [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+              [
+                { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                { text: '⏭️ Пропустити', callback_data: 'skip_photo' }
+              ],
+              [
+                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+              ]
             ]
           },
           parse_mode: 'Markdown'
@@ -2155,9 +2184,13 @@ class TelegramService {
          'Хочете додати ще фото?', {
            reply_markup: {
                inline_keyboard: [
-                 [{ text: '📷 Додати ще фото', callback_data: 'add_more_photos' }],
-                 [{ text: '✅ Завершити', callback_data: 'finish_ticket' }],
-                 [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                 [
+                   { text: '📷 Додати ще фото', callback_data: 'add_more_photos' },
+                   { text: '✅ Завершити', callback_data: 'finish_ticket' }
+                 ],
+                 [
+                   { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+                 ]
                ]
              }
            }
@@ -2317,10 +2350,14 @@ class TelegramService {
         this.getPriorityPromptText(), {
           reply_markup: {
             inline_keyboard: [
-              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
-              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
-              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+              [
+                { text: this.getPriorityText('high'), callback_data: 'priority_high' },
+                { text: this.getPriorityText('medium'), callback_data: 'priority_medium' }
+              ],
+              [
+                { text: this.getPriorityText('low'), callback_data: 'priority_low' },
+                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+              ]
             ]
           }
         }
@@ -2343,10 +2380,14 @@ class TelegramService {
         this.getPriorityPromptText(), {
           reply_markup: {
             inline_keyboard: [
-              [{ text: this.getPriorityText('high'), callback_data: 'priority_high' }],
-              [{ text: this.getPriorityText('medium'), callback_data: 'priority_medium' }],
-              [{ text: this.getPriorityText('low'), callback_data: 'priority_low' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+              [
+                { text: this.getPriorityText('high'), callback_data: 'priority_high' },
+                { text: this.getPriorityText('medium'), callback_data: 'priority_medium' }
+              ],
+              [
+                { text: this.getPriorityText('low'), callback_data: 'priority_low' },
+                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
+              ]
             ]
           }
         }
@@ -3379,11 +3420,17 @@ class TelegramService {
           ? `🏙️ ${city.name}${city.region ? ` (${city.region})` : ''} 🏢`
           : `🏙️ ${city.name}${city.region ? ` (${city.region})` : ''}`;
         
-        keyboard.push([{
+        keyboard.push({
           text: cityText,
           callback_data: `city_${city._id}`
-        }]);
+        });
       });
+      
+      // Розбиваємо кнопки міст на рядки по 2
+      const cityKeyboard = [];
+      for (let i = 0; i < keyboard.length; i += 2) {
+        cityKeyboard.push(keyboard.slice(i, i + 2));
+      }
 
       await this.sendMessage(chatId, 
         `✅ *Пароль прийнято!*\n` +
