@@ -2200,7 +2200,8 @@ class TelegramService {
        // Завантажуємо та зберігаємо фото
        let savedPath;
        try {
-         savedPath = await this.downloadTelegramFile(filePath);
+         // Використовуємо fileId для завантаження через бота
+         savedPath = await this.downloadTelegramFileByFileId(fileId, fileExtension);
          logger.info('Фото успішно завантажено', { filePath, savedPath, fileId });
        } catch (downloadError) {
          logger.error('Помилка завантаження фото з Telegram', {
@@ -2360,6 +2361,84 @@ class TelegramService {
       logger.error('Помилка обробки контакту:', error);
       await this.sendMessage(chatId, '❌ Помилка обробки номеру телефону. Спробуйте ще раз.');
     }
+  }
+
+  async downloadTelegramFileByFileId(fileId, fileExtension = '.jpg') {
+    return new Promise((resolve, reject) => {
+      if (!this.bot) {
+        reject(new Error('Telegram бот не ініціалізований'));
+        return;
+      }
+
+      // Створюємо папку для фото якщо не існує
+      const uploadsDir = path.join(__dirname, '../uploads/telegram-photos');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const fileName = `${Date.now()}_file${fileExtension}`;
+      const localPath = path.join(uploadsDir, fileName);
+      const file = fs.createWriteStream(localPath);
+
+      // Використовуємо вбудований метод бота для завантаження
+      this.bot.getFileStream(fileId)
+        .then((stream) => {
+          stream.pipe(file);
+          
+          file.on('finish', () => {
+            file.close();
+            
+            // Перевіряємо, чи файл не порожній
+            const stats = fs.statSync(localPath);
+            if (stats.size === 0) {
+              fs.unlink(localPath, () => {});
+              logger.error('Завантажений файл має нульовий розмір', {
+                fileId,
+                localPath
+              });
+              reject(new Error('Завантажений файл має нульовий розмір'));
+              return;
+            }
+
+            logger.info('Файл успішно завантажено з Telegram через getFileStream', {
+              fileId,
+              localPath,
+              size: stats.size
+            });
+            
+            resolve(localPath);
+          });
+
+          file.on('error', (error) => {
+            file.close();
+            fs.unlink(localPath, () => {});
+            logger.error('Помилка запису файлу', {
+              fileId,
+              localPath,
+              error: error.message
+            });
+            reject(error);
+          });
+
+          stream.on('error', (error) => {
+            file.close();
+            fs.unlink(localPath, () => {});
+            logger.error('Помилка потоку при завантаженні файлу з Telegram', {
+              fileId,
+              error: error.message
+            });
+            reject(error);
+          });
+        })
+        .catch((error) => {
+          logger.error('Помилка отримання потоку файлу з Telegram', {
+            fileId,
+            error: error.message,
+            stack: error.stack
+          });
+          reject(error);
+        });
+    });
   }
 
   async downloadTelegramFile(filePath) {
