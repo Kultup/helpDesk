@@ -166,6 +166,16 @@ exports.getTicketById = async (req, res) => {
     ]);
     
     logger.info(`🔔 Коментарі з моделі Comment: ${commentsFromModel.length}, вкладення: ${attachments.length}`);
+    
+    // Детальна інформація про коментарі з моделі Comment
+    logger.info(`🔔 Деталі коментарів з моделі Comment:`, commentsFromModel.map(c => ({
+      _id: c._id?.toString(),
+      content: c.content?.substring(0, 50) || 'no content',
+      hasAuthor: !!c.author,
+      authorType: typeof c.author,
+      authorEmail: c.author?.email || (c.author?._id ? 'author is ObjectId' : 'no author'),
+      createdAt: c.createdAt
+    })));
 
     // Populate коментарі з вбудованого масиву ticket.comments
     if (ticket.comments && ticket.comments.length > 0) {
@@ -174,15 +184,30 @@ exports.getTicketById = async (req, res) => {
 
     // Об'єднуємо коментарі з моделі Comment та з ticket.comments
     const ticketComments = ticket.comments || [];
-    const allComments = [...commentsFromModel];
+    
+    // Конвертуємо коментарі з моделі Comment в правильний формат
+    const formattedCommentsFromModel = commentsFromModel.map(c => {
+      // Переконуємося, що коментар має правильний формат
+      const commentObj = c.toObject ? c.toObject() : c;
+      return {
+        ...commentObj,
+        _id: commentObj._id?.toString() || commentObj._id,
+        content: commentObj.content || '',
+        author: commentObj.author || null,
+        createdAt: commentObj.createdAt || commentObj.created_at || new Date()
+      };
+    });
+    
+    const allComments = [...formattedCommentsFromModel];
     
     logger.info(`🔔 Завантаження коментарів для тікету ${id}:`, {
       commentsFromModel: commentsFromModel.length,
       ticketComments: ticketComments.length,
       ticketCommentsData: ticketComments.map(c => ({
-        _id: c._id,
+        _id: c._id?.toString(),
         hasContent: !!c.content,
-        hasAuthor: !!c.author
+        hasAuthor: !!c.author,
+        authorType: typeof c.author
       }))
     });
     
@@ -231,19 +256,51 @@ exports.getTicketById = async (req, res) => {
       commentsFromModel: commentsFromModel.length,
       ticketComments: ticketComments.length,
       allComments: allComments.map(c => ({
-        _id: c._id,
+        _id: c._id?.toString() || c._id,
         hasContent: !!c.content,
+        contentPreview: c.content?.substring(0, 30) || 'no content',
         hasAuthor: !!c.author,
-        authorEmail: c.author?.email || 'no author'
+        authorType: typeof c.author,
+        authorEmail: c.author?.email || (c.author?._id ? 'author is ObjectId' : 'no author'),
+        authorId: c.author?._id?.toString() || (typeof c.author === 'string' ? c.author : 'not a string'),
+        createdAt: c.createdAt
       }))
     });
 
     const ticketData = ticket.toObject();
+    
+    // Конвертуємо коментарі в звичайні об'єкти для правильної серіалізації
+    const serializedComments = allComments.map(c => {
+      const commentObj = c.toObject ? c.toObject() : c;
+      return {
+        _id: commentObj._id?.toString() || commentObj._id,
+        content: commentObj.content || '',
+        author: commentObj.author ? (
+          typeof commentObj.author === 'object' && commentObj.author.toObject 
+            ? commentObj.author.toObject() 
+            : typeof commentObj.author === 'object'
+              ? {
+                  _id: commentObj.author._id?.toString() || commentObj.author._id,
+                  email: commentObj.author.email || '',
+                  firstName: commentObj.author.firstName || '',
+                  lastName: commentObj.author.lastName || ''
+                }
+              : commentObj.author
+        ) : null,
+        createdAt: commentObj.createdAt || commentObj.created_at || new Date(),
+        isInternal: commentObj.isInternal || false,
+        attachments: commentObj.attachments || []
+      };
+    });
+    
     // Перезаписуємо comments, щоб гарантувати, що використовуються об'єднані коментарі
-    ticketData.comments = allComments;
+    ticketData.comments = serializedComments;
     ticketData.attachments = attachments;
 
-    logger.info(`🔔 Повертаємо тікет з ${allComments.length} коментарями`);
+    logger.info(`🔔 Повертаємо тікет з ${serializedComments.length} коментарями`, {
+      commentsWithAuthor: serializedComments.filter(c => c.author).length,
+      commentsWithoutAuthor: serializedComments.filter(c => !c.author).length
+    });
 
     res.json({
       success: true,
