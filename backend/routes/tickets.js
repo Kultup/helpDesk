@@ -821,28 +821,50 @@ router.post('/:id/comments',
         const commentAuthorId = req.user._id.toString();
         
         // Отримуємо ID автора тікету
-        const ticketCreatedById = ticket.createdBy ? ticket.createdBy.toString() : null;
-        const ticketAssignedToId = ticket.assignedTo ? ticket.assignedTo.toString() : null;
+        // Перевіряємо різні формати createdBy (може бути ObjectId або вже populate'ний об'єкт)
+        let ticketCreatedById = null;
+        if (ticket.createdBy) {
+          if (typeof ticket.createdBy === 'object' && ticket.createdBy._id) {
+            ticketCreatedById = ticket.createdBy._id.toString();
+          } else {
+            ticketCreatedById = ticket.createdBy.toString();
+          }
+        }
         
-        logger.info('🔔 Формування списку отримувачів:', {
-          ticketId: ticket._id.toString(),
-          commentAuthorId: commentAuthorId,
-          commentAuthorEmail: req.user.email,
-          ticketCreatedById: ticketCreatedById,
-          ticketAssignedToId: ticketAssignedToId,
-          createdByEqualsAuthor: ticketCreatedById === commentAuthorId,
-          assignedToEqualsAuthor: ticketAssignedToId === commentAuthorId
-        });
+        let ticketAssignedToId = null;
+        if (ticket.assignedTo) {
+          if (typeof ticket.assignedTo === 'object' && ticket.assignedTo._id) {
+            ticketAssignedToId = ticket.assignedTo._id.toString();
+          } else {
+            ticketAssignedToId = ticket.assignedTo.toString();
+          }
+        }
+        
+        logger.info(`🔔 Формування списку отримувачів для тікету ${ticket._id.toString()}`);
+        logger.info(`🔔 Автор коментаря: ${commentAuthorId} (${req.user.email})`);
+        logger.info(`🔔 Автор тікету: ${ticketCreatedById || 'не вказано'}`);
+        logger.info(`🔔 Призначений користувач: ${ticketAssignedToId || 'не вказано'}`);
+        logger.info(`🔔 Порівняння: createdBy === author? ${ticketCreatedById === commentAuthorId}, assignedTo === author? ${ticketAssignedToId === commentAuthorId}`);
         
         if (ticketCreatedById && ticketCreatedById !== commentAuthorId) {
           recipients.push(ticketCreatedById);
+          logger.info(`✅ Додано автора тікету до списку отримувачів: ${ticketCreatedById}`);
+        } else if (ticketCreatedById === commentAuthorId) {
+          logger.info(`ℹ️ Автор тікету збігається з автором коментаря, не додаємо до списку`);
+        } else {
+          logger.warn(`⚠️ Автор тікету не знайдено (ticket.createdBy = ${ticket.createdBy})`);
         }
+        
         if (ticketAssignedToId && ticketAssignedToId !== commentAuthorId) {
           recipients.push(ticketAssignedToId);
+          logger.info(`✅ Додано призначеного користувача до списку отримувачів: ${ticketAssignedToId}`);
+        } else if (ticketAssignedToId === commentAuthorId) {
+          logger.info(`ℹ️ Призначений користувач збігається з автором коментаря, не додаємо до списку`);
         }
         
         // Видаляємо дублікати
         const uniqueRecipients = [...new Set(recipients)];
+        logger.info(`🔔 Фінальний список отримувачів: ${uniqueRecipients.length} користувачів`, uniqueRecipients);
         
         logger.info('🔔 Відправка сповіщень про коментар:', {
           ticketId: ticket._id.toString(),
