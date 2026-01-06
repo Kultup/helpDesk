@@ -37,6 +37,7 @@ router.get('/:filename', async (req, res) => {
         fileStats = await fs.stat(possiblePath);
         if (fileStats.isFile()) {
           filePath = possiblePath;
+          logger.info(`Файл знайдено: ${possiblePath}`);
           break;
         }
       } catch (error) {
@@ -46,6 +47,7 @@ router.get('/:filename', async (req, res) => {
     }
 
     if (!filePath) {
+      logger.warn(`Файл не знайдено: ${filename}, перевірені шляхи:`, possiblePaths);
       return res.status(404).json({
         success: false,
         message: 'Файл не знайдено'
