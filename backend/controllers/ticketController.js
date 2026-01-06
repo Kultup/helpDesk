@@ -123,6 +123,8 @@ exports.getTickets = async (req, res) => {
 exports.getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    logger.info(`🔔 getTicketById викликано для тікету ${id}`);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -155,11 +157,15 @@ exports.getTicketById = async (req, res) => {
       });
     }
 
+    logger.info(`🔔 Тікет знайдено, завантаження коментарів для ${id}`);
+    
     // Отримати коментарі та вкладення
     const [commentsFromModel, attachments] = await Promise.all([
       Comment.findByTicket(id),
       Attachment.findByTicket(id)
     ]);
+    
+    logger.info(`🔔 Коментарі з моделі Comment: ${commentsFromModel.length}, вкладення: ${attachments.length}`);
 
     // Populate коментарі з вбудованого масиву ticket.comments
     if (ticket.comments && ticket.comments.length > 0) {

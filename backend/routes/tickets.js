@@ -1324,7 +1324,6 @@ router.post('/:id/analyze',
 
       const ticket = await Ticket.findById(req.params.id)
         .populate('createdBy', 'firstName lastName email position')
-        .populate('assignedTo', 'firstName lastName email position')
         .populate('city', 'name region')
         .populate('institution', 'name')
         .populate({
@@ -1335,6 +1334,11 @@ router.post('/:id/analyze',
           },
           options: { sort: { createdAt: -1 } }
         });
+      
+      // Перевіряємо, чи існує поле assignedTo в схемі перед populate
+      if (ticket && ticket.schema.paths.assignedTo) {
+        await ticket.populate('assignedTo', 'firstName lastName email position');
+      }
 
       if (!ticket) {
         return res.status(404).json({
