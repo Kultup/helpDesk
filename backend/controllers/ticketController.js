@@ -170,21 +170,47 @@ exports.getTicketById = async (req, res) => {
     const ticketComments = ticket.comments || [];
     const allComments = [...commentsFromModel];
     
+    logger.info(`🔔 Завантаження коментарів для тікету ${id}:`, {
+      commentsFromModel: commentsFromModel.length,
+      ticketComments: ticketComments.length,
+      ticketCommentsData: ticketComments.map(c => ({
+        _id: c._id,
+        hasContent: !!c.content,
+        hasAuthor: !!c.author
+      }))
+    });
+    
     // Додаємо коментарі з ticket.comments, якщо їх немає в моделі Comment
     for (const ticketComment of ticketComments) {
-      const existsInModel = commentsFromModel.some(c => 
-        c._id && ticketComment._id && c._id.toString() === ticketComment._id.toString()
-      );
-      if (!existsInModel && ticketComment.content) {
+      if (!ticketComment.content) {
+        logger.warn(`⚠️ Коментар без контенту пропущено:`, ticketComment);
+        continue;
+      }
+      
+      // Перевіряємо, чи коментар вже є в моделі Comment
+      const existsInModel = commentsFromModel.some(c => {
+        if (!c._id || !ticketComment._id) return false;
+        return c._id.toString() === ticketComment._id.toString();
+      });
+      
+      if (!existsInModel) {
         // Конвертуємо вбудований коментар у формат, схожий на Comment
-        allComments.push({
-          _id: ticketComment._id,
+        const commentData = {
+          _id: ticketComment._id || new mongoose.Types.ObjectId(),
           content: ticketComment.content,
-          author: ticketComment.author,
-          createdAt: ticketComment.createdAt || ticketComment.created_at,
+          author: ticketComment.author || null,
+          createdAt: ticketComment.createdAt || ticketComment.created_at || new Date(),
           isInternal: ticketComment.isInternal || false,
           attachments: ticketComment.attachments || []
+        };
+        
+        logger.info(`✅ Додано коментар з ticket.comments:`, {
+          _id: commentData._id,
+          hasAuthor: !!commentData.author,
+          contentLength: commentData.content.length
         });
+        
+        allComments.push(commentData);
       }
     }
 
@@ -195,13 +221,16 @@ exports.getTicketById = async (req, res) => {
       return dateA - dateB;
     });
 
+    logger.info(`🔔 Фінальний список коментарів: ${allComments.length}`);
+
+    const ticketData = ticket.toObject();
+    // Перезаписуємо comments, щоб гарантувати, що використовуються об'єднані коментарі
+    ticketData.comments = allComments;
+    ticketData.attachments = attachments;
+
     res.json({
       success: true,
-      data: {
-        ...ticket.toObject(),
-        comments: allComments,
-        attachments
-      }
+      data: ticketData
     });
   } catch (error) {
     logger.error('Error fetching ticket:', error);

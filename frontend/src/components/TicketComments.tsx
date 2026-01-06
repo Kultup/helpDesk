@@ -31,13 +31,26 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
       const response = await apiService.getTicketById(ticketId);
       if (response.success && response.data) {
         const ticket = response.data;
+        console.log('🔔 Завантажені дані тікету:', {
+          ticketId,
+          hasComments: !!ticket.comments,
+          commentsType: Array.isArray(ticket.comments) ? 'array' : typeof ticket.comments,
+          commentsLength: Array.isArray(ticket.comments) ? ticket.comments.length : 0,
+          comments: ticket.comments
+        });
+        
         // Коментарі приходять разом з тікетом
         if (ticket.comments && Array.isArray(ticket.comments)) {
-          setComments(ticket.comments);
+          // Фільтруємо коментарі, які мають контент
+          const validComments = ticket.comments.filter((c: any) => c && c.content);
+          console.log('🔔 Валідні коментарі:', validComments.length, validComments);
+          setComments(validComments);
         } else {
+          console.warn('⚠️ Коментарі не знайдено або не є масивом');
           setComments([]);
         }
       } else {
+        console.error('❌ Помилка отримання тікету:', response);
         setComments([]);
       }
     } catch (error) {
