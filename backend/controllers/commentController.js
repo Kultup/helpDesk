@@ -618,6 +618,12 @@ exports.createComment = async (req, res) => {
       const telegramService = require('../services/telegramServiceInstance');
       const User = require('../models/User');
       
+      logger.info('Початок відправки сповіщень про коментар', {
+        ticketId: ticket._id.toString(),
+        commentId: comment._id.toString(),
+        authorId: req.user._id.toString()
+      });
+      
       const recipients = [];
       // Перевіряємо, чи createdBy вже populate'ний або це ObjectId
       if (ticket.createdBy) {
@@ -695,29 +701,42 @@ exports.createComment = async (req, res) => {
           const telegramId = recipientUser?.telegramId || recipientUser?.telegramChatId;
           
           if (recipientUser && telegramId && !finalIsInternal) {
-            // Формуємо повідомлення для Telegram
-            const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
-            
-            // Встановлюємо активний тікет для користувача, щоб він міг відповідати
-            telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
-            
-            const message = 
-              `💬 *Новий коментар до тікету*\n\n` +
-              `📋 *Тікет:* ${ticket.title}\n` +
-              `🆔 \`${ticketNumber}\`\n\n` +
-              `${roleLabel}: *${authorName}*\n\n` +
-              `💭 *Коментар:*\n${content}\n\n` +
-              `---\n` +
-              `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
-              `Або надішліть /menu для виходу.`;
-            
-            await telegramService.sendMessage(
-              telegramId,
-              message,
-              { parse_mode: 'Markdown' }
-            );
-            
-            logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+            // Перевіряємо, чи бот ініціалізований
+            if (!telegramService.isInitialized || !telegramService.bot) {
+              logger.warn(`⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`);
+            } else {
+              // Формуємо повідомлення для Telegram
+              const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
+              
+              // Встановлюємо активний тікет для користувача, щоб він міг відповідати
+              telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
+              
+              const message = 
+                `💬 *Новий коментар до тікету*\n\n` +
+                `📋 *Тікет:* ${ticket.title}\n` +
+                `🆔 \`${ticketNumber}\`\n\n` +
+                `${roleLabel}: *${authorName}*\n\n` +
+                `💭 *Коментар:*\n${content}\n\n` +
+                `---\n` +
+                `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
+                `Або надішліть /menu для виходу.`;
+              
+              try {
+                await telegramService.sendMessage(
+                  telegramId,
+                  message,
+                  { parse_mode: 'Markdown' }
+                );
+                
+                logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+              } catch (sendError) {
+                logger.error(`❌ Помилка виклику sendMessage для користувача ${recipientUser.email}:`, {
+                  error: sendError.message,
+                  stack: sendError.stack,
+                  telegramId: telegramId
+                });
+              }
+            }
           } else if (recipientUser && !telegramId) {
             logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
           } else if (!recipientUser) {
