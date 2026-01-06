@@ -158,9 +158,9 @@ const mongoOptions = {
   minPoolSize: 2, // Мінімальна кількість з'єднань в пулі
   maxIdleTimeMS: 30000, // Час очікування перед закриттям неактивного з'єднання
   heartbeatFrequencyMS: 10000, // Частота перевірки з'єднання
-  retryWrites: true,
-  bufferMaxEntries: 0, // Необмежена буферизація операцій
-  bufferCommands: true // Увімкнути буферизацію команд до підключення
+  retryWrites: true
+  // bufferMaxEntries та bufferCommands більше не підтримуються в новій версії MongoDB драйвера
+  // Буферизація команд увімкнена за замовчуванням
 };
 
 // Обробка подій підключення MongoDB
