@@ -829,8 +829,14 @@ router.post('/:id/comments',
           ticketId: ticket._id.toString(),
           commentId: newComment._id.toString(),
           recipients: uniqueRecipients,
-          isInternal: value.isInternal
+          uniqueRecipientsCount: uniqueRecipients.length,
+          isInternal: value.isInternal,
+          commentAuthorId: commentAuthorId
         });
+        
+        if (uniqueRecipients.length === 0) {
+          logger.warn('⚠️ Список отримувачів порожній, сповіщення не будуть відправлені');
+        }
         
         // Заповнюємо тікет для отримання інформації про користувачів
         const populatePaths = [
@@ -848,7 +854,14 @@ router.post('/:id/comments',
         const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
         const roleLabel = isAdminComment ? '👨‍💼 Адміністратор' : '👤 Користувач';
         
+        logger.info('🔔 Перевірка Telegram сервісу:', {
+          isInitialized: telegramService.isInitialized,
+          hasBot: !!telegramService.bot
+        });
+        
         for (const userId of uniqueRecipients) {
+          logger.info(`🔔 Обробка отримувача ${userId} для коментаря`);
+          
           // FCM сповіщення
           try {
             await fcmService.sendToUser(userId, {
@@ -869,13 +882,31 @@ router.post('/:id/comments',
           
           // Telegram сповіщення
           try {
+            logger.info(`🔔 Пошук користувача ${userId} для Telegram сповіщення`);
             const recipientUser = await User.findById(userId).select('telegramId telegramChatId email firstName lastName');
+            
+            logger.info(`🔔 Дані користувача для Telegram:`, {
+              userId: userId,
+              recipientUser: recipientUser ? {
+                email: recipientUser.email,
+                telegramId: recipientUser.telegramId,
+                telegramChatId: recipientUser.telegramChatId,
+                hasTelegramId: !!recipientUser.telegramId,
+                hasTelegramChatId: !!recipientUser.telegramChatId
+              } : null
+            });
+            
             const telegramId = recipientUser?.telegramId || recipientUser?.telegramChatId;
             
             if (recipientUser && telegramId && !value.isInternal) {
               if (!telegramService.isInitialized || !telegramService.bot) {
-                logger.warn(`⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`);
+                logger.warn(`⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`, {
+                  isInitialized: telegramService.isInitialized,
+                  hasBot: !!telegramService.bot
+                });
               } else {
+                logger.info(`🔔 Відправка Telegram сповіщення користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+                
                 // Встановлюємо активний тікет для користувача
                 telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
                 
@@ -890,19 +921,36 @@ router.post('/:id/comments',
                   `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
                   `Або надішліть /menu для виходу.`;
                 
-                await telegramService.sendMessage(
-                  telegramId,
-                  message,
-                  { parse_mode: 'Markdown' }
-                );
-                
-                logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+                try {
+                  await telegramService.sendMessage(
+                    telegramId,
+                    message,
+                    { parse_mode: 'Markdown' }
+                  );
+                  
+                  logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+                } catch (sendError) {
+                  logger.error(`❌ Помилка виклику sendMessage для користувача ${recipientUser.email}:`, {
+                    error: sendError.message,
+                    stack: sendError.stack,
+                    telegramId: telegramId
+                  });
+                }
               }
-            } else if (recipientUser && !telegramId) {
-              logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
+            } else {
+              if (!recipientUser) {
+                logger.warn(`⚠️ Користувач з ID ${userId} не знайдено`);
+              } else if (!telegramId) {
+                logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
+              } else if (value.isInternal) {
+                logger.info(`ℹ️ Коментар внутрішній, Telegram сповіщення не відправляється`);
+              }
             }
           } catch (telegramError) {
-            logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, telegramError);
+            logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, {
+              error: telegramError.message,
+              stack: telegramError.stack
+            });
           }
         }
         
