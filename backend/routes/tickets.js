@@ -818,12 +818,31 @@ router.post('/:id/comments',
         const User = require('../models/User');
         
         const recipients = [];
-        if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
-        if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
-        
-        // Видаляємо автора коментаря зі списку отримувачів (він сам додав коментар)
         const commentAuthorId = req.user._id.toString();
-        const uniqueRecipients = [...new Set(recipients)].filter(id => id !== commentAuthorId);
+        
+        // Отримуємо ID автора тікету
+        const ticketCreatedById = ticket.createdBy ? ticket.createdBy.toString() : null;
+        const ticketAssignedToId = ticket.assignedTo ? ticket.assignedTo.toString() : null;
+        
+        logger.info('🔔 Формування списку отримувачів:', {
+          ticketId: ticket._id.toString(),
+          commentAuthorId: commentAuthorId,
+          commentAuthorEmail: req.user.email,
+          ticketCreatedById: ticketCreatedById,
+          ticketAssignedToId: ticketAssignedToId,
+          createdByEqualsAuthor: ticketCreatedById === commentAuthorId,
+          assignedToEqualsAuthor: ticketAssignedToId === commentAuthorId
+        });
+        
+        if (ticketCreatedById && ticketCreatedById !== commentAuthorId) {
+          recipients.push(ticketCreatedById);
+        }
+        if (ticketAssignedToId && ticketAssignedToId !== commentAuthorId) {
+          recipients.push(ticketAssignedToId);
+        }
+        
+        // Видаляємо дублікати
+        const uniqueRecipients = [...new Set(recipients)];
         
         logger.info('🔔 Відправка сповіщень про коментар:', {
           ticketId: ticket._id.toString(),
