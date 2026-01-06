@@ -3415,8 +3415,8 @@ class TelegramService {
         const hasInstitutions = citiesWithInstitutions.has(cityIdStr);
         // Додаємо іконку закладу, якщо місто має заклади
         const cityText = hasInstitutions 
-          ? `🏙️ ${city.name}${city.region ? ` (${city.region})` : ''} 🏢`
-          : `🏙️ ${city.name}${city.region ? ` (${city.region})` : ''}`;
+          ? `🏙️ ${city.name} 🏢`
+          : `🏙️ ${city.name}`;
         
         keyboard.push({
           text: cityText,
