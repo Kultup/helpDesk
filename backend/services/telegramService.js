@@ -31,10 +31,36 @@ class TelegramService {
     this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
     this.navigationHistory = new Map(); // Історія навігації для кожного користувача (chatId -> ['screen1', 'screen2', ...])
+    this._initializing = false; // Флаг для перевірки процесу ініціалізації
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
   async initialize() {
+    // Перевіряємо, чи бот вже ініціалізований
+    if (this.isInitialized && this.bot) {
+      logger.info('Telegram бот вже ініціалізовано');
+      return;
+    }
+    
+    // Якщо бот вже ініціалізується, чекаємо
+    if (this._initializing) {
+      logger.info('Telegram бот вже ініціалізується, чекаємо...');
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (this.isInitialized) {
+            clearInterval(checkInterval);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          resolve();
+        }, 5000);
+      });
+    }
+    
+    this._initializing = true;
+    
     try {
       let cfg = null;
       try {
@@ -62,6 +88,22 @@ class TelegramService {
               logger.warn('⚠️ Telegram токен невалідний або бот не знайдено. Telegram бот вимкнено.');
               this.bot = null;
               this.isInitialized = false;
+              this._initializing = false;
+              return;
+            }
+            // Якщо помилка 409 - конфлікт з іншим інстансом бота
+            if (err.code === 'ETELEGRAM' && (err.response?.statusCode === 409 || err.message?.includes('409'))) {
+              logger.warn('⚠️ Конфлікт з іншим інстансом Telegram бота (409). Можливо, запущено кілька процесів. Зупиняємо polling.');
+              try {
+                if (this.bot && this.bot.stopPolling) {
+                  this.bot.stopPolling();
+                }
+              } catch (stopError) {
+                logger.error('Помилка зупинки polling:', stopError);
+              }
+              this.bot = null;
+              this.isInitialized = false;
+              this._initializing = false;
               return;
             }
             logger.error('Помилка polling:', err);
@@ -71,6 +113,7 @@ class TelegramService {
           logger.info('✅ Telegram бот запущено у режимі webhook');
         }
         this.isInitialized = true;
+        this._initializing = false;
       } catch (botError) {
         // Якщо не вдалося створити бота (наприклад, невалідний токен)
         logger.warn('⚠️ Не вдалося ініціалізувати Telegram бота:', botError.message);

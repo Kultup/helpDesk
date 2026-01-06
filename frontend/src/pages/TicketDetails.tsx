@@ -497,7 +497,7 @@ const TicketDetails: React.FC = () => {
                                   sizeText = `${attachment.size} байт`;
                                 }
                                 return sizeText;
-                              })()} • Завантажено {new Date(attachment.uploadedAt || attachment.createdAt || Date.now()).toLocaleDateString('uk-UA', {
+                              })()} • Завантажено {new Date(attachment.uploadedAt || Date.now()).toLocaleDateString('uk-UA', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric'
