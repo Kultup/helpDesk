@@ -27,12 +27,22 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   const loadComments = async () => {
     try {
       setIsLoading(true);
-      // TODO: Implement getTicketComments API method
-      // For now, comments are stored in ticket.comments
-      // This will need to be updated when the API is ready
-      setComments([]);
+      // Отримуємо тікет, який містить коментарі
+      const response = await apiService.getTicketById(ticketId);
+      if (response.success && response.data) {
+        const ticket = response.data;
+        // Коментарі приходять разом з тікетом
+        if (ticket.comments && Array.isArray(ticket.comments)) {
+          setComments(ticket.comments);
+        } else {
+          setComments([]);
+        }
+      } else {
+        setComments([]);
+      }
     } catch (error) {
       console.error('Помилка завантаження коментарів:', error);
+      setComments([]);
     } finally {
       setIsLoading(false);
     }
@@ -49,9 +59,9 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     try {
       setIsSubmitting(true);
       const response = await apiService.addComment(ticketId, newComment.trim());
-      if (response.success && response.data) {
-        const newCommentData = response.data as unknown as Comment;
-        setComments(prev => [newCommentData, ...prev]);
+      if (response.success) {
+        // Перезавантажуємо коментарі після додавання
+        await loadComments();
         setNewComment('');
       }
     } catch (error) {
@@ -62,12 +72,13 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   };
 
   const handleDelete = async (commentId: string) => {
-      if (!confirm(t('common.confirmDeleteComment'))) return;
+    if (!confirm(t('common.confirmDeleteComment'))) return;
 
     try {
       const response = await apiService.deleteComment(ticketId, commentId);
       if (response.success) {
-        setComments(prev => prev.filter(c => c._id !== commentId));
+        // Перезавантажуємо коментарі після видалення
+        await loadComments();
       }
     } catch (error) {
       console.error('Помилка видалення коментаря:', error);

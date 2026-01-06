@@ -156,16 +156,50 @@ exports.getTicketById = async (req, res) => {
     }
 
     // Отримати коментарі та вкладення
-    const [comments, attachments] = await Promise.all([
+    const [commentsFromModel, attachments] = await Promise.all([
       Comment.findByTicket(id),
       Attachment.findByTicket(id)
     ]);
+
+    // Populate коментарі з вбудованого масиву ticket.comments
+    if (ticket.comments && ticket.comments.length > 0) {
+      await ticket.populate('comments.author', 'firstName lastName email avatar');
+    }
+
+    // Об'єднуємо коментарі з моделі Comment та з ticket.comments
+    const ticketComments = ticket.comments || [];
+    const allComments = [...commentsFromModel];
+    
+    // Додаємо коментарі з ticket.comments, якщо їх немає в моделі Comment
+    for (const ticketComment of ticketComments) {
+      const existsInModel = commentsFromModel.some(c => 
+        c._id && ticketComment._id && c._id.toString() === ticketComment._id.toString()
+      );
+      if (!existsInModel && ticketComment.content) {
+        // Конвертуємо вбудований коментар у формат, схожий на Comment
+        allComments.push({
+          _id: ticketComment._id,
+          content: ticketComment.content,
+          author: ticketComment.author,
+          createdAt: ticketComment.createdAt || ticketComment.created_at,
+          isInternal: ticketComment.isInternal || false,
+          attachments: ticketComment.attachments || []
+        });
+      }
+    }
+
+    // Сортуємо коментарі за датою створення
+    allComments.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateA - dateB;
+    });
 
     res.json({
       success: true,
       data: {
         ...ticket.toObject(),
-        comments,
+        comments: allComments,
         attachments
       }
     });
