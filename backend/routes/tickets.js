@@ -806,8 +806,11 @@ router.post('/:id/comments',
       ticket.comments.push(comment);
       await ticket.save();
 
-      // Заповнення автора коментаря
-      await ticket.populate('comments.author', 'firstName lastName email');
+      // Заповнення автора коментаря та автора тікету
+      await ticket.populate([
+        { path: 'comments.author', select: 'firstName lastName email' },
+        { path: 'createdBy', select: '_id email firstName lastName' }
+      ]);
 
       const newComment = ticket.comments[ticket.comments.length - 1];
 
@@ -831,6 +834,14 @@ router.post('/:id/comments',
           }
         }
         
+        logger.info(`🔔 Детальна інформація про тікет:`, {
+          ticketId: ticket._id.toString(),
+          createdByType: typeof ticket.createdBy,
+          createdByValue: ticket.createdBy,
+          createdById: ticketCreatedById,
+          commentAuthorId: commentAuthorId
+        });
+        
         let ticketAssignedToId = null;
         if (ticket.assignedTo) {
           if (typeof ticket.assignedTo === 'object' && ticket.assignedTo._id) {
@@ -846,6 +857,7 @@ router.post('/:id/comments',
         logger.info(`🔔 Призначений користувач: ${ticketAssignedToId || 'не вказано'}`);
         logger.info(`🔔 Порівняння: createdBy === author? ${ticketCreatedById === commentAuthorId}, assignedTo === author? ${ticketAssignedToId === commentAuthorId}`);
         
+        // Додаємо автора тікету до списку отримувачів (якщо він не є автором коментаря)
         if (ticketCreatedById && ticketCreatedById !== commentAuthorId) {
           recipients.push(ticketCreatedById);
           logger.info(`✅ Додано автора тікету до списку отримувачів: ${ticketCreatedById}`);
@@ -855,11 +867,33 @@ router.post('/:id/comments',
           logger.warn(`⚠️ Автор тікету не знайдено (ticket.createdBy = ${ticket.createdBy})`);
         }
         
+        // Додаємо призначеного користувача до списку отримувачів (якщо він не є автором коментаря)
         if (ticketAssignedToId && ticketAssignedToId !== commentAuthorId) {
           recipients.push(ticketAssignedToId);
           logger.info(`✅ Додано призначеного користувача до списку отримувачів: ${ticketAssignedToId}`);
         } else if (ticketAssignedToId === commentAuthorId) {
           logger.info(`ℹ️ Призначений користувач збігається з автором коментаря, не додаємо до списку`);
+        }
+        
+        // Якщо коментар додав користувач (не адмін), додаємо всіх адмінів до списку отримувачів
+        const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
+        if (!isAdminComment) {
+          logger.info(`🔔 Коментар додав користувач, додаємо всіх адмінів до списку отримувачів`);
+          try {
+            const admins = await User.find({ 
+              role: { $in: ['admin', 'manager'] },
+              _id: { $ne: commentAuthorId } // Виключаємо автора коментаря
+            }).select('_id');
+            
+            for (const admin of admins) {
+              recipients.push(admin._id.toString());
+            }
+            logger.info(`✅ Додано ${admins.length} адмінів до списку отримувачів`);
+          } catch (adminError) {
+            logger.error(`❌ Помилка отримання списку адмінів:`, adminError);
+          }
+        } else {
+          logger.info(`ℹ️ Коментар додав адмін, не додаємо інших адмінів до списку`);
         }
         
         // Видаляємо дублікати
