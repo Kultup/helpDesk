@@ -55,7 +55,20 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
               };
             });
           console.log('🔔 Валідні коментарі:', validComments.length, validComments);
+          console.log('🔔 Детальна інформація про коментарі:', validComments.map((c: any) => ({
+            _id: c._id,
+            hasContent: !!c.content,
+            contentLength: c.content?.length || 0,
+            hasAuthor: !!c.author,
+            authorType: typeof c.author,
+            authorEmail: c.author?.email || (typeof c.author === 'object' ? 'object without email' : c.author),
+            createdAt: c.createdAt
+          })));
           setComments(validComments);
+          console.log('🔔 Коментарі встановлено в state, перевірка через 100ms...');
+          setTimeout(() => {
+            console.log('🔔 Коментарі в state після встановлення:', comments.length);
+          }, 100);
         } else {
           console.warn('⚠️ Коментарі не знайдено або не є масивом', {
             hasComments: !!ticket.comments,
@@ -218,6 +231,18 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         </form>
 
         {/* Comments list */}
+        {(() => {
+          console.log('🔔 Рендер коментарів:', {
+            isLoading,
+            commentsLength: comments.length,
+            comments: comments.map((c: any) => ({
+              _id: c._id,
+              hasContent: !!c.content,
+              hasAuthor: !!c.author
+            }))
+          });
+          return null;
+        })()}
         {isLoading ? (
           <div className="flex justify-center py-8">
             <LoadingSpinner />
@@ -230,9 +255,18 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {comments.map((comment) => (
+            {comments.map((comment, index) => {
+              const commentKey = comment._id || `comment-${index}`;
+              console.log(`🔔 Рендер коментаря ${index}:`, {
+                key: commentKey,
+                hasId: !!comment._id,
+                hasContent: !!comment.content,
+                hasAuthor: !!comment.author,
+                comment
+              });
+              return (
               <div
-                key={comment._id}
+                key={commentKey}
                 className="p-3 sm:p-4 border border-gray-200 rounded-lg bg-gray-50 text-gray-900"
               >
                 <div className="flex items-start gap-3">
@@ -268,7 +302,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
