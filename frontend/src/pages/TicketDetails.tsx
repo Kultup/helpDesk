@@ -481,13 +481,30 @@ const TicketDetails: React.FC = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {attachment.originalName}
+                            <p className="text-sm font-medium text-gray-900 break-words" title={attachment.originalName}>
+                              {attachment.originalName || attachment.filename}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {(attachment.size / 1024 / 1024).toFixed(2)} MB • 
-                              {t('tickets.uploadedBy', { firstName: attachment.uploadedBy.firstName, lastName: attachment.uploadedBy.lastName })} • 
-                              {new Date(attachment.uploadedAt).toLocaleDateString('uk-UA')}
+                              {(() => {
+                                const sizeInMB = attachment.size / 1024 / 1024;
+                                const sizeInKB = attachment.size / 1024;
+                                let sizeText = '';
+                                if (sizeInMB >= 1) {
+                                  sizeText = `${sizeInMB.toFixed(2)} МБ`;
+                                } else if (sizeInKB >= 1) {
+                                  sizeText = `${sizeInKB.toFixed(2)} КБ`;
+                                } else {
+                                  sizeText = `${attachment.size} байт`;
+                                }
+                                return sizeText;
+                              })()} • Завантажено {new Date(attachment.uploadedAt || attachment.createdAt || Date.now()).toLocaleDateString('uk-UA', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })}
+                              {attachment.uploadedBy && attachment.uploadedBy.firstName && (
+                                <> • {attachment.uploadedBy.firstName} {attachment.uploadedBy.lastName || ''}</>
+                              )}
                             </p>
                           </div>
                         </div>
