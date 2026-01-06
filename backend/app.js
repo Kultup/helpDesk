@@ -148,12 +148,46 @@ unhandledRejectionHandler();
 uncaughtExceptionHandler();
 
 // Підключення до MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', {
+const mongoOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-})
+  serverSelectionTimeoutMS: 10000, // Таймаут вибору сервера
+  socketTimeoutMS: 45000, // Таймаут сокету
+  connectTimeoutMS: 10000, // Таймаут підключення
+  maxPoolSize: 10, // Максимальна кількість з'єднань в пулі
+  minPoolSize: 2, // Мінімальна кількість з'єднань в пулі
+  maxIdleTimeMS: 30000, // Час очікування перед закриттям неактивного з'єднання
+  heartbeatFrequencyMS: 10000, // Частота перевірки з'єднання
+  retryWrites: true,
+  bufferMaxEntries: 0, // Вимкнути буферизацію операцій
+  bufferCommands: false // Вимкнути буферизацію команд
+};
+
+// Обробка подій підключення MongoDB
+mongoose.connection.on('error', (err) => {
+  logger.error('❌ MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  logger.warn('⚠️ MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+  logger.info('✅ MongoDB reconnected');
+});
+
+mongoose.connection.on('connecting', () => {
+  logger.info('🔄 Connecting to MongoDB...');
+});
+
+mongoose.connection.on('connected', () => {
+  logger.info('✅ MongoDB connected');
+});
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', mongoOptions)
 .then(async () => {
-  console.log('✅ Підключено до MongoDB');
+  logger.info('✅ Підключено до MongoDB');
+  logger.info(`MongoDB URI: ${process.env.MONGODB_URI ? 'встановлено' : 'використовується за замовчуванням'}`);
   // Ініціалізуємо всі моделі
   require('./models');
   console.log('✅ Моделі ініціалізовано');
@@ -267,7 +301,19 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     logger.error('Socket.IO connection error:', err);
   });
 })
-.catch(err => logger.error('❌ Помилка підключення до MongoDB:', err));
+.catch(err => {
+  logger.error('❌ Помилка підключення до MongoDB:', err);
+  logger.error('MongoDB URI:', process.env.MONGODB_URI ? 'встановлено' : 'не встановлено');
+  logger.error('Деталі помилки:', {
+    message: err.message,
+    name: err.name,
+    code: err.code,
+    stack: err.stack
+  });
+  // Не завершуємо процес, але логуємо помилку
+  // Сервер може продовжити роботу, але операції з БД будуть невдалі
+  logger.warn('⚠️ Сервер запущено, але MongoDB не підключено. Операції з БД будуть невдалі.');
+});
 
 // Middleware для логування запитів
 app.use(requestLogger);
