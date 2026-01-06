@@ -608,7 +608,8 @@ exports.createComment = async (req, res) => {
     // Заповнити тікет для отримання інформації про автора та призначеного
     logger.info('🔔 Перед populate тікету для сповіщень', {
       ticketId: ticket._id.toString(),
-      commentId: comment._id.toString()
+      commentId: comment._id.toString(),
+      authorId: req.user._id.toString()
     });
     
     await ticket.populate([
@@ -628,6 +629,7 @@ exports.createComment = async (req, res) => {
       ticketId: ticket._id.toString(),
       commentId: comment._id.toString(),
       authorId: req.user._id.toString(),
+      authorRole: req.user.role,
       ticketCreatedBy: ticket.createdBy ? (ticket.createdBy._id ? ticket.createdBy._id.toString() : ticket.createdBy.toString()) : 'null',
       ticketAssignedTo: ticket.assignedTo ? (ticket.assignedTo._id ? ticket.assignedTo._id.toString() : ticket.assignedTo.toString()) : 'null'
     });
@@ -637,7 +639,7 @@ exports.createComment = async (req, res) => {
       const fcmService = require('../services/fcmService');
       const telegramService = require('../services/telegramServiceInstance');
       const User = require('../models/User');
-      
+
       logger.info('✅ Сервіси завантажено, початок відправки сповіщень про коментар', {
         ticketId: ticket._id.toString(),
         commentId: comment._id.toString(),
@@ -669,6 +671,13 @@ exports.createComment = async (req, res) => {
         ticketId: ticket._id.toString(),
         isInternal: finalIsInternal
       });
+      if (uniqueRecipients.length === 0) {
+        logger.warn('⚠️ Список отримувачів порожній, Telegram не буде відправлено', {
+          ticketId: ticket._id.toString(),
+          commentId: comment._id.toString(),
+          authorId: commentAuthorId
+        });
+      }
       
       const authorName = comment.author?.firstName && comment.author?.lastName
         ? `${comment.author.firstName} ${comment.author.lastName}`
