@@ -926,7 +926,7 @@ router.post('/:id/comments',
         await ticket.populate(populatePaths);
         
         const authorName = `${req.user.firstName} ${req.user.lastName}`;
-        const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
+        // isAdminComment вже оголошено вище
         const roleLabel = isAdminComment ? '👨‍💼 Адміністратор' : '👤 Користувач';
         
         logger.info('🔔 Перевірка Telegram сервісу:', {
