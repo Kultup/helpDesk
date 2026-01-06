@@ -227,12 +227,23 @@ exports.getTicketById = async (req, res) => {
       return dateA - dateB;
     });
 
-    logger.info(`🔔 Фінальний список коментарів: ${allComments.length}`);
+    logger.info(`🔔 Фінальний список коментарів: ${allComments.length}`, {
+      commentsFromModel: commentsFromModel.length,
+      ticketComments: ticketComments.length,
+      allComments: allComments.map(c => ({
+        _id: c._id,
+        hasContent: !!c.content,
+        hasAuthor: !!c.author,
+        authorEmail: c.author?.email || 'no author'
+      }))
+    });
 
     const ticketData = ticket.toObject();
     // Перезаписуємо comments, щоб гарантувати, що використовуються об'єднані коментарі
     ticketData.comments = allComments;
     ticketData.attachments = attachments;
+
+    logger.info(`🔔 Повертаємо тікет з ${allComments.length} коментарями`);
 
     res.json({
       success: true,
