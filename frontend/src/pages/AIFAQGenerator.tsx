@@ -58,7 +58,7 @@ const AIFAQGenerator: React.FC = () => {
       if (response.success && response.data) {
         setFaqResult(response.data);
         // Розгортаємо перші 3 елементи
-        if (response.data.faqItems && Array.isArray(response.data.faqItems)) {
+        if (response.data?.faqItems && Array.isArray(response.data.faqItems)) {
           const initialExpanded = new Set([0, 1, 2].filter(i => i < response.data.faqItems.length));
           setExpandedItems(initialExpanded);
         }

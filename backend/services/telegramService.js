@@ -1218,11 +1218,9 @@ class TelegramService {
         historyKeyboard.push(keyboard.slice(i, i + 2));
       }
       historyKeyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
-      
-      keyboard.push([{ text: '🏠 Головне меню', callback_data: 'back' }]);
 
       await this.sendMessage(chatId, text, {
-        reply_markup: { inline_keyboard: keyboard },
+        reply_markup: { inline_keyboard: historyKeyboard },
         parse_mode: 'Markdown'
       });
     } catch (error) {
@@ -3439,7 +3437,7 @@ class TelegramService {
         `💡 Міста з іконкою 🏢 мають доступні заклади`,
         {
           reply_markup: {
-            inline_keyboard: keyboard
+            inline_keyboard: cityKeyboard
           }
         }
       );
