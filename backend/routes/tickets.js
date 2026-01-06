@@ -833,10 +833,16 @@ router.post('/:id/comments',
         });
         
         // Заповнюємо тікет для отримання інформації про користувачів
-        await ticket.populate([
-          { path: 'createdBy', select: 'telegramId telegramChatId email firstName lastName' },
-          { path: 'assignedTo', select: 'telegramId telegramChatId email firstName lastName' }
-        ]);
+        const populatePaths = [
+          { path: 'createdBy', select: 'telegramId telegramChatId email firstName lastName' }
+        ];
+        
+        // Перевіряємо, чи існує поле assignedTo в схемі перед populate
+        if (ticket.schema.paths.assignedTo) {
+          populatePaths.push({ path: 'assignedTo', select: 'telegramId telegramChatId email firstName lastName' });
+        }
+        
+        await ticket.populate(populatePaths);
         
         const authorName = `${req.user.firstName} ${req.user.lastName}`;
         const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
