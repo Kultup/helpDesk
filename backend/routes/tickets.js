@@ -811,33 +811,98 @@ router.post('/:id/comments',
 
       const newComment = ticket.comments[ticket.comments.length - 1];
 
-      // Відправка FCM сповіщення автору тікету про новий коментар
+      // Відправка FCM та Telegram сповіщень про новий коментар
       try {
         const fcmService = require('../services/fcmService');
+        const telegramService = require('../services/telegramServiceInstance');
+        const User = require('../models/User');
+        
         const recipients = [];
         if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
+        if (ticket.assignedTo) recipients.push(ticket.assignedTo.toString());
         
         // Видаляємо автора коментаря зі списку отримувачів (він сам додав коментар)
         const commentAuthorId = req.user._id.toString();
         const uniqueRecipients = [...new Set(recipients)].filter(id => id !== commentAuthorId);
         
+        logger.info('🔔 Відправка сповіщень про коментар:', {
+          ticketId: ticket._id.toString(),
+          commentId: newComment._id.toString(),
+          recipients: uniqueRecipients,
+          isInternal: value.isInternal
+        });
+        
+        // Заповнюємо тікет для отримання інформації про користувачів
+        await ticket.populate([
+          { path: 'createdBy', select: 'telegramId telegramChatId email firstName lastName' },
+          { path: 'assignedTo', select: 'telegramId telegramChatId email firstName lastName' }
+        ]);
+        
+        const authorName = `${req.user.firstName} ${req.user.lastName}`;
+        const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
+        const roleLabel = isAdminComment ? '👨‍💼 Адміністратор' : '👤 Користувач';
+        
         for (const userId of uniqueRecipients) {
-          await fcmService.sendToUser(userId, {
-            title: '💬 Новий коментар до тікету',
-            body: `${req.user.firstName} ${req.user.lastName} додав коментар до тікету "${ticket.title}"`,
-            type: 'ticket_comment',
-            data: {
-              ticketId: ticket._id.toString(),
-              ticketTitle: ticket.title,
-              commentId: newComment._id.toString(),
-              commentAuthor: `${req.user.firstName} ${req.user.lastName}`,
-              commentPreview: value.content.substring(0, 100)
+          // FCM сповіщення
+          try {
+            await fcmService.sendToUser(userId, {
+              title: '💬 Новий коментар до тікету',
+              body: `${authorName} додав коментар до тікету "${ticket.title}"`,
+              type: 'ticket_comment',
+              data: {
+                ticketId: ticket._id.toString(),
+                ticketTitle: ticket.title,
+                commentId: newComment._id.toString(),
+                commentAuthor: authorName,
+                commentPreview: value.content.substring(0, 100)
+              }
+            });
+          } catch (fcmError) {
+            logger.error(`❌ Помилка відправки FCM сповіщення для користувача ${userId}:`, fcmError);
+          }
+          
+          // Telegram сповіщення
+          try {
+            const recipientUser = await User.findById(userId).select('telegramId telegramChatId email firstName lastName');
+            const telegramId = recipientUser?.telegramId || recipientUser?.telegramChatId;
+            
+            if (recipientUser && telegramId && !value.isInternal) {
+              if (!telegramService.isInitialized || !telegramService.bot) {
+                logger.warn(`⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`);
+              } else {
+                // Встановлюємо активний тікет для користувача
+                telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
+                
+                const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
+                const message = 
+                  `💬 *Новий коментар до тікету*\n\n` +
+                  `📋 *Тікет:* ${ticket.title}\n` +
+                  `🆔 \`${ticketNumber}\`\n\n` +
+                  `${roleLabel}: *${authorName}*\n\n` +
+                  `💭 *Коментар:*\n${value.content}\n\n` +
+                  `---\n` +
+                  `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
+                  `Або надішліть /menu для виходу.`;
+                
+                await telegramService.sendMessage(
+                  telegramId,
+                  message,
+                  { parse_mode: 'Markdown' }
+                );
+                
+                logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+              }
+            } else if (recipientUser && !telegramId) {
+              logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
             }
-          });
+          } catch (telegramError) {
+            logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, telegramError);
+          }
         }
-        logger.info('✅ FCM сповіщення про новий коментар відправлено');
+        
+        logger.info('✅ Сповіщення про новий коментар відправлено');
       } catch (error) {
-        logger.error('❌ Помилка відправки FCM сповіщення про коментар:', error);
+        logger.error('❌ Помилка відправки сповіщень про коментар:', error);
       }
 
       res.status(201).json({
