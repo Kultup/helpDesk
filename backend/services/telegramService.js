@@ -2380,64 +2380,65 @@ class TelegramService {
       const localPath = path.join(uploadsDir, fileName);
       const file = fs.createWriteStream(localPath);
 
-      // Використовуємо вбудований метод бота для завантаження
-      this.bot.getFileStream(fileId)
-        .then((stream) => {
-          stream.pipe(file);
+      try {
+        // Використовуємо вбудований метод бота для завантаження
+        // getFileStream повертає stream напряму, не Promise
+        const stream = this.bot.getFileStream(fileId);
+        
+        stream.pipe(file);
+        
+        file.on('finish', () => {
+          file.close();
           
-          file.on('finish', () => {
-            file.close();
-            
-            // Перевіряємо, чи файл не порожній
-            const stats = fs.statSync(localPath);
-            if (stats.size === 0) {
-              fs.unlink(localPath, () => {});
-              logger.error('Завантажений файл має нульовий розмір', {
-                fileId,
-                localPath
-              });
-              reject(new Error('Завантажений файл має нульовий розмір'));
-              return;
-            }
-
-            logger.info('Файл успішно завантажено з Telegram через getFileStream', {
-              fileId,
-              localPath,
-              size: stats.size
-            });
-            
-            resolve(localPath);
-          });
-
-          file.on('error', (error) => {
-            file.close();
+          // Перевіряємо, чи файл не порожній
+          const stats = fs.statSync(localPath);
+          if (stats.size === 0) {
             fs.unlink(localPath, () => {});
-            logger.error('Помилка запису файлу', {
+            logger.error('Завантажений файл має нульовий розмір', {
               fileId,
-              localPath,
-              error: error.message
+              localPath
             });
-            reject(error);
-          });
+            reject(new Error('Завантажений файл має нульовий розмір'));
+            return;
+          }
 
-          stream.on('error', (error) => {
-            file.close();
-            fs.unlink(localPath, () => {});
-            logger.error('Помилка потоку при завантаженні файлу з Telegram', {
-              fileId,
-              error: error.message
-            });
-            reject(error);
-          });
-        })
-        .catch((error) => {
-          logger.error('Помилка отримання потоку файлу з Telegram', {
+          logger.info('Файл успішно завантажено з Telegram через getFileStream', {
             fileId,
-            error: error.message,
-            stack: error.stack
+            localPath,
+            size: stats.size
+          });
+          
+          resolve(localPath);
+        });
+
+        file.on('error', (error) => {
+          file.close();
+          fs.unlink(localPath, () => {});
+          logger.error('Помилка запису файлу', {
+            fileId,
+            localPath,
+            error: error.message
           });
           reject(error);
         });
+
+        stream.on('error', (error) => {
+          file.close();
+          fs.unlink(localPath, () => {});
+          logger.error('Помилка потоку при завантаженні файлу з Telegram', {
+            fileId,
+            error: error.message
+          });
+          reject(error);
+        });
+      } catch (error) {
+        logger.error('Помилка отримання потоку файлу з Telegram', {
+          fileId,
+          error: error.message,
+          stack: error.stack
+        });
+        reject(error);
+      }
     });
   }
 
