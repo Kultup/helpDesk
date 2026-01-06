@@ -2319,13 +2319,83 @@ class TelegramService {
       const file = fs.createWriteStream(localPath);
 
       https.get(url, (response) => {
+        // Перевіряємо статус код відповіді
+        if (response.statusCode !== 200) {
+          file.close();
+          fs.unlink(localPath, () => {});
+          logger.error(`Помилка завантаження файлу з Telegram: статус ${response.statusCode}`, {
+            filePath,
+            url,
+            statusCode: response.statusCode,
+            statusMessage: response.statusMessage
+          });
+          reject(new Error(`Помилка завантаження файлу: ${response.statusCode} ${response.statusMessage}`));
+          return;
+        }
+
+        // Перевіряємо Content-Length
+        const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+        let downloadedBytes = 0;
+
+        response.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+        });
+
         response.pipe(file);
+        
         file.on('finish', () => {
           file.close();
+          
+          // Перевіряємо, чи файл не порожній
+          const stats = fs.statSync(localPath);
+          if (stats.size === 0) {
+            fs.unlink(localPath, () => {});
+            logger.error('Завантажений файл має нульовий розмір', {
+              filePath,
+              localPath,
+              contentLength
+            });
+            reject(new Error('Завантажений файл має нульовий розмір'));
+            return;
+          }
+
+          // Перевіряємо, чи розмір відповідає Content-Length (якщо вказано)
+          if (contentLength > 0 && stats.size !== contentLength) {
+            logger.warn('Розмір завантаженого файлу не відповідає Content-Length', {
+              filePath,
+              localPath,
+              expected: contentLength,
+              actual: stats.size
+            });
+          }
+
+          logger.info('Файл успішно завантажено з Telegram', {
+            filePath,
+            localPath,
+            size: stats.size,
+            contentLength
+          });
+          
           resolve(localPath);
+        });
+
+        file.on('error', (error) => {
+          file.close();
+          fs.unlink(localPath, () => {});
+          logger.error('Помилка запису файлу', {
+            filePath,
+            localPath,
+            error: error.message
+          });
+          reject(error);
         });
       }).on('error', (error) => {
         fs.unlink(localPath, () => {}); // Видаляємо файл при помилці
+        logger.error('Помилка HTTP запиту при завантаженні файлу з Telegram', {
+          filePath,
+          url,
+          error: error.message
+        });
         reject(error);
       });
     });
