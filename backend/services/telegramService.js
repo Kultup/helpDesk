@@ -511,6 +511,20 @@ class TelegramService {
             );
           }
           break;
+        case '/help':
+          await this.handleHelpCommand(chatId, user);
+          break;
+        case '/status':
+          if (user) {
+            await this.handleStatusCommand(chatId, user);
+          } else {
+            await this.sendMessage(chatId, 
+              `🚫 *Помилка авторизації*\n\n` +
+              `Ви не авторизовані в системі.\n\n` +
+              `🔑 Використайте /start для початку роботи.`
+            );
+          }
+          break;
         default:
           if (!user) {
             await this.sendMessage(chatId, 
@@ -2617,21 +2631,58 @@ class TelegramService {
       const totalTickets = await Ticket.countDocuments({ createdBy: user._id });
       const openTickets = await Ticket.countDocuments({ 
         createdBy: user._id, 
-        status: { $in: ['open', 'in_progress'] } 
+        status: 'open'
+      });
+      const inProgressTickets = await Ticket.countDocuments({ 
+        createdBy: user._id, 
+        status: 'in_progress'
       });
       const closedTickets = await Ticket.countDocuments({ 
         createdBy: user._id, 
         status: { $in: ['closed', 'resolved'] }
       });
+      
+      // Статистика за останній місяць
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const ticketsLastMonth = await Ticket.countDocuments({ 
+        createdBy: user._id,
+        createdAt: { $gte: oneMonthAgo }
+      });
+
+      // Середній час закриття тікетів (в днях)
+      const closedTicketsWithDates = await Ticket.find({ 
+        createdBy: user._id, 
+        status: { $in: ['closed', 'resolved'] },
+        closedAt: { $exists: true }
+      })
+        .select('createdAt closedAt')
+        .limit(100)
+        .lean();
+      
+      let avgDays = 0;
+      if (closedTicketsWithDates.length > 0) {
+        const totalDays = closedTicketsWithDates.reduce((sum, ticket) => {
+          const days = (new Date(ticket.closedAt) - new Date(ticket.createdAt)) / (1000 * 60 * 60 * 24);
+          return sum + days;
+        }, 0);
+        avgDays = Math.round((totalDays / closedTicketsWithDates.length) * 10) / 10;
+      }
 
       const text = 
-        `📊 *Ваша статистика*\n` +
-        `📋 Всього: \`${totalTickets}\` | 🔓 Відкритих: \`${openTickets}\` | ✅ Закритих: \`${closedTickets}\``;
+        `📊 *Ваша статистика*\n\n` +
+        `📋 *Всього тікетів:* \`${totalTickets}\`\n` +
+        `🔓 *Відкритих:* \`${openTickets}\`\n` +
+        `⚙️ *У роботі:* \`${inProgressTickets}\`\n` +
+        `✅ *Закритих:* \`${closedTickets}\`\n\n` +
+        `📅 *За останній місяць:* \`${ticketsLastMonth}\` тікетів\n` +
+        (avgDays > 0 ? `⏱️ *Середній час закриття:* \`${avgDays}\` днів\n` : '');
 
       await this.sendMessage(chatId, text, {
         reply_markup: {
           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
-        }
+        },
+        parse_mode: 'Markdown'
       });
     } catch (error) {
       logger.error('Помилка отримання статистики:', error);
@@ -2639,6 +2690,106 @@ class TelegramService {
         `❌ *Помилка завантаження статистики*\n\n` +
         `Не вдалося завантажити дані статистики.\n\n` +
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async handleHelpCommand(chatId, user) {
+    const helpText = 
+      `📖 *Довідка по командам*\n\n` +
+      `*Основні команди:*\n` +
+      `🔹 /start - Головне меню\n` +
+      `🔹 /menu - Повернутися до головного меню\n` +
+      `🔹 /help - Показати цю довідку\n` +
+      `🔹 /status - Швидкий перегляд статусів тікетів\n\n` +
+      `*Функції бота:*\n` +
+      `📝 *Створити тікет* - Надішліть опис проблеми текстом або голосом\n` +
+      `📋 *Мої тікети* - Перегляд всіх ваших тікетів\n` +
+      `📜 *Історія тікетів* - Перегляд закритих тікетів\n` +
+      `📊 *Статистика* - Ваша статистика по тікетам\n\n` +
+      `*Додаткові можливості:*\n` +
+      `📸 Можна додавати фото до тікетів\n` +
+      `🎤 Підтримуються голосові повідомлення\n` +
+      `💬 Можна відповідати на коментарі адміністраторів\n\n` +
+      `*Підтримка:*\n` +
+      `Якщо виникли питання, зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`;
+
+    await this.sendMessage(chatId, helpText, {
+      reply_markup: {
+        inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+      },
+      parse_mode: 'Markdown'
+    });
+  }
+
+  async handleStatusCommand(chatId, user) {
+    try {
+      const openTickets = await Ticket.find({ 
+        createdBy: user._id, 
+        status: 'open'
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('title status createdAt')
+        .lean();
+
+      const inProgressTickets = await Ticket.find({ 
+        createdBy: user._id, 
+        status: 'in_progress'
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('title status createdAt')
+        .lean();
+
+      let text = `⚡ *Швидкий статус тікетів*\n\n`;
+
+      if (openTickets.length > 0) {
+        text += `🔓 *Відкриті тікети (${openTickets.length}):*\n`;
+        openTickets.forEach((ticket, index) => {
+          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+          text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
+        });
+        text += `\n`;
+      }
+
+      if (inProgressTickets.length > 0) {
+        text += `⚙️ *У роботі (${inProgressTickets.length}):*\n`;
+        inProgressTickets.forEach((ticket, index) => {
+          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+          text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
+        });
+        text += `\n`;
+      }
+
+      if (openTickets.length === 0 && inProgressTickets.length === 0) {
+        text += `✅ У вас немає активних тікетів!\n\n`;
+        text += `💡 Створіть новий тікет, якщо потрібна допомога.`;
+      } else {
+        text += `💡 Використайте "Мої тікети" для повного списку.`;
+      }
+
+      await this.sendMessage(chatId, text, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '📋 Мої тікети', callback_data: 'my_tickets' },
+              { text: '📊 Статистика', callback_data: 'statistics' }
+            ],
+            [
+              { text: '🏠 Головне меню', callback_data: 'back' }
+            ]
+          ]
+        },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка отримання статусу тікетів:', error);
+      await this.sendMessage(chatId, 
+        `❌ *Помилка завантаження статусу*\n\n` +
+        `Не вдалося завантажити інформацію про тікети.\n\n` +
+        `🔄 Спробуйте ще раз.`,
         { parse_mode: 'Markdown' }
       );
     }
