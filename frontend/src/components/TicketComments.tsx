@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -24,13 +24,14 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   const { width } = useWindowSize();
   const isMobile = width < 640;
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     try {
       setIsLoading(true);
       // Отримуємо тікет, який містить коментарі
       const response = await apiService.getTicketById(ticketId);
       if (response.success && response.data) {
         const ticket = response.data;
+        // eslint-disable-next-line no-console
         console.log('🔔 Завантажені дані тікету:', {
           ticketId,
           hasComments: !!ticket.comments,
@@ -43,33 +44,32 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         if (ticket.comments && Array.isArray(ticket.comments)) {
           // Фільтруємо коментарі, які мають контент
           const validComments = ticket.comments
-            .filter((c: any) => c && c.content)
-            .map((c: any) => {
+            .filter((c: Comment) => c && c.content)
+            .map((c: Comment) => {
               // Переконуємося, що коментар має правильний формат
               return {
                 ...c,
-                _id: c._id || c.id,
+                _id: c._id || (c as any).id,
                 content: c.content || '',
                 author: c.author || { email: 'Невідомий користувач' },
-                createdAt: c.createdAt || c.created_at || new Date().toISOString()
+                createdAt: c.createdAt || (c as any).created_at || new Date().toISOString()
               };
             });
+          // eslint-disable-next-line no-console
           console.log('🔔 Валідні коментарі:', validComments.length, validComments);
-          console.log('🔔 Детальна інформація про коментарі:', validComments.map((c: any) => ({
+          // eslint-disable-next-line no-console
+          console.log('🔔 Детальна інформація про коментарі:', validComments.map((c: Comment) => ({
             _id: c._id,
             hasContent: !!c.content,
             contentLength: c.content?.length || 0,
             hasAuthor: !!c.author,
             authorType: typeof c.author,
-            authorEmail: c.author?.email || (typeof c.author === 'object' ? 'object without email' : c.author),
+            authorEmail: (c.author as any)?.email || (typeof c.author === 'object' ? 'object without email' : c.author),
             createdAt: c.createdAt
           })));
           setComments(validComments);
-          console.log('🔔 Коментарі встановлено в state, перевірка через 100ms...');
-          setTimeout(() => {
-            console.log('🔔 Коментарі в state після встановлення:', comments.length);
-          }, 100);
         } else {
+          // eslint-disable-next-line no-console
           console.warn('⚠️ Коментарі не знайдено або не є масивом', {
             hasComments: !!ticket.comments,
             commentsType: typeof ticket.comments,
@@ -78,20 +78,22 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           setComments([]);
         }
       } else {
+        // eslint-disable-next-line no-console
         console.error('❌ Помилка отримання тікету:', response);
         setComments([]);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Помилка завантаження коментарів:', error);
       setComments([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [ticketId]);
 
   useEffect(() => {
     loadComments();
-  }, [ticketId]);
+  }, [loadComments]);
 
   // WebSocket підписка для оновлення коментарів в реальному часі
   useEffect(() => {
@@ -106,6 +108,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         socket = io(socketUrl, { transports: ['websocket'] });
         
         socket.on('connect', () => {
+          // eslint-disable-next-line no-console
           console.log('🔔 WebSocket підключено для коментарів');
           // Підключаємося до кімнати тікету
           socket.emit('join-ticket-room', ticketId);
@@ -113,6 +116,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
 
         // Слухаємо сповіщення про нові коментарі
         socket.on('ticket-comment', (data: { ticketId: string; comment: Comment }) => {
+          // eslint-disable-next-line no-console
           console.log('🔔 Отримано WebSocket сповіщення про новий коментар:', data);
           if (data.ticketId === ticketId && data.comment) {
             setComments(prev => {
@@ -127,31 +131,35 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         });
 
         socket.on('disconnect', () => {
+          // eslint-disable-next-line no-console
           console.log('🔔 WebSocket відключено для коментарів');
         });
 
-        socket.on('error', (error: any) => {
+        socket.on('error', (error: Error) => {
+          // eslint-disable-next-line no-console
           console.error('❌ WebSocket помилка для коментарів:', error);
         });
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('❌ Помилка налаштування WebSocket для коментарів:', error);
       }
     };
 
     setupSocket();
 
-    return () => {
+        return () => {
       if (socket) {
         try {
           socket.disconnect();
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.error('❌ Помилка відключення WebSocket:', error);
         }
       }
     };
   }, [ticketId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (!newComment.trim() || isSubmitting) return;
 
@@ -164,13 +172,14 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         setNewComment('');
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Помилка додавання коментаря:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (commentId: string) => {
+  const handleDelete = async (commentId: string): Promise<void> => {
     if (!confirm(t('common.confirmDeleteComment'))) return;
 
     try {
@@ -180,22 +189,23 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         await loadComments();
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Помилка видалення коментаря:', error);
     }
   };
 
-  const canDelete = (comment: Comment) => {
+  const canDelete = (comment: Comment): boolean => {
     if (!comment.author) return false;
-    const authorId = typeof comment.author === 'object' && comment.author._id 
-      ? comment.author._id 
+    const authorId = typeof comment.author === 'object' && (comment.author as any)._id 
+      ? (comment.author as any)._id 
       : comment.author;
     return user?._id === authorId || user?.role === 'admin';
   };
 
-  const getAuthorEmail = (comment: Comment) => {
+  const getAuthorEmail = (comment: Comment): string => {
     if (!comment.author) return t('common.unknownUser');
-    if (typeof comment.author === 'object' && comment.author.email) {
-      return comment.author.email;
+    if (typeof comment.author === 'object' && (comment.author as any).email) {
+      return (comment.author as any).email;
     }
     return t('common.unknownUser');
   };
@@ -232,10 +242,11 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
 
         {/* Comments list */}
         {(() => {
+          // eslint-disable-next-line no-console
           console.log('🔔 Рендер коментарів:', {
             isLoading,
             commentsLength: comments.length,
-            comments: comments.map((c: any) => ({
+            comments: comments.map((c: Comment) => ({
               _id: c._id,
               hasContent: !!c.content,
               hasAuthor: !!c.author
@@ -255,8 +266,9 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {comments.map((comment, index) => {
+            {comments.map((comment: Comment, index: number) => {
               const commentKey = comment._id || `comment-${index}`;
+              // eslint-disable-next-line no-console
               console.log(`🔔 Рендер коментаря ${index}:`, {
                 key: commentKey,
                 hasId: !!comment._id,
