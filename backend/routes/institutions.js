@@ -154,7 +154,7 @@ router.get('/public', async (req, res) => {
     // Валідація query параметрів
     const validationRules = [
       query('page').optional().isInt({ min: 1 }).withMessage('Сторінка повинна бути позитивним числом'),
-      query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Ліміт повинен бути від 1 до 100'),
+      query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Ліміт повинен бути від 1 до 1000'),
       query('type').optional().isIn([
         'school', 'university', 'hospital', 'clinic', 'library', 
         'museum', 'theater', 'cinema', 'restaurant', 'cafe',
@@ -265,7 +265,7 @@ router.get('/', authenticateToken, async (req, res) => {
     // Валідація query параметрів
     const validationRules = [
       query('page').optional().isInt({ min: 1 }).withMessage('Сторінка повинна бути позитивним числом'),
-      query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Ліміт повинен бути від 1 до 100'),
+      query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Ліміт повинен бути від 1 до 1000'),
       query('type').optional().isIn([
         'school', 'university', 'hospital', 'clinic', 'library', 
         'museum', 'theater', 'cinema', 'restaurant', 'cafe',
