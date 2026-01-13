@@ -1330,7 +1330,6 @@ router.post('/:id/analyze',
       const ticket = await Ticket.findById(req.params.id)
         .populate('createdBy', 'firstName lastName email position')
         .populate('city', 'name region')
-        .populate('institution', 'name')
         .populate({
           path: 'comments',
           populate: {
@@ -1340,9 +1339,14 @@ router.post('/:id/analyze',
           options: { sort: { createdAt: -1 } }
         });
       
-      // Перевіряємо, чи існує поле assignedTo в схемі перед populate
-      if (ticket && ticket.schema.paths.assignedTo) {
-        await ticket.populate('assignedTo', 'firstName lastName email position');
+      // Перевіряємо, чи існують поля в схемі перед populate
+      if (ticket) {
+        if (ticket.schema.paths.assignedTo) {
+          await ticket.populate('assignedTo', 'firstName lastName email position');
+        }
+        if (ticket.schema.paths.institution) {
+          await ticket.populate('institution', 'name');
+        }
       }
 
       if (!ticket) {

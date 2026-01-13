@@ -14,11 +14,15 @@ const createPositionSchema = Joi.object({
     'string.max': 'Назва посади не може перевищувати 100 символів',
     'any.required': 'Назва посади є обов\'язковою'
   }),
+  titleEn: Joi.string().max(100).allow('').optional(),
   description: Joi.string().max(500).allow('').optional(),
   department: Joi.string().max(100).required().messages({
     'string.max': 'Назва відділу не може перевищувати 100 символів',
     'any.required': 'Відділ є обов\'язковим'
   }),
+  departmentEn: Joi.string().max(100).allow('').optional(),
+  level: Joi.string().optional(),
+  category: Joi.string().optional(),
   permissions: Joi.array().items(
     Joi.object({
       module: Joi.string().required(),
@@ -45,13 +49,18 @@ const createPositionSchema = Joi.object({
   }).optional(),
   reportingTo: Joi.string().allow('').optional(),
   isActive: Joi.boolean().optional(),
-  isPublic: Joi.boolean().optional()
-});
+  isPublic: Joi.boolean().optional(),
+  institutions: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional()
+}).unknown(false);
 
 const updatePositionSchema = Joi.object({
   title: Joi.string().max(100).optional(),
+  titleEn: Joi.string().max(100).allow('').optional(),
   description: Joi.string().max(500).allow('').optional(),
   department: Joi.string().max(100).optional(),
+  departmentEn: Joi.string().max(100).allow('').optional(),
+  level: Joi.string().optional(),
+  category: Joi.string().optional(),
   permissions: Joi.array().items(
     Joi.object({
       module: Joi.string().required(),
@@ -78,8 +87,9 @@ const updatePositionSchema = Joi.object({
   }).optional(),
   reportingTo: Joi.string().allow('').optional(),
   isActive: Joi.boolean().optional(),
-  isPublic: Joi.boolean().optional()
-});
+  isPublic: Joi.boolean().optional(),
+  institutions: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional()
+}).unknown(false);
 
 // @route   GET /api/positions
 // @desc    Отримання списку посад
