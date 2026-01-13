@@ -1691,8 +1691,7 @@ class TelegramService {
       ticket.qualityRating.ratedBy = user._id;
       await ticket.save();
 
-      const stars = '★★★★★'.slice(0, ticket.qualityRating.rating);
-      await this.sendMessage(chatId, `✅ *Дякуємо за вашу оцінку!*\n\nВаша оцінка: ${stars}`);
+      await this.sendMessage(chatId, `✅ *Дякуємо за оцінку!*`);
     } catch (error) {
       logger.error('Помилка обробки оцінки якості:', error);
       await this.sendMessage(chatId, `❌ *Помилка збереження оцінки*`);
