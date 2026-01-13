@@ -1315,6 +1315,11 @@ router.post('/:id/analyze',
     try {
       const groqService = require('../services/groqService');
       
+      // Ініціалізуємо сервіс, якщо він ще не ініціалізований
+      if (!groqService.client) {
+        await groqService.initialize();
+      }
+      
       if (!groqService.isEnabled()) {
         return res.status(503).json({
           success: false,
@@ -1349,10 +1354,15 @@ router.post('/:id/analyze',
 
       // Отримуємо історію змін тікета
       const TicketHistory = require('../models/TicketHistory');
-      const history = await TicketHistory.find({ ticketId: ticket._id })
-        .sort({ timestamp: -1 })
-        .limit(10)
-        .lean();
+      let history = [];
+      try {
+        history = await TicketHistory.find({ ticketId: ticket._id })
+          .sort({ timestamp: -1 })
+          .limit(10)
+          .lean();
+      } catch (historyError) {
+        logger.warn('Помилка отримання історії тікета:', historyError);
+      }
 
       const ticketWithHistory = {
         ...ticket.toObject(),

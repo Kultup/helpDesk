@@ -372,11 +372,22 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
         return null;
       }
 
-      const result = JSON.parse(responseText);
-      logger.info('Результат AI аналізу тікета:', { ticketId: ticket._id, result });
-      return result;
+      try {
+        const result = JSON.parse(responseText);
+        logger.info('Результат AI аналізу тікета:', { ticketId: ticket._id || ticket.id, result });
+        return result;
+      } catch (parseError) {
+        logger.error('Помилка парсингу JSON відповіді від Groq:', parseError);
+        logger.error('Відповідь від Groq:', responseText);
+        return null;
+      }
     } catch (error) {
       logger.error('Помилка аналізу тікета через Groq:', error);
+      logger.error('Деталі помилки:', { 
+        message: error.message, 
+        stack: error.stack,
+        ticketId: ticket?._id || ticket?.id 
+      });
       return null;
     }
   }

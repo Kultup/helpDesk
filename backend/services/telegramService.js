@@ -1233,7 +1233,7 @@ class TelegramService {
 
   async handlePriorityCallback(chatId, user, priority) {
     const session = this.userSessions.get(chatId);
-    if (!session || session.step !== 'priority') return;
+    if (!session || session.step !== 'priority') {return;}
 
     session.ticketData.priority = priority;
     await this.completeTicketCreation(chatId, user, session);
@@ -1404,7 +1404,7 @@ class TelegramService {
       this.userSessions.set(chatId, session);
 
       // Показуємо форму з заповненими даними
-      let message = 
+      const message = 
         `🔄 *Повторне створення тікету*\n` +
         `📋 *Заголовок:* \`${originalTicket.title}\`\n` +
         `📝 *Опис:* \`${originalTicket.description || 'Без опису'}\`\n` +
@@ -2107,7 +2107,7 @@ class TelegramService {
 
   // Екранування спеціальних символів Markdown для Telegram
   escapeMarkdown(text) {
-    if (!text || typeof text !== 'string') return text;
+    if (!text || typeof text !== 'string') {return text;}
     // Екрануємо спеціальні символи Markdown: * _ [ ] ( ) ~ ` >
     return text
       .replace(/\*/g, '\\*')
@@ -2123,7 +2123,7 @@ class TelegramService {
 
   // Екранування спеціальних символів HTML для Telegram
   escapeHtml(text) {
-    if (!text || typeof text !== 'string') return text;
+    if (!text || typeof text !== 'string') {return text;}
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -2134,7 +2134,7 @@ class TelegramService {
 
   // Конвертація Markdown на HTML для Telegram (базова)
   markdownToHtml(text) {
-    if (!text || typeof text !== 'string') return text;
+    if (!text || typeof text !== 'string') {return text;}
     return text
       .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')  // **text** -> <b>text</b>
       .replace(/\*(.+?)\*/g, '<b>$1</b>')      // *text* -> <b>text</b>
@@ -2144,53 +2144,53 @@ class TelegramService {
 
   // Методи валідації
   validateName(name) {
-    if (!name || typeof name !== 'string') return false;
+    if (!name || typeof name !== 'string') {return false;}
     const trimmed = name.trim();
     return trimmed.length >= 2 && trimmed.length <= 50 && /^[a-zA-Zа-яА-ЯіІїЇєЄ''\s-]+$/.test(trimmed);
   }
 
   validateEmail(email) {
-    if (!email || typeof email !== 'string') return false;
+    if (!email || typeof email !== 'string') {return false;}
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email.trim());
   }
 
   validateLogin(login) {
-    if (!login || typeof login !== 'string') return false;
+    if (!login || typeof login !== 'string') {return false;}
     const trimmed = login.trim();
     // Мінімум 3 символи, максимум 50, тільки латиниця, цифри та підкреслення
     // Перевіряємо, що немає кирилиці та інших спеціальних символів
-    if (trimmed.length < 3 || trimmed.length > 50) return false;
+    if (trimmed.length < 3 || trimmed.length > 50) {return false;}
     // Перевіряємо, що є хоча б одна латинська літера
-    if (!/[a-zA-Z]/.test(trimmed)) return false;
+    if (!/[a-zA-Z]/.test(trimmed)) {return false;}
     // Перевіряємо, що немає кирилиці
-    if (/[а-яА-ЯіІїЇєЄ]/.test(trimmed)) return false;
+    if (/[а-яА-ЯіІїЇєЄ]/.test(trimmed)) {return false;}
     // Перевіряємо, що тільки дозволені символи
     return /^[a-zA-Z0-9_]+$/.test(trimmed);
   }
 
   validatePhone(phone) {
-    if (!phone || typeof phone !== 'string') return false;
+    if (!phone || typeof phone !== 'string') {return false;}
     const phoneRegex = /^\+?[1-9]\d{9,14}$/;
     return phoneRegex.test(phone.replace(/[\s-()]/g, ''));
   }
 
   validatePassword(password) {
-    if (!password || typeof password !== 'string') return false;
+    if (!password || typeof password !== 'string') {return false;}
     // Пароль повинен містити тільки латинські літери, цифри та дозволені символи
     // Мінімум 6 символів, хоча б одна латинська літера та одна цифра
-    if (password.length < 6) return false;
+    if (password.length < 6) {return false;}
     // Перевіряємо, що немає кирилиці
-    if (/[а-яА-ЯіІїЇєЄ]/.test(password)) return false;
+    if (/[а-яА-ЯіІїЇєЄ]/.test(password)) {return false;}
     // Перевіряємо, що є хоча б одна латинська літера
-    if (!/[a-zA-Z]/.test(password)) return false;
+    if (!/[a-zA-Z]/.test(password)) {return false;}
     // Перевіряємо, що є хоча б одна цифра
-    if (!/\d/.test(password)) return false;
+    if (!/\d/.test(password)) {return false;}
     return true;
   }
 
   validateDepartment(department) {
-    if (!department || typeof department !== 'string') return false;
+    if (!department || typeof department !== 'string') {return false;}
     const trimmed = department.trim();
     return trimmed.length >= 2 && trimmed.length <= 100;
   }
@@ -3246,7 +3246,7 @@ class TelegramService {
       // Очищуємо сесію
       this.userSessions.delete(chatId);
 
-      let confirmText = 
+      const confirmText = 
         `🎉 *Тікет успішно створено!*\n` +
         `🆔 \`${ticket._id}\`\n` +
         `⏳ Очікуйте відповідь адміністратора`;
@@ -4241,7 +4241,7 @@ class TelegramService {
       
       logger.info('Institution filter:', filter);
       
-      let institutions = await Institution.find(filter)
+      const institutions = await Institution.find(filter)
         .select('name type address.city')
         .sort({ name: 1 })
         .limit(50)
@@ -5152,7 +5152,7 @@ class TelegramService {
       // Видаляємо тимчасовий файл
       const fs = require('fs');
       fs.unlink(savedPath, (err) => {
-        if (err) logger.error('Помилка видалення тимчасового аудіофайлу:', err);
+        if (err) {logger.error('Помилка видалення тимчасового аудіофайлу:', err);}
       });
 
     } catch (error) {
@@ -5162,7 +5162,7 @@ class TelegramService {
   }
 
   getPriorityText(priority) {
-    if (!priority) return 'Середній';
+    if (!priority) {return 'Середній';}
     const texts = {
       'low': 'Низький',
       'medium': 'Середній',
@@ -5218,7 +5218,7 @@ class TelegramService {
         logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
         
         let title = intentAnalysis.title || '';
-        let description = intentAnalysis.description || '';
+        const description = intentAnalysis.description || '';
         let priority = intentAnalysis.priority || 'medium';
 
         // Автоматичне підвищення пріоритету, якщо користувач злий
