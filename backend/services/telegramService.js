@@ -1109,6 +1109,92 @@ class TelegramService {
         await this.handleAddMorePhotosCallback(chatId, user);
       } else if (data === 'finish_ticket') {
         await this.handleFinishTicketCallback(chatId, user);
+      } else if (data === 'confirm_create_ticket') {
+        // ✅ Користувач підтвердив створення тікета
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'confirm_ticket' && session.ticketDraft) {
+          // Переводимо draft в реальний тікет
+          session.step = 'photo';
+          session.ticketData = {
+            createdBy: session.ticketDraft.createdBy,
+            title: session.ticketDraft.title,
+            description: session.ticketDraft.description,
+            priority: session.ticketDraft.priority,
+            subcategory: session.ticketDraft.subcategory,
+            type: session.ticketDraft.type,
+            photos: []
+          };
+          
+          await this.sendMessage(chatId, 
+            `✅ *Чудово! Створюю тікет.*\n\n` +
+            `📸 *Останній крок:* Бажаєте додати фото до заявки?`, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                ]
+              }
+            }
+          );
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'force_create_ticket') {
+        // Користувач хоче створити тікет з поточною інформацією
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'gathering_information' && session.ticketDraft) {
+          const fullInfo = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
+          
+          session.ticketData = {
+            createdBy: session.ticketDraft.createdBy,
+            title: session.ticketDraft.title || 'Проблема',
+            description: fullInfo,
+            priority: session.ticketDraft.priority,
+            subcategory: session.ticketDraft.subcategory,
+            type: session.ticketDraft.type,
+            photos: []
+          };
+          session.step = 'photo';
+          
+          await this.sendMessage(chatId, 
+            `✅ *Добре, створюю тікет з наявною інформацією.*\n\n` +
+            `📸 Бажаєте додати фото?`, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }]
+                ]
+              }
+            }
+          );
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'edit_ticket_info') {
+        // Користувач хоче виправити інформацію
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'confirm_ticket') {
+          session.step = 'gathering_information';
+          await this.sendMessage(chatId, 
+            `✏️ *Добре, давайте уточнимо.*\n\n` +
+            `Що саме потрібно виправити або доповнити?`, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
+                ]
+              }
+            }
+          );
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'cancel_info_gathering') {
+        // Скасування збору інформації
+        this.userSessions.delete(chatId);
+        await this.sendMessage(chatId, 
+          `❌ Збір інформації скасовано.\n\n` +
+          `Якщо потрібна допомога - просто напишіть мені! 😊`
+        );
+        await this.showUserDashboard(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'cancel_ticket') {
         await this.handleCancelTicketCallback(chatId, user);
         await this.answerCallbackQuery(callbackQuery.id);
@@ -2103,6 +2189,93 @@ class TelegramService {
   async handleTicketCreationStep(chatId, text, session) {
     try {
       switch (session.step) {
+        case 'gathering_information': {
+          // Користувач відповідає на питання AI для збору інформації
+          logger.info(`Збір інформації, етап ${session.stage}`);
+          
+          // Додаємо відповідь користувача в історію
+          session.conversationHistory.push({
+            role: 'user',
+            content: text
+          });
+          session.ticketDraft.collectedInfo.push(text);
+          
+          // Показуємо індикатор набору
+          await this.bot.sendChatAction(chatId, 'typing');
+          
+          // Об'єднуємо всю зібрану інформацію
+          const fullConversation = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
+          
+          // Повторно аналізуємо чи достатньо інформації
+          const reanalysis = await groqService.analyzeIntent(fullConversation);
+          
+          // Перевіряємо чи достатньо інформації для створення тікета
+          if (reanalysis.description && !reanalysis.needsMoreInfo) {
+            // ✅ Достатньо інформації! Показуємо резюме та пропонуємо створити
+            logger.info(`Зібрано достатньо інформації для тікета`);
+            
+            session.ticketDraft.title = reanalysis.title || session.ticketDraft.title;
+            session.ticketDraft.description = reanalysis.description;
+            session.ticketDraft.priority = reanalysis.priority || session.ticketDraft.priority;
+            
+            const priorityText = this.getPriorityText(session.ticketDraft.priority);
+            const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
+            
+            const summaryMessage = 
+              `✅ *Дякую! Я зібрав всю необхідну інформацію.*\n\n` +
+              `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
+              `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
+              `📝 *Опис проблеми:*\n${session.ticketDraft.description}\n\n` +
+              `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n` +
+              `⚡ *Пріоритет:* ${priorityText}\n\n` +
+              `💡 Все правильно? Створюю тікет?`;
+            
+            session.step = 'confirm_ticket';
+            
+            await this.sendMessage(chatId, summaryMessage, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                  [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
+                  [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
+                ]
+              }
+            });
+          } else {
+            // ❌ Ще недостатньо - генеруємо наступне питання через AI
+            session.stage++;
+            logger.info(`Недостатньо інформації, продовжуємо збір. Етап ${session.stage}`);
+            
+            // Генеруємо наступне питання на основі того, чого не вистачає
+            const nextQuestion = await groqService.generateClarifyingQuestions(
+              session.ticketDraft.title,
+              reanalysis.missingInfo || ['додаткові деталі'],
+              session.ticketDraft.subcategory
+            );
+            
+            session.conversationHistory.push({
+              role: 'assistant',
+              content: nextQuestion
+            });
+            
+            await this.sendMessage(chatId, nextQuestion, {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '✅ Достатньо інформації, створити', callback_data: 'force_create_ticket' }],
+                  [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
+                ]
+              }
+            });
+          }
+          break;
+        }
+        
+        case 'confirm_ticket': {
+          // Користувач підтвердив створення або редагує
+          // Цей етап обробляється через callback кнопки
+          break;
+        }
+
         case 'title':
           session.ticketData.title = text;
           session.step = 'description';
@@ -3699,6 +3872,17 @@ class TelegramService {
     return priorityMap[priority] || priority;
   }
 
+  getCategoryEmoji(category) {
+    const categoryMap = {
+      'Hardware': '🖥️',
+      'Software': '💻',
+      'Network': '🌐',
+      'Access': '🔐',
+      'Other': '📋'
+    };
+    return categoryMap[category] || '📋';
+  }
+
   getPriorityPromptText() {
     return `⚡ *Оберіть пріоритет тікету*\n` +
       `Пріоритет визначає швидкість обробки вашого запиту.`;
@@ -4881,6 +5065,62 @@ class TelegramService {
       // Якщо AI впевнений, що це намір створити тікет, або є пряме ключове слово
       if ((intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.6) || hasManualKeyword) {
         logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
+        
+        // ЗАВЖДИ перевіряємо чи достатньо інформації
+        // Тікет створюємо тільки коли є ПОВНИЙ опис
+        if (!intentAnalysis.description || intentAnalysis.needsMoreInfo) {
+          logger.info(`Запускаємо збір інформації для тікета`, {
+            hasDescription: !!intentAnalysis.description,
+            needsMoreInfo: intentAnalysis.needsMoreInfo,
+            missingInfo: intentAnalysis.missingInfo
+          });
+          
+          // Створюємо сесію збору інформації (НЕ тікета!)
+          const infoSession = {
+            step: 'gathering_information',
+            stage: 1, // Етап збору (1, 2, 3...)
+            conversationHistory: [], // Історія діалогу про тікет
+            ticketDraft: {
+              createdBy: user._id,
+              title: intentAnalysis.title || '',
+              initialMessage: userMessage,
+              collectedInfo: [], // Зібрана інформація
+              priority: intentAnalysis.priority || 'medium',
+              subcategory: intentAnalysis.category || 'Other',
+              type: intentAnalysis.ticketType || 'incident',
+              sentiment: intentAnalysis.sentiment
+            },
+            missingInfo: intentAnalysis.missingInfo || []
+          };
+          
+          this.userSessions.set(chatId, infoSession);
+          
+          // Генеруємо перше питання через AI
+          const firstQuestion = await groqService.generateClarifyingQuestions(
+            intentAnalysis.title || 'проблема',
+            intentAnalysis.missingInfo || ['детальний опис проблеми'],
+            intentAnalysis.category
+          );
+          
+          // Зберігаємо питання в історію
+          infoSession.conversationHistory.push({
+            role: 'user',
+            content: userMessage
+          });
+          infoSession.conversationHistory.push({
+            role: 'assistant',
+            content: firstQuestion
+          });
+          
+          await this.sendMessage(chatId, firstQuestion, {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
+              ]
+            }
+          });
+          return;
+        }
         
         let title = intentAnalysis.title || '';
         const description = intentAnalysis.description || '';

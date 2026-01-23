@@ -331,13 +331,6 @@ export interface PriorityStatistics {
   percentage: number;
 }
 
-// Типи для теплової карти
-export interface HeatMapData {
-  region: string;
-  count: number;
-  intensity: number;
-}
-
 // Типи для API відповідей
 export interface ApiResponse<T> {
   success: boolean;

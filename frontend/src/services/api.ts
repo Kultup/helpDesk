@@ -671,7 +671,7 @@ class ApiService {
   }
 
   // Генерація FAQ на основі заявок
-  async generateFAQ(startDate?: string, endDate?: string, minFrequency: number = 2, maxItems: number = 20, autoSave: boolean = false): Promise<ApiResponse<{
+  async generateFAQ(startDate?: string, endDate?: string, minFrequency = 2, maxItems = 20, autoSave = false): Promise<ApiResponse<{
     faqItems: Array<{
       question: string;
       answer: string;
@@ -790,18 +790,6 @@ class ApiService {
     return response.data;
   }
 
-  async getHeatMapData(
-    dateFrom?: string,
-    dateTo?: string
-  ): Promise<ApiResponse<Record<string, unknown>>> {
-    const params = new URLSearchParams();
-    if (dateFrom) params.append('dateFrom', dateFrom);
-    if (dateTo) params.append('dateTo', dateTo);
-
-    const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = 
-      await this.api.get(`/analytics/heatmap?${params.toString()}`);
-    return response.data;
-  }
 
   // Методи для експорту
   async exportTickets(
