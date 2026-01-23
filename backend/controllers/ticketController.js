@@ -401,7 +401,12 @@ exports.createTicket = async (req, res) => {
         };
         await ticket.save();
         
-        logger.info(`✅ SLA встановлено для тікету ${ticket._id}: ${analysis.slaRecommendation.hours} годин (${analysis.slaRecommendation.reason})`);
+        logger.info(`✅ SLA встановлено для тікету ${ticket._id}:`, {
+          hours: analysis.slaRecommendation.hours,
+          complexity: analysis.estimatedComplexity,
+          priority: ticket.priority,
+          reason: analysis.slaRecommendation.reason
+        });
       } else {
         // Встановлюємо SLA за замовчуванням на основі пріоритету
         const defaultSLA = {
