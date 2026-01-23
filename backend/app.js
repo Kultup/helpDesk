@@ -437,6 +437,7 @@ app.use('/api/settings', require('./routes/settings')); // Налаштуван�
 app.use('/api/kb', require('./routes/knowledgeBase'));
 app.use('/api/ai-knowledge', require('./routes/aiKnowledge'));
 app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція
+app.use('/api/groq-stats', require('./routes/groqStats')); // Статистика Groq API
 // Сповіщення
 app.use('/api/notifications', require('./routes/notifications'));
 

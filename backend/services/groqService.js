@@ -1,12 +1,14 @@
 const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 const BotSettings = require('../models/BotSettings');
+const GroqApiUsage = require('../models/GroqApiUsage');
 const fs = require('fs');
 
 class GroqService {
   constructor() {
     this.client = null;
     this.settings = null;
+    this.adminTelegramId = '6070910226'; // ID адміна для сповіщень
   }
 
   async initialize() {
@@ -162,6 +164,13 @@ class GroqService {
         return null;
       }
 
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile', 
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
+
       return response;
     } catch (error) {
       logger.error('Помилка отримання відповіді від Groq:', error);
@@ -249,6 +258,12 @@ class GroqService {
 
       const result = JSON.parse(responseText);
       logger.info('Результат аналізу наміру AI:', result);
+      
+      // Трекінг використання API
+      await this.trackApiUsage('llama-3.3-70b-versatile', chatCompletion, {
+        tokensUsed: chatCompletion.usage?.total_tokens || 0
+      });
+      
       return result;
     } catch (error) {
       logger.error('Помилка аналізу наміру через Groq:', error);
@@ -309,6 +324,13 @@ class GroqService {
         temperature: 0.3,
         max_tokens: 300
       });
+
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile',
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
 
       return chatCompletion.choices[0]?.message?.content || 
         `📝 Розумію проблему. Уточніть, будь ласка:\n${missingInfo.map(info => `• ${info}?`).join('\n')}\n\n💡 Це допоможе швидше вирішити проблему.`;
@@ -447,6 +469,13 @@ ${ticket.history.slice(-5).map(h => `- ${h.action}: ${h.changes || ''} (${new Da
         logger.warn('Groq повернув порожню відповідь при аналізі тікета');
         return null;
       }
+
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile',
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
 
       try {
         const result = JSON.parse(responseText);
@@ -643,6 +672,13 @@ ${ticketsContext}
         return null;
       }
 
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile',
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
+
       const result = JSON.parse(responseText);
       logger.info('Результат AI аналізу аналітики:', { result });
       return result;
@@ -765,6 +801,13 @@ ${analyticsData.topCities.slice(0, 5).map((city, i) =>
         logger.warn('Groq повернув порожню відповідь при генерації звіту');
         return null;
       }
+
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile',
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
 
       return {
         report: reportText,
@@ -899,6 +942,13 @@ ${ticketsContext || 'Немає заявок з коментарями'}
 
       const result = JSON.parse(responseText);
       
+      // Трекінг використання API
+      await this.trackApiUsage(
+        this.settings.groqModel || 'llama-3.3-70b-versatile',
+        chatCompletion,
+        { tokensUsed: chatCompletion.usage?.total_tokens || 0 }
+      );
+      
       // Фільтруємо FAQ за мінімальною частотою
       if (result.faqItems) {
         result.faqItems = result.faqItems
@@ -939,10 +989,124 @@ ${ticketsContext || 'Немає заявок з коментарями'}
         language: 'uk' // Пріоритет для української
       });
 
+      // Трекінг використання (аудіо)
+      await this.trackApiUsage('whisper-large-v3', null, { audioSeconds: 30 }); // Приблизна оцінка
+
       return transcription.text;
     } catch (error) {
       logger.error('Помилка транскрибації аудіо через Groq:', error);
       return null;
+    }
+  }
+
+  /**
+   * Відстеження використання Groq API та перевірка лімітів
+   */
+  async trackApiUsage(model, response = null, extraData = {}) {
+    try {
+      const usage = await GroqApiUsage.getTodayUsage();
+      
+      // Оновлюємо статистику використання
+      const tokensUsed = response?.usage?.total_tokens || extraData.tokensUsed || 0;
+      const audioSeconds = extraData.audioSeconds || 0;
+      
+      await usage.updateUsage(model, { tokensUsed, audioSeconds });
+      
+      // Оновлюємо ліміти з headers (якщо є response)
+      if (response?.headers) {
+        await usage.updateRateLimits(response.headers);
+        
+        // Перевіряємо чи потрібно сповіщення
+        const notificationData = usage.shouldNotify();
+        
+        if (notificationData) {
+          await this.sendLimitNotification(notificationData, usage);
+        }
+      }
+      
+      logger.debug('API usage tracked', { 
+        model, 
+        tokensUsed, 
+        audioSeconds,
+        remainingRequests: usage.rateLimits?.remainingRequests,
+        remainingTokens: usage.rateLimits?.remainingTokens
+      });
+    } catch (error) {
+      logger.error('Помилка трекінгу API використання:', error);
+    }
+  }
+
+  /**
+   * Відправка сповіщення адміну про наближення до ліміту
+   */
+  async sendLimitNotification(notificationData, usage) {
+    try {
+      const { level, requestsPercentage, tokensPercentage, remainingRequests, remainingTokens } = notificationData;
+      
+      let message = '';
+      let emoji = '';
+      
+      if (level === 'critical') {
+        emoji = '🚨';
+        message = `${emoji} <b>КРИТИЧНО! Ліміт Groq API майже вичерпано!</b>\n\n`;
+      } else {
+        emoji = '⚠️';
+        message = `${emoji} <b>Попередження: Ліміт Groq API</b>\n\n`;
+      }
+      
+      message += `📊 <b>Статус на сьогодні:</b>\n`;
+      message += `├ Залишилось запитів: <b>${remainingRequests}</b> (${requestsPercentage}%)\n`;
+      message += `├ Залишилось токенів: <b>${remainingTokens}</b> (${tokensPercentage}%)\n`;
+      message += `└ Оновлення: ${usage.rateLimits?.resetRequests || 'невідомо'}\n\n`;
+      
+      const llamaUsage = usage.modelUsage?.['llama-3.3-70b-versatile'] || {};
+      const whisperUsage = usage.modelUsage?.['whisper-large-v3'] || {};
+      
+      message += `🤖 <b>Використання моделей:</b>\n`;
+      message += `├ LLaMA 3.3 70B: ${llamaUsage.requestsCount || 0} запитів, ${llamaUsage.tokensUsed || 0} токенів\n`;
+      message += `└ Whisper: ${whisperUsage.requestsCount || 0} запитів, ${whisperUsage.audioSecondsUsed || 0} сек\n\n`;
+      
+      if (level === 'critical') {
+        message += `💡 <b>Рекомендації:</b>\n`;
+        message += `• Розглянути покупку Developer Plan\n`;
+        message += `• Тимчасово обмежити AI функції\n`;
+        message += `• Перевірити ліміти: https://console.groq.com/settings/limits`;
+      } else {
+        message += `💡 Слідкуйте за використанням API протягом дня.`;
+      }
+      
+      // Відправка через telegramService
+      const telegramService = require('./telegramServiceInstance');
+      await telegramService.sendMessage(this.adminTelegramId, message, {
+        parse_mode: 'HTML'
+      });
+      
+      // Позначаємо що сповіщення відправлено
+      await usage.markNotified(level);
+      
+      logger.info(`${emoji} Сповіщення про ліміт API відправлено адміну`, { level, requestsPercentage, tokensPercentage });
+    } catch (error) {
+      logger.error('Помилка відправки сповіщення про ліміт:', error);
+    }
+  }
+
+  /**
+   * Отримати статистику використання API
+   */
+  async getUsageStats(days = 7) {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const stats = await GroqApiUsage.find({
+        date: { $gte: startDate }
+      }).sort({ date: -1 });
+      
+      return stats;
+    } catch (error) {
+      logger.error('Помилка отримання статистики API:', error);
+      return [];
     }
   }
 }
