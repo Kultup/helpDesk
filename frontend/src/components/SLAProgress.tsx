@@ -121,7 +121,7 @@ const SLAProgress: React.FC<SLAProgressProps> = ({ sla, compact = false }) => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {React.cloneElement(statusConfig.icon, { 
-            fontSize: 'small',
+            fontSize: 'small' as any,
             color: statusConfig.color
           })}
           <Typography variant="body2" fontWeight="medium">
@@ -141,11 +141,11 @@ const SLAProgress: React.FC<SLAProgressProps> = ({ sla, compact = false }) => {
       <LinearProgress
         variant="determinate"
         value={progress}
-        color={statusConfig.progressColor as 'success' | 'warning' | 'error' | 'primary'}
+        color={statusConfig.progressColor as any}
         sx={{
           height: 8,
           borderRadius: 4,
-          backgroundColor: (theme) =>
+          backgroundColor: (theme: any) =>
             theme.palette.mode === 'light'
               ? theme.palette.grey[200]
               : theme.palette.grey[800]
