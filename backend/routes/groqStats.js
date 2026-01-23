@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
-const { adminAuth } = require('../middleware/adminAuth');
+const adminAuth = require('../middleware/adminAuth');
 const groqService = require('../services/groqService');
 const GroqApiUsage = require('../models/GroqApiUsage');
 
