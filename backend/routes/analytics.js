@@ -31,8 +31,8 @@ router.post('/generate-report',
 
       // Створюємо фільтр дат
       const dateFilter = {};
-      if (startDate) dateFilter.$gte = new Date(startDate);
-      if (endDate) dateFilter.$lte = new Date(endDate);
+      if (startDate) {dateFilter.$gte = new Date(startDate);}
+      if (endDate) {dateFilter.$lte = new Date(endDate);}
       
       const filter = {};
       if (Object.keys(dateFilter).length > 0) {
@@ -320,8 +320,8 @@ router.post('/analyze',
 
       // Створюємо фільтр дат
       const dateFilter = {};
-      if (startDate) dateFilter.$gte = new Date(startDate);
-      if (endDate) dateFilter.$lte = new Date(endDate);
+      if (startDate) {dateFilter.$gte = new Date(startDate);}
+      if (endDate) {dateFilter.$lte = new Date(endDate);}
       
       const filter = {};
       if (Object.keys(dateFilter).length > 0) {
@@ -485,8 +485,8 @@ router.get('/cities',
       const dateFilter = {};
       if (startDate || endDate) {
         dateFilter.createdAt = {};
-        if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-        if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+        if (startDate) {dateFilter.createdAt.$gte = new Date(startDate);}
+        if (endDate) {dateFilter.createdAt.$lte = new Date(endDate);}
       }
 
       // Статистика тикетів по містах
@@ -557,46 +557,11 @@ router.get('/cities',
         { $sort: { userCount: -1 } }
       ]);
 
-      // Дані для теплової карти
-      const heatMapData = await City.aggregate([
-        {
-          $lookup: {
-            from: 'tickets',
-            let: { cityId: '$_id' },
-            pipeline: [
-              { 
-                $match: { 
-                  $expr: { $eq: ['$city', '$$cityId'] },
-                  ...dateFilter
-                }
-              },
-              {
-                $group: {
-                  _id: '$status',
-                  count: { $sum: 1 }
-                }
-              }
-            ],
-            as: 'tickets'
-          }
-        },
-        {
-          $project: {
-            name: 1,
-            region: 1,
-            coordinates: 1,
-            totalTickets: { $size: '$tickets' },
-            ticketsByStatus: '$tickets'
-          }
-        }
-      ]);
-
       res.json({
         success: true,
         data: {
           ticketsByCity,
-          usersByCity,
-          heatMapData
+          usersByCity
         }
       });
 
@@ -624,8 +589,8 @@ router.get('/positions',
       const dateFilter = {};
       if (startDate || endDate) {
         dateFilter.createdAt = {};
-        if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-        if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+        if (startDate) {dateFilter.createdAt.$gte = new Date(startDate);}
+        if (endDate) {dateFilter.createdAt.$lte = new Date(endDate);}
       }
 
       // Статистика по посадах (через користувачів)
@@ -800,8 +765,8 @@ router.get('/performance',
       const dateFilter = {};
       if (startDate || endDate) {
         dateFilter.createdAt = {};
-        if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-        if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+        if (startDate) {dateFilter.createdAt.$gte = new Date(startDate);}
+        if (endDate) {dateFilter.createdAt.$lte = new Date(endDate);}
       }
 
       // Фільтр користувача
@@ -938,8 +903,8 @@ router.get('/export',
       const dateFilter = {};
       if (startDate || endDate) {
         dateFilter.createdAt = {};
-        if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-        if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+        if (startDate) {dateFilter.createdAt.$gte = new Date(startDate);}
+        if (endDate) {dateFilter.createdAt.$lte = new Date(endDate);}
       }
 
       let data = {};
@@ -966,7 +931,7 @@ router.get('/export',
           break;
 
         case 'overview':
-        default:
+        default: {
           // Отримуємо загальну статистику для експорту
           const totalTickets = await Ticket.countDocuments(dateFilter);
           const ticketsByStatus = await Ticket.aggregate([
@@ -987,6 +952,7 @@ router.get('/export',
             dateRange: { startDate, endDate }
           };
           break;
+        }
       }
 
       // Встановлення заголовків відповіді
@@ -1037,7 +1003,7 @@ router.get('/export',
 
 // Допоміжна функція для конвертації в CSV
 function convertToCSV(data) {
-  if (!data || data.length === 0) return '';
+  if (!data || data.length === 0) {return '';}
   
   const headers = Object.keys(data[0]);
   const csvHeaders = headers.join(',');

@@ -12,13 +12,13 @@ const createCityValidation = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Назва міста повинна містити від 2 до 100 символів')
-    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-\']+$/)
+    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-']+$/)
     .withMessage('Назва міста може містити тільки літери, пробіли, дефіси та апострофи'),
   body('region')
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Назва регіону повинна містити від 2 до 100 символів')
-    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-\']+$/)
+    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-']+$/)
     .withMessage('Назва регіону може містити тільки літери, пробіли, дефіси та апострофи'),
   body('coordinates')
     .optional()
@@ -68,14 +68,14 @@ const updateCityValidation = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Назва міста повинна містити від 2 до 100 символів')
-    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-\']+$/)
+    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-']+$/)
     .withMessage('Назва міста може містити тільки літери, пробіли, дефіси та апострофи'),
   body('region')
     .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Назва регіону повинна містити від 2 до 100 символів')
-    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-\']+$/)
+    .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s\-']+$/)
     .withMessage('Назва регіону може містити тільки літери, пробіли, дефіси та апострофи'),
   body('coordinates')
     .optional()
@@ -209,26 +209,6 @@ router.get('/region/:region', authenticateToken, [
 
 // Отримати статистику міст (тільки адміни)
 router.get('/statistics/overview', authenticateToken, adminAuth, cityController.getCityStatistics);
-
-// Отримати дані для теплової карти
-router.get('/heatmap/data', authenticateToken, [
-  query('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Початкова дата повинна бути в форматі ISO8601'),
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Кінцева дата повинна бути в форматі ISO8601'),
-  query('status')
-    .optional()
-    .isIn(['open', 'in_progress', 'resolved', 'closed'])
-    .withMessage('Невірний статус тикету'),
-  query('priority')
-    .optional()
-    .isIn(['low', 'medium', 'high', 'urgent'])
-    .withMessage('Невірний пріоритет тикету')
-], cityController.getHeatMapData);
 
 // Експорт міст (тільки адміни)
 router.get('/export/data', authenticateToken, adminAuth, [

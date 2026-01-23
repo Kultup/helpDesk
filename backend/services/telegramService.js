@@ -28,7 +28,6 @@ class TelegramService {
     this.stateStack = new Map();
     this.botSettings = null; // Налаштування бота з БД
     this.mode = 'webhook';
-    this.activeTickets = new Map(); // Зберігаємо активні тікети для користувачів (chatId -> ticketId)
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
     this.navigationHistory = new Map(); // Історія навігації для кожного користувача (chatId -> ['screen1', 'screen2', ...])
     this._initializing = false; // Флаг для перевірки процесу ініціалізації
@@ -65,7 +64,10 @@ class TelegramService {
       let cfg = null;
       try {
         cfg = await TelegramConfig.findOne({ key: 'default' });
-      } catch (e) {}
+      } catch (e) {
+        // Ігноруємо помилку, використаємо token з env
+        logger.debug('Не вдалося завантажити TelegramConfig з БД');
+      }
       const token = (cfg?.botToken && cfg.botToken.trim()) || process.env.TELEGRAM_BOT_TOKEN;
       if (!token) {
         logger.error('TELEGRAM_BOT_TOKEN не встановлено');
@@ -413,68 +415,6 @@ class TelegramService {
         // Якщо це не команда, перевіряємо активний тікет або обробляємо повідомлення
         if (!msg.text?.startsWith('/') && msg.text) {
           // Перевіряємо, чи є активний тікет для відповіді
-          const chatIdString = String(chatId);
-          const userIdString = String(userId);
-          
-          // Перевіряємо активний тікет за chatId
-          let activeTicketId = this.activeTickets.get(chatIdString);
-          
-          // Якщо не знайдено, перевіряємо за telegramId
-          if (!activeTicketId && existingUser.telegramId) {
-            activeTicketId = this.activeTickets.get(String(existingUser.telegramId));
-          }
-          
-          // Якщо не знайдено, перевіряємо за telegramChatId
-          if (!activeTicketId && existingUser.telegramChatId) {
-            activeTicketId = this.activeTickets.get(String(existingUser.telegramChatId));
-          }
-          
-          // Якщо користувач відповідає на повідомлення від бота (reply), це може бути відповідь на тікет
-          if (!activeTicketId && msg.reply_to_message) {
-            // Перевіряємо, чи це reply на повідомлення про коментар або тікет
-            const replyText = msg.reply_to_message.text || '';
-            if (replyText.includes('💬') || replyText.includes('Новий коментар') || 
-                replyText.includes('Тікет:') || replyText.includes('🆔')) {
-              // Шукаємо тікет за ID користувача або в останніх повідомленнях
-              activeTicketId = this.activeTickets.get(userIdString);
-              
-              // Якщо все ще не знайдено, намагаємося знайти тікет користувача
-              if (!activeTicketId) {
-                const Ticket = require('../models/Ticket');
-                const userTicket = await Ticket.findOne({ 
-                  createdBy: existingUser._id 
-                })
-                  .sort({ updatedAt: -1 })
-                  .limit(1)
-                  .select('_id');
-                
-                if (userTicket) {
-                  activeTicketId = userTicket._id.toString();
-                  // Встановлюємо активний тікет для майбутніх повідомлень
-                  this.setActiveTicketForUser(chatId, activeTicketId);
-                }
-              }
-            }
-          }
-          
-          logger.info('Перевірка активного тікету в handleMessage:', {
-            chatId: chatIdString,
-            userId: userIdString,
-            userTelegramId: existingUser.telegramId,
-            userTelegramChatId: existingUser.telegramChatId,
-            activeTicketId,
-            hasReply: !!msg.reply_to_message,
-            replyText: msg.reply_to_message?.text?.substring(0, 50)
-          });
-          
-          // Якщо знайдено активний тікет, обробляємо як відповідь
-          if (activeTicketId) {
-            const handled = await this.handleTicketReply(chatId, msg.text, activeTicketId, existingUser);
-            if (handled) {
-              return; // Повідомлення оброблено як відповідь на тікет
-            }
-          }
-          
           // Перевіряємо, чи є активна сесія для створення тікету
           const session = this.userSessions.get(chatId);
           if (session) {
@@ -549,8 +489,7 @@ class TelegramService {
           await this.handleStartCommand(chatId, userId, msg);
           break;
         case '/menu':
-          // Очищаємо активний тікет та показуємо головне меню
-          this.clearActiveTicketForUser(chatId, user);
+          // Показуємо головне меню
           if (user) {
             await this.showUserDashboard(chatId, user);
           } else {
@@ -1177,12 +1116,11 @@ class TelegramService {
         const priority = data.replace('priority_', '');
         await this.handlePriorityCallback(chatId, user, priority);
       } else if (data.startsWith('reply_ticket_')) {
-        const ticketId = data.replace('reply_ticket_', '');
-        this.setActiveTicketForUser(chatId, ticketId);
+        // Функція відповіді на тікет через Telegram вимкнена
         await this.sendMessage(chatId,
-          `💬 *Відповідь на тікет*\n\n` +
-          `Тепер ви можете надіслати повідомлення, і воно буде додано як коментар до тікету.\n\n` +
-          `Надішліть ваше повідомлення або /menu для виходу.`,
+          `ℹ️ *Відповідь на тікет через Telegram недоступна*\n\n` +
+          `Будь ласка, використовуйте веб-панель для додавання коментарів до тікету.\n\n` +
+          `Натисніть /menu для повернення до головного меню.`,
           { parse_mode: 'Markdown' }
         );
         await this.answerCallbackQuery(callbackQuery.id);
@@ -1506,10 +1444,7 @@ class TelegramService {
         message += `💬 *Коментарі:*\nПоки що немає коментарів.\n\n`;
       }
 
-      message += `💡 *Відповісти:*\nНадішліть повідомлення в цьому чаті, щоб додати коментар до тікету.`;
-
-      // Встановлюємо активний тікет для відповіді
-      this.setActiveTicketForUser(chatId, ticketId);
+      message += `💡 *Коментарі:*\nВикористовуйте веб-панель для додавання коментарів до тікету.`;
 
       // Визначаємо, звідки прийшов користувач для кнопки "Назад"
       const history = this.getNavigationHistory(chatId);
@@ -1698,7 +1633,7 @@ class TelegramService {
     }
   }
 
-  async handleUsePreviousTitleCallback(chatId, user) {
+  async handleUsePreviousTitleCallback(chatId, _user) {
     try {
       const session = this.userSessions.get(chatId);
       if (!session || !session.ticketData || !session.ticketData.title) {
@@ -1739,7 +1674,7 @@ class TelegramService {
     }
   }
 
-  async handleUsePreviousDescriptionCallback(chatId, user) {
+  async handleUsePreviousDescriptionCallback(chatId, _user) {
     try {
       const session = this.userSessions.get(chatId);
       if (!session || !session.ticketData || !session.ticketData.description) {
@@ -1827,43 +1762,6 @@ class TelegramService {
     
     // Якщо користувач зареєстрований, не проводимо реєстрацію
     if (existingUser) {
-      // Перевіряємо, чи є активний тікет для відповіді
-      // Перевіряємо обидва варіанти chatId (telegramChatId та telegramId)
-      const chatIdString = String(chatId);
-      const userIdString = String(userId);
-      
-      // Спочатку перевіряємо за chatId (якщо встановлено через telegramChatId)
-      let activeTicketId = this.activeTickets.get(chatIdString);
-      
-      // Якщо не знайдено, перевіряємо за telegramId (якщо встановлено через telegramId)
-      if (!activeTicketId && existingUser.telegramId) {
-        activeTicketId = this.activeTickets.get(String(existingUser.telegramId));
-      }
-      
-      // Також перевіряємо, чи це reply на повідомлення від бота
-      if (!activeTicketId && msg.reply_to_message) {
-        // Якщо користувач відповідає на повідомлення, перевіряємо активний тікет
-        // Можна також перевірити за userId
-        activeTicketId = this.activeTickets.get(userIdString);
-      }
-      
-      logger.info('Перевірка активного тікету для відповіді:', {
-        chatId: chatIdString,
-        userId: userIdString,
-        userTelegramId: existingUser.telegramId,
-        userTelegramChatId: existingUser.telegramChatId,
-        activeTicketId,
-        hasReply: !!msg.reply_to_message,
-        activeTicketsKeys: Array.from(this.activeTickets.keys())
-      });
-      
-      if (activeTicketId) {
-        const handled = await this.handleTicketReply(chatId, text, activeTicketId, existingUser);
-        if (handled) {
-          return; // Повідомлення оброблено як відповідь на тікет
-        }
-      }
-
       // Перевіряємо, чи є активна сесія для створення тікету
       if (session) {
         await this.handleTicketCreationStep(chatId, text, session);
@@ -1927,7 +1825,7 @@ class TelegramService {
       let errorMessage = '';
 
       switch (step) {
-        case 'firstName':
+        case 'firstName': {
           const trimmedFirstName = text.trim();
           if (!trimmedFirstName || trimmedFirstName.length === 0) {
             isValid = false;
@@ -1940,8 +1838,9 @@ class TelegramService {
             errorMessage = '❌ *Некоректне ім\'я*\n\nІм\'я повинно:\n• Містити тільки літери (українські або латинські)\n• Бути довжиною від 2 до 50 символів\n• Може містити апостроф, дефіс або пробіл\n\n💡 *Приклад:* Олександр, Іван, John\n\nСпробуйте ще раз:';
           }
           break;
+        }
 
-        case 'lastName':
+        case 'lastName': {
           const trimmedLastName = text.trim();
           if (!trimmedLastName || trimmedLastName.length === 0) {
             isValid = false;
@@ -1954,8 +1853,9 @@ class TelegramService {
             errorMessage = '❌ *Некоректне прізвище*\n\nПрізвище повинно:\n• Містити тільки літери (українські або латинські)\n• Бути довжиною від 2 до 50 символів\n• Може містити апостроф, дефіс або пробіл\n\n💡 *Приклад:* Петренко, Іванов, Smith\n\nСпробуйте ще раз:';
           }
           break;
+        }
 
-        case 'email':
+        case 'email': {
           const trimmedEmail = text.trim();
           if (!trimmedEmail || trimmedEmail.length === 0) {
             isValid = false;
@@ -1975,8 +1875,9 @@ class TelegramService {
             errorMessage = '❌ *Некоректний email*\n\nEmail повинен містити:\n• Символ @\n• Домен з крапкою\n• Коректний формат\n\n💡 *Приклад:* user@example.com, ivan.petrov@company.ua\n\nСпробуйте ще раз:';
           }
           break;
+        }
 
-        case 'login':
+        case 'login': {
           const trimmedLogin = text.trim();
           if (!trimmedLogin || trimmedLogin.length === 0) {
             isValid = false;
@@ -2012,8 +1913,9 @@ class TelegramService {
             errorMessage = '❌ *Некоректний логін*\n\nЛогін повинен:\n• Містити мінімум 3 символи\n• Містити максимум 50 символів\n• Складатися тільки з англійських літер, цифр та підкреслення\n• Тільки англійська мова\n\n💡 *Приклад:* my_login123, user_name, admin2024\n\nСпробуйте ще раз:';
           }
           break;
+        }
 
-        case 'phone':
+        case 'phone': {
           const trimmedPhone = text.trim();
           if (!trimmedPhone || trimmedPhone.length === 0) {
             isValid = false;
@@ -2046,8 +1948,9 @@ class TelegramService {
             }
           }
           break;
+        }
 
-        case 'password':
+        case 'password': {
           if (!text || text.length === 0) {
             isValid = false;
             errorMessage = '❌ *Помилка*\n\nПароль не може бути порожнім.\n\n💡 Введіть ваш пароль:';
@@ -2071,8 +1974,9 @@ class TelegramService {
             errorMessage = '❌ *Слабкий пароль*\n\nПароль повинен містити:\n• Мінімум 6 символів\n• Принаймні одну латинську літеру (a-z, A-Z)\n• Принаймні одну цифру (0-9)\n• Не може містити кирилицю\n\n💡 *Приклад:* MyPass123, Password2024\n\nСпробуйте ще раз:';
           }
           break;
+        }
 
-        case 'department':
+        case 'department': {
           if (this.validateDepartment(text)) {
             pendingRegistration.data.department = text.trim();
             pendingRegistration.step = 'completed';
@@ -2081,6 +1985,7 @@ class TelegramService {
             errorMessage = '❌ *Некоректна назва відділу*\n\nНазва відділу повинна бути довжиною від 2 до 100 символів.\n\n💡 Спробуйте ще раз:';
           }
           break;
+        }
 
         default:
           await this.sendMessage(chatId, '❌ Помилка в процесі реєстрації. Спробуйте почати заново.');
@@ -2648,7 +2553,7 @@ class TelegramService {
     }
   }
 
-  async downloadTelegramFileByFileId(fileId, fileExtension = '.jpg') {
+  downloadTelegramFileByFileId(fileId, fileExtension = '.jpg') {
     return new Promise((resolve, reject) => {
       if (!this.bot) {
         reject(new Error('Telegram бот не ініціалізований'));
@@ -2727,7 +2632,7 @@ class TelegramService {
     });
   }
 
-  async downloadTelegramFile(filePath) {
+  downloadTelegramFile(filePath) {
     return new Promise((resolve, reject) => {
       const token = process.env.TELEGRAM_BOT_TOKEN;
       const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
@@ -2759,10 +2664,10 @@ class TelegramService {
 
         // Перевіряємо Content-Length
         const contentLength = parseInt(response.headers['content-length'] || '0', 10);
-        let downloadedBytes = 0;
+        let _downloadedBytes = 0;
 
         response.on('data', (chunk) => {
-          downloadedBytes += chunk.length;
+          _downloadedBytes += chunk.length;
         });
 
         response.pipe(file);
@@ -2826,14 +2731,14 @@ class TelegramService {
    }
 
    // Callback обробники для фото
-  async handleAttachPhotoCallback(chatId, user) {
+  async handleAttachPhotoCallback(chatId, _user) {
     await this.sendMessage(chatId, 
       '📷 Надішліть фото для прикріплення до тікету.\n\n' +
       'Ви можете додати підпис до фото для додаткової інформації.'
     );
   }
 
-  async handleAttachDocumentCallback(chatId, user) {
+  async handleAttachDocumentCallback(chatId, _user) {
     const session = this.userSessions.get(chatId);
     if (!session || session.step !== 'photo') {
       await this.sendMessage(chatId, 'Помилка: не вдалося знайти сесію створення тікету.');
@@ -2849,7 +2754,7 @@ class TelegramService {
     );
   }
 
-  async handleSkipPhotoCallback(chatId, user) {
+  async handleSkipPhotoCallback(chatId, _user) {
     const session = this.userSessions.get(chatId);
     if (session) {
       session.step = 'priority';
@@ -2873,13 +2778,13 @@ class TelegramService {
     }
   }
 
-  async handleAddMorePhotosCallback(chatId, user) {
+  async handleAddMorePhotosCallback(chatId, _user) {
     await this.sendMessage(chatId, 
       '📷 Надішліть ще одне фото або натисніть "Завершити" для продовження.'
     );
   }
 
-  async handleFinishTicketCallback(chatId, user) {
+  async handleFinishTicketCallback(chatId, _user) {
     const session = this.userSessions.get(chatId);
     if (session) {
       session.step = 'priority';
@@ -2982,7 +2887,7 @@ class TelegramService {
     }
   }
 
-  async handleHelpCommand(chatId, user) {
+  async handleHelpCommand(chatId, _user) {
     const helpText = 
       `📖 *Довідка по командам*\n\n` +
       `*Основні команди:*\n` +
@@ -3377,7 +3282,7 @@ class TelegramService {
   /**
    * Відправка сповіщення адмінам про новий запит на додавання посади
    */
-  async notifyAdminsAboutPositionRequest(positionRequest, pendingRegistration) {
+  async notifyAdminsAboutPositionRequest(positionRequest, _pendingRegistration) {
     try {
       logger.info('🔔 Початок відправки сповіщення адмінам про запит на посаду', {
         requestId: positionRequest._id,
@@ -3447,69 +3352,76 @@ class TelegramService {
         return;
       }
 
-      // Отримуємо chatId з бази даних (налаштування з адмін панелі)
-      let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
-      
-      if (!groupChatId) {
-        try {
-          const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
-          if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
-            groupChatId = telegramConfig.chatId.trim();
-            logger.info('✅ ChatId для сповіщень отримано з БД');
-          }
-        } catch (configError) {
-          logger.error('❌ Помилка отримання TelegramConfig:', configError);
-        }
-      } else {
-        logger.info('✅ ChatId для сповіщень отримано з env');
-      }
-
-      if (!groupChatId) {
-        logger.warn('⚠️ TELEGRAM_GROUP_CHAT_ID не встановлено (ні в env, ні в БД). Сповіщення адмінам не буде відправлено.');
-        return;
-      }
-
-      // Формуємо повідомлення з кнопками для швидкого підтвердження/відхилення
-      const message = 
-        `📝 *Новий запит на додавання посади*\n\n` +
-        `💼 *Посада:* ${this.escapeMarkdown(positionName)}\n` +
-        `👤 *Telegram ID:* \`${telegramId}\`\n` +
-        `🆔 *ID запиту:* \`${requestId}\`\n\n` +
-        `Для додавання посади використайте адмін панель або API.`;
-
+      // Відправляємо повідомлення кожному адміну особисто
       try {
-        const result = await this.sendMessage(groupChatId, message, { 
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { 
-                  text: '✅ Додати посаду', 
-                  callback_data: `approve_position_${requestId}` 
-                },
-                { 
-                  text: '❌ Відхилити', 
-                  callback_data: `reject_position_${requestId}` 
-                }
-              ]
-            ]
+        // Знаходимо всіх активних адміністраторів з Telegram ID
+        const admins = await User.find({
+          role: { $in: ['admin', 'super_admin', 'administrator'] },
+          isActive: true,
+          telegramId: { $exists: true, $ne: null }
+        }).select('_id telegramId firstName lastName email');
+
+        if (admins.length === 0) {
+          logger.warn('⚠️ Немає адміністраторів з Telegram ID для відправки сповіщень про запит на посаду');
+          return;
+        }
+
+        logger.info(`📤 Відправка сповіщення про запит на посаду ${admins.length} адміністраторам`);
+
+        // Формуємо повідомлення з кнопками для швидкого підтвердження/відхилення
+        const message = 
+          `📝 *Новий запит на додавання посади*\n\n` +
+          `💼 *Посада:* ${this.escapeMarkdown(positionName)}\n` +
+          `👤 *Telegram ID:* \`${telegramId}\`\n` +
+          `🆔 *ID запиту:* \`${requestId}\`\n\n` +
+          `Для додавання посади використайте адмін панель або API.`;
+
+        // Відправляємо кожному адміну
+        let sentCount = 0;
+        for (const admin of admins) {
+          try {
+            await this.sendMessage(String(admin.telegramId), message, { 
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { 
+                      text: '✅ Додати посаду', 
+                      callback_data: `approve_position_${requestId}` 
+                    },
+                    { 
+                      text: '❌ Відхилити', 
+                      callback_data: `reject_position_${requestId}` 
+                    }
+                  ]
+                ]
+              }
+            });
+            sentCount++;
+            logger.info(`✅ Сповіщення про запит на посаду відправлено адміну ${admin.email}`, {
+              adminId: admin._id,
+              telegramId: admin.telegramId,
+              requestId
+            });
+          } catch (sendError) {
+            logger.error(`❌ Помилка відправки сповіщення адміну ${admin.email}:`, {
+              error: sendError.message,
+              adminId: admin._id,
+              telegramId: admin.telegramId,
+              requestId
+            });
           }
-        });
+        }
 
-        // Зберігаємо ID повідомлення для можливості відповіді
-        positionRequest.adminMessageId = result.message_id?.toString();
-        await positionRequest.save();
-
-        logger.info('✅ Сповіщення про запит на посаду відправлено адмінам', {
-          groupChatId,
+        logger.info(`✅ Сповіщення про запит на посаду відправлено ${sentCount} з ${admins.length} адмінів`, {
           requestId,
-          messageId: result?.message_id
+          sentCount,
+          totalAdmins: admins.length
         });
       } catch (sendError) {
-        logger.error('❌ Помилка відправки сповіщення про запит на посаду:', {
+        logger.error('❌ Помилка відправки сповіщення про запит на посаду адмінам:', {
           error: sendError.message,
           stack: sendError.stack,
-          groupChatId,
           requestId
         });
       }
@@ -3646,8 +3558,7 @@ class TelegramService {
         error: error.message,
         stack: error.stack,
         ticketId: ticket?._id,
-        userId: user?._id,
-        groupChatId: typeof groupChatId !== 'undefined' ? groupChatId : 'не встановлено'
+        userId: user?._id
       });
     }
   }
@@ -3655,7 +3566,7 @@ class TelegramService {
   /**
    * Відправка сповіщення про зміну статусу тікету в групу
    */
-  async sendTicketStatusNotificationToGroup(ticket, previousStatus, newStatus, changedBy) {
+  async sendTicketStatusNotificationToGroup(ticket, previousStatus, newStatus) {
     try {
       if (!this.bot) {
         logger.warn('Telegram бот не ініціалізований для відправки сповіщення про зміну статусу');
@@ -3935,7 +3846,7 @@ class TelegramService {
           );
           break;
           
-        case 'lastName':
+        case 'lastName': {
           const firstNameValue = (pendingRegistration.data.firstName || '').replace(/[<>&"]/g, (match) => {
             const map = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
             return map[match];
@@ -3948,8 +3859,9 @@ class TelegramService {
             { parse_mode: 'HTML' }
           );
           break;
+        }
           
-        case 'email':
+        case 'email': {
           const lastNameValue = (pendingRegistration.data.lastName || '').replace(/[<>&"]/g, (match) => {
             const map = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
             return map[match];
@@ -3962,8 +3874,9 @@ class TelegramService {
             { parse_mode: 'HTML' }
           );
           break;
+        }
           
-        case 'login':
+        case 'login': {
           const emailValue = (pendingRegistration.data.email || '').replace(/[<>&"]/g, (match) => {
             const map = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
             return map[match];
@@ -3980,8 +3893,9 @@ class TelegramService {
             { parse_mode: 'HTML' }
           );
           break;
+        }
           
-        case 'phone':
+        case 'phone': {
           const loginValue = (pendingRegistration.data.login || '').replace(/[<>&"]/g, (match) => {
             const map = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' };
             return map[match];
@@ -4007,8 +3921,9 @@ class TelegramService {
             }
           );
           break;
+        }
           
-        case 'password':
+        case 'password': {
           const phoneNumber = pendingRegistration.data.phone || '';
           await this.sendMessage(chatId, 
             `✅ <b>Номер телефону прийнято!</b>\n` +
@@ -4024,6 +3939,7 @@ class TelegramService {
             { parse_mode: 'HTML' }
           );
           break;
+        }
           
         case 'city':
           await this.sendCitySelection(chatId, userId);
@@ -4053,9 +3969,8 @@ class TelegramService {
     }
   }
 
-  async sendCitySelection(chatId, userId) {
+  async sendCitySelection(chatId, _userId) {
     try {
-      const mongoose = require('mongoose');
       const cities = await City.find({ isActive: true })
         .select('name region _id')
         .sort({ name: 1 })
@@ -4134,9 +4049,8 @@ class TelegramService {
     }
   }
 
-  async sendPositionSelection(chatId, userId, pendingRegistration) {
+  async sendPositionSelection(chatId, _userId, pendingRegistration) {
     try {
-      const mongoose = require('mongoose');
       const institutionId = pendingRegistration?.data?.institutionId;
       
       // Виключаємо посаду "адміністратор системи"
@@ -4218,7 +4132,6 @@ class TelegramService {
 
   async sendInstitutionSelection(chatId, userId, pendingRegistration) {
     try {
-      const mongoose = require('mongoose');
       const cityId = pendingRegistration.data.cityId;
       
       logger.info('sendInstitutionSelection called:', {
@@ -4682,7 +4595,6 @@ class TelegramService {
       }
 
       // Перевірка пароля
-      const bcrypt = require('bcryptjs');
       const isPasswordValid = await user.comparePassword(password);
 
       if (!isPasswordValid) {
@@ -4744,7 +4656,7 @@ class TelegramService {
     }
   }
 
-  async handleFeedbackMessage(chatId, text, user) {
+  handleFeedbackMessage(_chatId, _text, _user) {
     // Placeholder for feedback handling
     // This can be implemented based on your requirements
     return false;
@@ -4753,240 +4665,6 @@ class TelegramService {
   /**
    * Встановити активний тікет для користувача (для обробки відповідей)
    */
-  setActiveTicketForUser(chatId, ticketId) {
-    const chatIdString = String(chatId);
-    this.activeTickets.set(chatIdString, ticketId);
-    
-    // Також встановлюємо за userId, якщо можна отримати користувача
-    // Це допомагає, коли користувач відповідає на повідомлення
-    try {
-      const User = require('../models/User');
-      User.findOne({ 
-        $or: [
-          { telegramChatId: chatIdString },
-          { telegramId: chatIdString }
-        ]
-      }).then(user => {
-        if (user && user.telegramId && String(user.telegramId) !== chatIdString) {
-          this.activeTickets.set(String(user.telegramId), ticketId);
-        }
-        if (user && user.telegramChatId && String(user.telegramChatId) !== chatIdString) {
-          this.activeTickets.set(String(user.telegramChatId), ticketId);
-        }
-      }).catch(err => {
-        // Ігноруємо помилки, це не критично
-      });
-    } catch (err) {
-      // Ігноруємо помилки
-    }
-    
-    logger.info(`Встановлено активний тікет ${ticketId} для користувача ${chatId}`);
-  }
-
-  /**
-   * Отримати активний тікет для користувача
-   */
-  getActiveTicketForUser(chatId) {
-    return this.activeTickets.get(String(chatId));
-  }
-
-  /**
-   * Видалити активний тікет для користувача
-   * Очищає всі варіанти chatId (telegramChatId та telegramId)
-   */
-  clearActiveTicketForUser(chatId, user = null) {
-    const chatIdString = String(chatId);
-    this.activeTickets.delete(chatIdString);
-    
-    // Якщо передано користувача, очищаємо також за telegramId
-    if (user) {
-      if (user.telegramId && String(user.telegramId) !== chatIdString) {
-        this.activeTickets.delete(String(user.telegramId));
-      }
-      if (user.telegramChatId && String(user.telegramChatId) !== chatIdString) {
-        this.activeTickets.delete(String(user.telegramChatId));
-      }
-    }
-    
-    logger.info(`Видалено активний тікет для користувача ${chatId}`, {
-      chatId: chatIdString,
-      userTelegramId: user?.telegramId,
-      userTelegramChatId: user?.telegramChatId
-    });
-  }
-
-  /**
-   * Обробка відповіді користувача на тікет
-   */
-  async handleTicketReply(chatId, text, ticketId, user) {
-    try {
-      const Ticket = require('../models/Ticket');
-      const ticket = await Ticket.findById(ticketId);
-      
-      if (!ticket) {
-        await this.sendMessage(chatId, 
-          '❌ Тікет не знайдено. Активний тікет очищено.',
-          { parse_mode: 'Markdown' }
-        );
-        this.clearActiveTicketForUser(chatId, user);
-        return false;
-      }
-
-      // Перевіряємо, чи користувач є автором тікету
-      if (String(ticket.createdBy) !== String(user._id)) {
-        await this.sendMessage(chatId, 
-          '❌ Ви не маєте прав для відповіді на цей тікет.',
-          { parse_mode: 'Markdown' }
-        );
-        this.clearActiveTicketForUser(chatId, user);
-        return false;
-      }
-
-      // Зберігаємо повідомлення в окрему колекцію TelegramMessage
-      const TelegramMessage = require('../models/TelegramMessage');
-      
-      // Знаходимо останнє повідомлення від адміна, щоб визначити, хто є адміном
-      const lastAdminMessage = await TelegramMessage.findOne({
-        ticketId: ticket._id,
-        direction: 'admin_to_user'
-      }).sort({ createdAt: -1 });
-      
-      const adminId = lastAdminMessage ? lastAdminMessage.senderId : null;
-      
-      // Якщо адміна не знайдено, шукаємо адмінів тікету (можна розширити логіку)
-      let recipientAdminId = adminId;
-      if (!recipientAdminId) {
-        // Для простоти беремо першого адміна (можна покращити)
-        const User = require('../models/User');
-        const admin = await User.findOne({ role: 'admin' });
-        recipientAdminId = admin ? admin._id : null;
-      }
-
-      // Створюємо коментар в системі
-      const Comment = require('../models/Comment');
-      const comment = new Comment({
-        content: text.trim(),
-        ticket: ticket._id,
-        author: user._id,
-        type: 'comment',
-        isInternal: false
-      });
-      await comment.save();
-      
-      // Оновлюємо час останньої активності тікету
-      ticket.updatedAt = new Date();
-      await ticket.save();
-
-      // Заповнюємо дані коментаря для відповіді
-      await comment.populate([
-        { 
-          path: 'author', 
-          select: 'firstName lastName email avatar',
-          populate: {
-            path: 'position',
-            select: 'title department'
-          }
-        }
-      ]);
-
-      // Зберігаємо повідомлення в окрему колекцію TelegramMessage
-      const telegramMsg = new TelegramMessage({
-        ticketId: ticket._id,
-        senderId: user._id,
-        recipientId: recipientAdminId || user._id, // Якщо адміна немає, зберігаємо як відправника
-        content: text.trim(),
-        direction: 'user_to_admin',
-        telegramChatId: String(chatId),
-        commentId: comment._id, // Зв'язуємо з коментарем
-        sentAt: new Date(),
-        deliveredAt: new Date()
-      });
-      await telegramMsg.save();
-
-      // Відправляємо WebSocket сповіщення про новий коментар
-      try {
-        const ticketWebSocketService = require('./ticketWebSocketService');
-        ticketWebSocketService.notifyNewComment(ticket._id.toString(), comment);
-      } catch (wsError) {
-        logger.error('Помилка відправки WebSocket сповіщення про коментар:', wsError);
-      }
-
-      // Відправляємо WebSocket сповіщення про нове Telegram повідомлення
-      try {
-        const ticketWebSocketService = require('./ticketWebSocketService');
-        await telegramMsg.populate([
-          { path: 'senderId', select: 'firstName lastName email avatar' },
-          { path: 'recipientId', select: 'firstName lastName email avatar' }
-        ]);
-        ticketWebSocketService.notifyNewTelegramMessage(ticket._id.toString(), telegramMsg);
-      } catch (wsError) {
-        logger.error('Помилка відправки WebSocket сповіщення:', wsError);
-      }
-
-      // Відправляємо сповіщення адмінам про новий коментар від користувача
-      try {
-        const User = require('../models/User');
-        const admins = await User.find({ 
-          role: { $in: ['admin', 'manager'] },
-          telegramId: { $exists: true, $ne: null }
-        }).select('telegramId firstName lastName');
-        
-        const authorName = comment.author?.firstName && comment.author?.lastName
-          ? `${comment.author.firstName} ${comment.author.lastName}`
-          : 'Користувач';
-        const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
-        
-        for (const admin of admins) {
-          try {
-            const adminMessage = 
-              `💬 *Новий коментар від користувача*\n\n` +
-              `📋 *Тікет:* ${ticket.title}\n` +
-              `🆔 \`${ticketNumber}\`\n\n` +
-              `👤 *Користувач:* ${authorName}\n\n` +
-              `💭 *Коментар:*\n${text.trim()}\n\n` +
-              `---\n` +
-              `💡 Ви можете відповісти через веб-інтерфейс або надіславши коментар до тікету.`;
-            
-            await this.sendMessage(
-              admin.telegramId,
-              adminMessage,
-              { parse_mode: 'Markdown' }
-            );
-            
-            logger.info(`✅ Telegram сповіщення про коментар від користувача відправлено адміну ${admin.telegramId}`);
-          } catch (adminError) {
-            logger.error(`❌ Помилка відправки Telegram сповіщення адміну ${admin.telegramId}:`, adminError);
-          }
-        }
-      } catch (notifyError) {
-        logger.error('Помилка відправки сповіщень адмінам про коментар:', notifyError);
-      }
-
-      // Відправляємо підтвердження користувачу
-      const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
-      await this.sendMessage(chatId,
-        `✅ *Ваша відповідь додана до тікету*\n\n` +
-        `📋 *Тікет:* ${ticket.title}\n` +
-        `🆔 \`${ticketNumber}\`\n\n` +
-        `Ваше повідомлення було додано як коментар до тікету.\n` +
-        `Продовжуйте відповідати, або надішліть /menu для виходу.`,
-        { parse_mode: 'Markdown' }
-      );
-
-      logger.info(`Відповідь користувача ${user.email} додана до тікету ${ticketId}`);
-
-      // Не очищаємо активний тікет, щоб користувач міг продовжувати відповідати
-      return true;
-    } catch (error) {
-      logger.error('Помилка обробки відповіді на тікет:', error);
-      await this.sendMessage(chatId,
-        '❌ *Помилка*\n\nВиникла помилка при обробці вашої відповіді. Спробуйте ще раз.',
-        { parse_mode: 'Markdown' }
-      );
-      return false;
-    }
-  }
-
   /**
    * Обробка callback для підтвердження/відхилення запиту на посаду
    */
@@ -5161,20 +4839,7 @@ class TelegramService {
     }
   }
 
-  getPriorityText(priority) {
-    if (!priority) {return 'Середній';}
-    const texts = {
-      'low': 'Низький',
-      'medium': 'Середній',
-      'high': 'Високий',
-      'urgent': 'Критичний'
-    };
-    return texts[priority] || 'Середній';
-  }
-
-
-
-  async showPrioritySelection(chatId, session) {
+  async showPrioritySelection(chatId, _session) {
     const keyboard = [
       [
         { text: '🟢 Низький', callback_data: 'priority_low' },

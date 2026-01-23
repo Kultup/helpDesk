@@ -33,11 +33,11 @@ exports.getTickets = async (req, res) => {
     // Побудова фільтрів
     const filters = {};
     
-    if (status) filters.status = status;
-    if (priority) filters.priority = priority;
-    if (city) filters.city = city;
-    if (assignedTo) filters.assignedTo = assignedTo;
-    if (createdBy) filters.createdBy = createdBy;
+    if (status) {filters.status = status;}
+    if (priority) {filters.priority = priority;}
+    if (city) {filters.city = city;}
+    if (assignedTo) {filters.assignedTo = assignedTo;}
+    if (createdBy) {filters.createdBy = createdBy;}
     
     // Пошук по тексту
     if (search) {
@@ -73,8 +73,8 @@ exports.getTickets = async (req, res) => {
     // Фільтр по датах
     if (dateFrom || dateTo) {
       filters.createdAt = {};
-      if (dateFrom) filters.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) filters.createdAt.$lte = new Date(dateTo);
+      if (dateFrom) {filters.createdAt.$gte = new Date(dateFrom);}
+      if (dateTo) {filters.createdAt.$lte = new Date(dateTo);}
     }
 
     logger.info('Filters before access check:', JSON.stringify(filters));
@@ -160,12 +160,23 @@ exports.getTicketById = async (req, res) => {
     logger.info(`🔔 Тікет знайдено, завантаження коментарів для ${id}`);
     
     // Отримати коментарі та вкладення
+    logger.info(`🔔 Пошук коментарів для тікету ${id}...`);
+    const commentsCount = await Comment.countDocuments({ ticket: id, isDeleted: false });
+    logger.info(`🔔 Знайдено ${commentsCount} коментарів в БД для тікету ${id}`);
+    
     const [commentsFromModel, attachments] = await Promise.all([
       Comment.findByTicket(id),
       Attachment.findByTicket(id)
     ]);
     
     logger.info(`🔔 Коментарі з моделі Comment: ${commentsFromModel.length}, вкладення: ${attachments.length}`);
+    
+    // Додаткова перевірка - знайдемо коментарі напряму
+    const directComments = await Comment.find({ 
+      ticket: mongoose.Types.ObjectId(id),
+      isDeleted: false 
+    }).populate('author', 'firstName lastName email avatar');
+    logger.info(`🔔 Прямий пошук коментарів: ${directComments.length} коментарів`);
     
     // Детальна інформація про коментарі з моделі Comment
     logger.info(`🔔 Деталі коментарів з моделі Comment:`, commentsFromModel.map(c => ({
@@ -220,7 +231,7 @@ exports.getTicketById = async (req, res) => {
       
       // Перевіряємо, чи коментар вже є в моделі Comment
       const existsInModel = commentsFromModel.some(c => {
-        if (!c._id || !ticketComment._id) return false;
+        if (!c._id || !ticketComment._id) {return false;}
         return c._id.toString() === ticketComment._id.toString();
       });
       
@@ -335,7 +346,6 @@ exports.createTicket = async (req, res) => {
       priority = 'medium',
       subcategory,
       city,
-      assignedTo,
       dueDate,
       estimatedHours,
       tags
@@ -457,7 +467,6 @@ exports.updateTicket = async (req, res) => {
       priority,
       subcategory,
       city,
-      assignedTo,
       dueDate,
       estimatedHours,
       actualHours,
@@ -471,15 +480,15 @@ exports.updateTicket = async (req, res) => {
     };
 
     // Оновлення полів
-    if (title !== undefined) ticket.title = title;
-    if (description !== undefined) ticket.description = description;
-    if (priority !== undefined) ticket.priority = priority;
-    if (subcategory !== undefined) ticket.subcategory = subcategory;
-    if (city !== undefined) ticket.city = city;
-    if (dueDate !== undefined) ticket.dueDate = dueDate ? new Date(dueDate) : null;
-    if (estimatedHours !== undefined) ticket.estimatedHours = estimatedHours;
-    if (actualHours !== undefined) ticket.actualHours = actualHours;
-    if (tags !== undefined) ticket.tags = tags;
+    if (title !== undefined) {ticket.title = title;}
+    if (description !== undefined) {ticket.description = description;}
+    if (priority !== undefined) {ticket.priority = priority;}
+    if (subcategory !== undefined) {ticket.subcategory = subcategory;}
+    if (city !== undefined) {ticket.city = city;}
+    if (dueDate !== undefined) {ticket.dueDate = dueDate ? new Date(dueDate) : null;}
+    if (estimatedHours !== undefined) {ticket.estimatedHours = estimatedHours;}
+    if (actualHours !== undefined) {ticket.actualHours = actualHours;}
+    if (tags !== undefined) {ticket.tags = tags;}
 
     // Обробка зміни статусу
     if (status !== undefined && status !== ticket.status) {
@@ -560,7 +569,7 @@ exports.updateTicket = async (req, res) => {
         };
         
         const recipients = [];
-        if (ticket.createdBy) recipients.push(ticket.createdBy.toString());
+        if (ticket.createdBy) {recipients.push(ticket.createdBy.toString());}
         
         // Видаляємо дублікати
         const uniqueRecipients = [...new Set(recipients)];
@@ -751,7 +760,7 @@ exports.getTicketStatistics = async (req, res) => {
       createdAt: { $gte: startDate }
     };
 
-    if (city) matchStage.city = new mongoose.Types.ObjectId(city);
+    if (city) {matchStage.city = new mongoose.Types.ObjectId(city);}
 
     // Перевірка прав доступу
     if (req.user.role !== 'admin') {
@@ -837,17 +846,17 @@ exports.exportTickets = async (req, res) => {
     // Побудова фільтрів (аналогічно до getTickets)
     const filters = {};
     
-    if (status) filters.status = status;
-    if (priority) filters.priority = priority;
-    if (city) filters.city = city;
-    if (assignedTo) filters.assignedTo = assignedTo;
-    if (createdBy) filters.createdBy = createdBy;
+    if (status) {filters.status = status;}
+    if (priority) {filters.priority = priority;}
+    if (city) {filters.city = city;}
+    if (assignedTo) {filters.assignedTo = assignedTo;}
+    if (createdBy) {filters.createdBy = createdBy;}
     
     // Фільтр по датах
     if (dateFrom || dateTo) {
       filters.createdAt = {};
-      if (dateFrom) filters.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) filters.createdAt.$lte = new Date(dateTo);
+      if (dateFrom) {filters.createdAt.$gte = new Date(dateFrom);}
+      if (dateTo) {filters.createdAt.$lte = new Date(dateTo);}
     }
 
     // Перевірка прав доступу
@@ -1115,8 +1124,10 @@ function getTypeLabel(type) {
   return typeLabels[type] || type;
 }
 
+// Helper functions for date formatting (currently unused but kept for future use)
+// eslint-disable-next-line no-unused-vars
 function formatDate(date) {
-  if (!date) return 'Не вказано';
+  if (!date) {return 'Не вказано';}
   return new Date(date).toLocaleDateString('uk-UA', {
     year: 'numeric',
     month: '2-digit',
@@ -1124,8 +1135,9 @@ function formatDate(date) {
   });
 }
 
+// eslint-disable-next-line no-unused-vars
 function formatTime(date) {
-  if (!date) return 'Не вказано';
+  if (!date) {return 'Не вказано';}
   return new Date(date).toLocaleTimeString('uk-UA', {
     hour: '2-digit',
     minute: '2-digit',
@@ -1134,7 +1146,7 @@ function formatTime(date) {
 }
 
 function formatDateTime(date) {
-  if (!date) return 'Не вказано';
+  if (!date) {return 'Не вказано';}
   return new Date(date).toLocaleString('uk-UA', {
     year: 'numeric',
     month: '2-digit',

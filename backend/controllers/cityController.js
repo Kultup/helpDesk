@@ -21,7 +21,7 @@ exports.getAllCities = async (req, res) => {
     // Побудова фільтрів
     const filters = {};
     
-    if (region) filters.region = region;
+    if (region) {filters.region = region;}
     
     // Пошук по назві міста
     if (search) {
@@ -38,7 +38,7 @@ exports.getAllCities = async (req, res) => {
 
     // Додати статистику якщо потрібно
     if (withStatistics === 'true') {
-      for (let city of cities.docs) {
+      for (const city of cities.docs) {
         const [userCount, ticketCount] = await Promise.all([
           User.countDocuments({ city: city._id, isActive: true }),
           Ticket.countDocuments({ city: city._id })
@@ -306,15 +306,15 @@ exports.updateCity = async (req, res) => {
     }
 
     // Оновлення полів
-    if (name !== undefined) city.name = name;
-    if (nameEn !== undefined) city.nameEn = nameEn;
-    if (region !== undefined) city.region = region;
-    if (coordinates !== undefined) city.coordinates = coordinates;
-    if (population !== undefined) city.population = population;
-    if (timezone !== undefined) city.timezone = timezone;
-    if (postalCodes !== undefined) city.postalCodes = postalCodes;
-    if (description !== undefined) city.description = description;
-    if (isActive !== undefined) city.isActive = isActive;
+    if (name !== undefined) {city.name = name;}
+    if (nameEn !== undefined) {city.nameEn = nameEn;}
+    if (region !== undefined) {city.region = region;}
+    if (coordinates !== undefined) {city.coordinates = coordinates;}
+    if (population !== undefined) {city.population = population;}
+    if (timezone !== undefined) {city.timezone = timezone;}
+    if (postalCodes !== undefined) {city.postalCodes = postalCodes;}
+    if (description !== undefined) {city.description = description;}
+    if (isActive !== undefined) {city.isActive = isActive;}
 
     city.lastModifiedBy = req.user._id;
     await city.save();
@@ -414,8 +414,6 @@ exports.deleteCity = async (req, res) => {
 // Отримати список регіонів
 exports.getRegions = async (req, res) => {
   try {
-    const regions = await City.distinct('region', { isActive: true });
-    
     // Отримати статистику по регіонах
     const regionStats = await City.aggregate([
       { $match: { isActive: true } },
@@ -563,106 +561,6 @@ exports.getCityStatistics = async (req, res) => {
   }
 };
 
-// Отримати дані для теплової карти
-exports.getHeatMapData = async (req, res) => {
-  try {
-    const { 
-      startDate, 
-      endDate, 
-      status, 
-      priority,
-      region 
-    } = req.query;
-
-    // Побудова фільтрів для тикетів
-    const ticketFilters = {};
-    
-    if (startDate || endDate) {
-      ticketFilters.createdAt = {};
-      if (startDate) ticketFilters.createdAt.$gte = new Date(startDate);
-      if (endDate) ticketFilters.createdAt.$lte = new Date(endDate);
-    }
-    
-    if (status) ticketFilters.status = status;
-    if (priority) ticketFilters.priority = priority;
-
-    // Агрегація даних для теплової карти
-    const heatMapData = await Ticket.aggregate([
-      { $match: ticketFilters },
-      {
-        $lookup: {
-          from: 'cities',
-          localField: 'city',
-          foreignField: '_id',
-          as: 'cityInfo'
-        }
-      },
-      { $unwind: '$cityInfo' },
-      ...(region ? [{ $match: { 'cityInfo.region': region } }] : []),
-      {
-        $group: {
-          _id: '$city',
-          cityName: { $first: '$cityInfo.name' },
-          region: { $first: '$cityInfo.region' },
-          coordinates: { $first: '$cityInfo.coordinates' },
-          ticketCount: { $sum: 1 },
-          openTickets: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
-          inProgressTickets: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
-          resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
-          closedTickets: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } },
-          highPriorityTickets: { $sum: { $cond: [{ $eq: ['$priority', 'high'] }, 1, 0] } },
-          mediumPriorityTickets: { $sum: { $cond: [{ $eq: ['$priority', 'medium'] }, 1, 0] } },
-          lowPriorityTickets: { $sum: { $cond: [{ $eq: ['$priority', 'low'] }, 1, 0] } }
-        }
-      },
-      { $sort: { ticketCount: -1 } }
-    ]);
-
-    // Додати міста без тикетів (якщо потрібно)
-    const citiesWithoutTickets = await City.find({
-      isActive: true,
-      ...(region ? { region } : {}),
-      _id: { $nin: heatMapData.map(item => item._id) }
-    }).select('name region coordinates');
-
-    const citiesWithZeroTickets = citiesWithoutTickets.map(city => ({
-      _id: city._id,
-      cityName: city.name,
-      region: city.region,
-      coordinates: city.coordinates,
-      ticketCount: 0,
-      openTickets: 0,
-      inProgressTickets: 0,
-      resolvedTickets: 0,
-      closedTickets: 0,
-      highPriorityTickets: 0,
-      mediumPriorityTickets: 0,
-      lowPriorityTickets: 0
-    }));
-
-    const allData = [...heatMapData, ...citiesWithZeroTickets];
-
-    res.json({
-      success: true,
-      data: allData,
-      filters: {
-        startDate,
-        endDate,
-        status,
-        priority,
-        region
-      },
-      generatedAt: new Date()
-    });
-  } catch (error) {
-    logger.error('Error fetching heat map data:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка при отриманні даних для теплової карти',
-      error: error.message
-    });
-  }
-};
 
 // Пошук міст
 exports.searchCities = async (req, res) => {
