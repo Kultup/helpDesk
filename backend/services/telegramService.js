@@ -2255,28 +2255,67 @@ class TelegramService {
           } else {
             // ❌ Ще недостатньо - генеруємо наступне питання через AI
             session.stage++;
-            logger.info(`Недостатньо інформації, продовжуємо збір. Етап ${session.stage}`);
             
-            // Генеруємо наступне питання на основі того, чого не вистачає
-            const nextQuestion = await groqService.generateClarifyingQuestions(
-              session.ticketDraft.title,
-              reanalysis.missingInfo || ['додаткові деталі'],
-              session.ticketDraft.subcategory
-            );
+            // ⚠️ ОБМЕЖЕННЯ: Максимум 3 раунди питань (після цього створюємо з тим, що є)
+            const MAX_QUESTIONS_ROUNDS = 3;
             
-            session.conversationHistory.push({
-              role: 'assistant',
-              content: nextQuestion
-            });
-            
-            await this.sendMessage(chatId, nextQuestion, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '✅ Достатньо інформації, створити', callback_data: 'force_create_ticket' }],
-                  [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
-                ]
-              }
-            });
+            if (session.stage > MAX_QUESTIONS_ROUNDS) {
+              logger.info(`Досягнуто ліміт питань (${MAX_QUESTIONS_ROUNDS}), створюємо тікет з наявною інформацією`);
+              
+              // Створюємо тікет з тим, що зібрали
+              session.ticketDraft.title = reanalysis.title || session.ticketDraft.title || 'Проблема';
+              session.ticketDraft.description = fullConversation;
+              session.ticketDraft.priority = reanalysis.priority || session.ticketDraft.priority;
+              
+              const priorityText = this.getPriorityText(session.ticketDraft.priority);
+              const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
+              
+              const summaryMessage = 
+                `✅ *Дякую за інформацію!*\n\n` +
+                `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
+                `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
+                `📝 *Опис:*\n${session.ticketDraft.description}\n\n` +
+                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n` +
+                `⚡ *Пріоритет:* ${priorityText}\n\n` +
+                `💡 Створюю тікет?`;
+              
+              session.step = 'confirm_ticket';
+              
+              await this.sendMessage(chatId, summaryMessage, {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                    [{ text: '✏️ Додати ще інформацію', callback_data: 'edit_ticket_info' }],
+                    [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
+                  ]
+                }
+              });
+            } else {
+              logger.info(`Недостатньо інформації, продовжуємо збір. Раунд ${session.stage}/${MAX_QUESTIONS_ROUNDS}`);
+              
+              // Генеруємо наступне питання на основі того, чого не вистачає
+              const nextQuestion = await groqService.generateClarifyingQuestions(
+                session.ticketDraft.title,
+                reanalysis.missingInfo || ['додаткові деталі'],
+                session.ticketDraft.subcategory,
+                session.stage, // Передаємо поточний раунд
+                MAX_QUESTIONS_ROUNDS // Передаємо максимум
+              );
+              
+              session.conversationHistory.push({
+                role: 'assistant',
+                content: nextQuestion
+              });
+              
+              await this.sendMessage(chatId, nextQuestion, {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '✅ Достатньо інформації, створити', callback_data: 'force_create_ticket' }],
+                    [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
+                  ]
+                }
+              });
+            }
           }
           break;
         }

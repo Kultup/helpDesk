@@ -595,16 +595,38 @@ exports.updateTicket = async (req, res) => {
         if (ticket.sla && ticket.sla.hours && !ticket.sla.notified) {
           try {
             const populatedTicket = await Ticket.findById(ticket._id)
-              .populate('createdBy', 'firstName lastName email telegramId')
+              .populate('createdBy', 'firstName lastName email telegramId telegramChatId')
               .populate('city', 'name');
+            
+            logger.info(`📤 Відправка SLA сповіщення для тікету ${ticket._id}`, {
+              userId: populatedTicket.createdBy?._id,
+              email: populatedTicket.createdBy?.email,
+              hasTelegramId: !!populatedTicket.createdBy?.telegramId,
+              hasTelegramChatId: !!populatedTicket.createdBy?.telegramChatId,
+              slaHours: ticket.sla.hours,
+              deadline: ticket.sla.deadline
+            });
             
             await telegramService.sendSLANotification(populatedTicket);
             
             ticket.sla.notified = true;
             await ticket.save();
+            logger.info(`✅ SLA сповіщення відправлено та збережено для тікету ${ticket._id}`);
           } catch (error) {
-            logger.error('Помилка відправки SLA сповіщення:', error);
+            logger.error('❌ Помилка відправки SLA сповіщення:', error);
+            logger.error('Деталі помилки:', {
+              ticketId: ticket._id,
+              errorMessage: error.message,
+              errorStack: error.stack
+            });
           }
+        } else {
+          logger.info(`ℹ️ SLA сповіщення не відправляється:`, {
+            ticketId: ticket._id,
+            hasSLA: !!ticket.sla,
+            hasSLAHours: !!(ticket.sla && ticket.sla.hours),
+            alreadyNotified: !!(ticket.sla && ticket.sla.notified)
+          });
         }
       }
     }
