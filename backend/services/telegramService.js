@@ -5382,6 +5382,24 @@ class TelegramService {
       const lowerMessage = userMessage.toLowerCase().trim();
       const hasManualKeyword = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
 
+      // Спочатку перевіряємо, чи це взагалі IT проблема
+      if (!intentAnalysis.isTicketIntent && !hasManualKeyword) {
+        logger.info(`AI визначив, що це НЕ намір створити тікет для ${user.email}`, {
+          rejectionReason: intentAnalysis.rejectionReason,
+          userMessage: userMessage
+        });
+        
+        // Якщо є причина відмови, показуємо її користувачу
+        if (intentAnalysis.rejectionReason) {
+          const response = `ℹ️ ${intentAnalysis.rejectionReason}\n\n💡 Якщо у вас виникла технічна проблема, опишіть її детальніше.`;
+          await this.sendMessage(chatId, response);
+          return;
+        }
+        
+        // Інакше просто не робимо нічого (це звичайна розмова)
+        return;
+      }
+      
       // Якщо AI впевнений, що це намір створити тікет, або є пряме ключове слово
       if ((intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.6) || hasManualKeyword) {
         logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
