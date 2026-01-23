@@ -996,6 +996,14 @@ class TelegramService {
       ]
     };
 
+    // Додаємо адмін-кнопки для адміністраторів
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'administrator';
+    if (isAdmin) {
+      keyboard.inline_keyboard.push([
+        { text: '🔧 Ліміт Groq API', callback_data: 'check_api_limit' }
+      ]);
+    }
+
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
   }
 
@@ -1083,6 +1091,9 @@ class TelegramService {
       } else if (data === 'statistics') {
         this.pushNavigationHistory(chatId, 'statistics');
         await this.handleStatisticsCallback(chatId, user);
+      } else if (data === 'check_api_limit') {
+        await this.handleCheckApiLimitCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'back') {
         await this.handleBackNavigation(chatId, user);
       } else if (data === 'back_to_menu') {
@@ -3055,6 +3066,102 @@ class TelegramService {
         `❌ *Помилка завантаження статистики*\n\n` +
         `Не вдалося завантажити дані статистики.\n\n` +
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+  }
+
+  async handleCheckApiLimitCallback(chatId, user) {
+    try {
+      // Перевірка прав адміністратора
+      const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'administrator';
+      if (!isAdmin) {
+        await this.sendMessage(chatId, 
+          `❌ *Доступ заборонено*\n\nЦя функція доступна тільки адміністраторам.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      // Отримуємо статистику використання API
+      const GroqApiUsage = require('../models/GroqApiUsage');
+      const usage = await GroqApiUsage.getTodayUsage();
+
+      // Формуємо повідомлення
+      let message = `🔧 *Статистика Groq API*\n\n`;
+      message += `📅 *Дата:* ${new Date().toLocaleDateString('uk-UA')}\n\n`;
+
+      // Інформація про ліміти
+      if (usage.rateLimits && usage.rateLimits.remainingRequests !== null) {
+        const { remainingRequests, limitRequests, remainingTokens, limitTokens, resetRequests, resetTokens } = usage.rateLimits;
+        
+        const requestsPercentage = limitRequests ? ((remainingRequests / limitRequests) * 100).toFixed(1) : 0;
+        const tokensPercentage = limitTokens ? ((remainingTokens / limitTokens) * 100).toFixed(1) : 0;
+        
+        // Емодзі для індикації стану
+        const getStatusEmoji = (percentage) => {
+          if (percentage <= 5) return '🔴';
+          if (percentage <= 20) return '🟠';
+          if (percentage <= 50) return '🟡';
+          return '🟢';
+        };
+        
+        message += `📊 *Ліміти на сьогодні:*\n`;
+        message += `${getStatusEmoji(requestsPercentage)} Запити: \`${remainingRequests}\` / \`${limitRequests}\` (${requestsPercentage}%)\n`;
+        message += `${getStatusEmoji(tokensPercentage)} Токени: \`${remainingTokens}\` / \`${limitTokens}\` (${tokensPercentage}%)\n\n`;
+        
+        if (resetRequests) {
+          message += `🔄 Оновлення запитів: ${resetRequests}\n`;
+        }
+        if (resetTokens) {
+          message += `🔄 Оновлення токенів: ${resetTokens}\n`;
+        }
+        message += `\n`;
+      } else {
+        message += `⚠️ Інформація про ліміти ще не доступна.\nВикористайте AI функції бота для оновлення даних.\n\n`;
+      }
+
+      // Статистика по моделях
+      message += `🤖 *Використання моделей:*\n\n`;
+      
+      const llamaUsage = usage.modelUsage?.['llama-3.3-70b-versatile'] || {};
+      message += `🧠 *LLaMA 3.3 70B:*\n`;
+      message += `  ├ Запитів: \`${llamaUsage.requestsCount || 0}\`\n`;
+      message += `  ├ Токенів: \`${llamaUsage.tokensUsed || 0}\`\n`;
+      if (llamaUsage.lastRequest) {
+        message += `  └ Останній: ${new Date(llamaUsage.lastRequest).toLocaleTimeString('uk-UA')}\n`;
+      } else {
+        message += `  └ Останній: немає даних\n`;
+      }
+      message += `\n`;
+      
+      const whisperUsage = usage.modelUsage?.['whisper-large-v3'] || {};
+      message += `🎤 *Whisper Large V3:*\n`;
+      message += `  ├ Запитів: \`${whisperUsage.requestsCount || 0}\`\n`;
+      message += `  ├ Аудіо: \`${whisperUsage.audioSecondsUsed || 0}\` сек\n`;
+      if (whisperUsage.lastRequest) {
+        message += `  └ Останній: ${new Date(whisperUsage.lastRequest).toLocaleTimeString('uk-UA')}\n`;
+      } else {
+        message += `  └ Останній: немає даних\n`;
+      }
+      
+      message += `\n💡 Детальна статистика: https://console.groq.com/settings/limits`;
+
+      await this.sendMessage(chatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 Оновити', callback_data: 'check_api_limit' }],
+            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]
+          ]
+        },
+        parse_mode: 'Markdown'
+      });
+    } catch (error) {
+      logger.error('Помилка отримання статистики API:', error);
+      await this.sendMessage(chatId, 
+        `❌ *Помилка завантаження статистики API*\n\n` +
+        `Не вдалося завантажити дані про використання Groq API.\n\n` +
+        `🔄 Спробуйте ще раз або перевірте логи сервера.`,
         { parse_mode: 'Markdown' }
       );
     }
