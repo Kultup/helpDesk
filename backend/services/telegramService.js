@@ -2211,8 +2211,9 @@ class TelegramService {
           });
           session.ticketDraft.collectedInfo.push(text);
           
-          // Показуємо індикатор набору
+          // Показуємо що бот "читає" та "думає" (більш живо)
           await this.bot.sendChatAction(chatId, 'typing');
+          await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 800));
           
           // Об'єднуємо всю зібрану інформацію
           const fullConversation = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
@@ -2232,14 +2233,23 @@ class TelegramService {
             const priorityText = this.getPriorityText(session.ticketDraft.priority);
             const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
             
+            // Варіативні позитивні реакції
+            const positiveReactions = [
+              '✅ Чудово! Тепер все зрозуміло.',
+              '✅ Дякую! Маю всю потрібну інформацію.',
+              '👍 Відмінно! Зібрав всі деталі.',
+              '✅ Супер! Тепер картина ясна.'
+            ];
+            const reaction = positiveReactions[Math.floor(Math.random() * positiveReactions.length)];
+            
             const summaryMessage = 
-              `✅ *Дякую! Я зібрав всю необхідну інформацію.*\n\n` +
+              `${reaction}\n\n` +
               `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
               `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
               `📝 *Опис проблеми:*\n${session.ticketDraft.description}\n\n` +
               `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n` +
               `⚡ *Пріоритет:* ${priorityText}\n\n` +
-              `💡 Все правильно? Створюю тікет?`;
+              `💡 Все правильно?`;
             
             session.step = 'confirm_ticket';
             
@@ -2293,13 +2303,20 @@ class TelegramService {
             } else {
               logger.info(`Недостатньо інформації, продовжуємо збір. Раунд ${session.stage}/${MAX_QUESTIONS_ROUNDS}`);
               
-              // Генеруємо наступне питання на основі того, чого не вистачає
-              const nextQuestion = await groqService.generateClarifyingQuestions(
+              // Показуємо typing перед питанням (бот "думає")
+              await this.bot.sendChatAction(chatId, 'typing');
+              
+              // Невелика затримка для природності (0.5-1.5 сек)
+              await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+              
+              // Генеруємо ОДНЕ природне питання на основі діалогу
+              const nextQuestion = await groqService.generateNextQuestion(
                 session.ticketDraft.title,
                 reanalysis.missingInfo || ['додаткові деталі'],
                 session.ticketDraft.subcategory,
-                session.stage, // Передаємо поточний раунд
-                MAX_QUESTIONS_ROUNDS // Передаємо максимум
+                text, // Остання відповідь користувача
+                session.conversationHistory,
+                session.stage
               );
               
               session.conversationHistory.push({
@@ -2310,7 +2327,7 @@ class TelegramService {
               await this.sendMessage(chatId, nextQuestion, {
                 reply_markup: {
                   inline_keyboard: [
-                    [{ text: '✅ Достатньо інформації, створити', callback_data: 'force_create_ticket' }],
+                    [{ text: '✅ Достатньо, створити', callback_data: 'force_create_ticket' }],
                     [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
                   ]
                 }
@@ -5433,18 +5450,25 @@ class TelegramService {
           
           this.userSessions.set(chatId, infoSession);
           
-          // Генеруємо перше питання через AI
-          const firstQuestion = await groqService.generateClarifyingQuestions(
-            intentAnalysis.title || 'проблема',
-            intentAnalysis.missingInfo || ['детальний опис проблеми'],
-            intentAnalysis.category
-          );
-          
-          // Зберігаємо питання в історію
+          // Зберігаємо початкове повідомлення в історію
           infoSession.conversationHistory.push({
             role: 'user',
             content: userMessage
           });
+          
+          // Показуємо typing (бот "думає")
+          await this.bot.sendChatAction(chatId, 'typing');
+          await new Promise(resolve => setTimeout(resolve, 800));
+          
+          // Генеруємо ПЕРШЕ природне питання через AI
+          const firstQuestion = await groqService.generateNextQuestion(
+            intentAnalysis.title || 'проблема',
+            intentAnalysis.missingInfo || ['детальний опис проблеми'],
+            intentAnalysis.category,
+            userMessage,
+            infoSession.conversationHistory,
+            1
+          );
           infoSession.conversationHistory.push({
             role: 'assistant',
             content: firstQuestion
