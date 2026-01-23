@@ -11,6 +11,7 @@ import TicketRating from '../components/UI/TicketRating';
 import TicketHistory, { TicketHistoryRef } from '../components/TicketHistory';
 import TicketComments from '../components/TicketComments';
 import TicketRelatedArticles from '../components/TicketRelatedArticles';
+import SLAProgress from '../components/SLAProgress';
 import { Sparkles, ChevronDown, ChevronUp, CheckCircle, AlertCircle, Lightbulb, Clock, Target } from 'lucide-react';
 
 import { formatDate } from '../utils';
@@ -654,6 +655,15 @@ const TicketDetails: React.FC = () => {
                     <span className="text-sm font-medium text-gray-500 block mb-1">{t('common.city')}</span>
                     <p className="text-gray-900">{ticket.city?.name || t('tickets.notSpecified')}</p>
                   </div>
+
+                  {/* SLA Progress */}
+                  {ticket.sla && ticket.sla.hours && (
+                    <div className="pt-4 border-t border-gray-200">
+                      <span className="text-sm font-medium text-gray-500 block mb-2">Час виконання (SLA)</span>
+                      <SLAProgress sla={ticket.sla} />
+                    </div>
+                  )}
+
                   <div>
                     <span className="text-sm font-medium text-gray-500 block mb-1">{t('tickets.createdBy')}</span>
                     <p className="text-gray-900">

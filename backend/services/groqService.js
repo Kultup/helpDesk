@@ -415,8 +415,7 @@ class GroqService {
   },
   "slaRecommendation": {
     "hours": 24,
-    "reason": "Обгрунтування рекомендованого часу SLA на основі пріоритету та складності",
-    "guidelines": "Рекомендації: urgent: 2-4 години, high: 8-24 години, medium: 24-72 години, low: 72-168 годин"
+    "reason": "Обгрунтування рекомендованого часу SLA на основі пріоритету та складності"
   },
   "estimatedComplexity": "low|medium|high",
   "estimatedTime": "Оцінка часу на вирішення",
@@ -430,6 +429,22 @@ class GroqService {
 - Якщо інформації недостатньо, вкажіть це
 - Не вигадуйте проблеми, яких немає в описі
 - МОВА: Відповідайте українською мовою
+
+ПРАВИЛА ДЛЯ SLA (hours):
+- Повертайте ТІЛЬКИ конкретне число годин (ціле або дробове), НЕ діапазон
+- Приклади ПРАВИЛЬНО: "hours": 1, "hours": 2, "hours": 0.5, "hours": 24
+- Приклади НЕПРАВИЛЬНО: "hours": "30 хвилин - 1 година", "hours": "1-2 години"
+- Рекомендовані значення залежно від пріоритету та складності:
+  * urgent + high complexity: 2-4 години
+  * urgent + medium complexity: 1-2 години
+  * urgent + low complexity: 0.5-1 година
+  * high + high complexity: 12-24 години
+  * high + medium complexity: 4-12 годин
+  * high + low complexity: 2-4 години
+  * medium + high complexity: 48-72 години
+  * medium + medium complexity: 24-48 годин
+  * medium + low complexity: 8-24 години
+  * low + any complexity: 72-168 годин
 `;
 
       // Формуємо контекст тікета

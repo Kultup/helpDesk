@@ -126,6 +126,10 @@ const ticketSchema = new mongoose.Schema({
     notified: {
       type: Boolean,
       default: false // Чи було відправлено сповіщення про SLA користувачу
+    },
+    deadlineWarningNotified: {
+      type: Boolean,
+      default: false // Чи було відправлено попередження про наближення дедлайну (20% залишку)
     }
   },
   metrics: {

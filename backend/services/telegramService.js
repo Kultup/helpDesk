@@ -4037,6 +4037,90 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправка попередження про наближення дедлайну (залишилось 20% часу)
+   */
+  async sendSLADeadlineWarning(ticket) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки попередження про дедлайн');
+        return;
+      }
+
+      // Перевіряємо наявність SLA інформації
+      if (!ticket.sla || !ticket.sla.deadline || !ticket.sla.remainingHours) {
+        logger.warn(`SLA не встановлено для тікету ${ticket._id}`);
+        return;
+      }
+
+      // Перевіряємо наявність користувача
+      const user = ticket.createdBy;
+      if (!user) {
+        logger.warn('Користувач, який створив тікет, не знайдений');
+        return;
+      }
+
+      // Отримуємо Telegram chat ID
+      const chatId = user.telegramChatId ? String(user.telegramChatId) : (user.telegramId ? String(user.telegramId) : null);
+      if (!chatId) {
+        logger.info(`Користувач ${user.email} не має Telegram ID для попередження про дедлайн`);
+        return;
+      }
+
+      const deadline = new Date(ticket.sla.deadline);
+      const deadlineFormatted = deadline.toLocaleString('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Форматуємо залишковий час
+      const remainingHours = ticket.sla.remainingHours;
+      let timeText = '';
+      if (remainingHours < 1) {
+        timeText = `${Math.round(remainingHours * 60)} хвилин`;
+      } else if (remainingHours < 24) {
+        const hours = Math.floor(remainingHours);
+        const minutes = Math.round((remainingHours - hours) * 60);
+        timeText = `${hours} ${hours === 1 ? 'година' : hours < 5 ? 'години' : 'годин'}`;
+        if (minutes > 0) {
+          timeText += ` ${minutes} хв`;
+        }
+      } else {
+        const days = Math.floor(remainingHours / 24);
+        const hours = Math.floor(remainingHours % 24);
+        timeText = `${days} ${days === 1 ? 'день' : days < 5 ? 'дні' : 'днів'}`;
+        if (hours > 0) {
+          timeText += ` ${hours} год`;
+        }
+      }
+
+      const message = 
+        `⏰ *Попередження про дедлайн!*\n\n` +
+        `📋 *Тікет:* ${ticket.title}\n` +
+        `🆔 \`${ticket._id}\`\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
+        `⚠️ *Залишилось часу:* ${timeText}\n` +
+        `📅 *Дедлайн:* ${deadlineFormatted}\n\n` +
+        `💡 Наближається кінцевий термін виконання тікету. Якщо проблема ще не вирішена, зверніться до адміністратора.`;
+
+      await this.sendMessage(chatId, message, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
+            [{ text: '💬 Зв\'язатися з підтримкою', url: 'https://t.me/Kultup' }]
+          ]
+        }
+      });
+
+      logger.info(`✅ Попередження про дедлайн відправлено користувачу ${user.email} (залишилось: ${remainingHours}h)`);
+    } catch (error) {
+      logger.error('Помилка відправки попередження про дедлайн:', error);
+    }
+  }
+
   getStatusText(status) {
     const statusMap = {
       'open': 'Відкрито',

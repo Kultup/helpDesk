@@ -102,6 +102,15 @@ export interface Ticket {
   comments: Comment[];
   tags?: Array<{ _id: string; name: string } | string>;
   createdFromEmail?: boolean;
+  sla?: {
+    hours: number;
+    startTime?: string;
+    deadline?: string;
+    status: 'not_started' | 'on_time' | 'at_risk' | 'breached';
+    remainingHours?: number;
+    notified?: boolean;
+    deadlineWarningNotified?: boolean;
+  };
   attachments?: Array<{
     _id: string;
     filename: string;
