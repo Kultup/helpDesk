@@ -3947,6 +3947,96 @@ class TelegramService {
     }
   }
 
+  /**
+   * Відправка SLA сповіщення користувачу про очікуваний час виконання
+   */
+  async sendSLANotification(ticket) {
+    try {
+      if (!this.bot) {
+        logger.warn('Telegram бот не ініціалізований для відправки SLA сповіщення');
+        return;
+      }
+
+      // Перевіряємо наявність SLA інформації
+      if (!ticket.sla || !ticket.sla.hours || !ticket.sla.deadline) {
+        logger.warn(`SLA не встановлено для тікету ${ticket._id}`);
+        return;
+      }
+
+      // Перевіряємо наявність користувача
+      const user = ticket.createdBy;
+      if (!user) {
+        logger.warn('Користувач, який створив тікет, не знайдений');
+        return;
+      }
+
+      // Отримуємо Telegram chat ID
+      const chatId = user.telegramChatId ? String(user.telegramChatId) : (user.telegramId ? String(user.telegramId) : null);
+      if (!chatId) {
+        logger.info(`Користувач ${user.email} не має Telegram ID для SLA сповіщень`);
+        return;
+      }
+
+      // Форматуємо час виконання
+      const slaHours = ticket.sla.hours;
+      const deadline = new Date(ticket.sla.deadline);
+      const deadlineFormatted = deadline.toLocaleString('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Визначаємо текстове відображення часу
+      let timeText = '';
+      if (slaHours < 1) {
+        timeText = `${Math.round(slaHours * 60)} хвилин`;
+      } else if (slaHours < 24) {
+        timeText = `${slaHours} ${slaHours === 1 ? 'година' : slaHours < 5 ? 'години' : 'годин'}`;
+      } else {
+        const days = Math.floor(slaHours / 24);
+        const hours = slaHours % 24;
+        timeText = `${days} ${days === 1 ? 'день' : days < 5 ? 'дні' : 'днів'}`;
+        if (hours > 0) {
+          timeText += ` ${hours} ${hours === 1 ? 'година' : hours < 5 ? 'години' : 'годин'}`;
+        }
+      }
+
+      // Емодзі в залежності від пріоритету
+      const priorityEmoji = {
+        'urgent': '🔴',
+        'high': '🟠',
+        'medium': '🟡',
+        'low': '🟢'
+      }[ticket.priority] || '⚪';
+
+      const message = 
+        `⏱️ *Ваш тікет взято в роботу!*\n\n` +
+        `📋 *Тікет:* ${ticket.title}\n` +
+        `🆔 \`${ticket._id}\`\n\n` +
+        `${priorityEmoji} *Пріоритет:* ${this.getPriorityText(ticket.priority)}\n` +
+        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
+        `⏰ *Очікуваний час виконання:* ${timeText}\n` +
+        `📅 *Планова дата виконання:* ${deadlineFormatted}\n\n` +
+        `💡 Ми докладемо всіх зусиль для вирішення вашої проблеми в зазначений термін.\n` +
+        `\nВи отримаєте сповіщення про зміну статусу.`;
+
+      await this.sendMessage(chatId, message, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }]
+          ]
+        }
+      });
+
+      logger.info(`✅ SLA сповіщення відправлено користувачу ${user.email} (${slaHours} годин, дедлайн: ${deadlineFormatted})`);
+    } catch (error) {
+      logger.error('Помилка відправки SLA сповіщення:', error);
+    }
+  }
+
   getStatusText(status) {
     const statusMap = {
       'open': 'Відкрито',

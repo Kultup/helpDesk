@@ -95,6 +95,39 @@ const ticketSchema = new mongoose.Schema({
     min: [0, 'Actual hours cannot be negative'],
     default: null
   },
+  // SLA (Service Level Agreement)
+  sla: {
+    hours: {
+      type: Number,
+      default: null, // Час на виконання в годинах (встановлюється AI)
+      min: [0, 'SLA hours cannot be negative']
+    },
+    startTime: {
+      type: Date,
+      default: null // Коли почався відлік SLA (коли тікет взяли в роботу)
+    },
+    deadline: {
+      type: Date,
+      default: null // Розрахований дедлайн виконання
+    },
+    status: {
+      type: String,
+      enum: ['not_started', 'on_time', 'at_risk', 'breached'],
+      default: 'not_started'
+      // not_started - тікет ще не взятий в роботу
+      // on_time - виконується в межах SLA (< 70% часу)
+      // at_risk - ризик порушення SLA (70-100% часу)
+      // breached - SLA порушено (> 100% часу)
+    },
+    remainingHours: {
+      type: Number,
+      default: null // Скільки годин залишилось до дедлайну
+    },
+    notified: {
+      type: Boolean,
+      default: false // Чи було відправлено сповіщення про SLA користувачу
+    }
+  },
   metrics: {
     responseTime: { type: Number, default: 0 }, // години
     resolutionTime: { type: Number, default: 0 }, // години
@@ -690,6 +723,36 @@ ticketSchema.pre('findOneAndUpdate', async function() {
     this._original = doc.toObject();
   }
 });
+
+// Метод для оновлення SLA статусу
+ticketSchema.methods.updateSLAStatus = function() {
+  if (!this.sla || !this.sla.hours || !this.sla.startTime || !this.sla.deadline) {
+    return;
+  }
+
+  const now = new Date();
+  const deadline = new Date(this.sla.deadline);
+  const startTime = new Date(this.sla.startTime);
+  
+  // Розрахунок залишкового часу в годинах
+  const remainingMs = deadline - now;
+  const remainingHours = Math.max(0, remainingMs / (1000 * 60 * 60));
+  this.sla.remainingHours = Math.round(remainingHours * 10) / 10;
+  
+  // Розрахунок відсотка витраченого часу
+  const totalMs = deadline - startTime;
+  const elapsedMs = now - startTime;
+  const percentageElapsed = (elapsedMs / totalMs) * 100;
+  
+  // Оновлення статусу SLA
+  if (percentageElapsed >= 100) {
+    this.sla.status = 'breached'; // Порушено
+  } else if (percentageElapsed >= 70) {
+    this.sla.status = 'at_risk'; // Ризик порушення
+  } else {
+    this.sla.status = 'on_time'; // В межах норми
+  }
+};
 
 // Методи для визначення типу дії та опису
 ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {

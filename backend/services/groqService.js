@@ -413,6 +413,11 @@ class GroqService {
     "shouldAssign": true|false,
     "reason": "Чому потрібно/не потрібно призначати"
   },
+  "slaRecommendation": {
+    "hours": 24,
+    "reason": "Обгрунтування рекомендованого часу SLA на основі пріоритету та складності",
+    "guidelines": "Рекомендації: urgent: 2-4 години, high: 8-24 години, medium: 24-72 години, low: 72-168 годин"
+  },
   "estimatedComplexity": "low|medium|high",
   "estimatedTime": "Оцінка часу на вирішення",
   "relatedIssues": ["Можливі пов'язані проблеми"],

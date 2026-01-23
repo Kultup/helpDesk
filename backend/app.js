@@ -213,6 +213,18 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
   setupZabbixPolling();
   logger.info('✅ Zabbix polling налаштовано');
   
+  // Ініціалізуємо оновлення SLA статусів
+  const { updateSLAStatus } = require('./jobs/updateSLAStatus');
+  // Запускаємо оновлення SLA кожні 15 хвилин
+  setInterval(async () => {
+    try {
+      await updateSLAStatus();
+    } catch (error) {
+      logger.error('Помилка виконання SLA update job:', error);
+    }
+  }, 15 * 60 * 1000); // 15 хвилин
+  logger.info('✅ SLA status update job налаштовано (кожні 15 хвилин)');
+  
   // Ініціалізуємо WebSocket сервіс для реєстрації
   const registrationWebSocketService = require('./services/registrationWebSocketService');
   registrationWebSocketService.initialize(io);

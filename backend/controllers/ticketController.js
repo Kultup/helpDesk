@@ -313,6 +313,12 @@ exports.getTicketById = async (req, res) => {
       commentsWithoutAuthor: serializedComments.filter(c => !c.author).length
     });
 
+    // Оновлюємо SLA статус перед поверненням
+    if (ticket.sla && ticket.sla.startTime) {
+      ticket.updateSLAStatus();
+      ticketData.sla = ticket.sla;
+    }
+
     res.json({
       success: true,
       data: ticketData
@@ -377,6 +383,66 @@ exports.createTicket = async (req, res) => {
     await ticket.save();
     logger.info('✅ Тікет збережено в базі даних:', ticket._id);
 
+    // AI аналіз тікета для встановлення SLA
+    try {
+      const groqService = require('../services/groqService');
+      logger.info('🤖 Викликаю AI аналіз для встановлення SLA...');
+      
+      const analysis = await groqService.analyzeTicket(ticket);
+      
+      if (analysis && analysis.slaRecommendation && analysis.slaRecommendation.hours) {
+        ticket.sla = {
+          hours: analysis.slaRecommendation.hours,
+          startTime: null, // Встановиться коли тікет візьмуть в роботу
+          deadline: null,
+          status: 'not_started',
+          remainingHours: null,
+          notified: false
+        };
+        await ticket.save();
+        
+        logger.info(`✅ SLA встановлено для тікету ${ticket._id}: ${analysis.slaRecommendation.hours} годин (${analysis.slaRecommendation.reason})`);
+      } else {
+        // Встановлюємо SLA за замовчуванням на основі пріоритету
+        const defaultSLA = {
+          'urgent': 4,
+          'high': 24,
+          'medium': 72,
+          'low': 168
+        };
+        
+        ticket.sla = {
+          hours: defaultSLA[priority] || 72,
+          startTime: null,
+          deadline: null,
+          status: 'not_started',
+          remainingHours: null,
+          notified: false
+        };
+        await ticket.save();
+        
+        logger.info(`⚠️ AI аналіз не вдався, встановлено SLA за замовчуванням: ${ticket.sla.hours} годин`);
+      }
+    } catch (aiError) {
+      logger.error('❌ Помилка AI аналізу для SLA:', aiError);
+      // Встановлюємо SLA за замовчуванням навіть при помилці
+      const defaultSLA = {
+        'urgent': 4,
+        'high': 24,
+        'medium': 72,
+        'low': 168
+      };
+      
+      ticket.sla = {
+        hours: defaultSLA[priority] || 72,
+        startTime: null,
+        deadline: null,
+        status: 'not_started',
+        remainingHours: null,
+        notified: false
+      };
+      await ticket.save();
+    }
 
     // Відправка сповіщення в Telegram групу про новий тікет
     logger.info('🎯 Викликаю функцію відправки сповіщення для тікету:', ticket._id);
@@ -508,7 +574,33 @@ exports.updateTicket = async (req, res) => {
     if (status !== undefined && status !== previousState.status) {
       if (status === 'in_progress' && !ticket.firstResponseAt) {
         ticket.firstResponseAt = new Date();
+        
+        // Початок відліку SLA
+        if (ticket.sla && ticket.sla.hours && !ticket.sla.startTime) {
+          ticket.sla.startTime = new Date();
+          ticket.sla.deadline = new Date(Date.now() + ticket.sla.hours * 60 * 60 * 1000);
+          ticket.sla.status = 'on_time';
+          ticket.sla.remainingHours = ticket.sla.hours;
+          logger.info(`⏱️ SLA відлік почався для тікету ${ticket._id}: ${ticket.sla.hours} годин, дедлайн: ${ticket.sla.deadline}`);
+        }
+        
         await ticket.save();
+        
+        // Відправка SLA сповіщення користувачу
+        if (ticket.sla && ticket.sla.hours && !ticket.sla.notified) {
+          try {
+            const populatedTicket = await Ticket.findById(ticket._id)
+              .populate('createdBy', 'firstName lastName email telegramId')
+              .populate('city', 'name');
+            
+            await telegramService.sendSLANotification(populatedTicket);
+            
+            ticket.sla.notified = true;
+            await ticket.save();
+          } catch (error) {
+            logger.error('Помилка відправки SLA сповіщення:', error);
+          }
+        }
       }
     }
 
