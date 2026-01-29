@@ -31,6 +31,19 @@ class GroqService {
       });
 
       logger.info('✅ Groq AI сервіс ініціалізовано');
+      
+      // Логуємо чи є кастомні промпти
+      if (this.settings.aiPrompts) {
+        const customPrompts = [];
+        if (this.settings.aiPrompts.intentAnalysis) customPrompts.push('intentAnalysis');
+        if (this.settings.aiPrompts.questionGeneration) customPrompts.push('questionGeneration');
+        if (this.settings.aiPrompts.ticketAnalysis) customPrompts.push('ticketAnalysis');
+        
+        if (customPrompts.length > 0) {
+          logger.info(`📝 Використовуються кастомні промпти: ${customPrompts.join(', ')}`);
+        }
+      }
+      
       return true;
     } catch (error) {
       logger.error('Помилка ініціалізації Groq сервісу:', error);

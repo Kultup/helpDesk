@@ -684,3 +684,137 @@ exports.updateBotSettings = async (req, res) => {
   }
 };
 
+/**
+ * Отримати AI промпти
+ */
+exports.getAIPrompts = async (req, res) => {
+  try {
+    let settings = await BotSettings.findOne({ key: 'default' });
+    
+    if (!settings) {
+      settings = new BotSettings({ key: 'default' });
+      await settings.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        intentAnalysis: settings.aiPrompts?.intentAnalysis || '',
+        questionGeneration: settings.aiPrompts?.questionGeneration || '',
+        ticketAnalysis: settings.aiPrompts?.ticketAnalysis || ''
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка отримання AI промптів:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка отримання AI промптів',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Оновити AI промпти
+ */
+exports.updateAIPrompts = async (req, res) => {
+  try {
+    const { intentAnalysis, questionGeneration, ticketAnalysis } = req.body;
+
+    let settings = await BotSettings.findOne({ key: 'default' });
+    
+    if (!settings) {
+      settings = new BotSettings({ key: 'default' });
+    }
+
+    // Оновлюємо промпти
+    if (!settings.aiPrompts) {
+      settings.aiPrompts = {};
+    }
+    
+    if (intentAnalysis !== undefined) {
+      settings.aiPrompts.intentAnalysis = intentAnalysis;
+    }
+    if (questionGeneration !== undefined) {
+      settings.aiPrompts.questionGeneration = questionGeneration;
+    }
+    if (ticketAnalysis !== undefined) {
+      settings.aiPrompts.ticketAnalysis = ticketAnalysis;
+    }
+
+    await settings.save();
+
+    // Переініціалізуємо Groq сервіс з новими промптами
+    await groqService.initialize();
+
+    logger.info('✅ AI промпти оновлено');
+
+    res.json({
+      success: true,
+      message: 'AI промпти успішно оновлено',
+      data: {
+        intentAnalysis: settings.aiPrompts.intentAnalysis,
+        questionGeneration: settings.aiPrompts.questionGeneration,
+        ticketAnalysis: settings.aiPrompts.ticketAnalysis
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка оновлення AI промптів:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка оновлення AI промптів',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Скинути AI промпт до дефолтного
+ */
+exports.resetAIPrompt = async (req, res) => {
+  try {
+    const { promptType } = req.params; // intentAnalysis, questionGeneration, ticketAnalysis
+
+    if (!['intentAnalysis', 'questionGeneration', 'ticketAnalysis'].includes(promptType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Невірний тип промпта'
+      });
+    }
+
+    let settings = await BotSettings.findOne({ key: 'default' });
+    
+    if (!settings) {
+      return res.status(404).json({
+        success: false,
+        message: 'Налаштування не знайдено'
+      });
+    }
+
+    // Скидаємо до порожнього (буде використовуватись дефолтний з коду)
+    if (!settings.aiPrompts) {
+      settings.aiPrompts = {};
+    }
+    settings.aiPrompts[promptType] = '';
+
+    await settings.save();
+
+    // Переініціалізуємо Groq сервіс
+    await groqService.initialize();
+
+    logger.info(`✅ AI промпт ${promptType} скинуто до дефолтного`);
+
+    res.json({
+      success: true,
+      message: `Промпт ${promptType} скинуто до дефолтного`
+    });
+  } catch (error) {
+    logger.error('Помилка скидання AI промпта:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка скидання AI промпта',
+      error: error.message
+    });
+  }
+};
+

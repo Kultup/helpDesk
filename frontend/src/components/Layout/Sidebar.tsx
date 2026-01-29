@@ -70,6 +70,7 @@ const navGroups: NavGroup[] = [
       { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
       { nameKey: 'sidebar.telegramSettings', href: '/settings/telegram', icon: Bot, adminOnly: true },
       { nameKey: 'sidebar.botSettings', href: '/settings/bot', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.aiPrompts', href: '/settings/ai-prompts', icon: Sparkles, adminOnly: true },
       { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },

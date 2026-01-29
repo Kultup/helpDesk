@@ -32,6 +32,7 @@ import TelegramSettings from './pages/TelegramSettings';
 import BotSettings from './pages/BotSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
+import AIPromptsSettings from './pages/AIPromptsSettings';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
@@ -222,6 +223,11 @@ const App: React.FC = () => {
             <Route path="admin/settings/zabbix" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ZabbixSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/settings/ai-prompts" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AIPromptsSettings />
               </ProtectedRoute>
             } />
             <Route path="admin/ai-knowledge" element={

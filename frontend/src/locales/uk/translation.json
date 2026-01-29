@@ -118,6 +118,7 @@
     "activeDirectory": "Active Directory",
     "telegramSettings": "Налаштування Telegram",
     "botSettings": "AI Асистент",
+    "aiPrompts": "AI Промпти",
     "activeDirectorySettings": "Налаштування Active Directory",
     "zabbixSettings": "Налаштування Zabbix",
     "documents": "Документи",

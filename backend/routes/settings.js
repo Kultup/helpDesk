@@ -60,5 +60,26 @@ router.get('/active-directory', authenticateToken, adminAuth, settingsController
  */
 router.put('/active-directory', authenticateToken, adminAuth, settingsController.updateActiveDirectorySettings);
 
+/**
+ * @route   GET /api/settings/ai-prompts
+ * @desc    Отримати AI промпти
+ * @access  Private (Admin only)
+ */
+router.get('/ai-prompts', authenticateToken, adminAuth, settingsController.getAIPrompts);
+
+/**
+ * @route   PUT /api/settings/ai-prompts
+ * @desc    Оновити AI промпти
+ * @access  Private (Admin only)
+ */
+router.put('/ai-prompts', authenticateToken, adminAuth, settingsController.updateAIPrompts);
+
+/**
+ * @route   POST /api/settings/ai-prompts/:promptType/reset
+ * @desc    Скинути AI промпт до дефолтного
+ * @access  Private (Admin only)
+ */
+router.post('/ai-prompts/:promptType/reset', authenticateToken, adminAuth, settingsController.resetAIPrompt);
+
 module.exports = router;
 
