@@ -62,7 +62,7 @@ const AIPromptsSettings: React.FC = () => {
   const loadPrompts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/settings/ai-prompts');
+      const response = await api.get('/settings/ai-prompts') as any;
       setPrompts(response.data.data);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Помилка завантаження промптів');
@@ -77,7 +77,7 @@ const AIPromptsSettings: React.FC = () => {
       setError('');
       setSuccess('');
 
-      await api.put('/settings/ai-prompts', prompts);
+      await api.put('/settings/ai-prompts', prompts) as any;
       
       setSuccess('✅ AI промпти успішно збережено!');
       setTimeout(() => setSuccess(''), 3000);
@@ -97,7 +97,7 @@ const AIPromptsSettings: React.FC = () => {
       setError('');
       setSuccess('');
 
-      await api.post(`/settings/ai-prompts/${promptType}/reset`);
+      await api.post(`/settings/ai-prompts/${promptType}/reset`) as any;
       
       // Перезавантажуємо промпти
       await loadPrompts();
