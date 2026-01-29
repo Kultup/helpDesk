@@ -13,11 +13,6 @@ interface BotSettings {
   aiEnabled: boolean;
   aiSystemPrompt: string;
   hasGroqApiKey: boolean;
-  aiPrompts?: {
-    intentAnalysis?: string;
-    questionGeneration?: string;
-    ticketAnalysis?: string;
-  };
 }
 
 const BotSettings: React.FC = () => {
@@ -69,8 +64,7 @@ const BotSettings: React.FC = () => {
         groqApiKey: apiKeyToSend,
         groqModel: settings.groqModel,
         aiEnabled: settings.aiEnabled,
-        aiSystemPrompt: settings.aiSystemPrompt,
-        aiPrompts: settings.aiPrompts
+        aiSystemPrompt: settings.aiSystemPrompt
       });
 
       if (response.success) {
@@ -261,112 +255,6 @@ const BotSettings: React.FC = () => {
             >
               <Save className="h-4 w-4" />
               <span>{isSaving ? t('common.saving', 'Збереження...') : t('common.save', 'Зберегти')}</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <span>AI Промпти (розширені налаштування)</span>
-          </h2>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-sm text-yellow-800">
-              ⚠️ <strong>Увага!</strong> Ці налаштування для досвідчених користувачів. 
-              Залиште поля порожніми щоб використовувати дефолтні промпти з коду.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              🎯 Промпт аналізу наміру користувача
-            </label>
-            <textarea
-              value={settings?.aiPrompts?.intentAnalysis || ''}
-              onChange={(e): void => {
-                if (settings) {
-                  setSettings({
-                    ...settings,
-                    aiPrompts: {
-                      ...settings.aiPrompts,
-                      intentAnalysis: e.target.value
-                    }
-                  });
-                }
-              }}
-              rows={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-xs"
-              placeholder="Залиште порожнім для використання дефолтного промпту..."
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Промпт для визначення чи хоче користувач створити тікет
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              💬 Промпт генерації уточнюючих питань
-            </label>
-            <textarea
-              value={settings?.aiPrompts?.questionGeneration || ''}
-              onChange={(e): void => {
-                if (settings) {
-                  setSettings({
-                    ...settings,
-                    aiPrompts: {
-                      ...settings.aiPrompts,
-                      questionGeneration: e.target.value
-                    }
-                  });
-                }
-              }}
-              rows={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-xs"
-              placeholder="Залиште порожнім для використання дефолтного промпту..."
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Промпт для генерації питань під час збору інформації
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              📊 Промпт аналізу тікета та SLA
-            </label>
-            <textarea
-              value={settings?.aiPrompts?.ticketAnalysis || ''}
-              onChange={(e): void => {
-                if (settings) {
-                  setSettings({
-                    ...settings,
-                    aiPrompts: {
-                      ...settings.aiPrompts,
-                      ticketAnalysis: e.target.value
-                    }
-                  });
-                }
-              }}
-              rows={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-xs"
-              placeholder="Залиште порожнім для використання дефолтного промпту..."
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Промпт для аналізу тікета, рекомендацій та розрахунку SLA
-            </p>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center space-x-2"
-            >
-              <Save className="h-4 w-4" />
-              <span>{isSaving ? 'Збереження...' : 'Зберегти промпти'}</span>
             </Button>
           </div>
         </CardContent>
