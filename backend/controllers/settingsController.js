@@ -512,9 +512,23 @@ exports.getBotSettings = async (req, res) => {
         key: 'default',
         aiEnabled: false,
         groqModel: 'llama-3.3-70b-versatile',
-        aiSystemPrompt: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.'
+        aiSystemPrompt: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.',
+        aiPrompts: {
+          intentAnalysis: '',
+          questionGeneration: '',
+          ticketAnalysis: ''
+        }
       });
       await settings.save();
+    }
+
+    // Ініціалізуємо aiPrompts якщо їх немає (для старих записів)
+    if (!settings.aiPrompts) {
+      settings.aiPrompts = {
+        intentAnalysis: '',
+        questionGeneration: '',
+        ticketAnalysis: ''
+      };
     }
 
     // Не повертаємо повний API ключ з міркувань безпеки
@@ -548,6 +562,7 @@ exports.updateBotSettings = async (req, res) => {
       groqModel,
       aiEnabled,
       aiSystemPrompt,
+      aiPrompts,
       cancelButtonText,
       categoryPromptText,
       priorityPromptText,
@@ -585,6 +600,27 @@ exports.updateBotSettings = async (req, res) => {
 
     if (aiSystemPrompt !== undefined) {
       settings.aiSystemPrompt = aiSystemPrompt;
+    }
+
+    // Оновлюємо AI промпти (розширені налаштування)
+    if (aiPrompts !== undefined) {
+      if (!settings.aiPrompts) {
+        settings.aiPrompts = {};
+      }
+      
+      if (aiPrompts.intentAnalysis !== undefined) {
+        settings.aiPrompts.intentAnalysis = aiPrompts.intentAnalysis || '';
+      }
+      
+      if (aiPrompts.questionGeneration !== undefined) {
+        settings.aiPrompts.questionGeneration = aiPrompts.questionGeneration || '';
+      }
+      
+      if (aiPrompts.ticketAnalysis !== undefined) {
+        settings.aiPrompts.ticketAnalysis = aiPrompts.ticketAnalysis || '';
+      }
+      
+      logger.info('🎯 Оновлено AI промпти');
     }
 
     // Оновлюємо інші налаштування бота
