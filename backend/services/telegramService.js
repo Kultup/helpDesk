@@ -2229,9 +2229,9 @@ class TelegramService {
             
             session.ticketDraft.title = reanalysis.title || session.ticketDraft.title;
             session.ticketDraft.description = reanalysis.description;
-            session.ticketDraft.priority = reanalysis.priority || session.ticketDraft.priority;
+            // Встановлюємо дефолтний пріоритет "Середній" замість AI визначення
+            session.ticketDraft.priority = 'medium';
             
-            const priorityText = this.getPriorityText(session.ticketDraft.priority);
             const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
             
             // Варіативні позитивні реакції
@@ -2248,8 +2248,7 @@ class TelegramService {
               `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
               `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
               `📝 *Опис проблеми:*\n${session.ticketDraft.description}\n\n` +
-              `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n` +
-              `⚡ *Пріоритет:* ${priorityText}\n\n` +
+              `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
               `💡 Все правильно?`;
             
             session.step = 'confirm_ticket';
@@ -2276,9 +2275,9 @@ class TelegramService {
               // Створюємо тікет з тим, що зібрали
               session.ticketDraft.title = reanalysis.title || session.ticketDraft.title || 'Проблема';
               session.ticketDraft.description = fullConversation;
-              session.ticketDraft.priority = reanalysis.priority || session.ticketDraft.priority;
+              // Встановлюємо дефолтний пріоритет "Середній"
+              session.ticketDraft.priority = 'medium';
               
-              const priorityText = this.getPriorityText(session.ticketDraft.priority);
               const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
               
               const summaryMessage = 
@@ -2286,8 +2285,7 @@ class TelegramService {
                 `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
                 `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
                 `📝 *Опис:*\n${session.ticketDraft.description}\n\n` +
-                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n` +
-                `⚡ *Пріоритет:* ${priorityText}\n\n` +
+                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
                 `💡 Створюю тікет?`;
               
               session.step = 'confirm_ticket';
