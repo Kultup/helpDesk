@@ -5417,8 +5417,8 @@ class TelegramService {
         return;
       }
       
-      // Якщо AI впевнений, що це намір створити тікет, або є пряме ключове слово
-      if ((intentAnalysis.isTicketIntent && intentAnalysis.confidence > 0.6) || hasManualKeyword) {
+      // Якщо AI визначив намір створити тікет (незалежно від впевненості!) або є пряме ключове слово
+      if (intentAnalysis.isTicketIntent || hasManualKeyword) {
         logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
         
         // ЗАВЖДИ перевіряємо чи достатньо інформації
