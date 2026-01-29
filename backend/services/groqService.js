@@ -1884,6 +1884,23 @@ ${ticketsContext || 'Немає заявок з коментарями'}
         if (notificationData) {
           await this.sendLimitNotification(notificationData, usage);
         }
+      } else {
+        // Groq SDK не повертає headers - використовуємо дефолтні ліміти для безкоштовного плану
+        // Free Tier: 14,400 RPD (requests per day), 7,000 RPM (tokens per minute)
+        const defaultLimits = {
+          'x-ratelimit-remaining-requests': usage.rateLimits?.remainingRequests || 14400,
+          'x-ratelimit-remaining-tokens': usage.rateLimits?.remainingTokens || 7000,
+          'x-ratelimit-limit-requests': 14400,
+          'x-ratelimit-limit-tokens': 7000
+        };
+        
+        // Віднімаємо використані ресурси
+        defaultLimits['x-ratelimit-remaining-requests'] -= 1;
+        defaultLimits['x-ratelimit-remaining-tokens'] -= tokensUsed;
+        
+        await usage.updateRateLimits(defaultLimits);
+        
+        logger.debug('Використано fallback ліміти (SDK не повертає headers)');
       }
       
       logger.debug('API usage tracked', { 
