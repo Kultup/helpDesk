@@ -191,6 +191,7 @@ const AIDialogHistory: React.FC = () => {
               label="Статус"
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              InputLabelProps={{ shrink: true }}
               SelectProps={{
                 displayEmpty: true,
                 MenuProps: {
@@ -203,7 +204,7 @@ const AIDialogHistory: React.FC = () => {
                 }
               }}
             >
-              <MenuItem value="">— Всі статуси —</MenuItem>
+              <MenuItem value="">Всі</MenuItem>
               <MenuItem value="active">Активні</MenuItem>
               <MenuItem value="completed">Завершені</MenuItem>
               <MenuItem value="abandoned">Покинуті</MenuItem>
@@ -216,6 +217,7 @@ const AIDialogHistory: React.FC = () => {
               label="Результат"
               value={filters.outcome}
               onChange={(e) => setFilters({ ...filters, outcome: e.target.value })}
+              InputLabelProps={{ shrink: true }}
               SelectProps={{
                 displayEmpty: true,
                 MenuProps: {
@@ -228,7 +230,7 @@ const AIDialogHistory: React.FC = () => {
                 }
               }}
             >
-              <MenuItem value="">— Всі результати —</MenuItem>
+              <MenuItem value="">Всі</MenuItem>
               <MenuItem value="ticket_created">Тікет створено</MenuItem>
               <MenuItem value="consultation">Консультація</MenuItem>
               <MenuItem value="cancelled">Скасовано</MenuItem>
