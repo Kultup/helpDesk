@@ -167,13 +167,13 @@ const AIDialogHistory: React.FC = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, overflow: 'visible' }}>
         <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           💬 Історія AI Діалогів
         </Typography>
 
         {/* Filters */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid container spacing={2} sx={{ mb: 3, position: 'relative', zIndex: 10 }}>
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
@@ -220,6 +220,12 @@ const AIDialogHistory: React.FC = () => {
               value={filters.dateFrom}
               onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
               InputLabelProps={{ shrink: true }}
+              sx={{ 
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  cursor: 'pointer',
+                  zIndex: 100
+                }
+              }}
             />
           </Grid>
           <Grid item xs={12} md={2.5}>
@@ -230,6 +236,12 @@ const AIDialogHistory: React.FC = () => {
               value={filters.dateTo}
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
               InputLabelProps={{ shrink: true }}
+              sx={{ 
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  cursor: 'pointer',
+                  zIndex: 100
+                }
+              }}
             />
           </Grid>
         </Grid>
