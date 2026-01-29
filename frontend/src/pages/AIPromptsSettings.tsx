@@ -65,14 +65,18 @@ const AIPromptsSettings: React.FC = () => {
       const response = await api.get('/settings/ai-prompts') as any;
       console.log('AI Prompts response:', response);
       console.log('Response data:', response.data);
-      console.log('Response data.data:', response.data?.data);
+      console.log('Response data keys:', Object.keys(response.data || {}));
       
-      const promtsData = response.data?.data || response.data || {
-        intentAnalysis: '',
-        questionGeneration: '',
-        ticketAnalysis: ''
-      };
+      // apiService може повертати { data: {...} } або просто {...}
+      const promtsData = response.data?.data || response.data?.intentAnalysis !== undefined 
+        ? response.data 
+        : {
+            intentAnalysis: '',
+            questionGeneration: '',
+            ticketAnalysis: ''
+          };
       
+      console.log('Final prompts data:', promtsData);
       setPrompts(promtsData);
     } catch (err: any) {
       console.error('Load prompts error:', err);
