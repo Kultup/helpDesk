@@ -6,6 +6,7 @@ module.exports = {
       cwd: '/srv/helpDesk',
       instances: 1,
       exec_mode: 'fork',
+      env_file: './backend/.env',
       env: {
         NODE_ENV: 'production'
       },
