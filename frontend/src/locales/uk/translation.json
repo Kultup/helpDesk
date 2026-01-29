@@ -119,6 +119,7 @@
     "telegramSettings": "Налаштування Telegram",
     "botSettings": "AI Асистент",
     "aiPrompts": "AI Промпти",
+    "aiDialogHistory": "Історія AI",
     "activeDirectorySettings": "Налаштування Active Directory",
     "zabbixSettings": "Налаштування Zabbix",
     "documents": "Документи",

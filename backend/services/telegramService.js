@@ -8,6 +8,7 @@ const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
 const PositionRequest = require('../models/PositionRequest');
 const Notification = require('../models/Notification');
+const AIDialogHistory = require('../models/AIDialogHistory');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -5680,6 +5681,94 @@ class TelegramService {
       // Якщо не вдалося визначити попередній екран, повертаємося до головного меню
       this.clearNavigationHistory(chatId);
       await this.showUserDashboard(chatId, user);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // МЕТОДИ ДЛЯ РОБОТИ З ІСТОРІЄЮ AI ДІАЛОГІВ
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Створити новий AI діалог в історії
+   */
+  async createAIDialog(user, initialMessage) {
+    try {
+      const dialog = new AIDialogHistory({
+        user: user._id,
+        telegramUsername: user.username,
+        userName: user.fullName || user.username,
+        location: {
+          city: user.city?.name || null,
+          institution: user.institution?.name || null
+        },
+        messages: [{
+          role: 'user',
+          content: initialMessage,
+          timestamp: new Date()
+        }],
+        status: 'active',
+        startedAt: new Date(),
+        userMessagesCount: 1,
+        aiQuestionsCount: 0
+      });
+
+      await dialog.save();
+      logger.info(`✅ Створено AI діалог: ${dialog._id} для користувача ${user.username}`);
+      return dialog;
+    } catch (error) {
+      logger.error('Помилка створення AI діалогу:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Додати повідомлення в існуючий AI діалог
+   */
+  async addMessageToAIDialog(dialogId, role, content, metadata = null) {
+    try {
+      const dialog = await AIDialogHistory.findById(dialogId);
+      if (!dialog) {
+        logger.warn(`AI діалог ${dialogId} не знайдено`);
+        return null;
+      }
+
+      await dialog.addMessage(role, content, metadata);
+      return dialog;
+    } catch (error) {
+      logger.error('Помилка додавання повідомлення в AI діалог:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Завершити AI діалог
+   */
+  async completeAIDialog(dialogId, outcome, ticketId = null) {
+    try {
+      const dialog = await AIDialogHistory.findById(dialogId);
+      if (!dialog) {
+        logger.warn(`AI діалог ${dialogId} не знайдено`);
+        return null;
+      }
+
+      await dialog.complete(outcome, ticketId);
+      logger.info(`✅ Завершено AI діалог ${dialogId} з результатом: ${outcome}`);
+      return dialog;
+    } catch (error) {
+      logger.error('Помилка завершення AI діалогу:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Знайти активний AI діалог користувача
+   */
+  async findActiveAIDialog(userId) {
+    try {
+      return await AIDialogHistory.findActiveDialog(userId);
+    } catch (error) {
+      logger.error('Помилка пошуку активного AI діалогу:', error);
+      return null;
     }
   }
 }

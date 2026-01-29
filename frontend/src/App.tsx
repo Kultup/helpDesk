@@ -33,6 +33,7 @@ import BotSettings from './pages/BotSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
 import AIPromptsSettings from './pages/AIPromptsSettings';
+import AIDialogHistory from './pages/AIDialogHistory';
 
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
@@ -228,6 +229,11 @@ const App: React.FC = () => {
             <Route path="admin/settings/ai-prompts" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <AIPromptsSettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/ai/dialog-history" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AIDialogHistory />
               </ProtectedRoute>
             } />
             <Route path="admin/ai-knowledge" element={

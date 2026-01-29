@@ -19,7 +19,8 @@ import {
   Settings,
   Bot,
   Activity,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, isAdminRole } from '../../types';
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.botSettings', href: '/admin/settings/bot', icon: Sparkles, adminOnly: true },
       { nameKey: 'sidebar.aiPrompts', href: '/admin/settings/ai-prompts', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.aiDialogHistory', href: '/admin/ai/dialog-history', icon: MessageSquare, adminOnly: true },
     ]
   },
   {
