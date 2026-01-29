@@ -18,7 +18,7 @@ import {
   RestartAlt as ResetIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
-import { api } from '../services/api';
+import api from '../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
