@@ -68,9 +68,9 @@ const navGroups: NavGroup[] = [
     titleKey: 'sidebar.groups.ai',
     adminOnly: true,
     items: [
-      { nameKey: 'sidebar.botSettings', href: '/admin/settings/bot', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.aiPrompts', href: '/admin/settings/ai-prompts', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.aiDialogHistory', href: '/admin/ai/dialog-history', icon: MessageSquare, adminOnly: true },
+      { nameKey: 'sidebar.botSettings', href: '/settings/bot', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.aiPrompts', href: '/settings/ai-prompts', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.aiDialogHistory', href: '/ai/dialog-history', icon: MessageSquare, adminOnly: true },
     ]
   },
   {
