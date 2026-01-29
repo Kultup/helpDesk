@@ -63,8 +63,19 @@ const AIPromptsSettings: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get('/settings/ai-prompts') as any;
-      setPrompts(response.data.data);
+      console.log('AI Prompts response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data.data:', response.data?.data);
+      
+      const promtsData = response.data?.data || response.data || {
+        intentAnalysis: '',
+        questionGeneration: '',
+        ticketAnalysis: ''
+      };
+      
+      setPrompts(promtsData);
     } catch (err: any) {
+      console.error('Load prompts error:', err);
       setError(err.response?.data?.message || 'Помилка завантаження промптів');
     } finally {
       setLoading(false);
