@@ -2336,7 +2336,7 @@ class TelegramService {
               
               // 🆕 Зберігаємо наступне питання AI в базу даних
               if (session.aiDialogId) {
-                await this.addMessageToAIDialog(session.aiDialogId, 'assistant', nextQuestion);
+                await this.addMessageToAIDialog(session.aiDialogId, 'ai', nextQuestion);
               }
               
               await this.sendMessage(chatId, nextQuestion, {
@@ -5506,7 +5506,7 @@ class TelegramService {
           
           // 🆕 Зберігаємо перше питання AI в базу даних
           if (infoSession.aiDialogId) {
-            await this.addMessageToAIDialog(infoSession.aiDialogId, 'assistant', firstQuestion);
+            await this.addMessageToAIDialog(infoSession.aiDialogId, 'ai', firstQuestion);
           }
           
           await this.sendMessage(chatId, firstQuestion, {

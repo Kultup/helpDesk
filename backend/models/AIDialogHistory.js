@@ -58,7 +58,7 @@ const aiDialogHistorySchema = new mongoose.Schema({
   createdTicket: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Ticket',
-    default: null
+    required: false
   },
 
   // Статус діалогу
@@ -73,7 +73,7 @@ const aiDialogHistorySchema = new mongoose.Schema({
   outcome: {
     type: String,
     enum: ['ticket_created', 'consultation', 'cancelled', 'timeout'],
-    default: null
+    required: false  // Не обов'язкове, буде undefined до завершення
   },
 
   // Тривалість діалогу (в секундах)
@@ -104,7 +104,7 @@ const aiDialogHistorySchema = new mongoose.Schema({
   // Дата завершення діалогу
   completedAt: {
     type: Date,
-    default: null
+    required: false
   },
 
   // Оцінка користувача (якщо додамо в майбутньому)
@@ -112,7 +112,7 @@ const aiDialogHistorySchema = new mongoose.Schema({
     type: Number,
     min: 1,
     max: 5,
-    default: null
+    required: false
   }
 }, {
   timestamps: true
