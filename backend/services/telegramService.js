@@ -1200,6 +1200,12 @@ class TelegramService {
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'cancel_info_gathering') {
         // Скасування збору інформації
+        // 🆕 Завершуємо AI діалог як "cancelled"
+        const session = this.userSessions.get(chatId);
+        if (session && session.aiDialogId) {
+          await this.completeAIDialog(session.aiDialogId, 'cancelled');
+        }
+        
         this.userSessions.delete(chatId);
         await this.sendMessage(chatId, 
           `❌ Збір інформації скасовано.\n\n` +
@@ -2212,6 +2218,11 @@ class TelegramService {
           });
           session.ticketDraft.collectedInfo.push(text);
           
+          // 🆕 Зберігаємо відповідь користувача в базу даних
+          if (session.aiDialogId) {
+            await this.addMessageToAIDialog(session.aiDialogId, 'user', text);
+          }
+          
           // Показуємо що бот "читає" та "думає" (більш живо)
           await this.bot.sendChatAction(chatId, 'typing');
           await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 800));
@@ -2322,6 +2333,11 @@ class TelegramService {
                 role: 'assistant',
                 content: nextQuestion
               });
+              
+              // 🆕 Зберігаємо наступне питання AI в базу даних
+              if (session.aiDialogId) {
+                await this.addMessageToAIDialog(session.aiDialogId, 'assistant', nextQuestion);
+              }
               
               await this.sendMessage(chatId, nextQuestion, {
                 reply_markup: {
@@ -3048,6 +3064,12 @@ class TelegramService {
   }
 
   async handleCancelTicketCallback(chatId, user) {
+    // 🆕 Завершуємо AI діалог як "cancelled" перед видаленням сесії
+    const session = this.userSessions.get(chatId);
+    if (session && session.aiDialogId) {
+      await this.completeAIDialog(session.aiDialogId, 'cancelled');
+    }
+    
     // Видаляємо сесію створення тікету
     this.userSessions.delete(chatId);
     
@@ -3483,6 +3505,11 @@ class TelegramService {
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
 
+      // 🆕 Завершуємо AI діалог перед очищенням сесії
+      if (session.aiDialogId) {
+        await this.completeAIDialog(session.aiDialogId, 'ticket_created', ticket._id);
+      }
+      
       // Очищуємо сесію
       this.userSessions.delete(chatId);
 
@@ -5447,6 +5474,10 @@ class TelegramService {
             missingInfo: intentAnalysis.missingInfo || []
           };
           
+          // 🆕 Створюємо запис AI діалогу в базі даних
+          const aiDialog = await this.createAIDialog(user, userMessage);
+          infoSession.aiDialogId = aiDialog._id; // Зберігаємо ID діалогу в сесії
+          
           this.userSessions.set(chatId, infoSession);
           
           // Зберігаємо початкове повідомлення в історію
@@ -5472,6 +5503,11 @@ class TelegramService {
             role: 'assistant',
             content: firstQuestion
           });
+          
+          // 🆕 Зберігаємо перше питання AI в базу даних
+          if (infoSession.aiDialogId) {
+            await this.addMessageToAIDialog(infoSession.aiDialogId, 'assistant', firstQuestion);
+          }
           
           await this.sendMessage(chatId, firstQuestion, {
             reply_markup: {
