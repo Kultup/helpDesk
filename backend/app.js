@@ -270,7 +270,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     try {
       const { auditLogger } = require('./middleware/logging');
       const fs = require('fs').promises;
-      const path = require('path');
       const logsDir = path.join(__dirname, 'logs');
       
       // Функція для отримання локальної дати
