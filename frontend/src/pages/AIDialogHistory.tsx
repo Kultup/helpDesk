@@ -167,13 +167,14 @@ const AIDialogHistory: React.FC = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3, overflow: 'visible' }}>
+      <Paper sx={{ p: 3, overflow: 'visible', position: 'relative' }}>
         <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           💬 Історія AI Діалогів
         </Typography>
 
         {/* Filters */}
-        <Grid container spacing={2} sx={{ mb: 3, position: 'relative', zIndex: 10 }}>
+        <Box sx={{ mb: 3, position: 'relative', zIndex: 100 }}>
+        <Grid container spacing={2}>
           <Grid item xs={12} md={3}>
             <TextField
               fullWidth
@@ -220,10 +221,22 @@ const AIDialogHistory: React.FC = () => {
               value={filters.dateFrom}
               onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
               InputLabelProps={{ shrink: true }}
+              inputProps={{
+                style: { cursor: 'pointer' }
+              }}
               sx={{ 
+                '& .MuiInputBase-root': {
+                  position: 'relative',
+                  zIndex: 1
+                },
+                '& input[type="date"]': {
+                  position: 'relative',
+                  zIndex: 1
+                },
                 '& input[type="date"]::-webkit-calendar-picker-indicator': {
                   cursor: 'pointer',
-                  zIndex: 100
+                  position: 'relative',
+                  zIndex: 2
                 }
               }}
             />
@@ -236,15 +249,28 @@ const AIDialogHistory: React.FC = () => {
               value={filters.dateTo}
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
               InputLabelProps={{ shrink: true }}
+              inputProps={{
+                style: { cursor: 'pointer' }
+              }}
               sx={{ 
+                '& .MuiInputBase-root': {
+                  position: 'relative',
+                  zIndex: 1
+                },
+                '& input[type="date"]': {
+                  position: 'relative',
+                  zIndex: 1
+                },
                 '& input[type="date"]::-webkit-calendar-picker-indicator': {
                   cursor: 'pointer',
-                  zIndex: 100
+                  position: 'relative',
+                  zIndex: 2
                 }
               }}
             />
           </Grid>
         </Grid>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
