@@ -95,13 +95,30 @@ const Equipment: React.FC = () => {
   // Діалог створення/редагування
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'computer',
+    brand: '',
+    model: '',
+    serialNumber: '',
+    inventoryNumber: '',
+    city: '',
+    status: 'active',
+    assignedTo: '',
+    purchaseDate: '',
+    warrantyExpiry: '',
+    location: '',
+    notes: ''
+  });
 
   // Список міст для фільтра
   const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
+  const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>([]);
 
   useEffect(() => {
     loadEquipment();
     loadCities();
+    loadUsers();
   }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter]);
 
   const loadEquipment = async () => {
@@ -133,6 +150,74 @@ const Equipment: React.FC = () => {
       setCities(response.data);
     } catch (error) {
       console.error('Помилка завантаження міст:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await api.get('/users') as any;
+      setUsers(response.data.users || response.data);
+    } catch (error) {
+      console.error('Помилка завантаження користувачів:', error);
+    }
+  };
+
+  const handleOpenDialog = (equipment: Equipment | null = null) => {
+    if (equipment) {
+      setEditingEquipment(equipment);
+      setFormData({
+        name: equipment.name || '',
+        type: equipment.type || 'computer',
+        brand: equipment.brand || '',
+        model: equipment.model || '',
+        serialNumber: equipment.serialNumber || '',
+        inventoryNumber: equipment.inventoryNumber || '',
+        city: equipment.city?._id || '',
+        status: equipment.status || 'active',
+        assignedTo: equipment.assignedTo?._id || '',
+        purchaseDate: equipment.purchaseDate ? equipment.purchaseDate.split('T')[0] : '',
+        warrantyExpiry: equipment.warrantyExpiry ? equipment.warrantyExpiry.split('T')[0] : '',
+        location: '',
+        notes: ''
+      });
+    } else {
+      setEditingEquipment(null);
+      setFormData({
+        name: '',
+        type: 'computer',
+        brand: '',
+        model: '',
+        serialNumber: '',
+        inventoryNumber: '',
+        city: '',
+        status: 'active',
+        assignedTo: '',
+        purchaseDate: '',
+        warrantyExpiry: '',
+        location: '',
+        notes: ''
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingEquipment(null);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editingEquipment) {
+        await api.put(`/equipment/${editingEquipment._id}`, formData);
+      } else {
+        await api.post('/equipment', formData);
+      }
+      handleCloseDialog();
+      loadEquipment();
+    } catch (error) {
+      console.error('Помилка збереження обладнання:', error);
+      alert('Помилка збереження обладнання');
     }
   };
 
@@ -190,10 +275,7 @@ const Equipment: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => {
-              setEditingEquipment(null);
-              setDialogOpen(true);
-            }}
+            onClick={() => handleOpenDialog()}
           >
             Додати обладнання
           </Button>
@@ -324,10 +406,7 @@ const Equipment: React.FC = () => {
                   <TableCell>
                     <IconButton
                       size="small"
-                      onClick={() => {
-                        setEditingEquipment(item);
-                        setDialogOpen(true);
-                      }}
+                      onClick={() => handleOpenDialog(item)}
                     >
                       <EditIcon fontSize="small" />
                     </IconButton>
@@ -365,7 +444,166 @@ const Equipment: React.FC = () => {
         />
       </Paper>
 
-      {/* TODO: Додати діалог створення/редагування */}
+      {/* Діалог створення/редагування */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                required
+                label="Назва"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                required
+                label="Тип"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              >
+                {equipmentTypes.map((type) => (
+                  <MenuItem key={type.value} value={type.value}>
+                    {type.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Бренд"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Модель"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Серійний номер"
+                value={formData.serialNumber}
+                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Інвентарний номер"
+                value={formData.inventoryNumber}
+                onChange={(e) => setFormData({ ...formData, inventoryNumber: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                required
+                label="Місто"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              >
+                {cities.map((city) => (
+                  <MenuItem key={city._id} value={city._id}>
+                    {city.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Локація (кабінет, відділ)"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Наприклад: Кабінет 201"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                label="Статус"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              >
+                {statusTypes.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                label="Призначено користувачу"
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+              >
+                <MenuItem value="">Не призначено</MenuItem>
+                {users.map((user) => (
+                  <MenuItem key={user._id} value={user._id}>
+                    {user.firstName} {user.lastName}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Дата придбання"
+                value={formData.purchaseDate}
+                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Гарантія до"
+                value={formData.warrantyExpiry}
+                onChange={(e) => setFormData({ ...formData, warrantyExpiry: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Примітки"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Додаткова інформація про обладнання..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Скасувати</Button>
+          <Button onClick={handleSave} variant="contained" disabled={!formData.name || !formData.city}>
+            {editingEquipment ? 'Зберегти' : 'Додати'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
