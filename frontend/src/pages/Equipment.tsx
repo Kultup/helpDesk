@@ -117,7 +117,7 @@ const Equipment: React.FC = () => {
       if (statusFilter) params.status = statusFilter;
       if (cityFilter) params.city = cityFilter;
 
-      const response = await api.get('/equipment', { params });
+      const response = await api.get('/equipment', { params }) as any;
       setEquipment(response.data.equipment);
       setTotal(response.data.pagination.total);
     } catch (error) {
@@ -129,18 +129,18 @@ const Equipment: React.FC = () => {
 
   const loadCities = async () => {
     try {
-      const response = await api.get('/cities');
+      const response = await api.get('/cities') as any;
       setCities(response.data);
     } catch (error) {
       console.error('Помилка завантаження міст:', error);
     }
   };
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number): void => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -201,7 +201,7 @@ const Equipment: React.FC = () => {
 
         {/* Фільтри */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} md={4}>
             <TextField
               fullWidth
               label="Пошук"
@@ -209,66 +209,84 @@ const Equipment: React.FC = () => {
               size="small"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Назва, модель, серійний номер..."
               InputProps={{
                 endAdornment: <SearchIcon />
               }}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Тип</InputLabel>
-              <Select
-                value={typeFilter}
-                label="Тип"
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
-                <MenuItem value="">Всі</MenuItem>
-                {equipmentTypes.map((type) => (
-                  <MenuItem key={type.value} value={type.value}>
-                    {type.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Grid item xs={6} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Тип"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">Всі типи</MenuItem>
+              {equipmentTypes.map((type) => (
+                <MenuItem key={type.value} value={type.value}>
+                  {type.label}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Статус"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="">Всі</MenuItem>
-                {statusTypes.map((status) => (
-                  <MenuItem key={status.value} value={status.value}>
-                    {status.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Grid item xs={6} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Статус"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">Всі статуси</MenuItem>
+              {statusTypes.map((status) => (
+                <MenuItem key={status.value} value={status.value}>
+                  {status.label}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Місто</InputLabel>
-              <Select
-                value={cityFilter}
-                label="Місто"
-                onChange={(e) => setCityFilter(e.target.value)}
-              >
-                <MenuItem value="">Всі</MenuItem>
-                {cities.map((city) => (
-                  <MenuItem key={city._id} value={city._id}>
-                    {city.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Grid item xs={6} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Місто"
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">Всі міста</MenuItem>
+              {cities.map((city) => (
+                <MenuItem key={city._id} value={city._id}>
+                  {city.name}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
-          <Grid item xs={12} sm={12} md={1}>
-            <IconButton onClick={loadEquipment} color="primary">
-              <RefreshIcon />
-            </IconButton>
+          <Grid item xs={6} md={2}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={loadEquipment}
+              startIcon={<RefreshIcon />}
+            >
+              Оновити
+            </Button>
           </Grid>
         </Grid>
 
