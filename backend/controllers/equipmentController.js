@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Equipment = require('../models/Equipment');
 const { sendSuccess, sendError } = require('../utils/response');
 const logger = require('../utils/logger');
