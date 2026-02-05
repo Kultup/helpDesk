@@ -588,3 +588,6 @@ node scripts/createAdmin.js
 #   W e b h o o k   t e s t 
  
  
+#   C l e a n   a u t o - d e p l o y   t e s t 
+ 
+ 
