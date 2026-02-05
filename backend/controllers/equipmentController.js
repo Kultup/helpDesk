@@ -194,7 +194,7 @@ exports.deleteEquipment = async (req, res) => {
 exports.getEquipmentStats = async (req, res) => {
   try {
     const { city } = req.query;
-    const cityId = city ? mongoose.Types.ObjectId(city) : null;
+    const cityId = city ? new mongoose.Types.ObjectId(city) : null;
 
     const stats = await Equipment.getStatsByCity(cityId);
 
