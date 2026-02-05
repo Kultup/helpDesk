@@ -448,6 +448,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 app.use('/api/settings', require('./routes/settings')); // Налаштування системи
 app.use('/api/ai-dialogs', require('./routes/aiDialog')); // Історія AI діалогів
+app.use('/api/equipment', require('./routes/equipment')); // Інвентарне обладнання
 app.use('/api/kb', require('./routes/knowledgeBase'));
 app.use('/api/ai-knowledge', require('./routes/aiKnowledge'));
 app.use('/api/zabbix', require('./routes/zabbix')); // Zabbix інтеграція

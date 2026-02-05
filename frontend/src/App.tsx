@@ -44,6 +44,7 @@ import AIKnowledge from './pages/AIKnowledge';
 import CreateAIKnowledge from './pages/CreateAIKnowledge';
 import AIKnowledgeItem from './pages/AIKnowledgeItem';
 import EditAIKnowledge from './pages/EditAIKnowledge';
+import Equipment from './pages/Equipment';
 
 
 // Компонент для розумного перенаправлення
@@ -173,6 +174,11 @@ const App: React.FC = () => {
             <Route path="admin/institutions" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <Institutions />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/equipment" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <Equipment />
               </ProtectedRoute>
             } />
             <Route path="admin/quick-notifications" element={

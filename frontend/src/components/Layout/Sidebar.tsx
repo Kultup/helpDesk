@@ -20,7 +20,8 @@ import {
   Bot,
   Activity,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Monitor
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, isAdminRole } from '../../types';
@@ -85,6 +86,7 @@ const navGroups: NavGroup[] = [
       { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
       { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
       { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },
+      { nameKey: 'sidebar.equipment', href: '/equipment', icon: Monitor, adminOnly: true },
     ]
   },
   {

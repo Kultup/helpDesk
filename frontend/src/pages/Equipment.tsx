@@ -1,0 +1,355 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  TextField,
+  MenuItem,
+  Button,
+  IconButton,
+  Chip,
+  Grid,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Refresh as RefreshIcon
+} from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
+import api from '../services/api';
+
+interface Equipment {
+  _id: string;
+  name: string;
+  type: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
+  inventoryNumber?: string;
+  city: {
+    _id: string;
+    name: string;
+  };
+  status: string;
+  assignedTo?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  purchaseDate?: string;
+  warrantyExpiry?: string;
+  createdAt: string;
+}
+
+const equipmentTypes = [
+  { value: 'computer', label: 'Комп\'ютер' },
+  { value: 'printer', label: 'Принтер' },
+  { value: 'phone', label: 'Телефон' },
+  { value: 'monitor', label: 'Монітор' },
+  { value: 'router', label: 'Роутер' },
+  { value: 'switch', label: 'Свіч' },
+  { value: 'ups', label: 'ДБЖ' },
+  { value: 'other', label: 'Інше' }
+];
+
+const statusTypes = [
+  { value: 'active', label: 'Активне', color: 'success' as const },
+  { value: 'inactive', label: 'Неактивне', color: 'default' as const },
+  { value: 'repair', label: 'В ремонті', color: 'warning' as const },
+  { value: 'disposed', label: 'Списано', color: 'error' as const },
+  { value: 'storage', label: 'На складі', color: 'info' as const }
+];
+
+const Equipment: React.FC = () => {
+  const { t } = useTranslation();
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [total, setTotal] = useState(0);
+  
+  // Фільтри
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+
+  // Діалог створення/редагування
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+
+  // Список міст для фільтра
+  const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
+
+  useEffect(() => {
+    loadEquipment();
+    loadCities();
+  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter]);
+
+  const loadEquipment = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: page + 1,
+        limit: rowsPerPage
+      };
+
+      if (searchQuery) params.search = searchQuery;
+      if (typeFilter) params.type = typeFilter;
+      if (statusFilter) params.status = statusFilter;
+      if (cityFilter) params.city = cityFilter;
+
+      const response = await api.get('/equipment', { params });
+      setEquipment(response.data.equipment);
+      setTotal(response.data.pagination.total);
+    } catch (error) {
+      console.error('Помилка завантаження обладнання:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCities = async () => {
+    try {
+      const response = await api.get('/cities');
+      setCities(response.data);
+    } catch (error) {
+      console.error('Помилка завантаження міст:', error);
+    }
+  };
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Ви впевнені, що хочете видалити це обладнання?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/equipment/${id}`);
+      loadEquipment();
+    } catch (error) {
+      console.error('Помилка видалення обладнання:', error);
+      alert('Помилка видалення обладнання');
+    }
+  };
+
+  const getStatusChip = (status: string) => {
+    const statusType = statusTypes.find(s => s.value === status);
+    return (
+      <Chip
+        label={statusType?.label || status}
+        color={statusType?.color || 'default'}
+        size="small"
+      />
+    );
+  };
+
+  const getTypeLabel = (type: string) => {
+    const typeObj = equipmentTypes.find(t => t.value === type);
+    return typeObj?.label || type;
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('uk-UA');
+  };
+
+  return (
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h5" component="h1">
+            Інвентарне обладнання
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setEditingEquipment(null);
+              setDialogOpen(true);
+            }}
+          >
+            Додати обладнання
+          </Button>
+        </Box>
+
+        {/* Фільтри */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              label="Пошук"
+              variant="outlined"
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                endAdornment: <SearchIcon />
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Тип</InputLabel>
+              <Select
+                value={typeFilter}
+                label="Тип"
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <MenuItem value="">Всі</MenuItem>
+                {equipmentTypes.map((type) => (
+                  <MenuItem key={type.value} value={type.value}>
+                    {type.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Статус</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Статус"
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <MenuItem value="">Всі</MenuItem>
+                {statusTypes.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Місто</InputLabel>
+              <Select
+                value={cityFilter}
+                label="Місто"
+                onChange={(e) => setCityFilter(e.target.value)}
+              >
+                <MenuItem value="">Всі</MenuItem>
+                {cities.map((city) => (
+                  <MenuItem key={city._id} value={city._id}>
+                    {city.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={12} md={1}>
+            <IconButton onClick={loadEquipment} color="primary">
+              <RefreshIcon />
+            </IconButton>
+          </Grid>
+        </Grid>
+
+        {/* Таблиця */}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Назва</TableCell>
+                <TableCell>Тип</TableCell>
+                <TableCell>Модель</TableCell>
+                <TableCell>Інв. №</TableCell>
+                <TableCell>Місто</TableCell>
+                <TableCell>Статус</TableCell>
+                <TableCell>Призначено</TableCell>
+                <TableCell>Дії</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {equipment.map((item) => (
+                <TableRow key={item._id}>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{getTypeLabel(item.type)}</TableCell>
+                  <TableCell>
+                    {item.brand && item.model ? `${item.brand} ${item.model}` : item.brand || item.model || '-'}
+                  </TableCell>
+                  <TableCell>{item.inventoryNumber || '-'}</TableCell>
+                  <TableCell>{item.city?.name || '-'}</TableCell>
+                  <TableCell>{getStatusChip(item.status)}</TableCell>
+                  <TableCell>
+                    {item.assignedTo
+                      ? `${item.assignedTo.firstName} ${item.assignedTo.lastName}`
+                      : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setEditingEquipment(item);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(item._id)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {equipment.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    Немає даних
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          rowsPerPageOptions={[25, 50, 100]}
+          component="div"
+          count={total}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelRowsPerPage="Рядків на сторінці:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} з ${count}`}
+        />
+      </Paper>
+
+      {/* TODO: Додати діалог створення/редагування */}
+    </Container>
+  );
+};
+
+export default Equipment;
