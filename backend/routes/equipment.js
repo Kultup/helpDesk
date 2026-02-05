@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const equipmentController = require('../controllers/equipmentController');
 const { authenticateToken } = require('../middleware/auth');
-const { adminAuth } = require('../middleware/adminAuth');
+const adminAuth = require('../middleware/adminAuth');
 
 // Всі роути вимагають автентифікації
 router.use(authenticateToken);
