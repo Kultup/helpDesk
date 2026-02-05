@@ -103,6 +103,7 @@ helpDesk/
 ```
 
 Скрипт автоматично:
+
 - Перевірить наявність Node.js та npm
 - Створить `.env` файли з прикладів
 - Згенерує безпечні JWT секрети
@@ -118,6 +119,7 @@ npm run install-all
 ```
 
 Або окремо:
+
 ```bash
 npm install                    # Кореневі залежності
 cd backend && npm install      # Backend залежності
@@ -127,6 +129,7 @@ cd ../frontend && npm install --legacy-peer-deps  # Frontend залежност�
 2. **Налаштувати змінні середовища:**
 
 **Backend (.env):**
+
 ```bash
 # Windows
 copy backend\.env.example backend\.env
@@ -136,12 +139,14 @@ cp backend/.env.example backend/.env
 ```
 
 Потім відредагуйте `backend/.env` та встановіть:
+
 - `MONGODB_URI` - URI підключення до MongoDB (за замовчуванням: `mongodb://localhost:27017/helpdesk`)
 - `JWT_SECRET` - мінімум 32 символи (скрипт згенерує автоматично)
 - `JWT_REFRESH_SECRET` - мінімум 32 символи (скрипт згенерує автоматично)
 - `FRONTEND_URL` - URL frontend (за замовчуванням: `http://localhost:3000`)
 
 **Frontend (.env):**
+
 ```bash
 # Windows
 copy frontend\.env.example frontend\.env
@@ -155,17 +160,20 @@ cp frontend/.env.example frontend/.env
 3. **Запустити MongoDB:**
 
 **Варіант 1: Локальна установка**
+
 ```bash
 # Переконайтеся, що MongoDB запущена
 mongod
 ```
 
 **Варіант 2: Docker**
+
 ```bash
 docker run -d -p 27017:27017 --name mongodb mongo:latest
 ```
 
 **Варіант 3: MongoDB Atlas (хмарна база)**
+
 - Зареєструйтеся на https://www.mongodb.com/cloud/atlas
 - Створіть кластер та отримайте connection string
 - Встановіть `MONGODB_URI` в `backend/.env`
@@ -178,6 +186,7 @@ node scripts/createAdmin.js
 ```
 
 Це створить:
+
 - Адміністратора: `admin@test.com` / `admin123`
 - Користувача: `user@test.com` / `user123`
 - Базові дані (місто, позиції)
@@ -200,6 +209,7 @@ http://localhost:3000
 ```
 
 **Облікові дані:**
+
 - Email: `admin@test.com`
 - Пароль: `admin123`
 
@@ -221,20 +231,24 @@ http://localhost:3000
 #### Усунення проблем
 
 **Помилка підключення до MongoDB:**
+
 - Переконайтеся, що MongoDB запущена
 - Перевірте `MONGODB_URI` в `backend/.env`
 - Для Docker: `docker ps` - має показувати контейнер mongodb
 
 **Помилка CORS:**
+
 - Перевірте `FRONTEND_URL` в `backend/.env`
 - Має відповідати URL, з якого відкривається frontend
 
 **Помилка встановлення залежностей:**
+
 - Для frontend використовуйте `npm install --legacy-peer-deps`
 - Переконайтеся, що Node.js версії 18+
 - Спробуйте видалити `node_modules` та `package-lock.json` і встановити знову
 
 **Порт зайнятий:**
+
 - Backend: змініть `PORT` в `backend/.env` (за замовчуванням 5000)
 - Frontend: змініть порт через змінну середовища `PORT=3001 npm start`
 - **Швидке вирішення (Windows):** Запустіть `.\kill-port-5000.ps1` для автоматичного вивільнення порту 5000
@@ -291,6 +305,7 @@ CORS_ORIGIN=https://your-domain.com,https://www.your-domain.com,https://admin.yo
 ```
 
 **Важливо:**
+
 - Вказуйте повний URL з протоколом (http:// або https://)
 - Для кількох origins розділяйте їх комою
 - Підтримуються піддомени автоматично (якщо дозволено `example.com`, то `app.example.com` теж дозволено)
@@ -299,6 +314,7 @@ CORS_ORIGIN=https://your-domain.com,https://www.your-domain.com,https://admin.yo
 ### Запуск через PM2
 
 **Перший запуск:**
+
 ```bash
 cd backend
 npm run start:pm2:prod  # для production
@@ -307,12 +323,14 @@ npm run start:pm2        # для development
 ```
 
 **Якщо процес не знайдено (перший запуск):**
+
 ```bash
 cd /srv/helpDesk/backend
 pm2 start ecosystem.config.js --env production
 ```
 
 **Перезапуск існуючого процесу:**
+
 ```bash
 pm2 restart helpdesk-backend
 # або
@@ -320,6 +338,7 @@ cd backend && npm run restart:pm2
 ```
 
 **Перевірка статусу:**
+
 ```bash
 pm2 status
 pm2 logs helpdesk-backend
@@ -331,12 +350,14 @@ pm2 monit
 Якщо виникає помилка 503 Service Unavailable від Telegram webhook:
 
 1. **Перевірте, чи працює backend:**
+
 ```bash
 pm2 status
 pm2 logs helpdesk-backend --lines 50
 ```
 
 2. **Перевірте доступність webhook endpoint:**
+
 ```bash
 curl -X GET https://helpdesk.krainamriy.fun/api/telegram/webhook
 curl -X POST https://helpdesk.krainamriy.fun/api/telegram/webhook \
@@ -345,6 +366,7 @@ curl -X POST https://helpdesk.krainamriy.fun/api/telegram/webhook \
 ```
 
 3. **Перевірте Nginx конфігурацію:**
+
 ```bash
 # Перевірте, чи правильно налаштований proxy_pass до backend
 sudo nginx -t
@@ -352,18 +374,21 @@ sudo systemctl status nginx
 ```
 
 4. **Перевірте логи Nginx:**
+
 ```bash
 sudo tail -f /var/log/nginx/error.log
 sudo tail -f /var/log/nginx/access.log
 ```
 
 5. **Перезапустіть сервіси:**
+
 ```bash
 pm2 restart helpdesk-backend --update-env
 sudo systemctl restart nginx
 ```
 
 6. **Якщо backend не запущений на production сервері:**
+
 ```bash
 # Перевірте статус PM2
 pm2 status
@@ -380,6 +405,7 @@ pm2 logs helpdesk-backend --lines 20
 ```
 
 7. **Перевірте доступність webhook ззовні:**
+
 ```bash
 # З сервера
 curl -X GET https://helpdesk.krainamriy.fun/api/telegram/webhook
@@ -388,6 +414,7 @@ curl -X GET https://helpdesk.krainamriy.fun/api/telegram/webhook
 ```
 
 8. **Якщо все ще 503, перевірте Nginx конфігурацію:**
+
 ```bash
 # Перевірте, чи правильно налаштований proxy_pass
 sudo nginx -t
@@ -549,3 +576,6 @@ node scripts/createAdmin.js
 ## Ліцензія
 
 Цей проект розроблений для внутрішнього використання. Всі права захищені.
+#   T e s t   w e b h o o k   d e p l o y 
+ 
+ 
