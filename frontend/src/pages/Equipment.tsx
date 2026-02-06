@@ -138,9 +138,12 @@ const Equipment: React.FC = () => {
 
   // Завантаження закладів при зміні міста у формі
   useEffect(() => {
+    console.log('🔄 useEffect - formData.city змінилось:', formData.city);
     if (formData.city) {
+      console.log('✅ Місто вибране, завантажуємо заклади...');
       loadInstitutionsByCity(formData.city);
     } else {
+      console.log('⚠️ Місто не вибране, скидаємо заклади');
       setInstitutions([]);
     }
   }, [formData.city]);
@@ -172,10 +175,12 @@ const Equipment: React.FC = () => {
   const loadCities = async () => {
     try {
       const response = await api.get('/cities') as any;
-      console.log('Cities API response:', response.data);
-      setCities(response.data || []);
+      console.log('🌍 Cities API response:', response.data);
+      const citiesList = response.data || [];
+      console.log(`📍 Завантажено ${citiesList.length} міст:`, citiesList.map((c: any) => ({ id: c._id, name: c.name })));
+      setCities(citiesList);
     } catch (error) {
-      console.error('Помилка завантаження міст:', error);
+      console.error('❌ Помилка завантаження міст:', error);
     }
   };
 
@@ -194,6 +199,7 @@ const Equipment: React.FC = () => {
 
   const loadInstitutionsByCity = async (cityId: string) => {
     try {
+      console.log('🔍 Завантаження закладів для міста ID:', cityId);
       // Завантажуємо заклади для конкретного міста
       const response = await api.get('/institutions/public', { 
         params: { 
@@ -201,12 +207,13 @@ const Equipment: React.FC = () => {
           limit: 500 
         } 
       }) as any;
-      console.log('Institutions for city API response:', response.data);
+      console.log('📦 Institutions API response:', response.data);
       const list = response.data?.data || [];
-      console.log('Filtered institutions list:', list);
+      console.log('✅ Filtered institutions list:', list);
+      console.log(`📊 Знайдено ${list.length} закладів для міста`);
       setInstitutions(list);
     } catch (error) {
-      console.error('Помилка завантаження закладів для міста:', error);
+      console.error('❌ Помилка завантаження закладів для міста:', error);
       setInstitutions([]);
     }
   };
@@ -628,10 +635,13 @@ const Equipment: React.FC = () => {
                       fullWidth
                       value={formData.city}
                       onChange={(e: any) => {
+                        const selectedCityId = e.target.value;
+                        const selectedCity = cities.find(c => c._id === selectedCityId);
+                        console.log('🏙️ Вибране місто:', selectedCity?.name, 'ID:', selectedCityId);
                         // При зміні міста скидаємо заклад
                         setFormData({ 
                           ...formData, 
-                          city: e.target.value,
+                          city: selectedCityId,
                           institution: '' 
                         });
                       }}
