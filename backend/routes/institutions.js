@@ -391,6 +391,36 @@ router.get('/nearby',
   institutionController.getNearbyInstitutions
 );
 
+// Простий список закладів (для селектів) - ВАЖЛИВО: має бути перед /:id
+router.get('/simple/list', async (req, res) => {
+  try {
+    const { type, city, limit = 100 } = req.query;
+    
+    const filters = { isActive: true, isPublic: true };
+    if (type) filters.type = type;
+    if (city) filters['address.city'] = city;
+
+    const institutions = await Institution.find(filters)
+      .select('name nameEn type address.city')
+      .populate('address.city', 'name nameEn')
+      .limit(parseInt(limit))
+      .sort({ name: 1 });
+
+    res.json({
+      success: true,
+      data: institutions
+    });
+
+  } catch (error) {
+    logger.error('Error fetching simple institutions list:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка при отриманні списку закладів',
+      error: error.message
+    });
+  }
+});
+
 // Отримати заклад за ID
 router.get('/:id', 
   authenticateToken,
@@ -553,35 +583,5 @@ router.delete('/:id/services/:serviceId',
   logUserAction('видалив послугу з закладу'),
   institutionController.removeService
 );
-
-// Простий список закладів (для селектів)
-router.get('/simple/list', async (req, res) => {
-  try {
-    const { type, city, limit = 100 } = req.query;
-    
-    const filters = { isActive: true, isPublic: true };
-    if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
-
-    const institutions = await Institution.find(filters)
-      .select('name nameEn type address.city')
-      .populate('address.city', 'name nameEn')
-      .limit(parseInt(limit))
-      .sort({ name: 1 });
-
-    res.json({
-      success: true,
-      data: institutions
-    });
-
-  } catch (error) {
-    logger.error('Error fetching simple institutions list:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка при отриманні списку закладів',
-      error: error.message
-    });
-  }
-});
 
 module.exports = router;
