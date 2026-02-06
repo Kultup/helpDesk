@@ -126,7 +126,7 @@ const Equipment: React.FC = () => {
 
   // Список міст та закладів для форми та фільтрів
   const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
-  const [institutions, setInstitutions] = useState<Array<{ _id: string; name: string }>>([]);
+  const [institutions, setInstitutions] = useState<Array<{ _id: string; name: string; address?: { city?: string } }>>([]);
   const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>([]);
 
   useEffect(() => {
@@ -135,6 +135,15 @@ const Equipment: React.FC = () => {
     loadInstitutions();
     loadUsers();
   }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter, institutionFilter]);
+
+  // Завантаження закладів при зміні міста у формі
+  useEffect(() => {
+    if (formData.city) {
+      loadInstitutionsByCity(formData.city);
+    } else {
+      setInstitutions([]);
+    }
+  }, [formData.city]);
 
   const loadEquipment = async () => {
     try {
@@ -177,9 +186,28 @@ const Equipment: React.FC = () => {
       console.log('Institutions API response:', response.data);
       const list = response.data?.data || [];
       console.log('Institutions list:', list);
-      setInstitutions(list.map((inst: { _id: string; name: string }) => ({ _id: inst._id, name: inst.name })));
+      setInstitutions(list);
     } catch (error) {
       console.error('Помилка завантаження закладів:', error);
+    }
+  };
+
+  const loadInstitutionsByCity = async (cityId: string) => {
+    try {
+      // Завантажуємо заклади для конкретного міста
+      const response = await api.get('/institutions/public', { 
+        params: { 
+          city: cityId,
+          limit: 500 
+        } 
+      }) as any;
+      console.log('Institutions for city API response:', response.data);
+      const list = response.data?.data || [];
+      console.log('Filtered institutions list:', list);
+      setInstitutions(list);
+    } catch (error) {
+      console.error('Помилка завантаження закладів для міста:', error);
+      setInstitutions([]);
     }
   };
 
@@ -599,7 +627,14 @@ const Equipment: React.FC = () => {
                       select
                       fullWidth
                       value={formData.city}
-                      onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                      onChange={(e: any) => {
+                        // При зміні міста скидаємо заклад
+                        setFormData({ 
+                          ...formData, 
+                          city: e.target.value,
+                          institution: '' 
+                        });
+                      }}
                       size="small"
                       variant="outlined"
                       SelectProps={{ displayEmpty: true }}
@@ -626,9 +661,13 @@ const Equipment: React.FC = () => {
                       onChange={(e: any) => setFormData({ ...formData, institution: e.target.value })}
                       size="small"
                       variant="outlined"
+                      disabled={!formData.city}
                       SelectProps={{ displayEmpty: true }}
+                      helperText={!formData.city ? "Спочатку оберіть місто" : ""}
                     >
-                      <MenuItem value="">Оберіть заклад</MenuItem>
+                      <MenuItem value="">
+                        {!formData.city ? "Спочатку оберіть місто" : "Оберіть заклад"}
+                      </MenuItem>
                       {institutions.map((inst) => (
                         <MenuItem key={inst._id} value={inst._id}>
                           {inst.name}
