@@ -447,153 +447,157 @@ const Equipment: React.FC = () => {
       </Paper>
 
       {/* Діалог створення/редагування */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingEquipment ? 'Редагувати' : 'Додати обладнання'}
+          {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Grid container spacing={2.5}>
+            <Grid container spacing={2}>
+              {/* Назва */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Назва"
+                  value={formData.name}
+                  onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Dell Latitude E7450"
+                />
+              </Grid>
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                required
-                label="Назва"
-                value={formData.name}
-                onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Dell Latitude E7450"
-              />
-            </Grid>
+              {/* Тип, Місто, Локація */}
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  required
+                  label="Тип"
+                  value={formData.type}
+                  onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
+                >
+                  {equipmentTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      {type.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                select
-                fullWidth
-                required
-                label="Тип"
-                value={formData.type}
-                onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
-              >
-                {equipmentTypes.map((type) => (
-                  <MenuItem key={type.value} value={type.value}>
-                    {type.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  required
+                  label="Місто"
+                  value={formData.city}
+                  onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                >
+                  {cities.map((city) => (
+                    <MenuItem key={city._id} value={city._id}>
+                      {city.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                select
-                fullWidth
-                required
-                label="Місто"
-                value={formData.city}
-                onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
-              >
-                {cities.map((city) => (
-                  <MenuItem key={city._id} value={city._id}>
-                    {city.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Локація"
+                  value={formData.location}
+                  onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="Кабінет 201"
+                />
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Бренд"
-                value={formData.brand}
-                onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
-                placeholder="HP, Dell"
-              />
-            </Grid>
+              {/* Бренд, Модель, Серійний номер */}
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Бренд"
+                  value={formData.brand}
+                  onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
+                  placeholder="HP, Dell"
+                />
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Модель"
-                value={formData.model}
-                onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
-                placeholder="LaserJet Pro"
-              />
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Модель"
+                  value={formData.model}
+                  onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
+                  placeholder="LaserJet Pro"
+                />
+              </Grid>
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Де знаходиться"
-                value={formData.location}
-                onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Кабінет 201"
-              />
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Серійний номер"
+                  value={formData.serialNumber}
+                  onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
+                  placeholder="S/N"
+                />
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                select
-                fullWidth
-                label="Статус"
-                value={formData.status}
-                onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
-              >
-                {statusTypes.map((status) => (
-                  <MenuItem key={status.value} value={status.value}>
-                    {status.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+              {/* Статус, Користувач, Інвентарний номер */}
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Статус"
+                  value={formData.status}
+                  onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  {statusTypes.map((status) => (
+                    <MenuItem key={status.value} value={status.value}>
+                      {status.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                select
-                fullWidth
-                label="Закріплено за"
-                value={formData.assignedTo}
-                onChange={(e: any) => setFormData({ ...formData, assignedTo: e.target.value })}
-              >
-                <MenuItem value="">Не призначено</MenuItem>
-                {users.map((user) => (
-                  <MenuItem key={user._id} value={user._id}>
-                    {user.firstName} {user.lastName}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Закріплено за"
+                  value={formData.assignedTo}
+                  onChange={(e: any) => setFormData({ ...formData, assignedTo: e.target.value })}
+                >
+                  <MenuItem value="">Не призначено</MenuItem>
+                  {users.map((user) => (
+                    <MenuItem key={user._id} value={user._id}>
+                      {user.firstName} {user.lastName}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Серійний номер"
-                value={formData.serialNumber}
-                onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
-                placeholder="S/N з корпусу"
-              />
-            </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Інвентарний №"
+                  value={formData.inventoryNumber}
+                  onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
+                  placeholder="INV-001"
+                />
+              </Grid>
 
-            <Grid item xs={6}>
-              <TextField
-                fullWidth
-                label="Інвентарний №"
-                value={formData.inventoryNumber}
-                onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
-                placeholder="INV-001"
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Примітки"
-                value={formData.notes}
-                onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Додаткова інформація..."
-              />
-            </Grid>
+              {/* Примітки */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Примітки"
+                  value={formData.notes}
+                  onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Додаткова інформація..."
+                />
+              </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
