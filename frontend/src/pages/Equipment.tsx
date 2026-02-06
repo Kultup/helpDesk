@@ -447,35 +447,33 @@ const Equipment: React.FC = () => {
       </Paper>
 
       {/* Діалог створення/редагування */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
+          {editingEquipment ? 'Редагувати' : 'Додати обладнання'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Grid container spacing={2}>
+            <Grid container spacing={2.5}>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 required
-                label="Назва обладнання"
+                label="Назва"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Наприклад: Dell Latitude E7450"
-                helperText="Як ви називаєте це обладнання"
+                onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Dell Latitude E7450"
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 select
                 fullWidth
                 required
-                label="Тип обладнання"
+                label="Тип"
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                helperText="Виберіть категорію"
+                onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
               >
                 {equipmentTypes.map((type) => (
                   <MenuItem key={type.value} value={type.value}>
@@ -485,75 +483,14 @@ const Equipment: React.FC = () => {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Виробник (Бренд)"
-                value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                placeholder="Наприклад: HP, Dell, Canon"
-                helperText="Компанія-виробник"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Модель"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                placeholder="Наприклад: LaserJet Pro M404dn"
-                helperText="Точна модель обладнання"
-              />
-            </Grid>
-
-            {/* Секція 2: Ідентифікатори */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ mb: 2, mt: 2, fontWeight: 600, color: 'primary.main' }}>
-                🔢 Ідентифікатори (для обліку)
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Серійний номер (S/N)"
-                value={formData.serialNumber}
-                onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                placeholder="Наприклад: ABC123456789"
-                helperText="З корпусу або етикетки"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Інвентарний номер"
-                value={formData.inventoryNumber}
-                onChange={(e) => setFormData({ ...formData, inventoryNumber: e.target.value })}
-                placeholder="Наприклад: INV-2024-001"
-                helperText="Внутрішній номер обліку"
-              />
-            </Grid>
-
-            {/* Секція 3: Розміщення */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ mb: 2, mt: 2, fontWeight: 600, color: 'primary.main' }}>
-                📍 Де знаходиться
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 select
                 fullWidth
                 required
                 label="Місто"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                helperText="В якому місті розташоване"
+                onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
               >
                 {cities.map((city) => (
                   <MenuItem key={city._id} value={city._id}>
@@ -563,33 +500,43 @@ const Equipment: React.FC = () => {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Точна локація"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Наприклад: Кабінет 201, Бухгалтерія"
-                helperText="Кабінет, відділ або місце"
+                label="Бренд"
+                value={formData.brand}
+                onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
+                placeholder="HP, Dell"
               />
             </Grid>
 
-            {/* Секція 4: Статус та призначення */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ mb: 2, mt: 2, fontWeight: 600, color: 'primary.main' }}>
-                👤 Статус та використання
-              </Typography>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Модель"
+                value={formData.model}
+                onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
+                placeholder="LaserJet Pro"
+              />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Де знаходиться"
+                value={formData.location}
+                onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Кабінет 201"
+              />
+            </Grid>
+
+            <Grid item xs={6}>
               <TextField
                 select
                 fullWidth
                 label="Статус"
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                helperText="Поточний стан обладнання"
+                onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
               >
                 {statusTypes.map((status) => (
                   <MenuItem key={status.value} value={status.value}>
@@ -599,74 +546,52 @@ const Equipment: React.FC = () => {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 select
                 fullWidth
-                label="Закріплено за користувачем"
+                label="Закріплено за"
                 value={formData.assignedTo}
-                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                helperText="Хто відповідальний за обладнання"
+                onChange={(e: any) => setFormData({ ...formData, assignedTo: e.target.value })}
               >
-                <MenuItem value="">❌ Не призначено</MenuItem>
+                <MenuItem value="">Не призначено</MenuItem>
                 {users.map((user) => (
                   <MenuItem key={user._id} value={user._id}>
-                    👤 {user.firstName} {user.lastName}
+                    {user.firstName} {user.lastName}
                   </MenuItem>
                 ))}
               </TextField>
             </Grid>
 
-            {/* Секція 5: Гарантія та дати */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ mb: 2, mt: 2, fontWeight: 600, color: 'primary.main' }}>
-                📅 Дати (необов'язково)
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 fullWidth
-                type="date"
-                label="Дата придбання"
-                value={formData.purchaseDate}
-                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                helperText="Коли купили обладнання"
+                label="Серійний номер"
+                value={formData.serialNumber}
+                onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
+                placeholder="S/N з корпусу"
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <TextField
                 fullWidth
-                type="date"
-                label="Гарантія діє до"
-                value={formData.warrantyExpiry}
-                onChange={(e) => setFormData({ ...formData, warrantyExpiry: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                helperText="Дата закінчення гарантії"
+                label="Інвентарний №"
+                value={formData.inventoryNumber}
+                onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
+                placeholder="INV-001"
               />
-            </Grid>
-
-            {/* Секція 6: Додатково */}
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ mb: 2, mt: 2, fontWeight: 600, color: 'primary.main' }}>
-                📝 Додаткова інформація
-              </Typography>
             </Grid>
 
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 multiline
-                rows={3}
+                rows={2}
                 label="Примітки"
                 value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Будь-яка додаткова інформація: особливості, проблеми, налаштування..."
-                helperText="Необов'язкове поле для ваших нотаток"
+                onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Додаткова інформація..."
               />
             </Grid>
           </Grid>
