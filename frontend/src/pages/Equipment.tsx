@@ -452,17 +452,8 @@ const Equipment: React.FC = () => {
           {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
         </DialogTitle>
         <DialogContent>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Поля позначені зірочкою (*) є обов'язковими
-          </Alert>
-
-          <Grid container spacing={3}>
-            {/* Секція 1: Основна інформація */}
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
-                📌 Основна інформація
-              </Typography>
-            </Grid>
+          <Box sx={{ pt: 2 }}>
+            <Grid container spacing={2}>
 
             <Grid item xs={12} md={6}>
               <TextField
