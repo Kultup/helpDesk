@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const os = require('os');
 const fs = require('fs').promises;
 const path = require('path');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 class HealthCheckService {
   constructor() {
@@ -131,6 +134,75 @@ class HealthCheckService {
           formatted: this.formatUptime(uptimeSeconds)
         }
       };
+    });
+
+    // SSL Certificate check
+    this.checks.set('ssl', async () => {
+      try {
+        const certPaths = [
+          '/etc/letsencrypt/live/helpdesk.krainamriy.fun/fullchain.pem',
+          '/etc/nginx/ssl/fullchain.pem'
+        ];
+
+        let certPath = null;
+        for (const path of certPaths) {
+          try {
+            await fs.access(path);
+            certPath = path;
+            break;
+          } catch {
+            continue;
+          }
+        }
+
+        if (!certPath) {
+          return {
+            status: 'warning',
+            details: {
+              message: 'SSL certificate not found'
+            }
+          };
+        }
+
+        // Get certificate expiry date
+        const { stdout } = await execPromise(`openssl x509 -in ${certPath} -noout -enddate`);
+        const expiryMatch = stdout.match(/notAfter=(.+)/);
+        
+        if (!expiryMatch) {
+          throw new Error('Could not parse certificate expiry date');
+        }
+
+        const expiryDate = new Date(expiryMatch[1]);
+        const now = new Date();
+        const daysUntilExpiry = Math.floor((expiryDate - now) / (1000 * 60 * 60 * 24));
+
+        let status = 'healthy';
+        if (daysUntilExpiry < 0) {
+          status = 'unhealthy';
+        } else if (daysUntilExpiry < 7) {
+          status = 'unhealthy';
+        } else if (daysUntilExpiry < 30) {
+          status = 'warning';
+        }
+
+        return {
+          status,
+          details: {
+            expiryDate: expiryDate.toISOString(),
+            daysUntilExpiry,
+            validFrom: now.toISOString(),
+            certPath
+          }
+        };
+      } catch (error) {
+        return {
+          status: 'warning',
+          details: {
+            message: 'Could not check SSL certificate',
+            error: error.message
+          }
+        };
+      }
     });
   }
 

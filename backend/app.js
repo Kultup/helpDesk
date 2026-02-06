@@ -380,6 +380,10 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
 // Middleware для логування запитів
 app.use(requestLogger);
 
+// Middleware для SSL інформації в headers
+const { sslHeaderMiddleware } = require('./middleware/sslInfo');
+app.use(sslHeaderMiddleware);
+
 // Middleware для безпеки
 app.use(securityHeaders);
 
