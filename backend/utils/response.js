@@ -28,9 +28,24 @@ const paginatedResponse = (res, data, pagination, message = 'Операція в
   return successResponse(res, data, message, 200, { pagination });
 };
 
+// Додаткові alias-функції для зручності
+const sendSuccess = (res, data, statusCode = 200, message = 'Операція виконана успішно') => {
+  return res.status(statusCode).json(buildEnvelope({ success: true, message, data }));
+};
+
+const sendError = (res, message = 'Помилка виконання операції', statusCode = 500, error = null) => {
+  const payload = buildEnvelope({ success: false, message, data: null });
+  if (error) {
+    payload.error = error;
+  }
+  return res.status(statusCode).json(payload);
+};
+
 module.exports = {
   successResponse,
   createdResponse,
   deletedResponse,
-  paginatedResponse
+  paginatedResponse,
+  sendSuccess,
+  sendError
 };
