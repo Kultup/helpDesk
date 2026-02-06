@@ -4,8 +4,6 @@ const BotSettings = require('../models/BotSettings');
 const logger = require('../utils/logger');
 const telegramService = require('../services/telegramServiceInstance');
 const activeDirectoryService = require('../services/activeDirectoryService');
-const groqService = require('../services/groqService');
-const aiService = require('../services/aiService');
 const axios = require('axios');
 
 /**
@@ -508,38 +506,11 @@ exports.getBotSettings = async (req, res) => {
     let settings = await BotSettings.findOne({ key: 'default' });
 
     if (!settings) {
-      // Якщо немає в БД, створюємо з дефолтними значеннями
-      settings = new BotSettings({
-        key: 'default',
-        aiEnabled: false,
-        groqModel: 'llama-3.3-70b-versatile',
-        aiSystemPrompt: 'Ви - корисний AI асистент служби підтримки. Відповідайте на питання користувачів коротко та зрозуміло українською мовою.',
-        aiPrompts: {
-          intentAnalysis: '',
-          questionGeneration: '',
-          ticketAnalysis: ''
-        }
-      });
+      settings = new BotSettings({ key: 'default' });
       await settings.save();
     }
 
-    // Ініціалізуємо aiPrompts якщо їх немає (для старих записів)
-    if (!settings.aiPrompts) {
-      settings.aiPrompts = {
-        intentAnalysis: '',
-        questionGeneration: '',
-        ticketAnalysis: ''
-      };
-    }
-
-    // Не повертаємо повні API ключі з міркувань безпеки
-    const safeSettings = {
-      ...settings.toObject(),
-      groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
-      openaiApiKey: settings.openaiApiKey ? `${settings.openaiApiKey.substring(0, 10)}...` : '',
-      hasGroqApiKey: !!settings.groqApiKey,
-      hasOpenaiApiKey: !!settings.openaiApiKey
-    };
+    const safeSettings = settings.toObject();
 
     res.json({
       success: true,
@@ -561,14 +532,6 @@ exports.getBotSettings = async (req, res) => {
 exports.updateBotSettings = async (req, res) => {
   try {
     const {
-      aiProvider,
-      groqApiKey,
-      groqModel,
-      openaiApiKey,
-      openaiModel,
-      aiEnabled,
-      aiSystemPrompt,
-      aiPrompts,
       cancelButtonText,
       categoryPromptText,
       priorityPromptText,
@@ -584,73 +547,7 @@ exports.updateBotSettings = async (req, res) => {
       settings = new BotSettings({ key: 'default' });
     }
 
-    // Оновлюємо AI провайдер
-    if (aiProvider !== undefined) {
-      settings.aiProvider = aiProvider;
-      logger.info(`🔄 Змінено AI провайдер на: ${aiProvider}`);
-    }
-
-    // Оновлюємо Groq налаштування
-    if (groqApiKey !== undefined) {
-      // Якщо ключ порожній - видаляємо його
-      const cleanedKey = typeof groqApiKey === 'string' ? groqApiKey.trim() : groqApiKey;
-      settings.groqApiKey = cleanedKey === '' ? null : cleanedKey;
-      if (cleanedKey) {
-        logger.info(`🔑 Оновлено Groq API ключ: ${cleanedKey.substring(0, 10)}...`);
-      } else {
-        logger.info('🗑️ Видалено Groq API ключ');
-      }
-    }
-
-    if (groqModel !== undefined) {
-      settings.groqModel = groqModel;
-    }
-
-    // Оновлюємо OpenAI налаштування
-    if (openaiApiKey !== undefined) {
-      const cleanedKey = typeof openaiApiKey === 'string' ? openaiApiKey.trim() : openaiApiKey;
-      settings.openaiApiKey = cleanedKey === '' ? null : cleanedKey;
-      if (cleanedKey) {
-        logger.info(`🔑 Оновлено OpenAI API ключ: ${cleanedKey.substring(0, 10)}...`);
-      } else {
-        logger.info('🗑️ Видалено OpenAI API ключ');
-      }
-    }
-
-    if (openaiModel !== undefined) {
-      settings.openaiModel = openaiModel;
-    }
-
-    if (aiEnabled !== undefined) {
-      settings.aiEnabled = aiEnabled;
-    }
-
-    if (aiSystemPrompt !== undefined) {
-      settings.aiSystemPrompt = aiSystemPrompt;
-    }
-
-    // Оновлюємо AI промпти (розширені налаштування)
-    if (aiPrompts !== undefined) {
-      if (!settings.aiPrompts) {
-        settings.aiPrompts = {};
-      }
-      
-      if (aiPrompts.intentAnalysis !== undefined) {
-        settings.aiPrompts.intentAnalysis = aiPrompts.intentAnalysis || '';
-      }
-      
-      if (aiPrompts.questionGeneration !== undefined) {
-        settings.aiPrompts.questionGeneration = aiPrompts.questionGeneration || '';
-      }
-      
-      if (aiPrompts.ticketAnalysis !== undefined) {
-        settings.aiPrompts.ticketAnalysis = aiPrompts.ticketAnalysis || '';
-      }
-      
-      logger.info('🎯 Оновлено AI промпти');
-    }
-
-    // Оновлюємо інші налаштування бота
+    // Оновлюємо налаштування бота
     if (cancelButtonText !== undefined) {
       settings.cancelButtonText = cancelButtonText;
     }
@@ -681,27 +578,10 @@ exports.updateBotSettings = async (req, res) => {
 
     await settings.save();
 
-    // Перезавантажуємо AI сервіс
-    try {
-      await aiService.reloadSettings();
-      logger.info('✅ AI сервіс перезавантажено після оновлення налаштувань');
-    } catch (reloadError) {
-      logger.error('Помилка перезавантаження AI сервісу:', reloadError);
-    }
-
-    // Не повертаємо API ключі повністю
-    const safeSettings = {
-      ...settings.toObject(),
-      groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
-      openaiApiKey: settings.openaiApiKey ? `${settings.openaiApiKey.substring(0, 10)}...` : '',
-      hasGroqApiKey: !!settings.groqApiKey,
-      hasOpenaiApiKey: !!settings.openaiApiKey
-    };
-
     res.json({
       success: true,
       message: 'Налаштування бота успішно оновлено',
-      data: safeSettings
+      data: settings.toObject()
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань бота:', error);
@@ -712,138 +592,3 @@ exports.updateBotSettings = async (req, res) => {
     });
   }
 };
-
-/**
- * Отримати AI промпти
- */
-exports.getAIPrompts = async (req, res) => {
-  try {
-    let settings = await BotSettings.findOne({ key: 'default' });
-    
-    if (!settings) {
-      settings = new BotSettings({ key: 'default' });
-      await settings.save();
-    }
-
-    res.json({
-      success: true,
-      data: {
-        intentAnalysis: settings.aiPrompts?.intentAnalysis || '',
-        questionGeneration: settings.aiPrompts?.questionGeneration || '',
-        ticketAnalysis: settings.aiPrompts?.ticketAnalysis || ''
-      }
-    });
-  } catch (error) {
-    logger.error('Помилка отримання AI промптів:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка отримання AI промптів',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Оновити AI промпти
- */
-exports.updateAIPrompts = async (req, res) => {
-  try {
-    const { intentAnalysis, questionGeneration, ticketAnalysis } = req.body;
-
-    let settings = await BotSettings.findOne({ key: 'default' });
-    
-    if (!settings) {
-      settings = new BotSettings({ key: 'default' });
-    }
-
-    // Оновлюємо промпти
-    if (!settings.aiPrompts) {
-      settings.aiPrompts = {};
-    }
-    
-    if (intentAnalysis !== undefined) {
-      settings.aiPrompts.intentAnalysis = intentAnalysis;
-    }
-    if (questionGeneration !== undefined) {
-      settings.aiPrompts.questionGeneration = questionGeneration;
-    }
-    if (ticketAnalysis !== undefined) {
-      settings.aiPrompts.ticketAnalysis = ticketAnalysis;
-    }
-
-    await settings.save();
-
-    // Переініціалізуємо Groq сервіс з новими промптами
-    await groqService.initialize();
-
-    logger.info('✅ AI промпти оновлено');
-
-    res.json({
-      success: true,
-      message: 'AI промпти успішно оновлено',
-      data: {
-        intentAnalysis: settings.aiPrompts.intentAnalysis,
-        questionGeneration: settings.aiPrompts.questionGeneration,
-        ticketAnalysis: settings.aiPrompts.ticketAnalysis
-      }
-    });
-  } catch (error) {
-    logger.error('Помилка оновлення AI промптів:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка оновлення AI промптів',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Скинути AI промпт до дефолтного
- */
-exports.resetAIPrompt = async (req, res) => {
-  try {
-    const { promptType } = req.params; // intentAnalysis, questionGeneration, ticketAnalysis
-
-    if (!['intentAnalysis', 'questionGeneration', 'ticketAnalysis'].includes(promptType)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Невірний тип промпта'
-      });
-    }
-
-    let settings = await BotSettings.findOne({ key: 'default' });
-    
-    if (!settings) {
-      return res.status(404).json({
-        success: false,
-        message: 'Налаштування не знайдено'
-      });
-    }
-
-    // Скидаємо до порожнього (буде використовуватись дефолтний з коду)
-    if (!settings.aiPrompts) {
-      settings.aiPrompts = {};
-    }
-    settings.aiPrompts[promptType] = '';
-
-    await settings.save();
-
-    // Переініціалізуємо Groq сервіс
-    await groqService.initialize();
-
-    logger.info(`✅ AI промпт ${promptType} скинуто до дефолтного`);
-
-    res.json({
-      success: true,
-      message: `Промпт ${promptType} скинуто до дефолтного`
-    });
-  } catch (error) {
-    logger.error('Помилка скидання AI промпта:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка скидання AI промпта',
-      error: error.message
-    });
-  }
-};
-

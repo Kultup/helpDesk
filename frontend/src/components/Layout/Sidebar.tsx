@@ -19,8 +19,6 @@ import {
   Settings,
   Bot,
   Activity,
-  Sparkles,
-  MessageSquare,
   Monitor
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -53,7 +51,6 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: Home },
       { nameKey: 'sidebar.tickets', href: '/tickets', icon: Ticket },
-      { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Sparkles, adminOnly: true },
     ]
   },
   {
@@ -61,17 +58,6 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
-      { nameKey: 'sidebar.aiReports', href: '/ai-reports', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.aiFAQ', href: '/ai-faq', icon: FileText, adminOnly: true },
-    ]
-  },
-  {
-    titleKey: 'sidebar.groups.ai',
-    adminOnly: true,
-    items: [
-      { nameKey: 'sidebar.botSettings', href: '/settings/bot', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.aiPrompts', href: '/settings/ai-prompts', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.aiDialogHistory', href: '/ai/dialog-history', icon: MessageSquare, adminOnly: true },
     ]
   },
   {
@@ -79,6 +65,7 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
+      { nameKey: 'sidebar.botSettings', href: '/settings/bot', icon: Bot, adminOnly: true },
       { nameKey: 'sidebar.telegramSettings', href: '/settings/telegram', icon: Bot, adminOnly: true },
       { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },

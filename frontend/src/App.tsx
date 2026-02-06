@@ -23,8 +23,6 @@ import PositionRequests from './pages/PositionRequests';
 import Institutions from './pages/Institutions';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
-import AIReports from './pages/AIReports';
-import AIFAQGenerator from './pages/AIFAQGenerator';
 import ActiveDirectoryPage from './pages/ActiveDirectory';
 import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
@@ -32,18 +30,11 @@ import TelegramSettings from './pages/TelegramSettings';
 import BotSettings from './pages/BotSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
-import AIPromptsSettings from './pages/AIPromptsSettings';
-import AIDialogHistory from './pages/AIDialogHistory';
-
 import TelegramTest from './pages/TelegramTest';
 import PendingRegistrations from './pages/PendingRegistrations';
 import Settings from './pages/Settings';
 import PhotoViewer from './components/PhotoViewer';
 import ErrorNotifications from './components/ErrorNotifications';
-import AIKnowledge from './pages/AIKnowledge';
-import CreateAIKnowledge from './pages/CreateAIKnowledge';
-import AIKnowledgeItem from './pages/AIKnowledgeItem';
-import EditAIKnowledge from './pages/EditAIKnowledge';
 import Equipment from './pages/Equipment';
 
 
@@ -191,17 +182,6 @@ const App: React.FC = () => {
                 <Analytics />
               </ProtectedRoute>
             } />
-            <Route path="admin/ai-reports" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIReports />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-faq" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIFAQGenerator />
-              </ProtectedRoute>
-            } />
-
             <Route path="admin/active-directory" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ActiveDirectoryPage />
@@ -230,36 +210,6 @@ const App: React.FC = () => {
             <Route path="admin/settings/zabbix" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <ZabbixSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/settings/ai-prompts" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIPromptsSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai/dialog-history" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIDialogHistory />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-knowledge" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIKnowledge />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-knowledge/:id" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIKnowledgeItem />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-knowledge/create" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateAIKnowledge />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-knowledge/:id/edit" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <EditAIKnowledge />
               </ProtectedRoute>
             } />
           </Route>

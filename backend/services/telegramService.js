@@ -8,7 +8,6 @@ const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
 const PositionRequest = require('../models/PositionRequest');
 const Notification = require('../models/Notification');
-const AIDialogHistory = require('../models/AIDialogHistory');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -17,8 +16,6 @@ const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
-const groqService = require('./groqService');
-const aiService = require('./aiService');
 const fcmService = require('./fcmService');
 
 class TelegramService {
@@ -128,7 +125,6 @@ class TelegramService {
 
       try {
         await this.loadBotSettings();
-        await aiService.initialize();
       } catch (catErr) {
         logger.warn('⚠️ Не вдалося оновити налаштування після ініціалізації:', catErr);
       }
@@ -424,13 +420,7 @@ class TelegramService {
             return;
           }
 
-          // Якщо немає активної сесії та активного тікету, спробуємо отримати AI відповідь
-          if (aiService.isEnabled()) {
-            await this.handleAIChat(msg, existingUser);
-            return;
-          }
-
-          // Якщо AI вимкнено, показуємо головне меню
+          // Показуємо головне меню (AI інтеграція вимкнена)
           await this.showUserDashboard(chatId, existingUser);
           return;
         }
@@ -2209,147 +2199,34 @@ class TelegramService {
     try {
       switch (session.step) {
         case 'gathering_information': {
-          // Користувач відповідає на питання AI для збору інформації
+          // Збір інформації без AI: додаємо відповідь і показуємо резюме для підтвердження
           logger.info(`Збір інформації, етап ${session.stage}`);
-          
-          // Додаємо відповідь користувача в історію
-          session.conversationHistory.push({
-            role: 'user',
-            content: text
-          });
           session.ticketDraft.collectedInfo.push(text);
-          
-          // 🆕 Зберігаємо відповідь користувача в базу даних
           if (session.aiDialogId) {
             await this.addMessageToAIDialog(session.aiDialogId, 'user', text);
           }
-          
-          // Показуємо що бот "читає" та "думає" (більш живо)
-          await this.bot.sendChatAction(chatId, 'typing');
-          await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 800));
-          
-          // Об'єднуємо всю зібрану інформацію
-          const fullConversation = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
-          
-          // Повторно аналізуємо чи достатньо інформації
-          const reanalysis = await aiService.analyzeIntent(fullConversation);
-          
-          // Перевіряємо чи достатньо інформації для створення тікета
-          if (reanalysis.description && !reanalysis.needsMoreInfo) {
-            // ✅ Достатньо інформації! Показуємо резюме та пропонуємо створити
-            logger.info(`Зібрано достатньо інформації для тікета`);
-            
-            session.ticketDraft.title = reanalysis.title || session.ticketDraft.title;
-            session.ticketDraft.description = reanalysis.description;
-            // Встановлюємо дефолтний пріоритет "Середній" замість AI визначення
-            session.ticketDraft.priority = 'medium';
-            
-            const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
-            
-            // Варіативні позитивні реакції
-            const positiveReactions = [
-              '✅ Чудово! Тепер все зрозуміло.',
-              '✅ Дякую! Маю всю потрібну інформацію.',
-              '👍 Відмінно! Зібрав всі деталі.',
-              '✅ Супер! Тепер картина ясна.'
-            ];
-            const reaction = positiveReactions[Math.floor(Math.random() * positiveReactions.length)];
-            
-            const summaryMessage = 
-              `${reaction}\n\n` +
-              `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
-              `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
-              `📝 *Опис проблеми:*\n${session.ticketDraft.description}\n\n` +
-              `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
-              `💡 Все правильно?`;
-            
-            session.step = 'confirm_ticket';
-            
-            await this.sendMessage(chatId, summaryMessage, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-                  [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
-                  [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
-                ]
-              }
-            });
-          } else {
-            // ❌ Ще недостатньо - генеруємо наступне питання через AI
-            session.stage++;
-            
-            // ⚠️ ОБМЕЖЕННЯ: Максимум 3 раунди питань (після цього створюємо з тим, що є)
-            const MAX_QUESTIONS_ROUNDS = 3;
-            
-            if (session.stage > MAX_QUESTIONS_ROUNDS) {
-              logger.info(`Досягнуто ліміт питань (${MAX_QUESTIONS_ROUNDS}), створюємо тікет з наявною інформацією`);
-              
-              // Створюємо тікет з тим, що зібрали
-              session.ticketDraft.title = reanalysis.title || session.ticketDraft.title || 'Проблема';
-              session.ticketDraft.description = fullConversation;
-              // Встановлюємо дефолтний пріоритет "Середній"
-              session.ticketDraft.priority = 'medium';
-              
-              const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
-              
-              const summaryMessage = 
-                `✅ *Дякую за інформацію!*\n\n` +
-                `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
-                `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
-                `📝 *Опис:*\n${session.ticketDraft.description}\n\n` +
-                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
-                `💡 Створюю тікет?`;
-              
-              session.step = 'confirm_ticket';
-              
-              await this.sendMessage(chatId, summaryMessage, {
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-                    [{ text: '✏️ Додати ще інформацію', callback_data: 'edit_ticket_info' }],
-                    [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
-                  ]
-                }
-              });
-            } else {
-              logger.info(`Недостатньо інформації, продовжуємо збір. Раунд ${session.stage}/${MAX_QUESTIONS_ROUNDS}`);
-              
-              // Показуємо typing перед питанням (бот "думає")
-              await this.bot.sendChatAction(chatId, 'typing');
-              
-              // Невелика затримка для природності (0.5-1.5 сек)
-              await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-              
-              // Генеруємо ОДНЕ природне питання на основі діалогу
-              const nextQuestion = await aiService.generateNextQuestion(
-                session.ticketDraft.title,
-                reanalysis.missingInfo || ['додаткові деталі'],
-                session.ticketDraft.subcategory,
-                text, // Остання відповідь користувача
-                session.conversationHistory,
-                session.stage
-              );
-              
-              session.conversationHistory.push({
-                role: 'assistant',
-                content: nextQuestion
-              });
-              
-              // 🆕 Зберігаємо наступне питання AI в базу даних
-              if (session.aiDialogId) {
-                await this.addMessageToAIDialog(session.aiDialogId, 'ai', nextQuestion);
-              }
-              
-              await this.sendMessage(chatId, nextQuestion, {
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '✅ Достатньо, створити', callback_data: 'force_create_ticket' }],
-                    [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
-                  ]
-                }
-              });
+          const fullDescription = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
+          session.ticketDraft.title = session.ticketDraft.title || session.ticketDraft.initialMessage.slice(0, 50) || 'Проблема';
+          session.ticketDraft.description = fullDescription;
+          session.ticketDraft.priority = 'medium';
+          session.step = 'confirm_ticket';
+          const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
+          const summaryMessage =
+            `✅ *Дякую за інформацію!*\n\n` +
+            `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
+            `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
+            `📝 *Опис:*\n${session.ticketDraft.description}\n\n` +
+            `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
+            `💡 Все правильно?`;
+          await this.sendMessage(chatId, summaryMessage, {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
+                [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
+              ]
             }
-          }
+          });
           break;
         }
         
@@ -3151,7 +3028,6 @@ class TelegramService {
 
   async handleCheckApiLimitCallback(chatId, user) {
     try {
-      // Перевірка прав адміністратора
       const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'administrator';
       if (!isAdmin) {
         await this.sendMessage(chatId, 
@@ -3160,92 +3036,14 @@ class TelegramService {
         );
         return;
       }
-
-      // Отримуємо статистику використання API
-      const AIApiUsage = require('../models/AIApiUsage');
-      const BotSettings = require('../models/BotSettings');
-      const settings = await BotSettings.findOne({ key: 'default' });
-      const provider = settings?.aiProvider || 'groq';
-      const usage = await AIApiUsage.getTodayUsage(provider);
-
-      // Формуємо повідомлення
-      const providerName = provider === 'openai' ? 'OpenAI' : 'Groq';
-      let message = `🔧 *Статистика ${providerName} API*\n\n`;
-      message += `📅 *Дата:* ${new Date().toLocaleDateString('uk-UA')}\n\n`;
-
-      // Інформація про ліміти
-      if (usage.rateLimits && usage.rateLimits.remainingRequests !== null) {
-        const { remainingRequests, limitRequests, remainingTokens, limitTokens, resetRequests, resetTokens } = usage.rateLimits;
-        
-        const requestsPercentage = limitRequests ? ((remainingRequests / limitRequests) * 100).toFixed(1) : 0;
-        const tokensPercentage = limitTokens ? ((remainingTokens / limitTokens) * 100).toFixed(1) : 0;
-        
-        // Емодзі для індикації стану
-        const getStatusEmoji = (percentage) => {
-          if (percentage <= 5) return '🔴';
-          if (percentage <= 20) return '🟠';
-          if (percentage <= 50) return '🟡';
-          return '🟢';
-        };
-        
-        message += `📊 *Ліміти на сьогодні:*\n`;
-        message += `${getStatusEmoji(requestsPercentage)} Запити: \`${remainingRequests}\` / \`${limitRequests}\` (${requestsPercentage}%)\n`;
-        message += `${getStatusEmoji(tokensPercentage)} Токени: \`${remainingTokens}\` / \`${limitTokens}\` (${tokensPercentage}%)\n\n`;
-        
-        if (resetRequests) {
-          message += `🔄 Оновлення запитів: ${resetRequests}\n`;
-        }
-        if (resetTokens) {
-          message += `🔄 Оновлення токенів: ${resetTokens}\n`;
-        }
-        message += `\n`;
-      } else {
-        message += `⚠️ Інформація про ліміти ще не доступна.\nВикористайте AI функції бота для оновлення даних.\n\n`;
-      }
-
-      // Статистика по моделях
-      message += `🤖 *Використання моделей:*\n\n`;
-      
-      const llamaUsage = usage.modelUsage?.['llama-3.3-70b-versatile'] || {};
-      message += `🧠 *LLaMA 3.3 70B:*\n`;
-      message += `  ├ Запитів: \`${llamaUsage.requestsCount || 0}\`\n`;
-      message += `  ├ Токенів: \`${llamaUsage.tokensUsed || 0}\`\n`;
-      if (llamaUsage.lastRequest) {
-        message += `  └ Останній: ${new Date(llamaUsage.lastRequest).toLocaleTimeString('uk-UA')}\n`;
-      } else {
-        message += `  └ Останній: немає даних\n`;
-      }
-      message += `\n`;
-      
-      const whisperUsage = usage.modelUsage?.['whisper-large-v3'] || {};
-      message += `🎤 *Whisper Large V3:*\n`;
-      message += `  ├ Запитів: \`${whisperUsage.requestsCount || 0}\`\n`;
-      message += `  ├ Аудіо: \`${whisperUsage.audioSecondsUsed || 0}\` сек\n`;
-      if (whisperUsage.lastRequest) {
-        message += `  └ Останній: ${new Date(whisperUsage.lastRequest).toLocaleTimeString('uk-UA')}\n`;
-      } else {
-        message += `  └ Останній: немає даних\n`;
-      }
-      
-      message += `\n💡 Детальна статистика: https://console.groq.com/settings/limits`;
-
-      await this.sendMessage(chatId, message, {
+      await this.sendMessage(chatId, 'AI інтеграція вимкнена.', {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '🔄 Оновити', callback_data: 'check_api_limit' }],
-            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]
-          ]
-        },
-        parse_mode: 'Markdown'
+          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
+        }
       });
     } catch (error) {
-      logger.error('Помилка отримання статистики API:', error);
-      await this.sendMessage(chatId, 
-        `❌ *Помилка завантаження статистики API*\n\n` +
-        `Не вдалося завантажити дані про використання Groq API.\n\n` +
-        `🔄 Спробуйте ще раз або перевірте логи сервера.`,
-        { parse_mode: 'Markdown' }
-      );
+      logger.error('Помилка handleCheckApiLimitCallback:', error);
+      await this.sendMessage(chatId, 'Виникла помилка.', { parse_mode: 'Markdown' });
     }
   }
 
@@ -5343,52 +5141,10 @@ class TelegramService {
     }
   }
 
-  // Обробка голосових повідомлень
+  // Обробка голосових повідомлень (AI інтеграція вимкнена)
   async handleVoice(msg, user) {
     const chatId = msg.chat.id;
-    
-    try {
-      if (!groqService.isEnabled()) {
-        await this.sendMessage(chatId, 'AI асистент вимкнено. Голосові повідомлення недоступні.');
-        return;
-      }
-
-      await this.bot.sendChatAction(chatId, 'typing');
-      
-      const fileId = msg.voice.file_id;
-      const file = await this.bot.getFile(fileId);
-      const filePath = file.file_path;
-      
-      // Завантажуємо файл
-      const savedPath = await this.downloadTelegramFile(filePath);
-      
-      // Транскрибуємо через Groq Whisper
-      const text = await aiService.transcribeAudio(savedPath);
-      
-      if (!text || text.trim().length === 0) {
-        await this.sendMessage(chatId, 'Не вдалося розпізнати текст у голосовому повідомленні.');
-        return;
-      }
-
-      logger.info(`Голосове повідомлення розпізнано: "${text}"`);
-      
-      // Повідомляємо користувача про розпізнаний текст
-      await this.sendMessage(chatId, `🎤 *Розпізнано:* _${text}_`);
-      
-      // Передаємо розпізнаний текст у handleAIChat
-      msg.text = text;
-      await this.handleAIChat(msg, user);
-      
-      // Видаляємо тимчасовий файл
-      const fs = require('fs');
-      fs.unlink(savedPath, (err) => {
-        if (err) {logger.error('Помилка видалення тимчасового аудіофайлу:', err);}
-      });
-
-    } catch (error) {
-      logger.error('Помилка обробки голосового повідомлення:', error);
-      await this.sendMessage(chatId, 'Виникла помилка при обробці голосового повідомлення.');
-    }
+    await this.sendMessage(chatId, 'Голосові повідомлення не підтримуються. Використайте текст або команду /create для створення заявки.');
   }
 
   async showPrioritySelection(chatId, _session) {
@@ -5415,308 +5171,8 @@ class TelegramService {
 
   async handleAIChat(msg, user) {
     const chatId = msg.chat.id;
-    const userMessage = msg.text;
-
-    try {
-      // Показуємо індикатор набору тексту відразу
-      await this.bot.sendChatAction(chatId, 'typing');
-
-      // Використовуємо AI для аналізу наміру (це точніше за ключові слова)
-      const intentAnalysis = await aiService.analyzeIntent(userMessage);
-      
-      const createTicketKeywords = [
-        'створи тікет', 'створити тікет', 'nova заявка', 'створи тикет', 'создай тикет'
-      ];
-      const lowerMessage = userMessage.toLowerCase().trim();
-      const hasManualKeyword = createTicketKeywords.some(keyword => lowerMessage.includes(keyword));
-
-      // Спочатку перевіряємо, чи це взагалі IT проблема
-      if (!intentAnalysis.isTicketIntent && !hasManualKeyword) {
-        logger.info(`AI визначив, що це НЕ намір створити тікет для ${user.email}`, {
-          rejectionReason: intentAnalysis.rejectionReason,
-          userMessage: userMessage
-        });
-        
-        // Якщо є причина відмови, показуємо її користувачу
-        if (intentAnalysis.rejectionReason) {
-          const response = `ℹ️ ${intentAnalysis.rejectionReason}\n\n💡 Якщо у вас виникла технічна проблема, опишіть її детальніше.`;
-          await this.sendMessage(chatId, response);
-          return;
-        }
-        
-        // Якщо немає явної причини відмови - даємо корисну відповідь через AI
-        logger.info(`Даємо загальну відповідь через AI для ${user.email}`);
-        
-        try {
-          // Отримуємо відповідь від AI асистента
-          const conversationHistory = user.conversationHistory || [];
-          const recentTickets = await Ticket.find({ 
-            userId: user._id 
-          })
-            .sort({ createdAt: -1 })
-            .limit(3)
-            .lean();
-
-          const aiResponse = await aiService.getAIResponse(
-            userMessage, 
-            conversationHistory.slice(-5), // Останні 5 повідомлень для контексту
-            { tickets: recentTickets }
-          );
-
-          if (aiResponse) {
-            await this.sendMessage(chatId, aiResponse);
-            
-            // Зберігаємо історію розмови
-            user.conversationHistory = user.conversationHistory || [];
-            user.conversationHistory.push(
-              { role: 'user', content: userMessage },
-              { role: 'assistant', content: aiResponse }
-            );
-            
-            // Обмежуємо історію (останні 10 повідомлень)
-            if (user.conversationHistory.length > 20) {
-              user.conversationHistory = user.conversationHistory.slice(-20);
-            }
-            
-            await user.save();
-            logger.info(`AI відповів користувачу ${user.email}`);
-          } else {
-            // Якщо AI не зміг відповісти - даємо стандартну відповідь
-            await this.sendMessage(
-              chatId, 
-              '👋 Я AI асистент HelpDesk.\n\n' +
-              '📝 Якщо у вас технічна проблема - опишіть її детально:\n' +
-              '• Що саме не працює?\n' +
-              '• В якому місті?\n' +
-              '• Коли виникла проблема?\n\n' +
-              '💡 Або використайте команду /create для створення заявки.'
-            );
-          }
-        } catch (aiError) {
-          logger.error('Помилка отримання AI відповіді:', aiError);
-          // Відправляємо стандартну відповідь
-          await this.sendMessage(
-            chatId, 
-            '👋 Я AI асистент HelpDesk.\n\n' +
-            '📝 Якщо у вас технічна проблема - опишіть її детально:\n' +
-            '• Що саме не працює?\n' +
-            '• В якому місті?\n' +
-            '• Коли виникла проблема?\n\n' +
-            '💡 Або використайте команду /create для створення заявки.'
-          );
-        }
-        
-        return;
-      }
-      
-      // Якщо AI визначив намір створити тікет (незалежно від впевненості!) або є пряме ключове слово
-      if (intentAnalysis.isTicketIntent || hasManualKeyword) {
-        logger.info(`AI розпізнав намір створення тікета для ${user.email}`, intentAnalysis);
-        
-        // ЗАВЖДИ перевіряємо чи достатньо інформації
-        // Тікет створюємо тільки коли є ПОВНИЙ опис
-        if (!intentAnalysis.description || intentAnalysis.needsMoreInfo) {
-          logger.info(`Запускаємо збір інформації для тікета`, {
-            hasDescription: !!intentAnalysis.description,
-            needsMoreInfo: intentAnalysis.needsMoreInfo,
-            missingInfo: intentAnalysis.missingInfo
-          });
-          
-          // Створюємо сесію збору інформації (НЕ тікета!)
-          const infoSession = {
-            step: 'gathering_information',
-            stage: 1, // Етап збору (1, 2, 3...)
-            conversationHistory: [], // Історія діалогу про тікет
-            ticketDraft: {
-              createdBy: user._id,
-              title: intentAnalysis.title || '',
-              initialMessage: userMessage,
-              collectedInfo: [], // Зібрана інформація
-              priority: intentAnalysis.priority || 'medium',
-              subcategory: intentAnalysis.category || 'Other',
-              type: intentAnalysis.ticketType || 'incident',
-              sentiment: intentAnalysis.sentiment
-            },
-            missingInfo: intentAnalysis.missingInfo || []
-          };
-          
-          // 🆕 Створюємо запис AI діалогу в базі даних
-          const aiDialog = await this.createAIDialog(user, userMessage);
-          infoSession.aiDialogId = aiDialog._id; // Зберігаємо ID діалогу в сесії
-          
-          this.userSessions.set(chatId, infoSession);
-          
-          // Зберігаємо початкове повідомлення в історію
-          infoSession.conversationHistory.push({
-            role: 'user',
-            content: userMessage
-          });
-          
-          // Показуємо typing (бот "думає")
-          await this.bot.sendChatAction(chatId, 'typing');
-          await new Promise(resolve => setTimeout(resolve, 800));
-          
-          // Генеруємо ПЕРШЕ природне питання через AI
-          const firstQuestion = await aiService.generateNextQuestion(
-            intentAnalysis.title || 'проблема',
-            intentAnalysis.missingInfo || ['детальний опис проблеми'],
-            intentAnalysis.category,
-            userMessage,
-            infoSession.conversationHistory,
-            1
-          );
-          infoSession.conversationHistory.push({
-            role: 'assistant',
-            content: firstQuestion
-          });
-          
-          // 🆕 Зберігаємо перше питання AI в базу даних
-          if (infoSession.aiDialogId) {
-            await this.addMessageToAIDialog(infoSession.aiDialogId, 'ai', firstQuestion);
-          }
-          
-          await this.sendMessage(chatId, firstQuestion, {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
-              ]
-            }
-          });
-          return;
-        }
-        
-        let title = intentAnalysis.title || '';
-        const description = intentAnalysis.description || '';
-        let priority = intentAnalysis.priority || 'medium';
-
-        // Автоматичне підвищення пріоритету, якщо користувач злий
-        if (intentAnalysis.sentiment === 'negative' && priority === 'low') {
-            priority = 'medium';
-        }
-
-        // Якщо заголовок надто короткий, а опис є - використовуємо опис як заголовок (обрізаний)
-        if (!title && description) {
-          title = description.length > 50 ? description.substring(0, 47) + '...' : description;
-        }
-
-        // Ініціалізуємо сесію створення тікета
-        const session = {
-          step: title ? (description ? (priority ? 'photo' : 'priority') : 'description') : 'title',
-          ticketData: {
-            createdBy: user._id,
-            title: title,
-            description: description,
-            priority: priority,
-            subcategory: intentAnalysis.category || 'Other',
-            type: intentAnalysis.ticketType || 'incident',
-            photos: []
-          }
-        };
-        
-        this.userSessions.set(chatId, session);
-
-        if (session.step === 'title') {
-          await this.sendMessage(chatId, 
-            `📝 *Створення нового тікету*\n` +
-            `📋 *Крок 1/3:* Введіть заголовок тікету\n` +
-            `💡 Опишіть коротко суть проблеми`, {
-              reply_markup: {
-                inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
-              }
-            }
-          );
-        } else if (session.step === 'description') {
-          await this.sendMessage(chatId, 
-            `🚀 *Починаю створення тікета.*\n\n` +
-            `📌 *Заголовок:* ${session.ticketData.title}\n` +
-            `📋 *Крок 2/3:* Будь ласка, введіть детальний опис проблеми:`, {
-              reply_markup: {
-                inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]]
-              }
-            }
-          );
-        } else if (session.step === 'priority') {
-          await this.showPrioritySelection(chatId, session);
-        } else {
-          // Якщо ми вже маємо і заголовок, і опис, і пріоритет
-          const priorityText = this.getPriorityText(session.ticketData.priority);
-          
-          await this.sendMessage(chatId, 
-            `✅ *Тікет майже готовий!*\n\n` +
-            `📌 *Заголовок:* ${session.ticketData.title}\n` +
-            `📝 *Опис:* ${session.ticketData.description}\n` +
-            `⚡ *Пріоритет:* ${priorityText}\n\n` +
-            `📸 *Крок 3/4:* Бажаєте додати фото до заявки?`, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                ]
-              }
-            }
-          );
-        }
-        return;
-      }
-
-      // Отримуємо історію розмов для цього користувача
-      let history = this.conversationHistory.get(chatId) || [];
-
-      // Обмежуємо історію до останніх 10 повідомлень для економії токенів
-      if (history.length > 10) {
-        history = history.slice(-10);
-      }
-
-      // Показуємо індикатор набору тексту
-      await this.bot.sendChatAction(chatId, 'typing');
-
-      // Отримуємо останні тікети користувача для контексту
-      const Ticket = require('../models/Ticket');
-      const recentTickets = await Ticket.find({ createdBy: user._id })
-        .sort({ createdAt: -1 })
-        .limit(5);
-
-      // Отримуємо відповідь від AI
-      const aiResponse = await aiService.getAIResponse(userMessage, history, { tickets: recentTickets });
-
-      if (!aiResponse) {
-        // Якщо AI не зміг відповісти, показуємо головне меню
-        await this.showUserDashboard(chatId, user);
-        return;
-      }
-
-      // Відправляємо відповідь користувачу
-      // Використовуємо спробу відправки без Markdown, якщо основна відправка з Markdown не вдалася
-      await this.sendMessage(chatId, aiResponse);
-
-      // Оновлюємо історію розмов
-      history.push({ role: 'user', content: userMessage });
-      history.push({ role: 'assistant', content: aiResponse });
-      this.conversationHistory.set(chatId, history);
-
-      // Опціонально: показуємо кнопки для швидких дій
-      try {
-        await this.bot.sendMessage(chatId, '🤖 Чим ще можу допомогти?', {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
-              [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],
-              [{ text: '🔄 Головне меню', callback_data: 'back_to_menu' }]
-            ]
-          }
-        });
-      } catch (uiError) {
-        logger.error('Помилка відправки кнопок після AI відповіді:', uiError);
-      }
-    } catch (error) {
-      logger.error('Помилка обробки AI чату:', error);
-      await this.sendMessage(
-        chatId,
-        '❌ Виникла помилка при обробці вашого запиту. Спробуйте пізніше або скористайтеся меню.'
-      );
-      await this.showUserDashboard(chatId, user);
-    }
+    await this.sendMessage(chatId, 'Для створення заявки використайте команду /create.');
+    await this.showUserDashboard(chatId, user);
   }
 
   // Методи для навігації
@@ -5785,91 +5241,20 @@ class TelegramService {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // МЕТОДИ ДЛЯ РОБОТИ З ІСТОРІЄЮ AI ДІАЛОГІВ
-  // ═══════════════════════════════════════════════════════════
-
-  /**
-   * Створити новий AI діалог в історії
-   */
-  async createAIDialog(user, initialMessage) {
-    try {
-      const dialog = new AIDialogHistory({
-        user: user._id,
-        telegramUsername: user.username,
-        userName: user.fullName || user.username,
-        location: {
-          city: user.city?.name || null,
-          institution: user.institution?.name || null
-        },
-        messages: [{
-          role: 'user',
-          content: initialMessage,
-          timestamp: new Date()
-        }],
-        status: 'active',
-        startedAt: new Date(),
-        userMessagesCount: 1,
-        aiQuestionsCount: 0
-      });
-
-      await dialog.save();
-      logger.info(`✅ Створено AI діалог: ${dialog._id} для користувача ${user.username}`);
-      return dialog;
-    } catch (error) {
-      logger.error('Помилка створення AI діалогу:', error);
-      return null;
-    }
+  async createAIDialog() {
+    return null;
   }
 
-  /**
-   * Додати повідомлення в існуючий AI діалог
-   */
-  async addMessageToAIDialog(dialogId, role, content, metadata = null) {
-    try {
-      const dialog = await AIDialogHistory.findById(dialogId);
-      if (!dialog) {
-        logger.warn(`AI діалог ${dialogId} не знайдено`);
-        return null;
-      }
-
-      await dialog.addMessage(role, content, metadata);
-      return dialog;
-    } catch (error) {
-      logger.error('Помилка додавання повідомлення в AI діалог:', error);
-      return null;
-    }
+  async addMessageToAIDialog() {
+    return null;
   }
 
-  /**
-   * Завершити AI діалог
-   */
-  async completeAIDialog(dialogId, outcome, ticketId = null) {
-    try {
-      const dialog = await AIDialogHistory.findById(dialogId);
-      if (!dialog) {
-        logger.warn(`AI діалог ${dialogId} не знайдено`);
-        return null;
-      }
-
-      await dialog.complete(outcome, ticketId);
-      logger.info(`✅ Завершено AI діалог ${dialogId} з результатом: ${outcome}`);
-      return dialog;
-    } catch (error) {
-      logger.error('Помилка завершення AI діалогу:', error);
-      return null;
-    }
+  async completeAIDialog() {
+    return null;
   }
 
-  /**
-   * Знайти активний AI діалог користувача
-   */
-  async findActiveAIDialog(userId) {
-    try {
-      return await AIDialogHistory.findActiveDialog(userId);
-    } catch (error) {
-      logger.error('Помилка пошуку активного AI діалогу:', error);
-      return null;
-    }
+  async findActiveAIDialog() {
+    return null;
   }
 }
 

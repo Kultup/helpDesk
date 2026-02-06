@@ -1326,62 +1326,6 @@ class ApiService {
   }
 
 
-  // Knowledge Base API methods
-  async getAIKnowledge(params?: {
-    q?: string;
-    category?: string;
-    tags?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<ApiResponse<Array<Record<string, unknown>>> & {
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      pages: number;
-    };
-  }> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, value.toString());
-        }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.get(`/ai-knowledge${queryString ? `?${queryString}` : ''}`);
-  }
-
-  async getAIKnowledgeItem(id: string): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.get(`/ai-knowledge/${id}`);
-  }
-
-  async createAIKnowledge(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.post('/ai-knowledge', data);
-  }
-
-  async createAIKnowledgeWithFiles(formData: FormData): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.post('/ai-knowledge', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
-  }
-
-  async updateAIKnowledge(id: string, data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
-    return this.put(`/ai-knowledge/${id}`, data);
-  }
-
-  async updateAIKnowledgeWithFiles(id: string, formData: FormData): Promise<ApiResponse<Record<string, unknown>>> {
-    const response = await this.api.put(`/ai-knowledge/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
-  }
-  async deleteAIKnowledge(id: string): Promise<ApiResponse<null>> {
-    return this.delete(`/ai-knowledge/${id}`);
-  }
-
   // Оцінити якість вирішення тікету
   async rateTicket(ticketId: string, rating: number, feedback?: string): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post(`/tickets/${ticketId}/rate`, { rating, feedback });

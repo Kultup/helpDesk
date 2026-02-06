@@ -383,54 +383,8 @@ exports.createTicket = async (req, res) => {
     await ticket.save();
     logger.info('✅ Тікет збережено в базі даних:', ticket._id);
 
-    // AI аналіз тікета для встановлення SLA
+    // SLA за замовчуванням на основі пріоритету (AI інтеграція вимкнена)
     try {
-      const aiService = require('../services/aiService');
-      logger.info('🤖 Викликаю AI аналіз для встановлення SLA...');
-      
-      const analysis = await aiService.analyzeTicket(ticket);
-      
-      if (analysis && analysis.slaRecommendation && analysis.slaRecommendation.hours) {
-        ticket.sla = {
-          hours: analysis.slaRecommendation.hours,
-          startTime: null, // Встановиться коли тікет візьмуть в роботу
-          deadline: null,
-          status: 'not_started',
-          remainingHours: null,
-          notified: false
-        };
-        await ticket.save();
-        
-        logger.info(`✅ SLA встановлено для тікету ${ticket._id}:`, {
-          hours: analysis.slaRecommendation.hours,
-          complexity: analysis.estimatedComplexity,
-          priority: ticket.priority,
-          reason: analysis.slaRecommendation.reason
-        });
-      } else {
-        // Встановлюємо SLA за замовчуванням на основі пріоритету
-        const defaultSLA = {
-          'urgent': 4,
-          'high': 24,
-          'medium': 72,
-          'low': 168
-        };
-        
-        ticket.sla = {
-          hours: defaultSLA[priority] || 72,
-          startTime: null,
-          deadline: null,
-          status: 'not_started',
-          remainingHours: null,
-          notified: false
-        };
-        await ticket.save();
-        
-        logger.info(`⚠️ AI аналіз не вдався, встановлено SLA за замовчуванням: ${ticket.sla.hours} годин`);
-      }
-    } catch (aiError) {
-      logger.error('❌ Помилка AI аналізу для SLA:', aiError);
-      // Встановлюємо SLA за замовчуванням навіть при помилці
       const defaultSLA = {
         'urgent': 4,
         'high': 24,
@@ -438,6 +392,19 @@ exports.createTicket = async (req, res) => {
         'low': 168
       };
       
+      ticket.sla = {
+        hours: defaultSLA[priority] || 72,
+        startTime: null,
+        deadline: null,
+        status: 'not_started',
+        remainingHours: null,
+        notified: false
+      };
+      await ticket.save();
+      logger.info(`SLA встановлено за замовчуванням: ${ticket.sla.hours} годин`);
+    } catch (slaError) {
+      logger.error('Помилка встановлення SLA:', slaError);
+      const defaultSLA = { urgent: 4, high: 24, medium: 72, low: 168 };
       ticket.sla = {
         hours: defaultSLA[priority] || 72,
         startTime: null,
