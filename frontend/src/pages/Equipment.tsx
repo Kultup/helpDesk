@@ -453,26 +453,32 @@ const Equipment: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Grid container spacing={2}>
-              {/* Назва */}
+            <Grid container spacing={2.5}>
+              {/* ОСНОВНА ІНФОРМАЦІЯ */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1 }}>
+                  Основна інформація
+                </Typography>
+                <Divider />
+              </Grid>
+
               <Grid item xs={12}>
                 <TextField
                   fullWidth
                   required
-                  label="Назва"
+                  label="Назва обладнання"
                   value={formData.name}
                   onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Dell Latitude E7450"
                 />
               </Grid>
 
-              {/* Тип, Місто, Локація */}
               <Grid item xs={12} sm={4}>
                 <TextField
                   select
                   fullWidth
                   required
-                  label="Тип"
+                  label="Тип обладнання"
                   value={formData.type}
                   onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
                 >
@@ -485,6 +491,34 @@ const Equipment: React.FC = () => {
               </Grid>
 
               <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Виробник (Бренд)"
+                  value={formData.brand}
+                  onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
+                  placeholder="HP, Dell, Lenovo"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Модель"
+                  value={formData.model}
+                  onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
+                  placeholder="LaserJet Pro M404dn"
+                />
+              </Grid>
+
+              {/* МІСЦЕЗНАХОДЖЕННЯ */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+                  Місцезнаходження
+                </Typography>
+                <Divider />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
                 <TextField
                   select
                   fullWidth
@@ -501,49 +535,53 @@ const Equipment: React.FC = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Локація"
+                  label="Локація (кабінет, відділ)"
                   value={formData.location}
                   onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Кабінет 201"
+                  placeholder="Кабінет 201, IT відділ"
                 />
               </Grid>
 
-              {/* Бренд, Модель, Серійний номер */}
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Бренд"
-                  value={formData.brand}
-                  onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="HP, Dell"
-                />
+              {/* ОБЛІК ТА ІДЕНТИФІКАЦІЯ */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+                  Облік та ідентифікація
+                </Typography>
+                <Divider />
               </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Модель"
-                  value={formData.model}
-                  onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="LaserJet Pro"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Серійний номер"
                   value={formData.serialNumber}
                   onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
-                  placeholder="S/N"
+                  placeholder="S/N з корпусу обладнання"
                 />
               </Grid>
 
-              {/* Статус, Користувач, Інвентарний номер */}
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Інвентарний номер"
+                  value={formData.inventoryNumber}
+                  onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
+                  placeholder="INV-001"
+                />
+              </Grid>
+
+              {/* СТАТУС ТА ПРИЗНАЧЕННЯ */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+                  Статус та призначення
+                </Typography>
+                <Divider />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
                 <TextField
                   select
                   fullWidth
@@ -559,11 +597,11 @@ const Equipment: React.FC = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   select
                   fullWidth
-                  label="Закріплено за"
+                  label="Закріплено за користувачем"
                   value={formData.assignedTo}
                   onChange={(e: any) => setFormData({ ...formData, assignedTo: e.target.value })}
                 >
@@ -576,26 +614,23 @@ const Equipment: React.FC = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Інвентарний №"
-                  value={formData.inventoryNumber}
-                  onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
-                  placeholder="INV-001"
-                />
+              {/* ДОДАТКОВА ІНФОРМАЦІЯ */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+                  Додаткова інформація
+                </Typography>
+                <Divider />
               </Grid>
 
-              {/* Примітки */}
               <Grid item xs={12}>
                 <TextField
                   fullWidth
                   multiline
-                  rows={2}
-                  label="Примітки"
+                  rows={3}
+                  label="Примітки та опис"
                   value={formData.notes}
                   onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Додаткова інформація..."
+                  placeholder="Додаткова інформація про обладнання, технічні характеристики, історія ремонтів тощо..."
                 />
               </Grid>
           </Grid>
