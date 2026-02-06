@@ -218,25 +218,41 @@ const Equipment: React.FC = () => {
           limit: 500 
         } 
       }) as any;
-      console.log('📦 Institutions API response:', response);
+      console.log('📦 Institutions API response (full):', response);
+      console.log('📦 response.data type:', typeof response.data, Array.isArray(response.data) ? 'Array' : 'Object');
       console.log('📦 response.data:', response.data);
       console.log('📦 response.data.data:', response.data?.data);
+      console.log('📦 response.data.success:', response.data?.success);
       
-      // Перевіряємо різні можливі структури відповіді
+      // Визначаємо структуру відповіді
       let list = [];
-      if (Array.isArray(response.data)) {
-        // Якщо response.data вже масив
-        list = response.data;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        // Якщо data вкладено в об'єкт
+      
+      // Варіант 1: response.data.data є масивом (стандартна структура API)
+      if (response.data?.data && Array.isArray(response.data.data)) {
         list = response.data.data;
-      } else if (response.data?.success && Array.isArray(response.data?.institutions)) {
-        // Альтернативна структура
+        console.log('✅ Використовуємо response.data.data');
+      }
+      // Варіант 2: response.data вже є масивом
+      else if (Array.isArray(response.data)) {
+        list = response.data;
+        console.log('✅ Використовуємо response.data (масив)');
+      }
+      // Варіант 3: response.data.institutions
+      else if (response.data?.institutions && Array.isArray(response.data.institutions)) {
         list = response.data.institutions;
+        console.log('✅ Використовуємо response.data.institutions');
+      }
+      else {
+        console.warn('⚠️ Невідома структура відповіді:', response.data);
       }
       
       console.log('✅ Filtered institutions list:', list);
       console.log(`📊 Знайдено ${list.length} закладів для міста`);
+      
+      if (list.length === 0) {
+        console.warn('⚠️ Заклади не знайдені для міста:', cityId);
+      }
+      
       setInstitutions(list);
     } catch (error) {
       console.error('❌ Помилка завантаження закладів для міста:', error);

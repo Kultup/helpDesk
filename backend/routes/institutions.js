@@ -203,7 +203,10 @@ router.get('/public', async (req, res) => {
     } = req.query;
 
     if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
+    if (city) {
+      filters['address.city'] = city;
+      logger.info(`🔍 Фільтруємо заклади по місту: ${city}`);
+    }
     if (search) {
       filters.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -211,6 +214,8 @@ router.get('/public', async (req, res) => {
         { description: { $regex: search, $options: 'i' } }
       ];
     }
+
+    logger.info(`📋 Фільтри для пошуку закладів:`, JSON.stringify(filters));
 
     let institutionQuery = Institution.find(filters)
       .populate('address.city', 'name nameEn')
@@ -237,6 +242,11 @@ router.get('/public', async (req, res) => {
 
     // Підрахунок загальної кількості
     const total = await Institution.countDocuments(filters);
+
+    logger.info(`📊 Знайдено ${institutions.length} закладів (всього: ${total})`);
+    if (city) {
+      logger.info(`🏙️ Заклади для міста ${city}:`, institutions.map(i => ({ id: i._id, name: i.name, city: i.address?.city })));
+    }
 
     res.json({
       success: true,
