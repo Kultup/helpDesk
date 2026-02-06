@@ -532,11 +532,13 @@ exports.getBotSettings = async (req, res) => {
       };
     }
 
-    // Не повертаємо повний API ключ з міркувань безпеки
+    // Не повертаємо повні API ключі з міркувань безпеки
     const safeSettings = {
       ...settings.toObject(),
       groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
-      hasGroqApiKey: !!settings.groqApiKey
+      openaiApiKey: settings.openaiApiKey ? `${settings.openaiApiKey.substring(0, 10)}...` : '',
+      hasGroqApiKey: !!settings.groqApiKey,
+      hasOpenaiApiKey: !!settings.openaiApiKey
     };
 
     res.json({
@@ -559,8 +561,11 @@ exports.getBotSettings = async (req, res) => {
 exports.updateBotSettings = async (req, res) => {
   try {
     const {
+      aiProvider,
       groqApiKey,
       groqModel,
+      openaiApiKey,
+      openaiModel,
       aiEnabled,
       aiSystemPrompt,
       aiPrompts,
@@ -579,6 +584,12 @@ exports.updateBotSettings = async (req, res) => {
       settings = new BotSettings({ key: 'default' });
     }
 
+    // Оновлюємо AI провайдер
+    if (aiProvider !== undefined) {
+      settings.aiProvider = aiProvider;
+      logger.info(`🔄 Змінено AI провайдер на: ${aiProvider}`);
+    }
+
     // Оновлюємо Groq налаштування
     if (groqApiKey !== undefined) {
       // Якщо ключ порожній - видаляємо його
@@ -593,6 +604,21 @@ exports.updateBotSettings = async (req, res) => {
 
     if (groqModel !== undefined) {
       settings.groqModel = groqModel;
+    }
+
+    // Оновлюємо OpenAI налаштування
+    if (openaiApiKey !== undefined) {
+      const cleanedKey = typeof openaiApiKey === 'string' ? openaiApiKey.trim() : openaiApiKey;
+      settings.openaiApiKey = cleanedKey === '' ? null : cleanedKey;
+      if (cleanedKey) {
+        logger.info(`🔑 Оновлено OpenAI API ключ: ${cleanedKey.substring(0, 10)}...`);
+      } else {
+        logger.info('🗑️ Видалено OpenAI API ключ');
+      }
+    }
+
+    if (openaiModel !== undefined) {
+      settings.openaiModel = openaiModel;
     }
 
     if (aiEnabled !== undefined) {
@@ -663,11 +689,13 @@ exports.updateBotSettings = async (req, res) => {
       logger.error('Помилка перезавантаження AI сервісу:', reloadError);
     }
 
-    // Не повертаємо API ключ
+    // Не повертаємо API ключі повністю
     const safeSettings = {
       ...settings.toObject(),
       groqApiKey: settings.groqApiKey ? `${settings.groqApiKey.substring(0, 10)}...` : '',
-      hasGroqApiKey: !!settings.groqApiKey
+      openaiApiKey: settings.openaiApiKey ? `${settings.openaiApiKey.substring(0, 10)}...` : '',
+      hasGroqApiKey: !!settings.groqApiKey,
+      hasOpenaiApiKey: !!settings.openaiApiKey
     };
 
     res.json({
