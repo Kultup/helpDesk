@@ -32,7 +32,11 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  InfoOutlined as InfoIcon,
+  PlaceOutlined as PlaceIcon,
+  TagOutlined as TagIcon,
+  NotesOutlined as NotesIcon
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -446,181 +450,205 @@ const Equipment: React.FC = () => {
       </Paper>
 
       {/* Діалог створення/редагування */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1, fontSize: '1.25rem', fontWeight: 600 }}>
           {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <Grid container spacing={2.5}>
-              {/* ОСНОВНА ІНФОРМАЦІЯ */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1 }}>
+        <DialogContent sx={{ pt: 0 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* ОСНОВНА ІНФОРМАЦІЯ */}
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <InfoIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                   Основна інформація
                 </Typography>
-                <Divider />
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Назва обладнання"
+                    value={formData.name}
+                    onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Dell Latitude E7450"
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="Тип обладнання"
+                    value={formData.type}
+                    onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  >
+                    {equipmentTypes.map((type) => (
+                      <MenuItem key={type.value} value={type.value}>
+                        {type.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Виробник (Бренд)"
+                    value={formData.brand}
+                    onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="HP, Dell, Lenovo"
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Модель"
+                    value={formData.model}
+                    onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="LaserJet Pro M404dn"
+                    size="small"
+                  />
+                </Grid>
               </Grid>
+            </Paper>
 
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Назва обладнання"
-                  value={formData.name}
-                  onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Dell Latitude E7450"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  fullWidth
-                  required
-                  label="Тип обладнання"
-                  value={formData.type}
-                  onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
-                >
-                  {equipmentTypes.map((type) => (
-                    <MenuItem key={type.value} value={type.value}>
-                      {type.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Виробник (Бренд)"
-                  value={formData.brand}
-                  onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="HP, Dell, Lenovo"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Модель"
-                  value={formData.model}
-                  onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="LaserJet Pro M404dn"
-                />
-              </Grid>
-
-              {/* МІСЦЕЗНАХОДЖЕННЯ */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+            {/* МІСЦЕЗНАХОДЖЕННЯ */}
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <PlaceIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                   Місцезнаходження
                 </Typography>
-                <Divider />
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="Місто"
+                    value={formData.city}
+                    onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  >
+                    {cities.map((city) => (
+                      <MenuItem key={city._id} value={city._id}>
+                        {city.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Локація (кабінет, відділ)"
+                    value={formData.location}
+                    onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Кабінет 201, IT відділ"
+                    size="small"
+                  />
+                </Grid>
               </Grid>
+            </Paper>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  fullWidth
-                  required
-                  label="Місто"
-                  value={formData.city}
-                  onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
-                >
-                  {cities.map((city) => (
-                    <MenuItem key={city._id} value={city._id}>
-                      {city.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Локація (кабінет, відділ)"
-                  value={formData.location}
-                  onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Кабінет 201, IT відділ"
-                />
-              </Grid>
-
-              {/* ОБЛІК ТА ІДЕНТИФІКАЦІЯ */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+            {/* ОБЛІК ТА ІДЕНТИФІКАЦІЯ */}
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <TagIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                   Облік та ідентифікація
                 </Typography>
-                <Divider />
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Серійний номер"
+                    value={formData.serialNumber}
+                    onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
+                    placeholder="S/N з корпусу обладнання"
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    disabled
+                    label="Інвентарний номер"
+                    value={formData.inventoryNumber || '—'}
+                    helperText="Генерується автоматично при створенні"
+                    size="small"
+                    sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Статус обладнання"
+                    value={formData.status}
+                    onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  >
+                    {statusTypes.map((status) => (
+                      <MenuItem key={status.value} value={status.value}>
+                        {status.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
               </Grid>
+            </Paper>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Серійний номер"
-                  value={formData.serialNumber}
-                  onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
-                  placeholder="S/N з корпусу обладнання"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  disabled
-                  label="Інвентарний номер"
-                  value={formData.inventoryNumber || 'Генерується автоматично'}
-                  helperText="Генерується автоматично при створенні"
-                />
-              </Grid>
-
-              {/* СТАТУС */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
-                  Статус
-                </Typography>
-                <Divider />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Статус обладнання"
-                  value={formData.status}
-                  onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  {statusTypes.map((status) => (
-                    <MenuItem key={status.value} value={status.value}>
-                      {status.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              {/* ДОДАТКОВА ІНФОРМАЦІЯ */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
+            {/* ДОДАТКОВА ІНФОРМАЦІЯ */}
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <NotesIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                   Додаткова інформація
                 </Typography>
-                <Divider />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  label="Примітки та опис"
-                  value={formData.notes}
-                  onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Додаткова інформація про обладнання, технічні характеристики, історія ремонтів тощо..."
-                />
-              </Grid>
-            </Grid>
+              </Box>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Примітки та опис"
+                value={formData.notes}
+                onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Технічні характеристики, історія ремонтів тощо..."
+                size="small"
+              />
+            </Paper>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Скасувати</Button>
-          <Button onClick={handleSave} variant="contained" disabled={!formData.name || !formData.city}>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button onClick={handleCloseDialog} variant="outlined">
+            Скасувати
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={!formData.name || !formData.city}
+            startIcon={editingEquipment ? <EditIcon /> : <AddIcon />}
+          >
             {editingEquipment ? 'Зберегти' : 'Додати'}
           </Button>
         </DialogActions>
