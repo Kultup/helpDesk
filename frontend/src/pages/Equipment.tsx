@@ -172,8 +172,8 @@ const Equipment: React.FC = () => {
 
   const loadInstitutions = async () => {
     try {
-      // Використовуємо повний список закладів (для авторизованих) — усі активні заклади
-      const response = await api.get('/institutions', { params: { limit: 500 } }) as any;
+      // Використовуємо публічний endpoint який не вимагає автентифікації
+      const response = await api.get('/institutions/public', { params: { limit: 500 } }) as any;
       console.log('Institutions API response:', response.data);
       const list = response.data?.data || [];
       console.log('Institutions list:', list);
