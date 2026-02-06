@@ -113,6 +113,14 @@ exports.createEquipment = async (req, res) => {
     // Видаляємо inventoryNumber - він генерується автоматично
     delete equipmentData.inventoryNumber;
 
+    // Очищаємо порожні рядки для ObjectId полів
+    const objectIdFields = ['city', 'institution', 'assignedTo'];
+    objectIdFields.forEach(field => {
+      if (equipmentData[field] === '' || equipmentData[field] === null) {
+        delete equipmentData[field];
+      }
+    });
+
     const equipment = new Equipment(equipmentData);
     await equipment.save();
 
@@ -146,6 +154,14 @@ exports.updateEquipment = async (req, res) => {
       ...req.body,
       updatedBy: req.user._id
     };
+
+    // Очищаємо порожні рядки для ObjectId полів
+    const objectIdFields = ['city', 'institution', 'assignedTo'];
+    objectIdFields.forEach(field => {
+      if (updateData[field] === '' || updateData[field] === null) {
+        delete updateData[field];
+      }
+    });
 
     const equipment = await Equipment.findByIdAndUpdate(
       id,
