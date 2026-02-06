@@ -159,7 +159,9 @@ const Equipment: React.FC = () => {
     try {
       // Використовуємо повний список закладів (для авторизованих) — усі активні заклади
       const response = await api.get('/institutions', { params: { limit: 500 } }) as any;
+      console.log('Institutions API response:', response.data);
       const list = response.data?.data || [];
+      console.log('Institutions list:', list);
       setInstitutions(list.map((inst: { _id: string; name: string }) => ({ _id: inst._id, name: inst.name })));
     } catch (error) {
       console.error('Помилка завантаження закладів:', error);
@@ -221,6 +223,9 @@ const Equipment: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      console.log('Saving equipment with data:', formData);
+      console.log('Institutions available:', institutions);
+      
       if (editingEquipment) {
         await api.put(`/equipment/${editingEquipment._id}`, formData);
       } else {
@@ -591,28 +596,28 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Серійний номер"
                     value={formData.serialNumber}
                     onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
-                    placeholder="S/N з корпусу обладнання"
+                    placeholder="S/N з корпусу"
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
                     disabled
                     label="Інвентарний номер"
                     value={formData.inventoryNumber || '—'}
-                    helperText="Генерується автоматично при створенні"
+                    helperText="Генерується автоматично"
                     size="small"
                     sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={4}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
                       Статус обладнання
