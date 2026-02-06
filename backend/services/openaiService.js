@@ -227,42 +227,67 @@ class OpenAIService {
   /**
    * Генерує наступне питання для уточнення проблеми
    */
-  async generateNextQuestion(conversation, ticketData = {}) {
+  async generateNextQuestion(title, missingInfo = [], category = null, lastUserMessage = '', conversationHistory = [], currentRound = 1) {
     try {
       if (!this.client) {
         await this.initialize();
       }
 
       if (!this.client) {
-        return null;
+        return '📝 Розкажіть, будь ласка, що саме не працює?';
       }
 
       const customPrompt = this.settings?.aiPrompts?.questionGeneration;
       const systemPrompt = customPrompt || `
 Ви - асистент, який допомагає користувачу створити детальну заявку.
+
+⚠️ КРИТИЧНО ВАЖЛИВО:
+1. СПОЧАТКУ ПРОАНАЛІЗУЙ історію діалогу - що користувач вже сказав
+2. НЕ ПИТАЙ про те, на що користувач вже відповів!
+3. Якщо користувач відповів на питання - питай ПРО ІНШЕ
+
+ПРИКЛАД:
+Діалог:
+AI: "Яка модель принтера?"
+Користувач: "Canon"
+→ Модель вже є! Наступне питання: "В якому місті принтер?"
+
 Проаналізуйте діалог та згенеруйте ОДНЕ найважливіше уточнююче питання.
 Питання має бути конкретним та допомагати зібрати важливу інформацію для вирішення проблеми.
 `;
 
-      const context = `
-Поточні дані заявки:
-${JSON.stringify(ticketData, null, 2)}
-
-Діалог:
-${conversation}
-`;
+      // Формуємо контекст діалогу
+      let conversationContext = `Проблема: ${title}\nКатегорія: ${category || 'Невідома'}\n\n`;
+      
+      if (conversationHistory.length > 0) {
+        conversationContext += `ДІАЛОГ:\n`;
+        conversationHistory.slice(-6).forEach(msg => {
+          if (msg.role === 'user') {
+            conversationContext += `Користувач: ${msg.content}\n`;
+          } else {
+            conversationContext += `Ви (AI): ${msg.content}\n`;
+          }
+        });
+      }
+      
+      if (lastUserMessage) {
+        conversationContext += `\nОстання відповідь користувача: "${lastUserMessage}"\n`;
+      }
+      
+      conversationContext += `\nЩо ще треба уточнити: ${missingInfo.join(', ')}\nРаунд питань: ${currentRound}/3`;
 
       const chatCompletion = await this.client.chat.completions.create({
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: context }
+          { role: 'user', content: conversationContext }
         ],
         model: this.settings.openaiModel || 'gpt-4o-mini',
         temperature: 0.7,
         max_tokens: 200
       });
 
-      const question = chatCompletion.choices[0]?.message?.content;
+      const question = chatCompletion.choices[0]?.message?.content?.trim() || 
+        '📝 Розкажіть, будь ласка, більше деталей про проблему?';
 
       await this.trackApiUsage(
         this.settings.openaiModel || 'gpt-4o-mini',
@@ -273,7 +298,12 @@ ${conversation}
       return question;
     } catch (error) {
       logger.error('Помилка генерації питання через OpenAI:', error);
-      return null;
+      const randomResponses = [
+        'Розкажіть, будь ласка, що саме відбувається?',
+        'Уточніть, коли це почалося?',
+        'Що саме не працює?'
+      ];
+      return randomResponses[Math.floor(Math.random() * randomResponses.length)];
     }
   }
 
