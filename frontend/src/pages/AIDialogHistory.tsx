@@ -24,9 +24,9 @@ import {
   CardContent,
   Divider,
   CircularProgress,
-  Alert
+  Alert,
+  Grid
 } from '@mui/material';
-import Grid from '@mui/material/Unstable_Grid2';
 import {
   Visibility as ViewIcon,
   Delete as DeleteIcon,
@@ -175,7 +175,7 @@ const AIDialogHistory: React.FC = () => {
         {/* Filters */}
         <Box sx={{ mb: 3, position: 'relative', zIndex: 100 }}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 3 }}>
+          <Grid item xs={12} md={3}>
             <TextField
               fullWidth
               label="Пошук"
@@ -184,7 +184,7 @@ const AIDialogHistory: React.FC = () => {
               placeholder="Ім'я або текст повідомлення"
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 2 }}>
+          <Grid item xs={12} md={2}>
             <TextField
               select
               fullWidth
@@ -210,7 +210,7 @@ const AIDialogHistory: React.FC = () => {
               <MenuItem value="abandoned">Покинуті</MenuItem>
             </TextField>
           </Grid>
-          <Grid size={{ xs: 12, md: 2 }}>
+          <Grid item xs={12} md={2}>
             <TextField
               select
               fullWidth
@@ -237,7 +237,7 @@ const AIDialogHistory: React.FC = () => {
               <MenuItem value="timeout">Таймаут</MenuItem>
             </TextField>
           </Grid>
-          <Grid size={{ xs: 12, md: 2.5 }}>
+          <Grid item xs={12} md={2.5}>
             <TextField
               fullWidth
               type="date"
@@ -265,7 +265,7 @@ const AIDialogHistory: React.FC = () => {
               }}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 2.5 }}>
+          <Grid item xs={12} md={2.5}>
             <TextField
               fullWidth
               type="date"
@@ -414,21 +414,21 @@ const AIDialogHistory: React.FC = () => {
               <Card sx={{ mb: 2 }}>
                 <CardContent>
                   <Grid container spacing={2}>
-                    <Grid size={6}>
+                    <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">Користувач:</Typography>
                       <Typography variant="body1">{selectedDialog.userName}</Typography>
                     </Grid>
-                    <Grid size={6}>
+                    <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">Дата:</Typography>
                       <Typography variant="body1">
                         {format(new Date(selectedDialog.startedAt), 'dd MMMM yyyy HH:mm', { locale: uk })}
                       </Typography>
                     </Grid>
-                    <Grid size={6}>
+                    <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">Тривалість:</Typography>
                       <Typography variant="body1">{formatDuration(selectedDialog.duration)}</Typography>
                     </Grid>
-                    <Grid size={6}>
+                    <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">Результат:</Typography>
                       {selectedDialog.outcome && (
                         <Chip
