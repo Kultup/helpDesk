@@ -17,6 +17,7 @@ const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
 const fcmService = require('./fcmService');
+const aiFirstLineService = require('./aiFirstLineService');
 
 class TelegramService {
   constructor() {
@@ -1125,9 +1126,10 @@ class TelegramService {
             priority: session.ticketDraft.priority,
             subcategory: session.ticketDraft.subcategory,
             type: session.ticketDraft.type,
-            photos: []
+            photos: [],
+            documents: []
           };
-          
+
           await this.sendMessage(chatId, 
             `✅ *Чудово! Створюю тікет.*\n\n` +
             `📸 *Останній крок:* Бажаєте додати фото до заявки?`, {
@@ -1173,10 +1175,11 @@ class TelegramService {
         }
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'edit_ticket_info') {
-        // Користувач хоче виправити інформацію
+        // Користувач хоче виправити інформацію (AI або класика)
         const session = this.userSessions.get(chatId);
         if (session && session.step === 'confirm_ticket') {
           session.step = 'gathering_information';
+          if (session.mode === 'ai') session.ticketDraft = null;
           await this.sendMessage(chatId, 
             `✏️ *Добре, давайте уточнимо.*\n\n` +
             `Що саме потрібно виправити або доповнити?`, {
@@ -1190,19 +1193,46 @@ class TelegramService {
         }
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'cancel_info_gathering') {
-        // Скасування збору інформації
-        // 🆕 Завершуємо AI діалог як "cancelled"
+        // Скасування збору інформації (AI або збір без AI)
         const session = this.userSessions.get(chatId);
         if (session && session.aiDialogId) {
           await this.completeAIDialog(session.aiDialogId, 'cancelled');
         }
-        
         this.userSessions.delete(chatId);
-        await this.sendMessage(chatId, 
+        await this.sendMessage(chatId,
           `❌ Збір інформації скасовано.\n\n` +
           `Якщо потрібна допомога - просто напишіть мені! 😊`
         );
         await this.showUserDashboard(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'ai_continue') {
+        // Додано: docs/AI_BOT_LOGIC.md — fallback: продовжити в AI-режимі
+        const session = this.userSessions.get(chatId);
+        if (session && session.mode === 'choosing') {
+          session.mode = 'ai';
+          session.ai_attempts = Math.max(0, (session.ai_attempts || 0) - 1);
+          await this.sendMessage(chatId, 'Добре, продовжуємо. Опишіть ще раз або доповніть інформацію.', {
+            reply_markup: { inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
+          });
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'ai_switch_to_classic') {
+        // Додано: docs/AI_BOT_LOGIC.md — fallback: перехід на класичний покроковий флоу
+        const session = this.userSessions.get(chatId);
+        if (session) {
+          session.mode = 'classic';
+          session.step = 'title';
+          session.dialog_history = [];
+          session.ticketDraft = null;
+          session.ticketData = { createdBy: user._id, photos: [], documents: [] };
+          await this.sendMessage(chatId,
+            `📝 *Створення тікета (покроково)*\n` +
+            `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+            `💡 Опишіть коротко суть проблеми`, {
+              reply_markup: { inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
+            }
+          );
+        }
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'cancel_ticket') {
         await this.handleCancelTicketCallback(chatId, user);
@@ -1815,8 +1845,62 @@ class TelegramService {
     }
   }
 
+  /**
+   * Старт створення тікета: перевірка AISettings → AI-режим за замовчуванням або класичний флоу.
+   * Додано: docs/AI_BOT_LOGIC.md — перевірка AISettings, mode ai/classic, userContext.
+   */
   async handleCreateTicketCallback(chatId, user) {
+    const fullUser = await User.findById(user._id).populate('position', 'title name').populate('city', 'name region').populate('institution', 'name').lean();
+    const profile = fullUser || user;
+
+    const aiSettings = await aiFirstLineService.getAISettings();
+    const aiEnabled = aiSettings && aiSettings.enabled === true;
+    const hasApiKey = aiSettings && (
+      (aiSettings.provider === 'groq' && aiSettings.groqApiKey && String(aiSettings.groqApiKey).trim()) ||
+      (aiSettings.provider === 'openai' && aiSettings.openaiApiKey && String(aiSettings.openaiApiKey).trim())
+    );
+
+    if (aiEnabled && hasApiKey) {
+      // AI-режим за замовчуванням
+      const userContext = {
+        userCity: profile.city?.name || 'Не вказано',
+        userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
+        userInstitution: profile.institution?.name || '',
+        userName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
+        userEmail: profile.email
+      };
+      const session = {
+        mode: 'ai',
+        step: 'gathering_information',
+        ai_attempts: 0,
+        ai_questions_count: 0,
+        dialog_history: [],
+        userContext,
+        ticketData: { createdBy: user._id, photos: [], documents: [] },
+        ticketDraft: null
+      };
+      this.userSessions.set(chatId, session);
+      await this.sendMessage(chatId,
+        `📝 *Створення тікета*\n\n` +
+        `Опишіть проблему своїми словами. Я постараюся швидко зібрати все необхідне.\n\n` +
+        `*Приклади:*\n` +
+        `• Принтер не друкує\n` +
+        `• Не працює телефон у закладі\n` +
+        `• Syrve не відкривається`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        }
+      );
+      return;
+    }
+
+    // Класичний покроковий флоу (як раніше)
     const session = {
+      mode: 'classic',
       step: 'title',
       ticketData: {
         createdBy: user._id,
@@ -1824,10 +1908,8 @@ class TelegramService {
         documents: []
       }
     };
-    
     this.userSessions.set(chatId, session);
-    
-    await this.sendMessage(chatId, 
+    await this.sendMessage(chatId,
       `📝 *Створення нового тікету*\n` +
       `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
       `💡 Опишіть коротко суть проблеми`, {
@@ -1836,6 +1918,103 @@ class TelegramService {
         }
       }
     );
+  }
+
+  /** Додано: docs/AI_BOT_LOGIC.md — обробка повідомлень в AI-режимі (виклики 1–3, fallback). */
+  async handleMessageInAiMode(chatId, text, session, user) {
+    const CONFIDENCE_THRESHOLD = 0.6;
+    const MAX_AI_QUESTIONS = 4;
+    const MAX_AI_ATTEMPTS = 2;
+
+    if (!session.dialog_history) session.dialog_history = [];
+    session.dialog_history.push({ role: 'user', content: text });
+
+    let result;
+    try {
+      result = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext);
+    } catch (err) {
+      logger.error('AI: помилка analyzeIntent', err);
+      await this.sendMessage(chatId, 'Зараз не можу обробити. Спробуйте ще раз або натисніть «Заповнити по-старому».', {
+        reply_markup: { inline_keyboard: [[{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }], [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
+      });
+      return;
+    }
+
+    if (result.confidence < CONFIDENCE_THRESHOLD) {
+      session.ai_attempts = (session.ai_attempts || 0) + 1;
+    }
+
+    if (!result.isTicketIntent) {
+      await this.sendMessage(chatId, 'Це не схоже на заявку на проблему. Якщо потрібна допомога з обладнанням або програмами — опишіть проблему, і я допоможу створити тікет.', {
+        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+      });
+      this.userSessions.delete(chatId);
+      return;
+    }
+
+    if ((session.ai_attempts || 0) >= MAX_AI_ATTEMPTS || (session.ai_questions_count || 0) >= MAX_AI_QUESTIONS) {
+      session.mode = 'choosing';
+      const count = session.ai_questions_count || 0;
+      await this.sendMessage(chatId,
+        `Я вже ${count} раз(и) уточнював і все ще не до кінця зрозумів. Давай так:\n\n` +
+        `Оберіть дію:`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Продовжити зі мною', callback_data: 'ai_continue' }],
+              [{ text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' }],
+              [{ text: 'Скасувати заявку', callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+
+    if (!result.needsMoreInfo && (result.confidence || 0) >= CONFIDENCE_THRESHOLD) {
+      const summary = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+      if (summary) {
+        session.step = 'confirm_ticket';
+        session.ticketDraft = {
+          createdBy: user._id,
+          title: summary.title,
+          description: summary.description,
+          priority: summary.priority,
+          subcategory: summary.category,
+          type: 'problem'
+        };
+        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+        await this.sendMessage(chatId, msg, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        });
+        return;
+      }
+    }
+
+    session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+    let question;
+    try {
+      question = await aiFirstLineService.generateNextQuestion(session.dialog_history, result.missingInfo || [], session.userContext);
+    } catch (err) {
+      logger.error('AI: помилка generateNextQuestion', err);
+      question = 'Опишіть, будь ласка, проблему детальніше.';
+    }
+    session.dialog_history.push({ role: 'assistant', content: question });
+
+    await this.sendMessage(chatId, question, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+          [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+        ]
+      }
+    });
   }
 
   async handleTextMessage(msg) {
@@ -1859,6 +2038,15 @@ class TelegramService {
     if (existingUser) {
       // Перевіряємо, чи є активна сесія для створення тікету
       if (session) {
+        // Додано: docs/AI_BOT_LOGIC.md — обробка AI-режиму (виклики 1–3)
+        if (session.mode === 'ai') {
+          await this.handleMessageInAiMode(chatId, text, session, existingUser);
+          return;
+        }
+        if (session.mode === 'choosing') {
+          await this.sendMessage(chatId, 'Оберіть дію кнопками нижче 👇');
+          return;
+        }
         await this.handleTicketCreationStep(chatId, text, session);
         return;
       }
@@ -3166,7 +3354,7 @@ class TelegramService {
         city: user.city,
         status: 'open',
         metadata: {
-          source: 'telegram'
+          source: session.mode === 'ai' ? 'telegram_ai' : 'telegram'
         },
         attachments: [
           // Додаємо фото
