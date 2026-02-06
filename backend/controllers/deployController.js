@@ -32,10 +32,29 @@ exports.githubWebhook = async (req, res) => {
       if (branch === 'refs/heads/master' || branch === 'refs/heads/main') {
         logger.info('🚀 Запускаю автоматичний деплой...');
 
-        // Виконуємо деплой скрипт
+        // Повний деплой скрипт з очищенням портів
+        const deployScript = `
+          cd /srv/helpDesk && \
+          echo "🔄 Git pull..." && \
+          git fetch origin && \
+          git reset --hard origin/master && \
+          git clean -fd && \
+          echo "✅ Git оновлено" && \
+          cd backend && \
+          echo "📦 Встановлення залежностей..." && \
+          npm ci --production && \
+          echo "🔧 Права на скрипти..." && \
+          chmod +x scripts/*.sh && \
+          echo "🧹 Очищення портів..." && \
+          bash scripts/cleanup-ports.sh || echo "⚠️ Не вдалось очистити порти" && \
+          echo "🔄 Перезапуск PM2..." && \
+          pm2 restart helpdesk-backend && \
+          echo "✅ Deploy завершено успішно"
+        `;
+
         exec(
-          'cd /srv/helpDesk && git pull && pm2 restart all',
-          { timeout: 60000 },
+          deployScript,
+          { timeout: 120000 },
           (error, stdout, stderr) => {
             if (error) {
               logger.error('❌ Помилка деплою:', error);
@@ -90,9 +109,21 @@ exports.manualDeploy = async (req, res) => {
   try {
     logger.info('🔧 Ручний деплой запущено адміністратором');
 
+    const deployScript = `
+      cd /srv/helpDesk && \
+      git fetch origin && \
+      git reset --hard origin/master && \
+      git clean -fd && \
+      cd backend && \
+      npm ci --production && \
+      chmod +x scripts/*.sh && \
+      bash scripts/cleanup-ports.sh && \
+      pm2 restart helpdesk-backend
+    `;
+
     exec(
-      'cd /srv/helpDesk && git pull && pm2 restart all',
-      { timeout: 60000 },
+      deployScript,
+      { timeout: 120000 },
       (error, stdout, stderr) => {
         if (error) {
           logger.error('❌ Помилка деплою:', error);
