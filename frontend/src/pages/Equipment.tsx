@@ -73,11 +73,10 @@ const equipmentTypes = [
 ];
 
 const statusTypes = [
-  { value: 'active', label: 'Активне', color: 'success' as const },
-  { value: 'inactive', label: 'Неактивне', color: 'default' as const },
-  { value: 'repair', label: 'В ремонті', color: 'warning' as const },
-  { value: 'disposed', label: 'Списано', color: 'error' as const },
-  { value: 'storage', label: 'На складі', color: 'info' as const }
+  { value: 'working', label: 'В роботі', color: 'success' as const },
+  { value: 'not_working', label: 'Не працює', color: 'error' as const },
+  { value: 'new', label: 'Новий', color: 'info' as const },
+  { value: 'used', label: 'Б/У', color: 'default' as const }
 ];
 
 const Equipment: React.FC = () => {
@@ -566,49 +565,32 @@ const Equipment: React.FC = () => {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
+                  disabled
                   label="Інвентарний номер"
-                  value={formData.inventoryNumber}
-                  onChange={(e: any) => setFormData({ ...formData, inventoryNumber: e.target.value })}
-                  placeholder="INV-001"
+                  value={formData.inventoryNumber || 'Генерується автоматично'}
+                  helperText="Генерується автоматично при створенні"
                 />
               </Grid>
 
-              {/* СТАТУС ТА ПРИЗНАЧЕННЯ */}
+              {/* СТАТУС */}
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1, mt: 1 }}>
-                  Статус та призначення
+                  Статус
                 </Typography>
                 <Divider />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <TextField
                   select
                   fullWidth
-                  label="Статус"
+                  label="Статус обладнання"
                   value={formData.status}
                   onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
                 >
                   {statusTypes.map((status) => (
                     <MenuItem key={status.value} value={status.value}>
                       {status.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Закріплено за користувачем"
-                  value={formData.assignedTo}
-                  onChange={(e: any) => setFormData({ ...formData, assignedTo: e.target.value })}
-                >
-                  <MenuItem value="">Не призначено</MenuItem>
-                  {users.map((user) => (
-                    <MenuItem key={user._id} value={user._id}>
-                      {user.firstName} {user.lastName}
                     </MenuItem>
                   ))}
                 </TextField>

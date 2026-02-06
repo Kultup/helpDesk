@@ -108,6 +108,9 @@ exports.createEquipment = async (req, res) => {
       createdBy: req.user._id
     };
 
+    // Видаляємо inventoryNumber - він генерується автоматично
+    delete equipmentData.inventoryNumber;
+
     const equipment = new Equipment(equipmentData);
     await equipment.save();
 

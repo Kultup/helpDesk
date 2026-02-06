@@ -66,8 +66,8 @@ const equipmentSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ['active', 'inactive', 'repair', 'disposed', 'storage'],
-    default: 'active',
+    enum: ['working', 'not_working', 'new', 'used'],
+    default: 'working',
     index: true
   },
 
@@ -130,6 +130,36 @@ equipmentSchema.index({ type: 1, status: 1 });
 equipmentSchema.index({ city: 1, status: 1 });
 equipmentSchema.index({ assignedTo: 1, status: 1 });
 
+// Автогенерація інвентарного номера
+equipmentSchema.pre('save', async function(next) {
+  if (!this.inventoryNumber && this.isNew) {
+    try {
+      // Знаходимо останній інвентарний номер
+      const lastEquipment = await this.constructor.findOne(
+        { inventoryNumber: { $exists: true, $ne: null } },
+        { inventoryNumber: 1 }
+      ).sort({ inventoryNumber: -1 });
+
+      let nextNumber = 1;
+      if (lastEquipment && lastEquipment.inventoryNumber) {
+        // Витягуємо число з формату INV-0001
+        const match = lastEquipment.inventoryNumber.match(/INV-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      // Генеруємо новий номер з форматом INV-0001
+      this.inventoryNumber = `INV-${String(nextNumber).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Помилка генерації інвентарного номера:', error);
+      // Якщо щось пішло не так, використовуємо timestamp
+      this.inventoryNumber = `INV-${Date.now()}`;
+    }
+  }
+  next();
+});
+
 // Віртуальні поля
 equipmentSchema.virtual('isUnderWarranty').get(function() {
   if (!this.warrantyExpiry) return false;
@@ -174,7 +204,7 @@ equipmentSchema.statics.getByCity = function(cityId, filters = {}) {
 };
 
 equipmentSchema.statics.getByType = function(type, cityId = null) {
-  const query = { type, status: 'active' };
+  const query = { type };
   if (cityId) query.city = cityId;
   return this.find(query)
     .populate('city', 'name')
@@ -188,14 +218,17 @@ equipmentSchema.statics.getStatsByCity = async function(cityId) {
       $group: {
         _id: '$type',
         total: { $sum: 1 },
-        active: {
-          $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+        working: {
+          $sum: { $cond: [{ $eq: ['$status', 'working'] }, 1, 0] }
         },
-        repair: {
-          $sum: { $cond: [{ $eq: ['$status', 'repair'] }, 1, 0] }
+        not_working: {
+          $sum: { $cond: [{ $eq: ['$status', 'not_working'] }, 1, 0] }
         },
-        disposed: {
-          $sum: { $cond: [{ $eq: ['$status', 'disposed'] }, 1, 0] }
+        new: {
+          $sum: { $cond: [{ $eq: ['$status', 'new'] }, 1, 0] }
+        },
+        used: {
+          $sum: { $cond: [{ $eq: ['$status', 'used'] }, 1, 0] }
         }
       }
     }
