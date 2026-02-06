@@ -1368,6 +1368,14 @@ class ApiService {
     return this.put('/settings/bot', data);
   }
 
+  async getAiSettings(): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get('/settings/ai');
+  }
+
+  async updateAiSettings(data: Record<string, unknown>): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put('/settings/ai', data);
+  }
+
   // Налаштування Active Directory
   async getActiveDirectorySettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/active-directory');

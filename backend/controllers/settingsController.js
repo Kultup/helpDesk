@@ -1,6 +1,7 @@
 const TelegramConfig = require('../models/TelegramConfig');
 const ActiveDirectoryConfig = require('../models/ActiveDirectoryConfig');
 const BotSettings = require('../models/BotSettings');
+const AISettings = require('../models/AISettings');
 const logger = require('../utils/logger');
 const telegramService = require('../services/telegramServiceInstance');
 const activeDirectoryService = require('../services/activeDirectoryService');
@@ -588,6 +589,119 @@ exports.updateBotSettings = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань бота',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Отримати налаштування AI
+ */
+exports.getAiSettings = async (req, res) => {
+  try {
+    let settings = await AISettings.findOne({ key: 'default' });
+
+    if (!settings) {
+      settings = new AISettings({
+        key: 'default',
+        provider: process.env.AI_PROVIDER || 'groq',
+        groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+        openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        groqApiKey: process.env.GROQ_API_KEY || '',
+        openaiApiKey: process.env.OPENAI_API_KEY || '',
+        enabled: false
+      });
+      await settings.save();
+    }
+
+    const obj = settings.toObject();
+    const safe = {
+      ...obj,
+      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
+      hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
+      groqApiKey: undefined,
+      openaiApiKey: undefined
+    };
+    delete safe.groqApiKey;
+    delete safe.openaiApiKey;
+
+    res.json({
+      success: true,
+      data: safe
+    });
+  } catch (error) {
+    logger.error('Помилка отримання налаштувань AI:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка отримання налаштувань AI',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Оновити налаштування AI
+ */
+exports.updateAiSettings = async (req, res) => {
+  try {
+    const { provider, groqApiKey, openaiApiKey, groqModel, openaiModel, enabled } = req.body;
+
+    let settings = await AISettings.findOne({ key: 'default' });
+
+    if (!settings) {
+      settings = new AISettings({ key: 'default' });
+    }
+
+    if (provider !== undefined) {
+      if (!['groq', 'openai'].includes(provider)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Провайдер має бути groq або openai'
+        });
+      }
+      settings.provider = provider;
+    }
+
+    if (typeof groqApiKey === 'string' && groqApiKey.trim() !== '' && !groqApiKey.startsWith('••')) {
+      settings.groqApiKey = groqApiKey.trim();
+    }
+    if (typeof openaiApiKey === 'string' && openaiApiKey.trim() !== '' && !openaiApiKey.startsWith('••')) {
+      settings.openaiApiKey = openaiApiKey.trim();
+    }
+
+    if (groqModel !== undefined) {
+      settings.groqModel = groqModel.trim() || 'llama-3.3-70b-versatile';
+    }
+    if (openaiModel !== undefined) {
+      settings.openaiModel = openaiModel.trim() || 'gpt-4o-mini';
+    }
+    if (enabled !== undefined) {
+      settings.enabled = !!enabled;
+    }
+
+    await settings.save();
+
+    const obj = settings.toObject();
+    const safe = {
+      ...obj,
+      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
+      hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
+      groqApiKey: undefined,
+      openaiApiKey: undefined
+    };
+    delete safe.groqApiKey;
+    delete safe.openaiApiKey;
+
+    res.json({
+      success: true,
+      message: 'Налаштування AI успішно збережено',
+      data: safe
+    });
+  } catch (error) {
+    logger.error('Помилка оновлення налаштувань AI:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка оновлення налаштувань AI',
       error: error.message
     });
   }

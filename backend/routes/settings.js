@@ -60,5 +60,8 @@ router.get('/active-directory', authenticateToken, adminAuth, settingsController
  */
 router.put('/active-directory', authenticateToken, adminAuth, settingsController.updateActiveDirectorySettings);
 
+router.get('/ai', authenticateToken, adminAuth, settingsController.getAiSettings);
+router.put('/ai', authenticateToken, adminAuth, settingsController.updateAiSettings);
+
 module.exports = router;
 

@@ -116,6 +116,8 @@
     "analytics": "Analityka",
     "activeDirectory": "Active Directory",
     "telegramSettings": "Ustawienia Telegram",
+    "botSettings": "Ustawienia bota",
+    "aiSettings": "Ustawienia AI",
     "activeDirectorySettings": "Ustawienia Active Directory",
     "zabbixSettings": "Ustawienia Zabbix",
     "documents": "Dokumenty",
