@@ -23,13 +23,57 @@ const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Список шляхів які не треба логувати при 404
+const ignoredPaths = [
+  '/api/gql',
+  '/api/graphql',
+  '/api/swagger.json',
+  '/api/swagger',
+  '/api/.env',
+  '/api/config',
+  '/.git',
+  '/.env',
+  '/phpmyadmin',
+  '/wp-admin',
+  '/wp-login.php'
+];
+
+// User-agents сканерів безпеки
+const scannerUserAgents = [
+  'l9scan',
+  'leakix',
+  'masscan',
+  'nmap',
+  'zgrab',
+  'censys',
+  'shodan',
+  'nuclei'
+];
+
+// Перевірка чи запит від сканера
+const isScanner = (req) => {
+  const userAgent = (req.get('User-Agent') || '').toLowerCase();
+  return scannerUserAgents.some(scanner => userAgent.includes(scanner));
+};
+
+// Перевірка чи шлях треба ігнорувати
+const shouldIgnorePath = (path) => {
+  return ignoredPaths.some(ignored => path.includes(ignored));
+};
+
 // Middleware для детального логування HTTP запитів
 const requestLogger = (req, res, next) => {
   const start = Date.now();
   const timestamp = new Date().toISOString();
   
-  // Логуємо початок запиту
-  logger.info(`🌐 ${timestamp} - ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+  // Не логуємо запити від сканерів до неіснуючих endpoint
+  const isFromScanner = isScanner(req);
+  const isIgnoredPath = shouldIgnorePath(req.originalUrl);
+  
+  // Логуємо початок запиту (окрім сканерів на ігноровані шляхи)
+  if (!isFromScanner || !isIgnoredPath) {
+    logger.info(`🌐 ${timestamp} - ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+  }
   
   // Перехоплюємо відповідь для логування результату
   const originalSend = res.send;
@@ -37,10 +81,17 @@ const requestLogger = (req, res, next) => {
     const duration = Date.now() - start;
     const statusColor = res.statusCode >= 400 ? '🔴' : '🟢';
     
+    // Не логуємо 404 від сканерів на ігноровані шляхи
+    if (res.statusCode === 404 && isFromScanner && isIgnoredPath) {
+      // Тихо ігноруємо
+      originalSend.call(this, data);
+      return;
+    }
+    
     logger.info(`${statusColor} ${res.statusCode} - ${req.method} ${req.originalUrl} - ${duration}ms`);
     
-    // Логуємо помилки детальніше
-    if (res.statusCode >= 400) {
+    // Логуємо помилки детальніше (окрім 404 від сканерів)
+    if (res.statusCode >= 400 && !(res.statusCode === 404 && isFromScanner)) {
       logger.error(`❌ Помилка: ${data}`);
     }
     
