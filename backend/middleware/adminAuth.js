@@ -16,8 +16,8 @@ const adminAuth = async (req, res, next) => {
       });
     }
 
-    // Перевіряємо роль користувача (admin або super_admin)
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    // Перевіряємо роль користувача (admin, super_admin або administrator)
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'administrator') {
       return res.status(403).json({
         success: false,
         message: 'Доступ заборонено. Потрібні права адміністратора.'

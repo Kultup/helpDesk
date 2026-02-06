@@ -6,8 +6,8 @@ export enum UserRole {
 }
 
 // Helper функція для перевірки, чи користувач є адміністратором
-export const isAdminRole = (role: UserRole): boolean => {
-  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+export const isAdminRole = (role: UserRole | string): boolean => {
+  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN || role === 'administrator';
 };
 
 export interface MobileDevice {

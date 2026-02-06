@@ -29,7 +29,10 @@ const BotSettings: React.FC = () => {
           <p className="text-gray-600">
             {t('settings.bot.aiDisabled', 'AI інтеграція вимкнена. Для налаштування Telegram перейдіть у розділ Налаштування Telegram.')}
           </p>
-          <div className="flex flex-col gap-2">
+          <p className="text-sm text-gray-500">
+            {t('settings.bot.aiOnlyAdmin', 'Налаштування AI (увімкнути першу лінію) доступні тільки для адміністраторів. Якщо ви не бачите пункт «Налаштування AI» у бічному меню — увійдіть під обліковим записом з роллю адміністратора або оновіть додаток до останньої версії.')}
+          </p>
+          <div className="flex flex-col gap-2 pt-2">
             <Link
               to="/admin/settings/telegram"
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
