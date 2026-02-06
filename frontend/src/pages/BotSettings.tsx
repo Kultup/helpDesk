@@ -29,12 +29,20 @@ const BotSettings: React.FC = () => {
           <p className="text-gray-600">
             {t('settings.bot.aiDisabled', 'AI інтеграція вимкнена. Для налаштування Telegram перейдіть у розділ Налаштування Telegram.')}
           </p>
-          <Link
-            to="/admin/settings/telegram"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-          >
-            {t('sidebar.telegramSettings', 'Налаштування Telegram')} →
-          </Link>
+          <div className="flex flex-col gap-2">
+            <Link
+              to="/admin/settings/telegram"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {t('sidebar.telegramSettings', 'Налаштування Telegram')} →
+            </Link>
+            <Link
+              to="/admin/settings/ai"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {t('sidebar.aiSettings', 'Налаштування AI')} (Groq/OpenAI, перша лінія) →
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
