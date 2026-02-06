@@ -501,17 +501,15 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Маршрут для перевірки здоров'я системи
-app.get('/health', async (req, res) => {
+// Обробник health check (використовується для /health та /api/health)
+const healthHandler = async (req, res) => {
   try {
-    // Перевірка підключення до бази даних
     const dbState = mongoose.connection.readyState;
     const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
-    
-    // Базова статистика
+
     const User = require('./models/User');
     const Ticket = require('./models/Ticket');
-    
+
     const [userCount, ticketCount] = await Promise.all([
       User.countDocuments(),
       Ticket.countDocuments()
@@ -541,7 +539,10 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   }
-});
+};
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // Обробка favicon.ico (ігноруємо запити, щоб не логувати помилки)
 app.get('/favicon.ico', (req, res) => {

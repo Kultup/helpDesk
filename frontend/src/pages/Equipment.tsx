@@ -538,22 +538,28 @@ const Equipment: React.FC = () => {
               </Box>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    required
-                    label="Місто"
-                    value={formData.city}
-                    onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                  >
-                    {cities.map((city) => (
-                      <MenuItem key={city._id} value={city._id}>
-                        {city.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                      Місто *
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      required
+                      value={formData.city}
+                      onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                      size="small"
+                      variant="outlined"
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Оберіть місто</MenuItem>
+                      {cities.map((city) => (
+                        <MenuItem key={city._id} value={city._id}>
+                          {city.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Box>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -599,21 +605,27 @@ const Equipment: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Статус обладнання"
-                    value={formData.status}
-                    onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                  >
-                    {statusTypes.map((status) => (
-                      <MenuItem key={status.value} value={status.value}>
-                        {status.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                      Статус обладнання
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      value={formData.status}
+                      onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
+                      size="small"
+                      variant="outlined"
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Оберіть статус</MenuItem>
+                      {statusTypes.map((status) => (
+                        <MenuItem key={status.value} value={status.value}>
+                          {status.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Box>
                 </Grid>
               </Grid>
             </Paper>
