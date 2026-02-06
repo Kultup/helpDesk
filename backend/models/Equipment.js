@@ -44,17 +44,18 @@ const equipmentSchema = new mongoose.Schema({
     index: true
   },
 
-  // Локація
+  // Локація (місто — опційно, якщо вказано заклад)
   city: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'City',
-    required: true,
+    required: false,
     index: true
   },
 
   institution: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Institution'
+    ref: 'Institution',
+    index: true
   },
 
   location: {

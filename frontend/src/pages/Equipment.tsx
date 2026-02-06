@@ -49,7 +49,11 @@ interface Equipment {
   model?: string;
   serialNumber?: string;
   inventoryNumber?: string;
-  city: {
+  city?: {
+    _id: string;
+    name: string;
+  };
+  institution?: {
     _id: string;
     name: string;
   };
@@ -60,6 +64,8 @@ interface Equipment {
     lastName: string;
     email: string;
   };
+  location?: string;
+  notes?: string;
   purchaseDate?: string;
   warrantyExpiry?: string;
   createdAt: string;
@@ -95,7 +101,7 @@ const Equipment: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [cityFilter, setCityFilter] = useState('');
+  const [institutionFilter, setInstitutionFilter] = useState('');
 
   // Діалог створення/редагування
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -107,8 +113,8 @@ const Equipment: React.FC = () => {
     model: '',
     serialNumber: '',
     inventoryNumber: '',
-    city: '',
-    status: 'active',
+    institution: '',
+    status: 'working',
     assignedTo: '',
     purchaseDate: '',
     warrantyExpiry: '',
@@ -116,15 +122,15 @@ const Equipment: React.FC = () => {
     notes: ''
   });
 
-  // Список міст для фільтра
-  const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
+  // Список закладів для форми та фільтра
+  const [institutions, setInstitutions] = useState<Array<{ _id: string; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>([]);
 
   useEffect(() => {
     loadEquipment();
-    loadCities();
+    loadInstitutions();
     loadUsers();
-  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter]);
+  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, institutionFilter]);
 
   const loadEquipment = async () => {
     try {
@@ -137,7 +143,7 @@ const Equipment: React.FC = () => {
       if (searchQuery) params.search = searchQuery;
       if (typeFilter) params.type = typeFilter;
       if (statusFilter) params.status = statusFilter;
-      if (cityFilter) params.city = cityFilter;
+      if (institutionFilter) params.institution = institutionFilter;
 
       const response = await api.get('/equipment', { params }) as any;
       setEquipment(response.data.equipment);
@@ -149,12 +155,12 @@ const Equipment: React.FC = () => {
     }
   };
 
-  const loadCities = async () => {
+  const loadInstitutions = async () => {
     try {
-      const response = await api.get('/cities') as any;
-      setCities(response.data);
+      const response = await api.get('/institutions/simple/list') as any;
+      setInstitutions(response.data?.data || []);
     } catch (error) {
-      console.error('Помилка завантаження міст:', error);
+      console.error('Помилка завантаження закладів:', error);
     }
   };
 
@@ -177,13 +183,13 @@ const Equipment: React.FC = () => {
         model: equipment.model || '',
         serialNumber: equipment.serialNumber || '',
         inventoryNumber: equipment.inventoryNumber || '',
-        city: equipment.city?._id || '',
-        status: equipment.status || 'active',
+        institution: equipment.institution?._id || '',
+        status: equipment.status || 'working',
         assignedTo: equipment.assignedTo?._id || '',
         purchaseDate: equipment.purchaseDate ? equipment.purchaseDate.split('T')[0] : '',
         warrantyExpiry: equipment.warrantyExpiry ? equipment.warrantyExpiry.split('T')[0] : '',
-        location: '',
-        notes: ''
+        location: equipment.location || '',
+        notes: equipment.notes || ''
       });
     } else {
       setEditingEquipment(null);
@@ -194,8 +200,8 @@ const Equipment: React.FC = () => {
         model: '',
         serialNumber: '',
         inventoryNumber: '',
-        city: '',
-        status: 'active',
+        institution: '',
+        status: 'working',
         assignedTo: '',
         purchaseDate: '',
         warrantyExpiry: '',
@@ -349,18 +355,18 @@ const Equipment: React.FC = () => {
               select
               fullWidth
               size="small"
-              label="Місто"
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
+              label="Заклад"
+              value={institutionFilter}
+              onChange={(e) => setInstitutionFilter(e.target.value)}
               InputLabelProps={{ shrink: true }}
               SelectProps={{
                 displayEmpty: true
               }}
             >
-              <MenuItem value="">Всі міста</MenuItem>
-              {cities.map((city) => (
-                <MenuItem key={city._id} value={city._id}>
-                  {city.name}
+              <MenuItem value="">Всі заклади</MenuItem>
+              {institutions.map((inst) => (
+                <MenuItem key={inst._id} value={inst._id}>
+                  {inst.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -386,7 +392,7 @@ const Equipment: React.FC = () => {
                 <TableCell>Тип</TableCell>
                 <TableCell>Модель</TableCell>
                 <TableCell>Інв. №</TableCell>
-                <TableCell>Місто</TableCell>
+                <TableCell>Заклад</TableCell>
                 <TableCell>Статус</TableCell>
                 <TableCell>Призначено</TableCell>
                 <TableCell>Дії</TableCell>
@@ -401,7 +407,7 @@ const Equipment: React.FC = () => {
                     {item.brand && item.model ? `${item.brand} ${item.model}` : item.brand || item.model || '-'}
                   </TableCell>
                   <TableCell>{item.inventoryNumber || '-'}</TableCell>
-                  <TableCell>{item.city?.name || '-'}</TableCell>
+                  <TableCell>{item.institution?.name || item.city?.name || '-'}</TableCell>
                   <TableCell>{getStatusChip(item.status)}</TableCell>
                   <TableCell>
                     {item.assignedTo
@@ -540,22 +546,22 @@ const Equipment: React.FC = () => {
                 <Grid item xs={12} sm={6}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
-                      Місто *
+                      Заклад *
                     </Typography>
                     <TextField
                       select
                       fullWidth
                       required
-                      value={formData.city}
-                      onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                      value={formData.institution}
+                      onChange={(e: any) => setFormData({ ...formData, institution: e.target.value })}
                       size="small"
                       variant="outlined"
                       SelectProps={{ displayEmpty: true }}
                     >
-                      <MenuItem value="">Оберіть місто</MenuItem>
-                      {cities.map((city) => (
-                        <MenuItem key={city._id} value={city._id}>
-                          {city.name}
+                      <MenuItem value="">Оберіть заклад</MenuItem>
+                      {institutions.map((inst) => (
+                        <MenuItem key={inst._id} value={inst._id}>
+                          {inst.name}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -658,7 +664,7 @@ const Equipment: React.FC = () => {
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={!formData.name || !formData.city}
+            disabled={!formData.name || !formData.institution}
             startIcon={editingEquipment ? <EditIcon /> : <AddIcon />}
           >
             {editingEquipment ? 'Зберегти' : 'Додати'}

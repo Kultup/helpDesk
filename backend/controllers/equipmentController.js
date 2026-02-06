@@ -14,6 +14,7 @@ exports.getEquipment = async (req, res) => {
       type,
       status,
       city,
+      institution,
       assignedTo,
       search
     } = req.query;
@@ -24,6 +25,7 @@ exports.getEquipment = async (req, res) => {
     if (type) query.type = type;
     if (status) query.status = status;
     if (city) query.city = city;
+    if (institution) query.institution = institution;
     if (assignedTo) query.assignedTo = assignedTo;
 
     // Пошук
@@ -116,6 +118,7 @@ exports.createEquipment = async (req, res) => {
 
     await equipment.populate([
       { path: 'city', select: 'name' },
+      { path: 'institution', select: 'name' },
       { path: 'assignedTo', select: 'firstName lastName email' },
       { path: 'createdBy', select: 'firstName lastName' }
     ]);
@@ -150,6 +153,7 @@ exports.updateEquipment = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate('city', 'name')
+      .populate('institution', 'name')
       .populate('assignedTo', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName');
 
