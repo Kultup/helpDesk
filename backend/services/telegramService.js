@@ -31,8 +31,12 @@ class TelegramService {
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
     this.navigationHistory = new Map(); // Історія навігації для кожного користувача (chatId -> ['screen1', 'screen2', ...])
     this._initializing = false; // Флаг для перевірки процесу ініціалізації
+    this.offTopicCounts = new Map(); // Ліміт оффтоп-повідомлень: key = telegramId (string), value = { date: 'YYYY-MM-DD', count: number }
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
+
+  static get OFF_TOPIC_LIMIT_PER_DAY() { return 5; }
+  static get OFF_TOPIC_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
 
   async initialize() {
     // Перевіряємо, чи бот вже ініціалізований
@@ -411,18 +415,9 @@ class TelegramService {
           return;
         }
 
-        // Якщо це не команда, перевіряємо активний тікет або обробляємо повідомлення
+        // Якщо це не команда — завжди передаємо текст у handleTextMessage (сесія є чи ні: AI може стартувати з першого повідомлення)
         if (!msg.text?.startsWith('/') && msg.text) {
-          // Перевіряємо, чи є активний тікет для відповіді
-          // Перевіряємо, чи є активна сесія для створення тікету
-          const session = this.userSessions.get(chatId);
-          if (session) {
-            await this.handleTextMessage(msg);
-            return;
-          }
-
-          // Показуємо головне меню (AI інтеграція вимкнена)
-          await this.showUserDashboard(chatId, existingUser);
+          await this.handleTextMessage(msg);
           return;
         }
       }
@@ -1945,7 +1940,38 @@ class TelegramService {
     }
 
     if (!result.isTicketIntent) {
-      await this.sendMessage(chatId, 'Це не схоже на заявку на проблему. Якщо потрібна допомога з обладнанням або програмами — опишіть проблему, і я допоможу створити тікет.', {
+      const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+      const exempt = telegramId === TelegramService.OFF_TOPIC_EXEMPT_TELEGRAM_ID;
+      if (!exempt) {
+        const today = new Date().toISOString().slice(0, 10);
+        let rec = this.offTopicCounts.get(telegramId);
+        if (!rec || rec.date !== today) rec = { date: today, count: 0 };
+        rec.count += 1;
+        this.offTopicCounts.set(telegramId, rec);
+        if (rec.count > TelegramService.OFF_TOPIC_LIMIT_PER_DAY) {
+          await this.sendMessage(chatId,
+            `Сьогодні ви вже надсилали багато повідомлень не по темі тікетів. Ліміт — ${TelegramService.OFF_TOPIC_LIMIT_PER_DAY} на день.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+              reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            }
+          );
+          this.userSessions.delete(chatId);
+          return;
+        }
+      }
+      const msg =
+        result.offTopicResponse && String(result.offTopicResponse).trim()
+          ? String(result.offTopicResponse).trim().slice(0, 500)
+          : (() => {
+              const fallbackOffTopic = [
+                'Здається, це не про технічну проблему. Якщо щось зламалось або не працює — просто опишіть, і я допоможу оформити заявку.',
+                'Поки не зовсім зрозуміло, що потрібно. Якщо є проблема з обладнанням або програмою — напишіть кількома словами, і ми зберемо тікет.',
+                'Я тут головним чином про заявки на допомогу. Опишіть проблему своїми словами — і далі я підкажу.',
+                'Схоже на загальне питання. Якщо потрібна допомога з принтером, iiko, касою — просто скажіть, що саме не так.',
+                'Я готовий допомогти з заявками. Якщо є конкретна технічна проблема — напишіть, що саме сталося.'
+              ];
+              return fallbackOffTopic[Math.floor(Math.random() * fallbackOffTopic.length)];
+            })();
+      await this.sendMessage(chatId, msg, {
         reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
       });
       this.userSessions.delete(chatId);
@@ -2059,7 +2085,39 @@ class TelegramService {
           return; // Повідомлення оброблено як відгук
         }
       }
-      
+
+      // Додано: docs/AI_BOT_LOGIC.md — якщо користувач пише проблему без натискання «Створити тікет», запускаємо AI-флоу
+      const aiSettings = await aiFirstLineService.getAISettings();
+      const aiEnabled = aiSettings && aiSettings.enabled === true;
+      const hasApiKey = aiSettings && (
+        (aiSettings.provider === 'groq' && aiSettings.groqApiKey && String(aiSettings.groqApiKey).trim()) ||
+        (aiSettings.provider === 'openai' && aiSettings.openaiApiKey && String(aiSettings.openaiApiKey).trim())
+      );
+      if (aiEnabled && hasApiKey && text && String(text).trim().length > 0) {
+        const fullUser = await User.findById(existingUser._id).populate('position', 'title name').populate('city', 'name region').populate('institution', 'name').lean();
+        const profile = fullUser || existingUser;
+        const userContext = {
+          userCity: profile.city?.name || 'Не вказано',
+          userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
+          userInstitution: profile.institution?.name || '',
+          userName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
+          userEmail: profile.email
+        };
+        const session = {
+          mode: 'ai',
+          step: 'gathering_information',
+          ai_attempts: 0,
+          ai_questions_count: 0,
+          dialog_history: [],
+          userContext,
+          ticketData: { createdBy: existingUser._id, photos: [], documents: [] },
+          ticketDraft: null
+        };
+        this.userSessions.set(chatId, session);
+        await this.handleMessageInAiMode(chatId, text.trim(), session, existingUser);
+        return;
+      }
+
       // Якщо немає активної сесії, показуємо головне меню
       await this.showUserDashboard(chatId, existingUser);
       return;

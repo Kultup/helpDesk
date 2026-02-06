@@ -7,7 +7,7 @@
  */
 
 const AISettings = require('../models/AISettings');
-const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, fillPrompt, MAX_TOKENS } = require('../prompts/aiFirstLinePrompts');
+const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
 
 let cachedSettings = null;
@@ -64,21 +64,24 @@ async function analyzeIntent(dialogHistory, userContext) {
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
 
-  const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true);
-  if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
+  const temperature = typeof INTENT_ANALYSIS_TEMPERATURE === 'number' ? INTENT_ANALYSIS_TEMPERATURE : 0.55;
+  const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature);
+  if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0, offTopicResponse: null };
 
   try {
     const parsed = typeof response === 'string' ? JSON.parse(response) : response;
+    const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
     return {
       isTicketIntent: !!parsed.isTicketIntent,
       needsMoreInfo: !!parsed.needsMoreInfo,
       category: parsed.category || null,
       missingInfo: Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [],
-      confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7
+      confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7,
+      offTopicResponse
     };
   } catch (e) {
     logger.error('AI: помилка парсингу результату analyzeIntent', e);
-    return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5 };
+    return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5, offTopicResponse: null };
   }
 }
 
@@ -147,9 +150,11 @@ async function getTicketSummary(dialogHistory, userContext) {
  * @param {string} userMessage
  * @param {number} maxTokens
  * @param {boolean} jsonMode - чи очікувати JSON (response_format)
+ * @param {number} [temperature=0.3] - температура (0.4–0.7 для живіших відповідей оффтопу)
  * @returns {Promise<string|null>}
  */
-async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens, jsonMode) {
+async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens, jsonMode, temperature = 0.3) {
+  const temp = typeof temperature === 'number' ? Math.max(0, Math.min(2, temperature)) : 0.3;
   try {
     if (settings.provider === 'groq') {
       const Groq = require('groq-sdk');
@@ -161,7 +166,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
           { role: 'user', content: userMessage }
         ],
         max_tokens: maxTokens || 350,
-        temperature: 0.3
+        temperature: temp
       });
       const content = completion?.choices?.[0]?.message?.content;
       return content ? String(content).trim() : null;
@@ -176,7 +181,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
         { role: 'user', content: userMessage }
       ],
       max_tokens: maxTokens || 350,
-      temperature: 0.3
+      temperature: temp
     };
     if (jsonMode) opts.response_format = { type: 'json_object' };
     const completion = await openai.chat.completions.create(opts);
