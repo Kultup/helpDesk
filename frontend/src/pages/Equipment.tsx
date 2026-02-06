@@ -633,7 +633,8 @@ const Equipment: React.FC = () => {
                   placeholder="Додаткова інформація про обладнання, технічні характеристики, історія ремонтів тощо..."
                 />
               </Grid>
-          </Grid>
+            </Grid>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Скасувати</Button>
