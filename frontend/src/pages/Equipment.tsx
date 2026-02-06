@@ -26,7 +26,7 @@ import {
   Divider,
   Alert
 } from '@mui/material';
-import Grid from '@mui/material/Grid2';
+import Grid from '@mui/material/Unstable_Grid2';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -621,7 +621,9 @@ const Equipment: React.FC = () => {
                       select
                       fullWidth
                       value={formData.status}
-                      onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+                        setFormData({ ...formData, status: e.target.value })
+                      }
                       size="small"
                       variant="outlined"
                       SelectProps={{ displayEmpty: true }}
@@ -652,7 +654,9 @@ const Equipment: React.FC = () => {
                 rows={3}
                 label="Примітки та опис"
                 value={formData.notes}
-                onChange={(e: any) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
                 placeholder="Технічні характеристики, історія ремонтів тощо..."
                 size="small"
               />
