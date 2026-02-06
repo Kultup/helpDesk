@@ -188,12 +188,23 @@ const Equipment: React.FC = () => {
     try {
       // Використовуємо публічний endpoint який не вимагає автентифікації
       const response = await api.get('/institutions/public', { params: { limit: 500 } }) as any;
-      console.log('Institutions API response:', response.data);
-      const list = response.data?.data || [];
-      console.log('Institutions list:', list);
+      console.log('🏢 All Institutions API response:', response);
+      console.log('🏢 response.data:', response.data);
+      
+      // Перевіряємо різні можливі структури відповіді
+      let list = [];
+      if (Array.isArray(response.data)) {
+        list = response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        list = response.data.data;
+      } else if (response.data?.success && Array.isArray(response.data?.institutions)) {
+        list = response.data.institutions;
+      }
+      
+      console.log('🏢 All Institutions list:', list);
       setInstitutions(list);
     } catch (error) {
-      console.error('Помилка завантаження закладів:', error);
+      console.error('❌ Помилка завантаження закладів:', error);
     }
   };
 
@@ -207,8 +218,23 @@ const Equipment: React.FC = () => {
           limit: 500 
         } 
       }) as any;
-      console.log('📦 Institutions API response:', response.data);
-      const list = response.data?.data || [];
+      console.log('📦 Institutions API response:', response);
+      console.log('📦 response.data:', response.data);
+      console.log('📦 response.data.data:', response.data?.data);
+      
+      // Перевіряємо різні можливі структури відповіді
+      let list = [];
+      if (Array.isArray(response.data)) {
+        // Якщо response.data вже масив
+        list = response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        // Якщо data вкладено в об'єкт
+        list = response.data.data;
+      } else if (response.data?.success && Array.isArray(response.data?.institutions)) {
+        // Альтернативна структура
+        list = response.data.institutions;
+      }
+      
       console.log('✅ Filtered institutions list:', list);
       console.log(`📊 Знайдено ${list.length} закладів для міста`);
       setInstitutions(list);
