@@ -24,9 +24,9 @@ import {
   InputLabel,
   Select,
   Divider,
-  Alert,
-  Grid
+  Alert
 } from '@mui/material';
+import Grid from '@mui/material/Unstable_Grid2';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -101,6 +101,7 @@ const Equipment: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
 
   // Діалог створення/редагування
@@ -113,6 +114,7 @@ const Equipment: React.FC = () => {
     model: '',
     serialNumber: '',
     inventoryNumber: '',
+    city: '',
     institution: '',
     status: 'working',
     assignedTo: '',
@@ -122,15 +124,17 @@ const Equipment: React.FC = () => {
     notes: ''
   });
 
-  // Список закладів для форми та фільтра
+  // Список міст та закладів для форми та фільтрів
+  const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
   const [institutions, setInstitutions] = useState<Array<{ _id: string; name: string }>>([]);
   const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>([]);
 
   useEffect(() => {
     loadEquipment();
+    loadCities();
     loadInstitutions();
     loadUsers();
-  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, institutionFilter]);
+  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter, institutionFilter]);
 
   const loadEquipment = async () => {
     try {
@@ -143,6 +147,7 @@ const Equipment: React.FC = () => {
       if (searchQuery) params.search = searchQuery;
       if (typeFilter) params.type = typeFilter;
       if (statusFilter) params.status = statusFilter;
+      if (cityFilter) params.city = cityFilter;
       if (institutionFilter) params.institution = institutionFilter;
 
       const response = await api.get('/equipment', { params }) as any;
@@ -152,6 +157,16 @@ const Equipment: React.FC = () => {
       console.error('Помилка завантаження обладнання:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCities = async () => {
+    try {
+      const response = await api.get('/cities') as any;
+      console.log('Cities API response:', response.data);
+      setCities(response.data || []);
+    } catch (error) {
+      console.error('Помилка завантаження міст:', error);
     }
   };
 
@@ -187,6 +202,7 @@ const Equipment: React.FC = () => {
         model: equipment.model || '',
         serialNumber: equipment.serialNumber || '',
         inventoryNumber: equipment.inventoryNumber || '',
+        city: equipment.city?._id || '',
         institution: equipment.institution?._id || '',
         status: equipment.status || 'working',
         assignedTo: equipment.assignedTo?._id || '',
@@ -204,6 +220,7 @@ const Equipment: React.FC = () => {
         model: '',
         serialNumber: '',
         inventoryNumber: '',
+        city: '',
         institution: '',
         status: 'working',
         assignedTo: '',
@@ -301,7 +318,7 @@ const Equipment: React.FC = () => {
 
         {/* Фільтри */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
+          <Grid xs={12} md={4}>
             <TextField
               fullWidth
               label="Пошук"
@@ -315,7 +332,7 @@ const Equipment: React.FC = () => {
               }}
             />
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid xs={6} md={2}>
             <TextField
               select
               fullWidth
@@ -336,7 +353,7 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid xs={6} md={2}>
             <TextField
               select
               fullWidth
@@ -357,7 +374,28 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid xs={6} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Місто"
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">Всі міста</MenuItem>
+              {cities.map((city) => (
+                <MenuItem key={city._id} value={city._id}>
+                  {city.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid xs={6} md={2}>
             <TextField
               select
               fullWidth
@@ -378,7 +416,7 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid xs={6} md={2}>
             <Button
               fullWidth
               variant="outlined"
@@ -399,6 +437,7 @@ const Equipment: React.FC = () => {
                 <TableCell>Тип</TableCell>
                 <TableCell>Модель</TableCell>
                 <TableCell>Інв. №</TableCell>
+                <TableCell>Місто</TableCell>
                 <TableCell>Заклад</TableCell>
                 <TableCell>Статус</TableCell>
                 <TableCell>Призначено</TableCell>
@@ -414,7 +453,8 @@ const Equipment: React.FC = () => {
                     {item.brand && item.model ? `${item.brand} ${item.model}` : item.brand || item.model || '-'}
                   </TableCell>
                   <TableCell>{item.inventoryNumber || '-'}</TableCell>
-                  <TableCell>{item.institution?.name || item.city?.name || '-'}</TableCell>
+                  <TableCell>{item.city?.name || '-'}</TableCell>
+                  <TableCell>{item.institution?.name || '-'}</TableCell>
                   <TableCell>{getStatusChip(item.status)}</TableCell>
                   <TableCell>
                     {item.assignedTo
@@ -489,7 +529,7 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid xs={12}>
                   <TextField
                     fullWidth
                     required
@@ -500,7 +540,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <TextField
                     select
                     fullWidth
@@ -518,7 +558,7 @@ const Equipment: React.FC = () => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Виробник (Бренд)"
@@ -528,7 +568,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Модель"
@@ -550,7 +590,30 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid xs={12} sm={6}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                      Місто
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      value={formData.city}
+                      onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
+                      size="small"
+                      variant="outlined"
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Оберіть місто</MenuItem>
+                      {cities.map((city) => (
+                        <MenuItem key={city._id} value={city._id}>
+                          {city.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Box>
+                </Grid>
+                <Grid xs={12} sm={6}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
                       Заклад *
@@ -574,7 +637,7 @@ const Equipment: React.FC = () => {
                     </TextField>
                   </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid xs={12}>
                   <TextField
                     fullWidth
                     label="Локація (кабінет, відділ)"
@@ -596,7 +659,7 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <TextField
                     fullWidth
                     label="Серійний номер"
@@ -606,7 +669,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <TextField
                     fullWidth
                     disabled
@@ -617,7 +680,7 @@ const Equipment: React.FC = () => {
                     sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid xs={12} sm={4}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
                       Статус обладнання
