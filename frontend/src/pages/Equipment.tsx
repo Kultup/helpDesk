@@ -157,8 +157,10 @@ const Equipment: React.FC = () => {
 
   const loadInstitutions = async () => {
     try {
-      const response = await api.get('/institutions/simple/list') as any;
-      setInstitutions(response.data?.data || []);
+      // Використовуємо повний список закладів (для авторизованих) — усі активні заклади
+      const response = await api.get('/institutions', { params: { limit: 500 } }) as any;
+      const list = response.data?.data || [];
+      setInstitutions(list.map((inst: { _id: string; name: string }) => ({ _id: inst._id, name: inst.name })));
     } catch (error) {
       console.error('Помилка завантаження закладів:', error);
     }
