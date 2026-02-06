@@ -363,7 +363,7 @@
       "chatId": "Chat ID",
       "chatIdDescription": "ID чату для відправки сповіщень (опціонально)",
       "webhookUrl": "Webhook URL",
-      "webhookUrlDescription": "URL для webhook (налаштовується автоматично при використанні ngrok)",
+      "webhookUrlDescription": "URL для webhook (наприклад https://ваш-домен.com)",
       "enabled": "Увімкнути Telegram бота",
       "webhookSettings": "Налаштування Webhook",
       "currentWebhook": "Поточний Webhook",

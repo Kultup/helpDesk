@@ -333,7 +333,7 @@
       "chatId": "Chat ID",
       "chatIdDescription": "ID czatu do wysyłania powiadomień (opcjonalnie)",
       "webhookUrl": "Webhook URL",
-      "webhookUrlDescription": "URL dla webhook (automatycznie konfigurowany przy użyciu ngrok)",
+      "webhookUrlDescription": "URL dla webhook (np. https://twoja-domena.com)",
       "enabled": "Włącz bota Telegram",
       "webhookSettings": "Ustawienia Webhook",
       "currentWebhook": "Aktualny Webhook",

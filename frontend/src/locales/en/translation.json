@@ -315,7 +315,7 @@
       "chatId": "Chat ID",
       "chatIdDescription": "Chat ID for sending notifications (optional)",
       "webhookUrl": "Webhook URL",
-      "webhookUrlDescription": "URL for webhook (automatically configured when using ngrok)",
+      "webhookUrlDescription": "URL for webhook (e.g. https://your-domain.com)",
       "enabled": "Enable Telegram bot",
       "webhookSettings": "Webhook Settings",
       "currentWebhook": "Current Webhook",

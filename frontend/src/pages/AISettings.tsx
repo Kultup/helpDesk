@@ -135,8 +135,22 @@ const AISettings: React.FC = () => {
 
   if (!settings) {
     return (
-      <div className="p-4 text-red-600">
-        {t('settings.ai.loadError', 'Не вдалося завантажити налаштування AI.')}
+      <div className="space-y-4 p-4">
+        <div className="text-red-600">
+          {t('settings.ai.loadError', 'Не вдалося завантажити налаштування AI.')}
+        </div>
+        {message && (
+          <div className="p-4 rounded-md bg-red-50 text-red-800 border border-red-200 flex items-center space-x-2">
+            <XCircle className="h-5 w-5 flex-shrink-0" />
+            <span>{message.text}</span>
+          </div>
+        )}
+        <p className="text-sm text-gray-600">
+          {t('settings.ai.loadErrorHint', 'Переконайтеся, що ви ввійшли як адміністратор. Якщо помилка повторюється — перезайдіть у систему або зверніться до адміністратора.')}
+        </p>
+        <Button onClick={() => { setMessage(null); loadSettings(); }} variant="outline">
+          {t('common.retry', 'Повторити')}
+        </Button>
       </div>
     );
   }
