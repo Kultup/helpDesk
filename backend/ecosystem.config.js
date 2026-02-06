@@ -23,7 +23,11 @@ module.exports = {
       autorestart: true,
       max_restarts: 10,
       min_uptime: '10s',
-      restart_delay: 4000
+      restart_delay: 4000,
+      // Виконується перед кожним запуском/перезапуском
+      pre_start: './scripts/pre-start.sh',
+      kill_timeout: 5000,
+      listen_timeout: 10000
     },
     {
       name: 'helpdesk-frontend',
