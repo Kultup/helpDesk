@@ -1,8 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot } from 'lucide-react';
-import Card, { CardContent, CardHeader } from '../components/UI/Card';
-import { Link } from 'react-router-dom';
+import AISettings from './AISettings';
 
 const BotSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -18,36 +17,7 @@ const BotSettings: React.FC = () => {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold flex items-center space-x-2">
-            <Bot className="h-5 w-5 text-gray-600" />
-            <span>{t('settings.bot.title', 'Налаштування бота')}</span>
-          </h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-gray-600">
-            {t('settings.bot.aiDisabled', 'AI інтеграція вимкнена. Для налаштування Telegram перейдіть у розділ Налаштування Telegram.')}
-          </p>
-          <p className="text-sm text-gray-500">
-            {t('settings.bot.aiOnlyAdmin', 'Налаштування AI (увімкнути першу лінію) доступні тільки для адміністраторів. Якщо в лівому меню немає пункту «Налаштування AI (Groq/OpenAI)» — перейдіть за посиланням нижче або відкрийте в браузері: /admin/settings/ai')}
-          </p>
-          <div className="flex flex-col gap-2 pt-2">
-            <Link
-              to="/admin/settings/ai"
-              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-base"
-            >
-              {t('sidebar.aiSettings', 'Налаштування AI')} (Groq/OpenAI, перша лінія) — увімкнути AI →
-            </Link>
-            <Link
-              to="/admin/settings/telegram"
-              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {t('sidebar.telegramSettings', 'Налаштування Telegram')} →
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      <AISettings embedded />
     </div>
   );
 };

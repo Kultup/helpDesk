@@ -32,7 +32,12 @@ const OPENAI_MODELS = [
   'gpt-3.5-turbo'
 ];
 
-const AISettings: React.FC = () => {
+interface AISettingsProps {
+  /** При true не показувати власний заголовок (для вбудовування в інші сторінки) */
+  embedded?: boolean;
+}
+
+const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<AISettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -157,14 +162,16 @@ const AISettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Sparkles className="h-8 w-8 text-violet-600" />
-          <h1 className="text-2xl font-bold text-gray-900">
-            {t('settings.ai.title', 'Налаштування AI')}
-          </h1>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Sparkles className="h-8 w-8 text-violet-600" />
+            <h1 className="text-2xl font-bold text-gray-900">
+              {t('settings.ai.title', 'Налаштування AI')}
+            </h1>
+          </div>
         </div>
-      </div>
+      )}
 
       {message && (
         <div
