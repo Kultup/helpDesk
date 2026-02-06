@@ -15,7 +15,6 @@ import {
   Button,
   IconButton,
   Chip,
-  Grid,
   Box,
   Dialog,
   DialogTitle,
@@ -27,6 +26,7 @@ import {
   Divider,
   Alert
 } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -296,7 +296,7 @@ const Equipment: React.FC = () => {
 
         {/* Фільтри */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               label="Пошук"
@@ -310,7 +310,7 @@ const Equipment: React.FC = () => {
               }}
             />
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <TextField
               select
               fullWidth
@@ -331,7 +331,7 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <TextField
               select
               fullWidth
@@ -352,7 +352,7 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <TextField
               select
               fullWidth
@@ -373,7 +373,7 @@ const Equipment: React.FC = () => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} md={2}>
+          <Grid size={{ xs: 6, md: 2 }}>
             <Button
               fullWidth
               variant="outlined"
@@ -484,7 +484,7 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <TextField
                     fullWidth
                     required
@@ -495,7 +495,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
                     select
                     fullWidth
@@ -513,7 +513,7 @@ const Equipment: React.FC = () => {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
                     fullWidth
                     label="Виробник (Бренд)"
@@ -523,7 +523,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField
                     fullWidth
                     label="Модель"
@@ -545,7 +545,7 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
                       Заклад *
@@ -569,7 +569,7 @@ const Equipment: React.FC = () => {
                     </TextField>
                   </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Локація (кабінет, відділ)"
@@ -591,7 +591,7 @@ const Equipment: React.FC = () => {
                 </Typography>
               </Box>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Серійний номер"
@@ -601,7 +601,7 @@ const Equipment: React.FC = () => {
                     size="small"
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     disabled
@@ -612,7 +612,7 @@ const Equipment: React.FC = () => {
                     sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <Box>
                     <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
                       Статус обладнання
