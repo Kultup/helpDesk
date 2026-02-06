@@ -118,7 +118,7 @@
     "activeDirectory": "Active Directory",
     "telegramSettings": "Налаштування Telegram",
     "botSettings": "Налаштування бота",
-    "aiSettings": "Налаштування AI",
+    "aiSettings": "Налаштування AI (Groq/OpenAI)",
     "aiPrompts": "AI Промпти",
     "aiDialogHistory": "Історія AI",
     "activeDirectorySettings": "Налаштування Active Directory",

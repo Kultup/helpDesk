@@ -30,20 +30,20 @@ const BotSettings: React.FC = () => {
             {t('settings.bot.aiDisabled', 'AI інтеграція вимкнена. Для налаштування Telegram перейдіть у розділ Налаштування Telegram.')}
           </p>
           <p className="text-sm text-gray-500">
-            {t('settings.bot.aiOnlyAdmin', 'Налаштування AI (увімкнути першу лінію) доступні тільки для адміністраторів. Якщо ви не бачите пункт «Налаштування AI» у бічному меню — увійдіть під обліковим записом з роллю адміністратора або оновіть додаток до останньої версії.')}
+            {t('settings.bot.aiOnlyAdmin', 'Налаштування AI (увімкнути першу лінію) доступні тільки для адміністраторів. Якщо в лівому меню немає пункту «Налаштування AI (Groq/OpenAI)» — перейдіть за посиланням нижче або відкрийте в браузері: /admin/settings/ai')}
           </p>
           <div className="flex flex-col gap-2 pt-2">
+            <Link
+              to="/admin/settings/ai"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-base"
+            >
+              {t('sidebar.aiSettings', 'Налаштування AI')} (Groq/OpenAI, перша лінія) — увімкнути AI →
+            </Link>
             <Link
               to="/admin/settings/telegram"
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
             >
               {t('sidebar.telegramSettings', 'Налаштування Telegram')} →
-            </Link>
-            <Link
-              to="/admin/settings/ai"
-              className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-            >
-              {t('sidebar.aiSettings', 'Налаштування AI')} (Groq/OpenAI, перша лінія) →
             </Link>
           </div>
         </CardContent>
