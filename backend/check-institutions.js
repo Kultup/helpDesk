@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-require('dotenv').config({ path: './backend/.env' });
+require('dotenv').config();
 
 const checkInstitutions = async () => {
   try {
