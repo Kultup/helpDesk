@@ -493,9 +493,9 @@ router.post('/articles/generate-from-ticket/:ticketId', auth, adminAuth, async (
  */
 router.post('/generate-faq', auth, adminAuth, async (req, res) => {
   try {
-    const groqService = require('../services/groqService');
+    const aiService = require('../services/aiService');
     
-    if (!groqService.isEnabled()) {
+    if (!aiService.isEnabled()) {
       return res.status(503).json({
         success: false,
         message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
@@ -542,7 +542,7 @@ router.post('/generate-faq', auth, adminAuth, async (req, res) => {
     }
 
     // Генеруємо FAQ
-    const faqResult = await groqService.generateFAQ(tickets, {
+    const faqResult = await aiService.generateFAQ(tickets, {
       minFrequency: parseInt(minFrequency),
       maxItems: parseInt(maxItems)
     });

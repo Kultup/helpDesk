@@ -1313,14 +1313,14 @@ router.post('/:id/analyze',
   param('id').isMongoId().withMessage('Невірний ID тікету'),
   async (req, res) => {
     try {
-      const groqService = require('../services/groqService');
+      const aiService = require('../services/aiService');
       
       // Ініціалізуємо сервіс, якщо він ще не ініціалізований
-      if (!groqService.client) {
-        await groqService.initialize();
+      if (!aiService.isEnabled()) {
+        await aiService.initialize();
       }
       
-      if (!groqService.isEnabled()) {
+      if (!aiService.isEnabled()) {
         return res.status(503).json({
           success: false,
           message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
@@ -1374,7 +1374,7 @@ router.post('/:id/analyze',
       };
 
       // Викликаємо AI аналіз
-      const analysis = await groqService.analyzeTicket(ticketWithHistory, {
+      const analysis = await aiService.analyzeTicket(ticketWithHistory, {
         user: req.user,
         timestamp: new Date()
       });

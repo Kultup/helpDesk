@@ -1,7 +1,7 @@
 const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 const BotSettings = require('../models/BotSettings');
-const GroqApiUsage = require('../models/GroqApiUsage');
+const AIApiUsage = require('../models/AIApiUsage');
 const slaLearningService = require('./slaLearningService');
 const fs = require('fs');
 
@@ -1911,7 +1911,7 @@ ${ticketsContext || 'Немає заявок з коментарями'}
    */
   async trackApiUsage(model, response = null, extraData = {}) {
     try {
-      const usage = await GroqApiUsage.getTodayUsage();
+      const usage = await AIApiUsage.getTodayUsage('groq');
       
       // Оновлюємо статистику використання
       const tokensUsed = response?.usage?.total_tokens || extraData.tokensUsed || 0;
@@ -2023,7 +2023,8 @@ ${ticketsContext || 'Немає заявок з коментарями'}
       startDate.setDate(startDate.getDate() - days);
       startDate.setHours(0, 0, 0, 0);
       
-      const stats = await GroqApiUsage.find({
+      const stats = await AIApiUsage.find({
+        provider: 'groq',
         date: { $gte: startDate }
       }).sort({ date: -1 });
       

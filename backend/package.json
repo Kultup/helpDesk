@@ -52,6 +52,7 @@
     "firebase-admin": "^13.6.0",
     "groq-sdk": "^0.37.0",
     "helmet": "^7.0.0",
+    "openai": "^4.72.0",
     "imap": "^0.8.19",
     "ioredis": "^5.8.2",
     "joi": "^17.9.2",

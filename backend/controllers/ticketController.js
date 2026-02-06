@@ -385,10 +385,10 @@ exports.createTicket = async (req, res) => {
 
     // AI аналіз тікета для встановлення SLA
     try {
-      const groqService = require('../services/groqService');
+      const aiService = require('../services/aiService');
       logger.info('🤖 Викликаю AI аналіз для встановлення SLA...');
       
-      const analysis = await groqService.analyzeTicket(ticket);
+      const analysis = await aiService.analyzeTicket(ticket);
       
       if (analysis && analysis.slaRecommendation && analysis.slaRecommendation.hours) {
         ticket.sla = {

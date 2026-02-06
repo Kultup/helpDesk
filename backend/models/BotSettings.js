@@ -7,8 +7,24 @@ const botSettingsSchema = new mongoose.Schema({
   priorityTexts: { type: Map, of: String, default: {} },
   statusTexts: { type: Map, of: String, default: {} },
   statusEmojis: { type: Map, of: String, default: {} },
+  
+  // Вибір AI провайдера
+  aiProvider: { 
+    type: String, 
+    enum: ['groq', 'openai'], 
+    default: 'groq',
+    trim: true 
+  },
+  
+  // Groq налаштування
   groqApiKey: { type: String, trim: true },
   groqModel: { type: String, trim: true, default: 'llama-3.3-70b-versatile' },
+  
+  // OpenAI налаштування
+  openaiApiKey: { type: String, trim: true },
+  openaiModel: { type: String, trim: true, default: 'gpt-4o-mini' },
+  
+  // Загальні налаштування AI
   aiEnabled: { type: Boolean, default: false },
   aiSystemPrompt: { type: String, trim: true, default: 'Ви - корисний AI асистент служби підтримки HelpDesk. Ваше завдання - допомагати користувачам вирішувати технічні питання. Якщо ви бачите, що користувач описує проблему, яку потрібно зафіксувати як офіційну заявку (тікет), активно пропонуйте її створити. Ви можете сказати щось на кшталт: "Я можу створити для вас офіційний тікет, щоб технічні спеціалісти зайнялися цим". Також повідомляйте користувачу, що він може створити тікет просто написавши "Створи тікет: [назва проблеми]". Відповідайте ввічливо, коротко та зрозуміло українською мовою. Використовуйте Markdown для форматування.' },
   

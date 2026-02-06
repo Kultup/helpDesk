@@ -18,9 +18,9 @@ router.post('/generate-report',
   requirePermission('view_analytics'),
   async (req, res) => {
     try {
-      const groqService = require('../services/groqService');
+      const aiService = require('../services/aiService');
       
-      if (!groqService.isEnabled()) {
+      if (!aiService.isEnabled()) {
         return res.status(503).json({
           success: false,
           message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
@@ -271,7 +271,7 @@ router.post('/generate-report',
       }
 
       // Генеруємо текстовий звіт
-      const report = await groqService.generateReport(tickets, analyticsData, {
+      const report = await aiService.generateReport(tickets, analyticsData, {
         startDate,
         endDate,
         reportType,
@@ -307,9 +307,9 @@ router.post('/analyze',
   requirePermission('view_analytics'),
   async (req, res) => {
     try {
-      const groqService = require('../services/groqService');
+      const aiService = require('../services/aiService');
       
-      if (!groqService.isEnabled()) {
+      if (!aiService.isEnabled()) {
         return res.status(503).json({
           success: false,
           message: 'AI асистент вимкнено. Увімкніть AI в налаштуваннях бота.'
@@ -433,7 +433,7 @@ router.post('/analyze',
       };
 
       // Викликаємо AI аналіз з реальними тікетами
-      const analysis = await groqService.analyzeAnalytics(tickets, analyticsData, {
+      const analysis = await aiService.analyzeAnalytics(tickets, analyticsData, {
         startDate,
         endDate,
         user: req.user,

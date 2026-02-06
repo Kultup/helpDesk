@@ -18,6 +18,7 @@ const TelegramConfig = require('../models/TelegramConfig');
 const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
 const groqService = require('./groqService');
+const aiService = require('./aiService');
 const fcmService = require('./fcmService');
 
 class TelegramService {
@@ -127,7 +128,7 @@ class TelegramService {
 
       try {
         await this.loadBotSettings();
-        await groqService.initialize();
+        await aiService.initialize();
       } catch (catErr) {
         logger.warn('⚠️ Не вдалося оновити налаштування після ініціалізації:', catErr);
       }
@@ -424,7 +425,7 @@ class TelegramService {
           }
 
           // Якщо немає активної сесії та активного тікету, спробуємо отримати AI відповідь
-          if (groqService.isEnabled()) {
+          if (aiService.isEnabled()) {
             await this.handleAIChat(msg, existingUser);
             return;
           }
@@ -2231,7 +2232,7 @@ class TelegramService {
           const fullConversation = `${session.ticketDraft.initialMessage}\n\nДодаткова інформація:\n${session.ticketDraft.collectedInfo.join('\n')}`;
           
           // Повторно аналізуємо чи достатньо інформації
-          const reanalysis = await groqService.analyzeIntent(fullConversation);
+          const reanalysis = await aiService.analyzeIntent(fullConversation);
           
           // Перевіряємо чи достатньо інформації для створення тікета
           if (reanalysis.description && !reanalysis.needsMoreInfo) {
@@ -2320,7 +2321,7 @@ class TelegramService {
               await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
               
               // Генеруємо ОДНЕ природне питання на основі діалогу
-              const nextQuestion = await groqService.generateNextQuestion(
+              const nextQuestion = await aiService.generateNextQuestion(
                 session.ticketDraft.title,
                 reanalysis.missingInfo || ['додаткові деталі'],
                 session.ticketDraft.subcategory,
@@ -3161,11 +3162,15 @@ class TelegramService {
       }
 
       // Отримуємо статистику використання API
-      const GroqApiUsage = require('../models/GroqApiUsage');
-      const usage = await GroqApiUsage.getTodayUsage();
+      const AIApiUsage = require('../models/AIApiUsage');
+      const BotSettings = require('../models/BotSettings');
+      const settings = await BotSettings.findOne({ key: 'default' });
+      const provider = settings?.aiProvider || 'groq';
+      const usage = await AIApiUsage.getTodayUsage(provider);
 
       // Формуємо повідомлення
-      let message = `🔧 *Статистика Groq API*\n\n`;
+      const providerName = provider === 'openai' ? 'OpenAI' : 'Groq';
+      let message = `🔧 *Статистика ${providerName} API*\n\n`;
       message += `📅 *Дата:* ${new Date().toLocaleDateString('uk-UA')}\n\n`;
 
       // Інформація про ліміти
@@ -5358,7 +5363,7 @@ class TelegramService {
       const savedPath = await this.downloadTelegramFile(filePath);
       
       // Транскрибуємо через Groq Whisper
-      const text = await groqService.transcribeAudio(savedPath);
+      const text = await aiService.transcribeAudio(savedPath);
       
       if (!text || text.trim().length === 0) {
         await this.sendMessage(chatId, 'Не вдалося розпізнати текст у голосовому повідомленні.');
@@ -5417,7 +5422,7 @@ class TelegramService {
       await this.bot.sendChatAction(chatId, 'typing');
 
       // Використовуємо AI для аналізу наміру (це точніше за ключові слова)
-      const intentAnalysis = await groqService.analyzeIntent(userMessage);
+      const intentAnalysis = await aiService.analyzeIntent(userMessage);
       
       const createTicketKeywords = [
         'створи тікет', 'створити тікет', 'nova заявка', 'створи тикет', 'создай тикет'
@@ -5491,7 +5496,7 @@ class TelegramService {
           await new Promise(resolve => setTimeout(resolve, 800));
           
           // Генеруємо ПЕРШЕ природне питання через AI
-          const firstQuestion = await groqService.generateNextQuestion(
+          const firstQuestion = await aiService.generateNextQuestion(
             intentAnalysis.title || 'проблема',
             intentAnalysis.missingInfo || ['детальний опис проблеми'],
             intentAnalysis.category,
@@ -5612,7 +5617,7 @@ class TelegramService {
         .limit(5);
 
       // Отримуємо відповідь від AI
-      const aiResponse = await groqService.getAIResponse(userMessage, history, { tickets: recentTickets });
+      const aiResponse = await aiService.getAIResponse(userMessage, history, { tickets: recentTickets });
 
       if (!aiResponse) {
         // Якщо AI не зміг відповісти, показуємо головне меню

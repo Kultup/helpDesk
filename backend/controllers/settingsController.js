@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const telegramService = require('../services/telegramServiceInstance');
 const activeDirectoryService = require('../services/activeDirectoryService');
 const groqService = require('../services/groqService');
+const aiService = require('../services/aiService');
 const axios = require('axios');
 
 /**
@@ -654,12 +655,12 @@ exports.updateBotSettings = async (req, res) => {
 
     await settings.save();
 
-    // Перезавантажуємо Groq сервіс
+    // Перезавантажуємо AI сервіс
     try {
-      await groqService.reloadSettings();
-      logger.info('✅ Groq AI сервіс перезавантажено після оновлення налаштувань');
+      await aiService.reloadSettings();
+      logger.info('✅ AI сервіс перезавантажено після оновлення налаштувань');
     } catch (reloadError) {
-      logger.error('Помилка перезавантаження Groq сервісу:', reloadError);
+      logger.error('Помилка перезавантаження AI сервісу:', reloadError);
     }
 
     // Не повертаємо API ключ
