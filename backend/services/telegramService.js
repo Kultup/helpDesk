@@ -31,12 +31,120 @@ class TelegramService {
     this.conversationHistory = new Map(); // Зберігаємо історію розмов для AI (chatId -> messages[])
     this.navigationHistory = new Map(); // Історія навігації для кожного користувача (chatId -> ['screen1', 'screen2', ...])
     this._initializing = false; // Флаг для перевірки процесу ініціалізації
-    this.offTopicCounts = new Map(); // Ліміт оффтоп-повідомлень: key = telegramId (string), value = { date: 'YYYY-MM-DD', count: number }
+    this.internetRequestCounts = new Map(); // Ліміт запитів інформації з інтернету: key = telegramId, value = { date: 'YYYY-MM-DD', count: number }
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
-  static get OFF_TOPIC_LIMIT_PER_DAY() { return 5; }
-  static get OFF_TOPIC_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
+  static get INTERNET_REQUESTS_LIMIT_PER_DAY() { return 5; }
+  static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
+
+  canMakeInternetRequest(telegramId) {
+    const id = String(telegramId);
+    if (id === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) return true;
+    const today = new Date().toISOString().slice(0, 10);
+    const rec = this.internetRequestCounts.get(id);
+    if (!rec || rec.date !== today) return true;
+    return rec.count < TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY;
+  }
+
+  recordInternetRequest(telegramId) {
+    const id = String(telegramId);
+    const today = new Date().toISOString().slice(0, 10);
+    let rec = this.internetRequestCounts.get(id);
+    if (!rec || rec.date !== today) rec = { date: today, count: 0 };
+    rec.count += 1;
+    this.internetRequestCounts.set(id, rec);
+  }
+
+  /** Запит курсу USD з НБУ. Повертає { rate, date } або null. */
+  fetchNbuUsdRate() {
+    return new Promise((resolve) => {
+      const url = 'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json';
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const arr = JSON.parse(data);
+            const item = Array.isArray(arr) && arr[0];
+            if (item && typeof item.rate === 'number') resolve({ rate: item.rate, date: item.exchangedate || '' });
+            else resolve(null);
+          } catch (e) {
+            logger.error('NBU rate parse error', e);
+            resolve(null);
+          }
+        });
+      }).on('error', (err) => {
+        logger.error('NBU rate request error', err);
+        resolve(null);
+      });
+    });
+  }
+
+  /** Міста для геокодування (Open-Meteo приймає латиницю). */
+  static get CITY_NAME_FOR_WEATHER() {
+    return { 'київ': 'Kyiv', 'львів': 'Lviv', 'одеса': 'Odesa', 'харків': 'Kharkiv', 'дніпро': 'Dnipro', 'запоріжжя': 'Zaporizhzhia', 'вінниця': 'Vinnytsia', 'полтава': 'Poltava', 'чернігів': 'Chernihiv', 'івано-франківськ': 'Ivano-Frankivsk', 'тернопіль': 'Ternopil', 'ужгород': 'Uzhhorod', 'луцьк': 'Lutsk', 'рівне': 'Rivne', 'черкаси': 'Cherkasy', 'кропивницький': 'Kropyvnytskyi', 'миколаїв': 'Mykolaiv', 'херсон': 'Kherson', 'маріуполь': 'Mariupol' };
+  }
+
+  /** Погода за містом: геокод (Open-Meteo) + поточний прогноз. Місто з профілю (userCity). Повертає { temp, description, city } або null. */
+  fetchWeatherForCity(cityName) {
+    if (!cityName || String(cityName).trim() === '' || String(cityName).toLowerCase() === 'не вказано') return Promise.resolve(null);
+    const name = String(cityName).trim();
+    const nameLower = name.toLowerCase();
+    const cityForApi = TelegramService.CITY_NAME_FOR_WEATHER[nameLower] || name;
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityForApi)}&count=1&language=uk`;
+    return new Promise((resolve) => {
+      https.get(geoUrl, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const results = json.results;
+            const first = Array.isArray(results) && results[0];
+            if (!first || typeof first.latitude !== 'number' || typeof first.longitude !== 'number') {
+              resolve(null);
+              return;
+            }
+            const lat = first.latitude;
+            const lon = first.longitude;
+            const placeName = first.name || name;
+            const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code`;
+            https.get(forecastUrl, (res2) => {
+              let data2 = '';
+              res2.on('data', (chunk) => { data2 += chunk; });
+              res2.on('end', () => {
+                try {
+                  const f = JSON.parse(data2);
+                  const cur = f.current;
+                  if (!cur || typeof cur.temperature_2m !== 'number') {
+                    resolve(null);
+                    return;
+                  }
+                  const code = cur.weather_code;
+                  const descMap = { 0: 'Ясно', 1: 'Переважно ясно', 2: 'Змінна хмарність', 3: 'Хмарно', 45: 'Туман', 48: 'Іній', 51: 'Морось', 53: 'Морось', 55: 'Морось', 61: 'Дощ', 63: 'Дощ', 65: 'Сильний дощ', 71: 'Сніг', 73: 'Сніг', 75: 'Сніг', 77: 'Сніг', 80: 'Злива', 81: 'Злива', 82: 'Злива', 85: 'Снігопад', 86: 'Снігопад', 95: 'Гроза', 96: 'Гроза з градом', 99: 'Гроза з градом' };
+                  const description = descMap[code] || 'Опади';
+                  resolve({ temp: cur.temperature_2m, description, city: placeName });
+                } catch (e2) {
+                  logger.error('Open-Meteo forecast parse error', e2);
+                  resolve(null);
+                }
+              });
+            }).on('error', (err2) => {
+              logger.error('Open-Meteo forecast request error', err2);
+              resolve(null);
+            });
+          } catch (e) {
+            logger.error('Open-Meteo geocoding parse error', e);
+            resolve(null);
+          }
+        });
+      }).on('error', (err) => {
+        logger.error('Open-Meteo geocoding request error', err);
+        resolve(null);
+      });
+    });
+  }
 
   async initialize() {
     // Перевіряємо, чи бот вже ініціалізований
@@ -1941,23 +2049,90 @@ class TelegramService {
 
     if (!result.isTicketIntent) {
       const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
-      const exempt = telegramId === TelegramService.OFF_TOPIC_EXEMPT_TELEGRAM_ID;
-      if (!exempt) {
-        const today = new Date().toISOString().slice(0, 10);
-        let rec = this.offTopicCounts.get(telegramId);
-        if (!rec || rec.date !== today) rec = { date: today, count: 0 };
-        rec.count += 1;
-        this.offTopicCounts.set(telegramId, rec);
-        if (rec.count > TelegramService.OFF_TOPIC_LIMIT_PER_DAY) {
+      const textLower = (text || '').toLowerCase().trim();
+      const isExchangeRateRequest = textLower.includes('курс') || textLower.includes('долар') || textLower.includes('євро') || textLower.includes('валюта') || textLower.includes('usd');
+      const isWeatherRequest = textLower.includes('погода');
+      const userCity = session.userContext && session.userContext.userCity ? String(session.userContext.userCity).trim() : '';
+
+      if (isExchangeRateRequest) {
+        if (!this.canMakeInternetRequest(telegramId)) {
           await this.sendMessage(chatId,
-            `Сьогодні ви вже надсилали багато повідомлень не по темі тікетів. Ліміт — ${TelegramService.OFF_TOPIC_LIMIT_PER_DAY} на день.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+            `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
               reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
             }
           );
           this.userSessions.delete(chatId);
           return;
         }
+        const nbu = await this.fetchNbuUsdRate();
+        if (nbu) {
+          this.recordInternetRequest(telegramId);
+          const rateText = nbu.date ? `Курс USD за ${nbu.date}` : 'Курс USD (НБУ)';
+          await this.sendMessage(chatId,
+            `💵 *${rateText}:* ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`, {
+              parse_mode: 'Markdown',
+              reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            }
+          );
+        } else {
+          const msg = result.offTopicResponse && String(result.offTopicResponse).trim() ? String(result.offTopicResponse).trim().slice(0, 500) : 'Зараз не вдалося отримати курс. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.';
+          await this.sendMessage(chatId, msg, {
+            reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+          });
+        }
+        this.userSessions.delete(chatId);
+        return;
       }
+
+      if (isWeatherRequest) {
+        if (!userCity || userCity.toLowerCase() === 'не вказано') {
+          await this.sendMessage(chatId,
+            'Не знаю ваше місто. Вкажіть місто в профілі — тоді зможу показати погоду для вас.\n\nЯкщо є технічна проблема — опишіть її, допоможу з тікетом.', {
+              reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            }
+          );
+          this.userSessions.delete(chatId);
+          return;
+        }
+        if (!this.canMakeInternetRequest(telegramId)) {
+          await this.sendMessage(chatId,
+            `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+              reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            }
+          );
+          this.userSessions.delete(chatId);
+          return;
+        }
+        const weather = await this.fetchWeatherForCity(userCity);
+        if (weather) {
+          this.recordInternetRequest(telegramId);
+          await this.sendMessage(chatId,
+            `🌤 *Погода в ${weather.city}:* ${weather.description}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`, {
+              parse_mode: 'Markdown',
+              reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            }
+          );
+        } else {
+          const msg = result.offTopicResponse && String(result.offTopicResponse).trim() ? String(result.offTopicResponse).trim().slice(0, 500) : `Зараз не вдалося отримати погоду для ${userCity}. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.`;
+          await this.sendMessage(chatId, msg, {
+            reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+          });
+        }
+        this.userSessions.delete(chatId);
+        return;
+      }
+
+      // Рандомні (будь-які інші оффтоп) питання теж рахуються як запити з інтернету — ліміт 5/день
+      if (!this.canMakeInternetRequest(telegramId)) {
+        await this.sendMessage(chatId,
+          `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+            reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+          }
+        );
+        this.userSessions.delete(chatId);
+        return;
+      }
+      this.recordInternetRequest(telegramId);
       const msg =
         result.offTopicResponse && String(result.offTopicResponse).trim()
           ? String(result.offTopicResponse).trim().slice(0, 500)

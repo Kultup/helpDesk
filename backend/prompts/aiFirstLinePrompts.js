@@ -53,6 +53,12 @@ Few-shot приклади (оффтоп-ситуації):
 Повідомлення: "Погана погода сьогодні"
 → {"isTicketIntent":false, "needsMoreInfo":false, "category":null, "missingInfo":[], "confidence":0.9, "offTopicResponse":"Так буває. Якщо є технічна проблема в закладі — напиши, допоможу з тікетом."}
 
+Повідомлення: "Яка зараз погода?"
+→ {"isTicketIntent":false, "needsMoreInfo":false, "category":null, "missingInfo":[], "confidence":0.95, "offTopicResponse":"Погода може бути примхливою! Якщо виникли технічні проблеми в закладі — пиши, допоможу з тікетом."}
+
+Повідомлення: "Курс долара"
+→ {"isTicketIntent":false, "needsMoreInfo":false, "category":null, "missingInfo":[], "confidence":0.95, "offTopicResponse":"Я не стежу за курсами валют, вибач. Але якщо принтер чи iiko глючить — розкажи, і я швидко створю тікет!"}
+
 Повідомлення: [мат або грубість]
 → {"isTicketIntent":false, "needsMoreInfo":false, "category":null, "missingInfo":[], "confidence":0.95, "offTopicResponse":"Давай без цього. Якщо щось не працює — опиши проблему, і я допоможу."}
 
