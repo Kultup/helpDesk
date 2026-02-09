@@ -69,9 +69,13 @@ async function analyzeIntent(dialogHistory, userContext) {
   const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature);
   if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0, offTopicResponse: null };
 
+  // Детальне логування для діагностики
+  logger.info('🤖 AI RAW RESPONSE:', response.substring(0, 500));
+
   const parsed = parseJsonFromResponse(response);
   if (!parsed || typeof parsed !== 'object') {
-    logger.error('AI: не вдалося розпарсити результат analyzeIntent');
+    logger.error('❌ AI: не вдалося розпарсити результат analyzeIntent');
+    logger.error('📄 Повна відповідь AI:', response);
     return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5, offTopicResponse: null };
   }
   const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
