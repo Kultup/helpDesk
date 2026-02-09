@@ -1,9 +1,9 @@
 // Обробка deprecation warnings від залежностей
 // Приховуємо попередження про util._extend від залежностей (yamljs, imap, тощо)
 const originalEmitWarning = process.emitWarning;
-process.emitWarning = function(warning, type, code, ctor) {
-  if (type === 'DeprecationWarning' && 
-      (warning && warning.includes && warning.includes('util._extend'))) {
+process.emitWarning = function (warning, type, code, ctor) {
+  if (type === 'DeprecationWarning' &&
+    (warning && warning.includes && warning.includes('util._extend'))) {
     return; // Ігноруємо це попередження
   }
   if (typeof warning === 'string' && warning.includes('util._extend')) {
@@ -15,8 +15,8 @@ process.emitWarning = function(warning, type, code, ctor) {
 // Також обробляємо через process.on('warning')
 process.on('warning', (warning) => {
   // Ігноруємо попередження про util._extend від залежностей
-  if (warning.name === 'DeprecationWarning' && 
-      (warning.message && warning.message.includes('util._extend'))) {
+  if (warning.name === 'DeprecationWarning' &&
+    (warning.message && warning.message.includes('util._extend'))) {
     return; // Не показуємо це попередження
   }
   // Показуємо інші попередження
@@ -92,23 +92,23 @@ const allowedSocketOrigins = [
 
 const isSocketOriginAllowed = (origin) => {
   if (!origin) return true;
-  
+
   // Дозволяємо localhost
-  const isLocalhost = origin.startsWith('http://localhost:') || 
-                     origin.startsWith('http://127.0.0.1:') ||
-                     origin.includes('localhost');
+  const isLocalhost = origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    origin.includes('localhost');
   if (isLocalhost) return true;
-  
+
   // Точна відповідність
   if (allowedSocketOrigins.includes(origin)) return true;
-  
+
   // Перевірка на піддомени
   for (const allowedOrigin of allowedSocketOrigins) {
     try {
       const allowedUrl = new URL(allowedOrigin);
       const originUrl = new URL(origin);
-      if (originUrl.hostname === allowedUrl.hostname || 
-          originUrl.hostname.endsWith('.' + allowedUrl.hostname)) {
+      if (originUrl.hostname === allowedUrl.hostname ||
+        originUrl.hostname.endsWith('.' + allowedUrl.hostname)) {
         return true;
       }
     } catch (e) {
@@ -117,7 +117,7 @@ const isSocketOriginAllowed = (origin) => {
       }
     }
   }
-  
+
   return false;
 };
 
@@ -187,195 +187,194 @@ mongoose.connection.on('connected', () => {
 });
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', mongoOptions)
-.then(async () => {
-  logger.info('✅ Підключено до MongoDB');
-  logger.info(`MongoDB URI: ${process.env.MONGODB_URI ? 'встановлено' : 'використовується за замовчуванням'}`);
-  // Ініціалізуємо всі моделі
-  require('./models');
-  console.log('✅ Моделі ініціалізовано');
-  
-  // Ініціалізуємо Redis кеш
-  const cacheService = require('./services/cacheService');
-  await cacheService.initialize();
-  
-  // Ініціалізуємо Telegram бота
-  const telegramService = require('./services/telegramServiceInstance');
-  telegramService.initialize();
-  console.log('✅ Telegram бот ініціалізовано');
-  
-  // Ініціалізуємо автоматичне очищення застарілих реєстрацій
-  const { setupCleanupJob } = require('./jobs/cleanupJob');
-  setupCleanupJob();
-  logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
-  
-  
-  
-  // Ініціалізуємо Zabbix polling
-  const { setupZabbixPolling } = require('./jobs/zabbixPolling');
-  setupZabbixPolling();
-  logger.info('✅ Zabbix polling налаштовано');
-  
-  // Ініціалізуємо оновлення SLA статусів
-  const { updateSLAStatus } = require('./jobs/updateSLAStatus');
-  // Запускаємо оновлення SLA кожні 15 хвилин
-  setInterval(async () => {
-    try {
-      await updateSLAStatus();
-    } catch (error) {
-      logger.error('Помилка виконання SLA update job:', error);
-    }
-  }, 15 * 60 * 1000); // 15 хвилин
-  logger.info('✅ SLA status update job налаштовано (кожні 15 хвилин)');
-  
-  // Ініціалізуємо WebSocket сервіс для реєстрації
-  const registrationWebSocketService = require('./services/registrationWebSocketService');
-  registrationWebSocketService.initialize(io);
-  logger.info('✅ WebSocket сервіс для реєстрації ініціалізовано');
-  
-  // Ініціалізуємо WebSocket сервіс для логів
-  const logWebSocketService = require('./services/logWebSocketService');
-  logWebSocketService.initialize(io);
-  logger.info('✅ WebSocket сервіс для логів ініціалізовано');
-  
-  // Ініціалізуємо WebSocket сервіс для тікетів
-  const ticketWebSocketService = require('./services/ticketWebSocketService');
-  ticketWebSocketService.initialize(io);
-  logger.info('✅ WebSocket сервіс для тікетів ініціалізовано');
-  
-  // Ініціалізуємо WebSocket сервіс для міст
-  const cityWebSocketService = require('./services/cityWebSocketService');
-  cityWebSocketService.initialize(io);
-  logger.info('✅ WebSocket сервіс для міст ініціалізовано');
-  
-  // Ініціалізуємо WebSocket сервіс для сповіщень про помилки
-  const errorNotificationService = require('./services/errorNotificationService');
-  errorNotificationService.initialize(io);
-  logger.info('✅ Error Notification Service ініціалізовано');
-  
-  // Запускаємо сервер тільки після успішного підключення до MongoDB
-  const PORT = process.env.PORT || 5000;
-  
-  server.listen(PORT, async () => {
-    logger.info(`🚀 Сервер запущено на порту ${PORT}`);
-    logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
-    const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
-    logger.info(`🌐 API базова адреса: ${apiBase}`);
-    logger.info(
-      `🔌 Дозволені CORS origins для WebSocket: ${
-        allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
-      }`
-    );
-    
-    // Логуємо старт сервера у щоденний audit лог
-    try {
-      const { auditLogger } = require('./middleware/logging');
-      const fs = require('fs').promises;
-      const logsDir = path.join(__dirname, 'logs');
-      
-      // Функція для отримання локальної дати
-      const getLocalDateString = () => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
-      
-      await fs.mkdir(logsDir, { recursive: true });
-      const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
-      const startupLog = {
-        timestamp: new Date().toISOString(),
-        action: 'SERVER_START',
-        details: {
-          port: PORT,
-          nodeEnv: process.env.NODE_ENV || 'development',
-          apiBase: apiBase,
-          pid: process.pid
-        }
-      };
-      await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
-    } catch (error) {
-      // Не критична помилка, просто логуємо
-      logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
-    }
-  });
-  
-  // WebSocket обробка підключень
-  io.on('connection', (socket) => {
-    logger.info('👤 Користувач підключився:', socket.id);
-    
-    // Обробка помилок підключення
-    socket.on('error', (error) => {
-      logger.error('Socket.IO error:', error);
-    });
-    
-    // Приєднання до кімнати адміністраторів для сповіщень про реєстрацію
-    socket.on('join-admin-room', () => {
-      socket.join('admin-room');
-      logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
-    });
+  .then(async () => {
+    logger.info('✅ Підключено до MongoDB');
+    logger.info(`MongoDB URI: ${process.env.MONGODB_URI ? 'встановлено' : 'використовується за замовчуванням'}`);
+    // Ініціалізуємо всі моделі
+    require('./models');
+    console.log('✅ Моделі ініціалізовано');
 
-    // Приєднання до кімнати користувача для персональних сповіщень (наприклад, запит на оцінку)
-    socket.on('join-user-room', (userId) => {
-      if (userId) {
-        socket.join(`user-${userId}`);
-        logger.info(`👤 Користувач ${userId} приєднався до своєї кімнати:`, socket.id);
-      }
-    });
+    // Ініціалізуємо Redis кеш
+    const cacheService = require('./services/cacheService');
+    await cacheService.initialize();
 
-    // Відправка історії логів новому клієнту (з обмеженням розміру)
-    socket.on('request-log-history', () => {
+    // Ініціалізуємо Telegram бота
+    const telegramService = require('./services/telegramServiceInstance');
+    telegramService.initialize();
+    console.log('✅ Telegram бот ініціалізовано');
+
+    // Ініціалізуємо автоматичне очищення застарілих реєстрацій
+    const { setupCleanupJob } = require('./jobs/cleanupJob');
+    setupCleanupJob();
+    logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
+
+
+
+    // Ініціалізуємо Zabbix polling
+    const { setupZabbixPolling } = require('./jobs/zabbixPolling');
+    setupZabbixPolling();
+    logger.info('✅ Zabbix polling налаштовано');
+
+    // Ініціалізуємо оновлення SLA статусів
+    const { updateSLAStatus } = require('./jobs/updateSLAStatus');
+    // Запускаємо оновлення SLA кожні 15 хвилин
+    setInterval(async () => {
       try {
-        const logHistory = logWebSocketService.getLogHistory();
-        // Обмежуємо розмір історії логів, щоб уникнути проблем з парсингом
-        const limitedHistory = logHistory.slice(-100); // Останні 100 записів
-        socket.emit('log-history', limitedHistory);
+        await updateSLAStatus();
       } catch (error) {
-        logger.error('Error sending log history:', error);
+        logger.error('Помилка виконання SLA update job:', error);
+      }
+    }, 15 * 60 * 1000); // 15 хвилин
+    logger.info('✅ SLA status update job налаштовано (кожні 15 хвилин)');
+
+    // Ініціалізуємо WebSocket сервіс для реєстрації
+    const registrationWebSocketService = require('./services/registrationWebSocketService');
+    registrationWebSocketService.initialize(io);
+    logger.info('✅ WebSocket сервіс для реєстрації ініціалізовано');
+
+    // Ініціалізуємо WebSocket сервіс для логів
+    const logWebSocketService = require('./services/logWebSocketService');
+    logWebSocketService.initialize(io);
+    logger.info('✅ WebSocket сервіс для логів ініціалізовано');
+
+    // Ініціалізуємо WebSocket сервіс для тікетів
+    const ticketWebSocketService = require('./services/ticketWebSocketService');
+    ticketWebSocketService.initialize(io);
+    logger.info('✅ WebSocket сервіс для тікетів ініціалізовано');
+
+    // Ініціалізуємо WebSocket сервіс для міст
+    const cityWebSocketService = require('./services/cityWebSocketService');
+    cityWebSocketService.initialize(io);
+    logger.info('✅ WebSocket сервіс для міст ініціалізовано');
+
+    // Ініціалізуємо WebSocket сервіс для сповіщень про помилки
+    const errorNotificationService = require('./services/errorNotificationService');
+    errorNotificationService.initialize(io);
+    logger.info('✅ Error Notification Service ініціалізовано');
+
+    // Запускаємо сервер тільки після успішного підключення до MongoDB
+    const PORT = process.env.PORT || 5000;
+
+    server.listen(PORT, async () => {
+      logger.info(`🚀 Сервер запущено на порту ${PORT}`);
+      logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
+      const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
+      logger.info(`🌐 API базова адреса: ${apiBase}`);
+      logger.info(
+        `🔌 Дозволені CORS origins для WebSocket: ${allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
+        }`
+      );
+
+      // Логуємо старт сервера у щоденний audit лог
+      try {
+        const { auditLogger } = require('./middleware/logging');
+        const fs = require('fs').promises;
+        const logsDir = path.join(__dirname, 'logs');
+
+        // Функція для отримання локальної дати
+        const getLocalDateString = () => {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        await fs.mkdir(logsDir, { recursive: true });
+        const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
+        const startupLog = {
+          timestamp: new Date().toISOString(),
+          action: 'SERVER_START',
+          details: {
+            port: PORT,
+            nodeEnv: process.env.NODE_ENV || 'development',
+            apiBase: apiBase,
+            pid: process.pid
+          }
+        };
+        await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
+      } catch (error) {
+        // Не критична помилка, просто логуємо
+        logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
       }
     });
 
-    // Обробка логів від фронтенду (з валідацією)
-    socket.on('frontend-log', (data) => {
-      try {
-        // Перевіряємо, чи дані не містять цикличних посилань
-        if (data && typeof data === 'object') {
-          // Обмежуємо глибину вкладеності через JSON serialization
-          const sanitizedData = JSON.parse(JSON.stringify(data, null, 2));
-          logWebSocketService.broadcastFrontendLog(
-            sanitizedData.level, 
-            sanitizedData.message, 
-            sanitizedData.details
-          );
+    // WebSocket обробка підключень
+    io.on('connection', (socket) => {
+      logger.info('👤 Користувач підключився:', socket.id);
+
+      // Обробка помилок підключення
+      socket.on('error', (error) => {
+        logger.error('Socket.IO error:', error);
+      });
+
+      // Приєднання до кімнати адміністраторів для сповіщень про реєстрацію
+      socket.on('join-admin-room', () => {
+        socket.join('admin-room');
+        logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
+      });
+
+      // Приєднання до кімнати користувача для персональних сповіщень (наприклад, запит на оцінку)
+      socket.on('join-user-room', (userId) => {
+        if (userId) {
+          socket.join(`user-${userId}`);
+          logger.info(`👤 Користувач ${userId} приєднався до своєї кімнати:`, socket.id);
         }
-      } catch (error) {
-        logger.error('Error processing frontend log:', error);
-      }
+      });
+
+      // Відправка історії логів новому клієнту (з обмеженням розміру)
+      socket.on('request-log-history', () => {
+        try {
+          const logHistory = logWebSocketService.getLogHistory();
+          // Обмежуємо розмір історії логів, щоб уникнути проблем з парсингом
+          const limitedHistory = logHistory.slice(-100); // Останні 100 записів
+          socket.emit('log-history', limitedHistory);
+        } catch (error) {
+          logger.error('Error sending log history:', error);
+        }
+      });
+
+      // Обробка логів від фронтенду (з валідацією)
+      socket.on('frontend-log', (data) => {
+        try {
+          // Перевіряємо, чи дані не містять цикличних посилань
+          if (data && typeof data === 'object') {
+            // Обмежуємо глибину вкладеності через JSON serialization
+            const sanitizedData = JSON.parse(JSON.stringify(data, null, 2));
+            logWebSocketService.broadcastFrontendLog(
+              sanitizedData.level,
+              sanitizedData.message,
+              sanitizedData.details
+            );
+          }
+        } catch (error) {
+          logger.error('Error processing frontend log:', error);
+        }
+      });
+
+      socket.on('disconnect', () => {
+        logger.info('👋 Користувач відключився:', socket.id);
+      });
     });
-    
-    socket.on('disconnect', () => {
-      logger.info('👋 Користувач відключився:', socket.id);
+
+    // Глобальна обробка помилок Socket.IO
+    io.engine.on('connection_error', (err) => {
+      logger.error('Socket.IO connection error:', err);
     });
+  })
+  .catch(err => {
+    logger.error('❌ Помилка підключення до MongoDB:', err);
+    logger.error('MongoDB URI:', process.env.MONGODB_URI ? 'встановлено' : 'не встановлено');
+    logger.error('Деталі помилки:', {
+      message: err.message,
+      name: err.name,
+      code: err.code,
+      stack: err.stack
+    });
+    // Не завершуємо процес, але логуємо помилку
+    // Сервер може продовжити роботу, але операції з БД будуть невдалі
+    logger.warn('⚠️ Сервер запущено, але MongoDB не підключено. Операції з БД будуть невдалі.');
   });
-  
-  // Глобальна обробка помилок Socket.IO
-  io.engine.on('connection_error', (err) => {
-    logger.error('Socket.IO connection error:', err);
-  });
-})
-.catch(err => {
-  logger.error('❌ Помилка підключення до MongoDB:', err);
-  logger.error('MongoDB URI:', process.env.MONGODB_URI ? 'встановлено' : 'не встановлено');
-  logger.error('Деталі помилки:', {
-    message: err.message,
-    name: err.name,
-    code: err.code,
-    stack: err.stack
-  });
-  // Не завершуємо процес, але логуємо помилку
-  // Сервер може продовжити роботу, але операції з БД будуть невдалі
-  logger.warn('⚠️ Сервер запущено, але MongoDB не підключено. Операції з БД будуть невдалі.');
-});
 
 // Middleware для логування запитів
 app.use(requestLogger);
@@ -441,6 +440,10 @@ app.use('/uploads', express.static(uploadsPath, {
 app.use('/api/swagger', require('./routes/swagger')); // Swagger документація
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tickets', require('./routes/tickets'));
+app.use('/api/tickets/bulk', require('./routes/ticketsBulk')); // Bulk operations
+app.use('/api/tickets/stats', require('./routes/ticketsStats')); // Statistics
+app.use('/api/tickets/priority', require('./routes/ticketsPriority')); // Priority management
+app.use('/api/tickets', require('./routes/ticketsCategorization')); // Categorization (має бути після /bulk, /stats, /priority)
 app.use('/api/ticket-history', require('./routes/ticketHistory')); // Історія тікетів
 app.use('/api/users', require('./routes/users'));
 app.use('/api/cities', require('./routes/cities'));
@@ -449,6 +452,7 @@ app.use('/api/position-requests', require('./routes/positionRequests'));
 app.use('/api/institutions', require('./routes/institutions'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/analytics', require('./routes/analyticsAdvanced')); // Advanced analytics
 app.use('/api/active-directory', require('./routes/activeDirectory'));
 app.use('/api/settings', require('./routes/settings')); // Налаштування системи
 app.use('/api/equipment', require('./routes/equipment')); // Інвентарне обладнання
@@ -473,6 +477,12 @@ app.use('/api/files', require('./routes/files'));
 
 // Структура бази даних (тільки для адміністраторів)
 app.use('/api/database', require('./routes/database'));
+
+// Шаблони відповідей (Canned Responses)
+app.use('/api/canned-responses', require('./routes/cannedResponses'));
+
+// SLA управління
+app.use('/api/sla', require('./routes/sla'));
 
 // Базовий маршрут
 app.get('/', (req, res) => {

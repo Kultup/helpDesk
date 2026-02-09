@@ -36,7 +36,7 @@ function formatUserContext(userContext) {
 
 /**
  * Виклик 1: аналіз наміру та достатності інформації.
- * @returns {Promise<{ isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number }>}
+ * @returns {Promise<{ isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number, priority?: string, emotionalTone?: string, quickSolution?: string }>}
  */
 async function analyzeIntent(dialogHistory, userContext) {
   const settings = await getAISettings();
@@ -50,9 +50,17 @@ async function analyzeIntent(dialogHistory, userContext) {
     return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
   }
 
+  // Отримуємо список доступних швидких рішень
+  const aiEnhancedService = require('./aiEnhancedService');
+  const quickSolutions = aiEnhancedService.getAllQuickSolutions();
+  const quickSolutionsText = quickSolutions.map(s =>
+    `- ${s.problemType}: ${s.keywords.join(', ')}`
+  ).join('\n');
+
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
-    dialogHistory: formatDialogHistory(dialogHistory)
+    dialogHistory: formatDialogHistory(dialogHistory),
+    quickSolutions: quickSolutionsText
   });
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
@@ -67,12 +75,16 @@ async function analyzeIntent(dialogHistory, userContext) {
     return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5, offTopicResponse: null };
   }
   const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
+
   return {
     isTicketIntent: !!parsed.isTicketIntent,
     needsMoreInfo: !!parsed.needsMoreInfo,
     category: parsed.category || null,
     missingInfo: Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [],
     confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7,
+    priority: parsed.priority || 'medium',
+    emotionalTone: parsed.emotionalTone || 'calm',
+    quickSolution: parsed.quickSolution || null,
     offTopicResponse
   };
 }
@@ -196,17 +208,17 @@ function parseJsonFromResponse(response) {
   const raw = response.trim();
   try {
     return JSON.parse(raw);
-  } catch (_) {}
+  } catch (_) { }
   const withoutMarkdown = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
   try {
     return JSON.parse(withoutMarkdown);
-  } catch (_) {}
+  } catch (_) { }
   const first = raw.indexOf('{');
   const last = raw.lastIndexOf('}');
   if (first !== -1 && last !== -1 && last > first) {
     try {
       return JSON.parse(raw.slice(first, last + 1));
-    } catch (_) {}
+    } catch (_) { }
   }
   return null;
 }

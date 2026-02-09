@@ -214,36 +214,36 @@ const ticketSchema = new mongoose.Schema({
     fromTelegram: { type: Boolean, default: false },
     lastTelegramUpdate: { type: Date }
   },
-  
+
   // Історія змін статусів
   statusHistory: [{
     status: { type: String, required: true },
-    changedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true 
+      required: true
     },
     changedAt: { type: Date, default: Date.now },
     comment: { type: String, trim: true },
     reason: { type: String, trim: true }
   }],
-  
+
   // Ескалація
   escalation: {
     level: { type: Number, default: 0 },
     escalatedAt: { type: Date },
-    escalatedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
+    escalatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     },
-    escalatedTo: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
+    escalatedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     },
     reason: { type: String, trim: true },
     isEscalated: { type: Boolean, default: false }
   },
-  
+
   // Метадані
   metadata: {
     source: {
@@ -256,30 +256,30 @@ const ticketSchema = new mongoose.Schema({
     deviceInfo: { type: String },
     browserInfo: { type: String }
   },
-  
+
   // Рейтинг якості
   qualityRating: {
     hasRating: { type: Boolean, default: false },
     ratingRequested: { type: Boolean, default: false },
     requestedAt: { type: Date },
-    rating: { 
-      type: Number, 
-      min: 1, 
+    rating: {
+      type: Number,
+      min: 1,
       max: 5,
-      default: null 
+      default: null
     },
-    feedback: { 
-      type: String, 
+    feedback: {
+      type: String,
       trim: true,
       maxlength: [500, 'Відгук не може перевищувати 500 символів']
     },
     ratedAt: { type: Date },
-    ratedBy: { 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User' 
+    ratedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
     }
   },
-  
+
   // Видалення
 
   isDeleted: {
@@ -302,29 +302,29 @@ const ticketSchema = new mongoose.Schema({
 });
 
 // Віртуальні поля
-ticketSchema.virtual('isOverdue').get(function() {
+ticketSchema.virtual('isOverdue').get(function () {
   if (!this.dueDate || this.status === 'closed' || this.status === 'resolved') {
     return false;
   }
   return new Date() > this.dueDate;
 });
 
-ticketSchema.virtual('timeToResolution').get(function() {
+ticketSchema.virtual('timeToResolution').get(function () {
   if (!this.resolvedAt) return null;
   return Math.ceil((this.resolvedAt - this.createdAt) / (1000 * 60 * 60)); // години
 });
 
-ticketSchema.virtual('timeToFirstResponse').get(function() {
+ticketSchema.virtual('timeToFirstResponse').get(function () {
   if (!this.firstResponseAt) return null;
   return Math.ceil((this.firstResponseAt - this.createdAt) / (1000 * 60 * 60)); // години
 });
 
-ticketSchema.virtual('age').get(function() {
+ticketSchema.virtual('age').get(function () {
   const endDate = this.resolvedAt || this.closedAt || new Date();
   return Math.ceil((endDate - this.createdAt) / (1000 * 60 * 60 * 24)); // дні
 });
 
-ticketSchema.virtual('isActive').get(function() {
+ticketSchema.virtual('isActive').get(function () {
   return !['closed', 'cancelled'].includes(this.status) && !this.isDeleted;
 });
 
@@ -374,36 +374,36 @@ ticketSchema.index({
 });
 
 // Middleware для генерації номера тикету
-ticketSchema.pre('save', async function(next) {
+ticketSchema.pre('save', async function (next) {
   if (this.isNew && !this.ticketNumber) {
     const year = new Date().getFullYear();
     let attempts = 0;
     const maxAttempts = 10;
-    
+
     while (attempts < maxAttempts) {
       try {
         // Знаходимо останній тікет за поточний рік
         const lastTicket = await this.constructor.findOne({
           ticketNumber: { $regex: `^TK-${year}-` }
         }).sort({ ticketNumber: -1 });
-        
+
         let nextNumber = 1;
         if (lastTicket && lastTicket.ticketNumber) {
           const lastNumber = parseInt(lastTicket.ticketNumber.split('-')[2]);
           nextNumber = lastNumber + 1;
         }
-        
+
         this.ticketNumber = `TK-${year}-${String(nextNumber).padStart(6, '0')}`;
-        
+
         // Перевіряємо унікальність перед збереженням
-        const existingTicket = await this.constructor.findOne({ 
-          ticketNumber: this.ticketNumber 
+        const existingTicket = await this.constructor.findOne({
+          ticketNumber: this.ticketNumber
         });
-        
+
         if (!existingTicket) {
           break; // Унікальний номер знайдено
         }
-        
+
         attempts++;
       } catch (error) {
         attempts++;
@@ -412,7 +412,7 @@ ticketSchema.pre('save', async function(next) {
         }
       }
     }
-    
+
     if (attempts >= maxAttempts) {
       return next(new Error('Не вдалося згенерувати унікальний номер тікету після максимальної кількості спроб'));
     }
@@ -421,17 +421,17 @@ ticketSchema.pre('save', async function(next) {
 });
 
 // Middleware для оновлення метрик
-ticketSchema.pre('save', async function(next) {
+ticketSchema.pre('save', async function (next) {
   try {
     if (this.isModified('status')) {
       // Визначаємо хто змінив статус
       let changedBy = this.modifiedBy || this.createdBy;
-      
+
       // Якщо changedBy не встановлено, використовуємо createdBy або system
       if (!changedBy && this.isNew) {
         changedBy = this.createdBy;
       }
-      
+
       // Перевіряємо чи статус дійсно змінився
       let statusChanged = true;
       if (!this.isNew) {
@@ -445,14 +445,14 @@ ticketSchema.pre('save', async function(next) {
           statusChanged = true;
         }
       }
-      
+
       // Додаємо запис в історію статусів тільки якщо статус змінився та changedBy встановлено
       if (statusChanged && changedBy) {
         // Перевіряємо чи останній запис в історії не має такий самий статус
-        const lastHistory = this.statusHistory && this.statusHistory.length > 0 
-          ? this.statusHistory[this.statusHistory.length - 1] 
+        const lastHistory = this.statusHistory && this.statusHistory.length > 0
+          ? this.statusHistory[this.statusHistory.length - 1]
           : null;
-        
+
         if (!lastHistory || lastHistory.status !== this.status) {
           this.statusHistory.push({
             status: this.status,
@@ -465,7 +465,7 @@ ticketSchema.pre('save', async function(next) {
         // та не додаємо запис в історію (щоб уникнути помилки валідації)
         console.warn(`Warning: Status changed for ticket ${this._id} but changedBy is not set`);
       }
-      
+
       // Оновлюємо часові мітки
       if (this.status === 'resolved' && !this.resolvedAt) {
         this.resolvedAt = new Date();
@@ -473,12 +473,12 @@ ticketSchema.pre('save', async function(next) {
           this.metrics.resolutionTime = this.timeToResolution;
         }
       }
-      
+
       if (this.status === 'closed' && !this.closedAt) {
         this.closedAt = new Date();
       }
     }
-    
+
     next();
   } catch (error) {
     next(error);
@@ -486,30 +486,30 @@ ticketSchema.pre('save', async function(next) {
 });
 
 // Статичні методи
-ticketSchema.statics.findByStatus = function(status) {
+ticketSchema.statics.findByStatus = function (status) {
   return this.find({ status, isDeleted: false });
 };
 
-ticketSchema.statics.findByPriority = function(priority) {
+ticketSchema.statics.findByPriority = function (priority) {
   return this.find({ priority, isDeleted: false });
 };
 
-ticketSchema.statics.findByCity = function(cityId) {
+ticketSchema.statics.findByCity = function (cityId) {
   return this.find({ city: cityId, isDeleted: false });
 };
 
-ticketSchema.statics.findByUser = function(userId) {
+ticketSchema.statics.findByUser = function (userId) {
   return this.find({
     createdBy: userId,
     isDeleted: false
   });
 };
 
-ticketSchema.statics.findCreatedBy = function(userId) {
+ticketSchema.statics.findCreatedBy = function (userId) {
   return this.find({ createdBy: userId, isDeleted: false });
 };
 
-ticketSchema.statics.findOverdue = function() {
+ticketSchema.statics.findOverdue = function () {
   return this.find({
     dueDate: { $lt: new Date() },
     status: { $nin: ['closed', 'resolved', 'cancelled'] },
@@ -517,16 +517,16 @@ ticketSchema.statics.findOverdue = function() {
   });
 };
 
-ticketSchema.statics.findActive = function() {
+ticketSchema.statics.findActive = function () {
   return this.find({
     status: { $nin: ['closed', 'cancelled'] },
     isDeleted: false
   });
 };
 
-ticketSchema.statics.getStatistics = function(filter = {}) {
+ticketSchema.statics.getStatistics = function (filter = {}) {
   const matchStage = { isDeleted: false, ...filter };
-  
+
   return this.aggregate([
     { $match: matchStage },
     {
@@ -538,10 +538,16 @@ ticketSchema.statics.getStatistics = function(filter = {}) {
         resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
         closedTickets: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } },
         highPriorityTickets: { $sum: { $cond: [{ $in: ['$priority', ['high', 'urgent']] }, 1, 0] } },
-        overdueTickets: { $sum: { $cond: [{ $and: [
-          { $lt: ['$dueDate', new Date()] },
-          { $nin: ['$status', ['closed', 'resolved', 'cancelled']] }
-        ]}, 1, 0] } },
+        overdueTickets: {
+          $sum: {
+            $cond: [{
+              $and: [
+                { $lt: ['$dueDate', new Date()] },
+                { $nin: ['$status', ['closed', 'resolved', 'cancelled']] }
+              ]
+            }, 1, 0]
+          }
+        },
         averageResolutionTime: { $avg: '$metrics.resolutionTime' },
         averageResponseTime: { $avg: '$metrics.responseTime' }
       }
@@ -549,7 +555,7 @@ ticketSchema.statics.getStatistics = function(filter = {}) {
   ]);
 };
 
-ticketSchema.statics.getStatisticsByCity = function() {
+ticketSchema.statics.getStatisticsByCity = function () {
   return this.aggregate([
     { $match: { isDeleted: false } },
     {
@@ -574,21 +580,21 @@ ticketSchema.statics.getStatisticsByCity = function() {
 };
 
 // Методи екземпляра
-ticketSchema.methods.changeStatus = function(newStatus, changedBy, comment = '') {
+ticketSchema.methods.changeStatus = function (newStatus, changedBy, comment = '') {
   const oldStatus = this.status;
   this.status = newStatus;
-  
+
   this.statusHistory.push({
     status: newStatus,
     changedBy,
     changedAt: new Date(),
     comment
   });
-  
+
   return this.save();
 };
 
-ticketSchema.methods.escalate = function(escalatedBy, escalatedTo, reason = '') {
+ticketSchema.methods.escalate = function (escalatedBy, escalatedTo, reason = '') {
   this.escalation.level += 1;
   this.escalation.escalatedAt = new Date();
   this.escalation.escalatedBy = escalatedBy;
@@ -596,11 +602,11 @@ ticketSchema.methods.escalate = function(escalatedBy, escalatedTo, reason = '') 
   this.escalation.reason = reason;
   this.escalation.isEscalated = true;
   this.metrics.escalationCount += 1;
-  
+
   return this.save();
 };
 
-ticketSchema.methods.addTag = function(tag) {
+ticketSchema.methods.addTag = function (tag) {
   if (!this.tags.includes(tag.toLowerCase())) {
     this.tags.push(tag.toLowerCase());
     return this.save();
@@ -608,33 +614,33 @@ ticketSchema.methods.addTag = function(tag) {
   return Promise.resolve(this);
 };
 
-ticketSchema.methods.removeTag = function(tag) {
+ticketSchema.methods.removeTag = function (tag) {
   this.tags = this.tags.filter(t => t !== tag.toLowerCase());
   return this.save();
 };
 
-ticketSchema.methods.setDueDate = function(dueDate) {
+ticketSchema.methods.setDueDate = function (dueDate) {
   this.dueDate = dueDate;
   return this.save();
 };
 
 
 
-ticketSchema.methods.softDelete = function(deletedBy) {
+ticketSchema.methods.softDelete = function (deletedBy) {
   this.isDeleted = true;
   this.deletedAt = new Date();
   this.deletedBy = deletedBy;
   return this.save();
 };
 
-ticketSchema.methods.restore = function() {
+ticketSchema.methods.restore = function () {
   this.isDeleted = false;
   this.deletedAt = null;
   this.deletedBy = null;
   return this.save();
 };
 
-ticketSchema.methods.addComment = function(authorId, content, isInternal = false) {
+ticketSchema.methods.addComment = function (authorId, content, isInternal = false) {
   this.comments.push({
     author: authorId,
     content,
@@ -644,7 +650,7 @@ ticketSchema.methods.addComment = function(authorId, content, isInternal = false
   return this.save();
 };
 
-ticketSchema.methods.addWatcher = function(userId) {
+ticketSchema.methods.addWatcher = function (userId) {
   if (!this.watchers.includes(userId)) {
     this.watchers.push(userId);
     return this.save();
@@ -652,13 +658,13 @@ ticketSchema.methods.addWatcher = function(userId) {
   return Promise.resolve(this);
 };
 
-ticketSchema.methods.removeWatcher = function(userId) {
+ticketSchema.methods.removeWatcher = function (userId) {
   this.watchers = this.watchers.filter(id => !id.equals(userId));
   return this.save();
 };
 
 // Middleware для логування змін
-ticketSchema.pre('save', async function(next) {
+ticketSchema.pre('save', async function (next) {
   if (this.isNew) {
     // Для нових тікетів логуємо створення
     this._isNewTicket = true;
@@ -689,7 +695,7 @@ ticketSchema.pre('save', async function(next) {
   next();
 });
 
-ticketSchema.post('save', async function(doc) {
+ticketSchema.post('save', async function (doc) {
   try {
     const TicketHistory = require('./TicketHistory');
     const user = this._currentUser || { _id: this.createdBy };
@@ -721,7 +727,7 @@ ticketSchema.post('save', async function(doc) {
 });
 
 // Middleware для збереження оригінальних значень
-ticketSchema.pre('findOneAndUpdate', async function() {
+ticketSchema.pre('findOneAndUpdate', async function () {
   const doc = await this.model.findOne(this.getQuery());
   if (doc) {
     this._original = doc.toObject();
@@ -729,7 +735,7 @@ ticketSchema.pre('findOneAndUpdate', async function() {
 });
 
 // Метод для оновлення SLA статусу
-ticketSchema.methods.updateSLAStatus = function() {
+ticketSchema.methods.updateSLAStatus = function () {
   if (!this.sla || !this.sla.hours || !this.sla.startTime || !this.sla.deadline) {
     return;
   }
@@ -737,17 +743,17 @@ ticketSchema.methods.updateSLAStatus = function() {
   const now = new Date();
   const deadline = new Date(this.sla.deadline);
   const startTime = new Date(this.sla.startTime);
-  
+
   // Розрахунок залишкового часу в годинах
   const remainingMs = deadline - now;
   const remainingHours = Math.max(0, remainingMs / (1000 * 60 * 60));
   this.sla.remainingHours = Math.round(remainingHours * 10) / 10;
-  
+
   // Розрахунок відсотка витраченого часу
   const totalMs = deadline - startTime;
   const elapsedMs = now - startTime;
   const percentageElapsed = (elapsedMs / totalMs) * 100;
-  
+
   // Оновлення статусу SLA
   if (percentageElapsed >= 100) {
     this.sla.status = 'breached'; // Порушено
@@ -759,7 +765,7 @@ ticketSchema.methods.updateSLAStatus = function() {
 };
 
 // Методи для визначення типу дії та опису
-ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {
+ticketSchema.methods._getActionForField = function (field, oldValue, newValue) {
   switch (field) {
     case 'status':
       return 'status_changed';
@@ -778,9 +784,9 @@ ticketSchema.methods._getActionForField = function(field, oldValue, newValue) {
   }
 };
 
-ticketSchema.methods._getChangeDescription = function(change) {
+ticketSchema.methods._getChangeDescription = function (change) {
   const { field, oldValue, newValue, action } = change;
-  
+
   // Мапінг статусів для зрозумілих назв
   const statusMap = {
     'open': 'Відкритий',
@@ -788,43 +794,43 @@ ticketSchema.methods._getChangeDescription = function(change) {
     'resolved': 'Вирішено',
     'closed': 'Закрито'
   };
-  
+
   // Мапінг пріоритетів
   const priorityMap = {
     'low': 'Низький',
     'medium': 'Середній',
     'high': 'Високий'
   };
-  
+
   switch (action) {
     case 'status_changed':
       const oldStatus = statusMap[oldValue] || oldValue || 'Не вказано';
       const newStatus = statusMap[newValue] || newValue || 'Не вказано';
       return `Статус змінено: ${oldStatus} → ${newStatus}`;
-      
+
     case 'priority_changed':
       const oldPriority = priorityMap[oldValue] || oldValue || 'Не вказано';
       const newPriority = priorityMap[newValue] || newValue || 'Не вказано';
       return `Пріоритет змінено: ${oldPriority} → ${newPriority}`;
-      
+
     case 'title_changed':
       return `Заголовок оновлено`;
-      
+
     case 'description_changed':
       return `Опис оновлено`;
-      
+
     case 'due_date_changed':
       return `Термін виконання змінено`;
-      
+
     case 'assigned':
       return `Тікет призначено`;
-      
+
     case 'unassigned':
       return `Призначення знято`;
-      
+
     case 'comment_added':
       return `Додано коментар`;
-      
+
     default:
       // Спеціальна обробка для технічних полів
       if (field === 'comments' && Array.isArray(newValue)) {
@@ -833,11 +839,11 @@ ticketSchema.methods._getChangeDescription = function(change) {
           return `Додано ${count} ${count === 1 ? 'коментар' : count < 5 ? 'коментарі' : 'коментарів'}`;
         }
       }
-      
+
       if (field === 'statusHistory' && Array.isArray(newValue)) {
         return `Історія статусів оновлена`;
       }
-      
+
       // Для інших полів - простий опис
       const fieldLabels = {
         'assignedTo': 'Призначення',
@@ -846,14 +852,14 @@ ticketSchema.methods._getChangeDescription = function(change) {
         'tags': 'Теги',
         'watchers': 'Спостерігачі'
       };
-      
+
       const fieldLabel = fieldLabels[field] || field;
       return `${fieldLabel} оновлено`;
   }
 };
 
 // Метод для встановлення поточного користувача (для логування)
-ticketSchema.methods.setCurrentUser = function(user) {
+ticketSchema.methods.setCurrentUser = function (user) {
   this._currentUser = user;
   return this;
 };
