@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const telegramService = require('../services/telegramServiceInstance');
 const activeDirectoryService = require('../services/activeDirectoryService');
 const axios = require('axios');
+const aiFirstLineService = require('../services/aiFirstLineService');
 
 /**
  * Отримати налаштування Telegram
@@ -692,6 +693,7 @@ exports.updateAiSettings = async (req, res) => {
     }
 
     await settings.save();
+    aiFirstLineService.invalidateCache();
 
     const obj = settings.toObject();
     const safe = {
