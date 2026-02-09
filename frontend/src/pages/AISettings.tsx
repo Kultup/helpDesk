@@ -12,6 +12,7 @@ interface AISettingsData {
   openaiApiKey: string;
   openaiModel: string;
   enabled: boolean;
+  monthlyTokenLimit?: number;
   hasOpenaiKey?: boolean;
 }
 
@@ -49,7 +50,8 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
           provider: 'openai',
           openaiApiKey: data.hasOpenaiKey ? '••••••••••••' : '',
           openaiModel: data.openaiModel || 'gpt-4o-mini',
-          enabled: !!data.enabled
+          enabled: !!data.enabled,
+          monthlyTokenLimit: typeof data.monthlyTokenLimit === 'number' ? data.monthlyTokenLimit : 0
         });
       }
     } catch (error: unknown) {
@@ -73,7 +75,8 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
       const payload: Record<string, unknown> = {
         provider: 'openai',
         openaiModel: settings.openaiModel,
-        enabled: settings.enabled
+        enabled: settings.enabled,
+        monthlyTokenLimit: settings.monthlyTokenLimit ?? 0
       };
       if (settings.openaiApiKey && !settings.openaiApiKey.startsWith('••')) {
         payload.openaiApiKey = settings.openaiApiKey;
@@ -104,7 +107,7 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
     }
   };
 
-  const handleChange = (field: keyof AISettingsData, value: string | boolean) => {
+  const handleChange = (field: keyof AISettingsData, value: string | boolean | number) => {
     if (settings) {
       setSettings({
         ...settings,
@@ -198,6 +201,21 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
           </div>
 
           <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Місячний ліміт токенів (0 = без ліміту)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={settings.monthlyTokenLimit ?? 0}
+                onChange={(e) => handleChange('monthlyTokenLimit', e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0)}
+                placeholder="0"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                У боті (кнопка «Перевірити токени AI») буде показано, скільки залишилось по квоті.
+              </p>
+            </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   OpenAI API Key

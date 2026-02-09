@@ -1101,6 +1101,11 @@ class TelegramService {
       ]
     };
 
+    const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+    if (telegramIdStr === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
+      keyboard.inline_keyboard.push([{ text: '🔢 Перевірити токени AI', callback_data: 'check_tokens' }]);
+    }
+
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
   }
 
@@ -1188,6 +1193,16 @@ class TelegramService {
       } else if (data === 'statistics') {
         this.pushNavigationHistory(chatId, 'statistics');
         await this.handleStatisticsCallback(chatId, user);
+      } else if (data === 'check_tokens') {
+        await this.handleCheckTokensCallback(chatId, user);
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'reset_tokens') {
+        const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+        if (telegramIdStr === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
+          aiFirstLineService.resetTokenUsage();
+          await this.sendMessage(chatId, '✅ Лічильник токенів скинуто.');
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'back') {
         await this.handleBackNavigation(chatId, user);
       } else if (data === 'back_to_menu') {
@@ -3550,6 +3565,46 @@ class TelegramService {
         `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
       );
+    }
+  }
+
+  /** Перевірка використання токенів OpenAI — тільки для користувача 6070910226. */
+  async handleCheckTokensCallback(chatId, user) {
+    try {
+      const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+      if (telegramIdStr !== TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
+        await this.sendMessage(chatId, '❌ Ця функція недоступна.');
+        return;
+      }
+      const usage = aiFirstLineService.getTokenUsage();
+      const settings = await aiFirstLineService.getAISettings();
+      const limit = settings && typeof settings.monthlyTokenLimit === 'number' && settings.monthlyTokenLimit > 0 ? settings.monthlyTokenLimit : 0;
+      const monthlyTotal = usage.monthlyTotalTokens || 0;
+      let msg =
+        `🔢 *Використання токенів AI (OpenAI)*\n\n` +
+        `📥 Вхідні (prompt): ${usage.promptTokens.toLocaleString()}\n` +
+        `📤 Вихідні (completion): ${usage.completionTokens.toLocaleString()}\n` +
+        `📊 Всього (з перезапуску): ${usage.totalTokens.toLocaleString()}\n` +
+        `🔄 Запитів: ${usage.requestCount}\n\n` +
+        `📅 *Цього місяця (${usage.monthlyMonth || '—'}):* ${monthlyTotal.toLocaleString()} токенів`;
+      if (limit > 0) {
+        const remaining = Math.max(0, limit - monthlyTotal);
+        msg += `\n\n📌 *Ваш місячний ліміт:* ${limit.toLocaleString()}\n` +
+          `✅ *Залишилось по квоті:* ${remaining.toLocaleString()} токенів`;
+      }
+      msg += `\n\n_Лічильник сесії — з перезапуску сервера. Місячний — зберігається._`;
+      await this.sendMessage(chatId, msg, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 Скинути лічильник', callback_data: 'reset_tokens' }],
+            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]
+          ]
+        }
+      });
+    } catch (error) {
+      logger.error('Помилка handleCheckTokensCallback:', error);
+      await this.sendMessage(chatId, 'Виникла помилка при отриманні даних.');
     }
   }
 

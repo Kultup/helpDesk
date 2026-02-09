@@ -644,7 +644,7 @@ exports.getAiSettings = async (req, res) => {
  */
 exports.updateAiSettings = async (req, res) => {
   try {
-    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled } = req.body;
+    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled, monthlyTokenLimit } = req.body;
 
     let settings = await AISettings.findOne({ key: 'default' });
 
@@ -677,6 +677,10 @@ exports.updateAiSettings = async (req, res) => {
     }
     if (enabled !== undefined) {
       settings.enabled = !!enabled;
+    }
+    if (monthlyTokenLimit !== undefined) {
+      const val = parseInt(monthlyTokenLimit, 10);
+      settings.monthlyTokenLimit = Number.isNaN(val) || val < 0 ? 0 : val;
     }
 
     await settings.save();

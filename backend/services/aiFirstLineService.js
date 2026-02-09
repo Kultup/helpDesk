@@ -1,4 +1,6 @@
 
+const path = require('path');
+const fs = require('fs');
 const AISettings = require('../models/AISettings');
 const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
@@ -6,6 +8,43 @@ const logger = require('../utils/logger');
 let cachedSettings = null;
 let cachedAt = 0;
 const CACHE_TTL_MS = 60 * 1000; // 1 хв
+
+/** Накопичувач використання токенів OpenAI (з моменту перезапуску). */
+let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, requestCount: 0 };
+
+const TOKEN_USAGE_FILE = path.join(__dirname, '..', 'data', 'token_usage.json');
+
+function getCurrentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function readMonthlyUsage() {
+  try {
+    const raw = fs.readFileSync(TOKEN_USAGE_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    const month = getCurrentMonth();
+    if (data.month === month) {
+      return { month: data.month, promptTokens: data.promptTokens || 0, completionTokens: data.completionTokens || 0, totalTokens: data.totalTokens || 0 };
+    }
+  } catch (_) {}
+  return { month: getCurrentMonth(), promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+}
+
+function addMonthlyUsage(promptTokens, completionTokens, totalTokens) {
+  const month = getCurrentMonth();
+  let data = readMonthlyUsage();
+  if (data.month !== month) data = { month, promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  data.promptTokens += promptTokens;
+  data.completionTokens += completionTokens;
+  data.totalTokens += totalTokens;
+  try {
+    const dir = path.dirname(TOKEN_USAGE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(TOKEN_USAGE_FILE, JSON.stringify(data), 'utf8');
+  } catch (err) {
+    logger.error('AI: не вдалося зберегти monthly token usage', err);
+  }
+}
 
 async function getAISettings() {
   if (cachedSettings && Date.now() - cachedAt < CACHE_TTL_MS) {
@@ -192,6 +231,17 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
     };
     if (jsonMode) opts.response_format = { type: 'json_object' };
     const openaiCompletion = await openai.chat.completions.create(opts);
+    const u = openaiCompletion?.usage;
+    if (u && typeof u.prompt_tokens === 'number') {
+      const pt = u.prompt_tokens;
+      const ct = u.completion_tokens || 0;
+      const tt = u.total_tokens || pt + ct;
+      tokenUsage.promptTokens += pt;
+      tokenUsage.completionTokens += ct;
+      tokenUsage.totalTokens += tt;
+      tokenUsage.requestCount += 1;
+      addMonthlyUsage(pt, ct, tt);
+    }
     const openaiContent = openaiCompletion?.choices?.[0]?.message?.content;
     return openaiContent ? String(openaiContent).trim() : null;
   } catch (err) {
@@ -223,19 +273,73 @@ function parseJsonFromResponse(response) {
       return JSON.parse(raw.slice(first, last + 1));
     } catch (_) {}
   }
-  // Спроба знайти JSON-об'єкт серед тексту (наприклад після "Here is..." або посилання на файл)
+  // Спроба знайти JSON-об'єкт серед тексту
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[0]);
     } catch (_) {}
   }
+  // Обрізана відповідь (немає закриваючої }): пробуємо дописати недостатнє
+  if (raw.startsWith('{') && !raw.trim().endsWith('}')) {
+    const closed = tryCloseTruncatedJson(raw);
+    if (closed) {
+      try {
+        return JSON.parse(closed);
+      } catch (_) {}
+    }
+  }
   return null;
+}
+
+/**
+ * Спроба дописати закриваючі дужки/лапки до обрізаного JSON (наприклад через max_tokens).
+ */
+function tryCloseTruncatedJson(raw) {
+  const s = raw.trim();
+  if (!s.startsWith('{')) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\' && inString) { escape = true; continue; }
+    if (!inString) {
+      if (c === '{') depth++;
+      else if (c === '}') depth--;
+      else if (c === '"') inString = true;
+    } else if (c === '"') inString = false;
+  }
+  if (depth <= 0) return null;
+  let suffix = inString ? '"' : '';
+  if (!s.includes('offTopicResponse')) {
+    suffix += (s.trimEnd().endsWith(',') ? '' : ', ') + '"offTopicResponse": null';
+  }
+  suffix += '}'.repeat(depth);
+  return s + suffix;
 }
 
 function invalidateCache() {
   cachedSettings = null;
   cachedAt = 0;
+}
+
+/** Повертає поточне використання токенів OpenAI (сесія + місяць). */
+function getTokenUsage() {
+  const monthly = readMonthlyUsage();
+  return {
+    ...tokenUsage,
+    monthlyPromptTokens: monthly.promptTokens,
+    monthlyCompletionTokens: monthly.completionTokens,
+    monthlyTotalTokens: monthly.totalTokens,
+    monthlyMonth: monthly.month
+  };
+}
+
+/** Скидає лічильник токенів (опційно). */
+function resetTokenUsage() {
+  tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, requestCount: 0 };
 }
 
 module.exports = {
@@ -244,5 +348,7 @@ module.exports = {
   generateNextQuestion,
   getTicketSummary,
   formatUserContext,
-  invalidateCache
+  invalidateCache,
+  getTokenUsage,
+  resetTokenUsage
 };

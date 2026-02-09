@@ -217,7 +217,7 @@ module.exports = {
   fillPrompt,
   // Рекомендовані max_tokens для кожного виклику (для API)
   MAX_TOKENS: {
-    INTENT_ANALYSIS: 120,
+    INTENT_ANALYSIS: 550,
     NEXT_QUESTION: 100,
     TICKET_SUMMARY: 600
   },
