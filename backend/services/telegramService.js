@@ -2198,12 +2198,22 @@ class TelegramService {
     session.dialog_history.push({ role: 'user', content: text });
     botConversationService.appendMessage(chatId, user, 'user', text, null, (session.dialog_history.length === 1 ? text : '').slice(0, 200)).catch(() => {});
 
-    // Якщо очікуємо відповідь на підказку — текст "ні"/"не допомогло" = перейти до створення тікета
+    // Якщо очікуємо відповідь на підказку — або "допомогло", або "ні/створити тікет", або текст як уточнення проблеми (продовжити збір)
     if (session.step === 'awaiting_tip_feedback') {
       const t = (text || '').toLowerCase().trim();
-      const notHelped = /^(ні|нi|не допомогло|не вийшло|не допомогло|створити тікет|потрібен тікет|оформити заявку)$/.test(t) || t.includes('не допомогло') || t.includes('не вийшло');
+      const helped = /^(так|да|допомогло|ок|окей|все добре|все ок|супер|дякую)$/.test(t);
+      const notHelped = /^(ні|нi|не допомогло|не вийшло|створити тікет|потрібен тікет|оформити заявку)$/.test(t) || t.includes('не допомогло') || t.includes('не вийшло');
+      if (helped) {
+        session.step = null;
+        this.userSessions.delete(chatId);
+        await this.sendMessage(chatId, 'Супер! Якщо ще щось знадобиться — пишіть 😊', {
+          reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+        });
+        return;
+      }
       if (notHelped) {
         session.step = 'gathering_information';
+        session.afterTipNotHelped = true;
         await this.sendTyping(chatId);
         let resultAfterTip;
         try {
@@ -2221,7 +2231,6 @@ class TelegramService {
           question = 'Опишіть, будь ласка, що саме відбувається (модель принтера, текст помилки тощо).';
         }
         session.dialog_history.push({ role: 'assistant', content: question });
-    botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
         botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
         await this.sendMessage(chatId, question, {
           reply_markup: {
@@ -2233,8 +2242,9 @@ class TelegramService {
         });
         return;
       }
-      await this.sendMessage(chatId, 'Оберіть кнопкою: **Допомогло** чи **Ні, створити тікет**.', { parse_mode: 'Markdown' });
-      return;
+      // Текст схожий на уточнення проблеми (наприклад "Не телефонує", "Не друкує") — продовжуємо збір інформації, не вимагаємо кнопку
+      session.step = 'gathering_information';
+      // не return — далі виконається analyzeIntent по всьому діалогу (вже з новим повідомленням)
     }
 
     await this.sendTyping(chatId);
@@ -2466,10 +2476,11 @@ class TelegramService {
     }
 
     // 1.5) Тікет + є швидка підказка — спочатку одна підказка; якщо користувач вже натиснув «Ні, створити тікет», не показувати підказку знову
+    // Якщо потрібна ще інформація (нечіткий опис) — не показуємо підказку з кнопками «Допомогло», а йдемо в збір питань нижче
     const quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
     const skipQuickSolution = !!session.afterTipNotHelped;
     if (session.afterTipNotHelped) delete session.afterTipNotHelped;
-    if (result.isTicketIntent && quickSolutionText && session.step !== 'awaiting_tip_feedback' && !skipQuickSolution) {
+    if (result.isTicketIntent && quickSolutionText && !result.needsMoreInfo && session.step !== 'awaiting_tip_feedback' && !skipQuickSolution) {
       session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
       session.step = 'awaiting_tip_feedback';
       await this.sendMessage(chatId,
