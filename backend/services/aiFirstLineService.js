@@ -178,11 +178,12 @@ async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
   const apiKey = settings.provider === 'gemini' ? settings.geminiApiKey : settings.openaiApiKey;
   if (!apiKey || !apiKey.trim()) return 'Опишіть, будь ласка, проблему детальніше.';
 
+  const missingStr = Array.isArray(missingInfo) && missingInfo.length ? missingInfo.join(', ') : 'деталі проблеми';
   const systemPrompt = fillPrompt(NEXT_QUESTION, {
-    userContext: formatUserContext(userContext)
+    userContext: formatUserContext(userContext),
+    missingInfo: missingStr
   });
 
-  const missingStr = Array.isArray(missingInfo) && missingInfo.length ? missingInfo.join(', ') : 'деталі проблеми';
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}\n\nЧого бракує: ${missingStr}. Згенеруй одне коротке питання українською.`;
 
   const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.NEXT_QUESTION, false);
