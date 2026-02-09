@@ -72,13 +72,12 @@ async function analyzeIntent(dialogHistory, userContext) {
   const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature);
   if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0, offTopicResponse: null };
 
-  // Детальне логування для діагностики
-  logger.info('🤖 AI RAW RESPONSE:', response.substring(0, 500));
+  const responseStr = String(response).trim();
+  logger.info(`🤖 AI RAW RESPONSE (${responseStr.length} chars): ${responseStr.substring(0, 600)}`);
 
-  const parsed = parseJsonFromResponse(response);
+  const parsed = parseJsonFromResponse(responseStr);
   if (!parsed || typeof parsed !== 'object') {
-    logger.error('❌ AI: не вдалося розпарсити результат analyzeIntent');
-    logger.error('📄 Повна відповідь AI:', response);
+    logger.error(`❌ AI: не вдалося розпарсити результат analyzeIntent. Відповідь (${responseStr.length}): ${responseStr.substring(0, 800)}`);
     return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5, offTopicResponse: null };
   }
   const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
@@ -208,7 +207,8 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
  */
 function parseJsonFromResponse(response) {
   if (response == null || typeof response !== 'string') return null;
-  const raw = response.trim();
+  const raw = String(response).trim();
+  if (!raw) return null;
   try {
     return JSON.parse(raw);
   } catch (_) {}
@@ -221,6 +221,13 @@ function parseJsonFromResponse(response) {
   if (first !== -1 && last !== -1 && last > first) {
     try {
       return JSON.parse(raw.slice(first, last + 1));
+    } catch (_) {}
+  }
+  // Спроба знайти JSON-об'єкт серед тексту (наприклад після "Here is..." або посилання на файл)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
     } catch (_) {}
   }
   return null;
