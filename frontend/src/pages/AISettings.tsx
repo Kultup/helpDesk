@@ -39,6 +39,14 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [balanceData, setBalanceData] = useState<{
+    total_granted?: number;
+    total_used?: number;
+    total_available?: number;
+    pending_usage_cents?: number;
+  } | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -254,9 +262,64 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
                   placeholder="0"
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  Скільки залишилось на рахунку (оновлюйте вручну з platform.openai.com).
+                  Скільки залишилось на рахунку. Можна оновити кнопкою нижче або вручну.
                 </p>
               </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Залишок з platform.openai.com (неофіційний API)
+              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={balanceLoading || !settings.openaiApiKey}
+                onClick={async () => {
+                  setBalanceError(null);
+                  setBalanceData(null);
+                  setBalanceLoading(true);
+                  try {
+                    const res = await apiService.getOpenAIBalance();
+                    if (res.success && res.data) {
+                      setBalanceData(res.data as typeof balanceData);
+                    } else {
+                      setBalanceError((res as { message?: string }).message || 'Помилка запиту');
+                    }
+                  } catch (e: unknown) {
+                    const err = e as { response?: { data?: { message?: string }; status?: number } };
+                    setBalanceError(err?.response?.data?.message || (err?.response?.status === 502 ? 'Ендпоінт не підтримується для цього ключа' : 'Помилка мережі'));
+                  } finally {
+                    setBalanceLoading(false);
+                  }
+                }}
+              >
+                {balanceLoading ? 'Запит...' : 'Отримати залишок з OpenAI'}
+              </Button>
+              {balanceError && <p className="mt-2 text-sm text-red-600">{balanceError}</p>}
+              {balanceData && (
+                <div className="mt-3 text-sm">
+                  <p><strong>Надано:</strong> ${typeof balanceData.total_granted === 'number' ? balanceData.total_granted.toFixed(2) : '—'}</p>
+                  <p><strong>Витрачено:</strong> ${typeof balanceData.total_used === 'number' ? balanceData.total_used.toFixed(2) : '—'}</p>
+                  <p><strong>Залишок:</strong> ${typeof balanceData.total_available === 'number' ? balanceData.total_available.toFixed(2) : '—'}</p>
+                  {typeof balanceData.pending_usage_cents === 'number' && (
+                    <p className="text-gray-500">Pending (центи): {balanceData.pending_usage_cents}</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-2"
+                    onClick={() => {
+                      if (typeof balanceData.total_available === 'number') {
+                        handleChange('remainingBalance', balanceData.total_available);
+                        setMessage({ type: 'success', text: 'Залишок підставлено; натисніть «Зберегти», щоб зберегти.' });
+                      }
+                    }}
+                  >
+                    Підставити як «Залишок по сумі»
+                  </Button>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-gray-500">Неофіційні ендпоінти; можуть не працювати для всіх акаунтів.</p>
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

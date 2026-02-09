@@ -718,3 +718,65 @@ exports.updateAiSettings = async (req, res) => {
     });
   }
 };
+
+/**
+ * Отримати залишок кредитів OpenAI (неофіційні ендпоінти credit_grants та pending_usage).
+ * Працює не у всіх акаунтів; при помилці повертає success: false.
+ */
+exports.getOpenAIBalance = async (req, res) => {
+  try {
+    const settings = await AISettings.findOne({ key: 'default' }).lean();
+    const apiKey = settings && settings.openaiApiKey && String(settings.openaiApiKey).trim();
+    if (!apiKey) {
+      return res.status(400).json({ success: false, message: 'OpenAI API ключ не налаштовано' });
+    }
+    const headers = { Authorization: `Bearer ${apiKey}` };
+    let totalGranted = null;
+    let totalUsed = null;
+    let totalAvailable = null;
+    let pendingUsageCents = null;
+    try {
+      const grantsRes = await axios.get('https://api.openai.com/dashboard/billing/credit_grants', { headers, timeout: 10000 });
+      const data = grantsRes.data;
+      if (data && typeof data === 'object') {
+        totalGranted = data.total_granted;
+        totalUsed = data.total_used;
+        totalAvailable = data.total_available;
+      }
+    } catch (e) {
+      const status = e.response?.status;
+      const msg = e.response?.data?.error?.message || e.message;
+      logger.warn('OpenAI credit_grants (unofficial) failed', { status, message: msg });
+      return res.status(502).json({
+        success: false,
+        message: 'Не вдалося отримати залишок (ендпоінт OpenAI не підтримується або ключ без доступу). Можна вводити залишок вручну.',
+        detail: msg
+      });
+    }
+    try {
+      const pendingRes = await axios.get('https://api.openai.com/dashboard/billing/pending_usage', { headers, timeout: 8000 });
+      if (pendingRes.data != null && typeof pendingRes.data === 'object' && typeof pendingRes.data.pending_usage === 'number') {
+        pendingUsageCents = pendingRes.data.pending_usage;
+      }
+    } catch (_) {
+      // pending_usage опційно
+    }
+    return res.json({
+      success: true,
+      data: {
+        total_granted: totalGranted,
+        total_used: totalUsed,
+        total_available: totalAvailable,
+        pending_usage_cents: pendingUsageCents,
+        note: 'Неофіційні ендпоінти OpenAI; можуть змінитися.'
+      }
+    });
+  } catch (error) {
+    logger.error('Помилка отримання залишку OpenAI', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Помилка отримання залишку',
+      error: error.message
+    });
+  }
+};

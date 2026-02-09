@@ -1376,6 +1376,19 @@ class ApiService {
     return this.put('/settings/ai', data);
   }
 
+  /** Залишок кредитів OpenAI (неофіційні ендпоінти). */
+  async getOpenAIBalance(): Promise<
+    ApiResponse<{
+      total_granted?: number;
+      total_used?: number;
+      total_available?: number;
+      pending_usage_cents?: number;
+      note?: string;
+    }>
+  > {
+    return this.get('/settings/ai/balance');
+  }
+
   // Налаштування Active Directory
   async getActiveDirectorySettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/active-directory');

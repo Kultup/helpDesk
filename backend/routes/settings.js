@@ -62,6 +62,7 @@ router.put('/active-directory', authenticateToken, adminAuth, settingsController
 
 router.get('/ai', authenticateToken, adminAuth, settingsController.getAiSettings);
 router.put('/ai', authenticateToken, adminAuth, settingsController.updateAiSettings);
+router.get('/ai/balance', authenticateToken, adminAuth, settingsController.getOpenAIBalance);
 
 module.exports = router;
 
