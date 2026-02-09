@@ -308,10 +308,28 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
         logger.error('Socket.IO error:', error);
       });
 
-      // Приєднання до кімнати адміністраторів для сповіщень про реєстрацію
-      socket.on('join-admin-room', () => {
-        socket.join('admin-room');
-        logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
+      // Приєднання до кімнати адміністраторів — тільки для користувачів з роллю адміна (сповіщення про тікети/реєстрації)
+      socket.on('join-admin-room', async () => {
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+          logger.warn('join-admin-room: токен не надано, socket:', socket.id);
+          return;
+        }
+        try {
+          const jwt = require('jsonwebtoken');
+          const User = require('./models/User');
+          const { isAdminRole } = require('./middleware/auth');
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const user = await User.findById(decoded.userId).select('role').lean();
+          if (!user || !isAdminRole(user.role)) {
+            logger.warn('join-admin-room: доступ заборонено (не адмін), socket:', socket.id);
+            return;
+          }
+          socket.join('admin-room');
+          logger.info('🔐 Адміністратор приєднався до кімнати сповіщень:', socket.id);
+        } catch (err) {
+          logger.warn('join-admin-room: помилка перевірки токена або ролі:', err.message);
+        }
       });
 
       // Приєднання до кімнати користувача для персональних сповіщень (наприклад, запит на оцінку)

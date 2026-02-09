@@ -33,28 +33,35 @@ const SocketNotifications = () => {
 
     if (isAuthenticated && user) {
       requestPermission();
-      socket = io(socketUrl, { transports: ['websocket'] });
+      const token = localStorage.getItem('token');
+      socket = io(socketUrl, {
+        auth: token ? { token } : undefined,
+        transports: ['websocket']
+      });
       socket.on('connect', () => {
-        // Підключаємося до кімнати користувача для персональних сповіщень
         if (user._id) {
           socket.emit('join-user-room', user._id);
         }
+        // Тільки адміни приєднуються до кімнати сповіщень про тікети/реєстрації
         if (user?.role != null && isAdminRole(user.role)) {
           socket.emit('join-admin-room');
         }
       });
 
-      socket.on('ticket-notification', (payload: any) => {
-        const type = payload?.type;
-        const title = type === 'new_ticket' ? 'Новий тікет' : type === 'ticket_status_change' ? 'Оновлення тікету' : 'Сповіщення тікетів';
-        const message = payload?.data?.title || payload?.message || '';
-        showNotification(title, message);
-      });
+      // Сповіщення про тікети — тільки для адмінів (звичайні користувачі їх не отримують)
+      if (user?.role != null && isAdminRole(user.role)) {
+        socket.on('ticket-notification', (payload: any) => {
+          const type = payload?.type;
+          const title = type === 'new_ticket' ? 'Новий тікет' : type === 'ticket_status_change' ? 'Оновлення тікету' : 'Сповіщення тікетів';
+          const message = payload?.data?.title || payload?.message || '';
+          showNotification(title, message);
+        });
 
-      socket.on('registration-notification', (payload: any) => {
-        const email = payload?.data?.email || payload?.userEmail || '';
-        showNotification('Новий запит на реєстрацію', email);
-      });
+        socket.on('registration-notification', (payload: any) => {
+          const email = payload?.data?.email || payload?.userEmail || '';
+          showNotification('Новий запит на реєстрацію', email);
+        });
+      }
     }
 
     return () => {

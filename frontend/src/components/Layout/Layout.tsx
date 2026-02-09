@@ -4,33 +4,38 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import NotificationSystem from '../Notifications/NotificationSystem';
 import { useWindowSize, useRouteHistory } from '../../hooks';
-import { CalendarEvent } from '../../types';
+import { CalendarEvent, isAdminRole, UserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import apiService from '../../services/api';
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const { width } = useWindowSize();
+  const { user } = useAuth();
   const isMobile = width < 768;
-  
+  const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
+
   // Автоматично зберігаємо поточний маршрут
   useRouteHistory();
 
-  // Завантаження подій для системи сповіщень
+  // Завантаження подій тільки для адмінів (календар/події — адмін-функція)
   useEffect(() => {
+    if (!isAdmin) return;
+
     const loadEvents = async (): Promise<void> => {
       try {
         const today = new Date();
         const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7); // Наступні 7 днів
-        
+        const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+
         const response = await apiService.get<{ data: unknown[] }>('/events', {
           params: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()
           }
         });
-        
+
         setEvents((response as unknown as { data?: CalendarEvent[] }).data || []);
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -39,12 +44,9 @@ const Layout: React.FC = () => {
     };
 
     loadEvents();
-    
-    // Оновлюємо події кожні 5 хвилин
     const interval = setInterval(loadEvents, 5 * 60 * 1000);
-    
     return () => clearInterval(interval);
-  }, []);
+  }, [isAdmin]);
 
   return (
     <div className="flex h-screen bg-background">

@@ -13,6 +13,8 @@ import {
 } from '../types';
 import { apiService } from '../services/api';
 import { debounce } from '../utils';
+import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../types';
 
 // Хук для управління станом завантаження
 export const useLoading = (initialState = false): {
@@ -717,7 +719,7 @@ export const useNotifications = (): {
   };
 };
 
-// Хук для сповіщень про запити на реєстрацію
+// Хук для сповіщень про запити на реєстрацію (тільки для адмінів)
 export const useRegistrationNotifications = (): {
   registrations: User[];
   isLoading: boolean;
@@ -731,6 +733,8 @@ export const useRegistrationNotifications = (): {
   const [error, setError] = useState<string | null>(null);
   const [_socket, setSocket] = useState<unknown>(null);
   const [newRegistrationCount, setNewRegistrationCount] = useState(0);
+  const { user } = useAuth();
+  const isAdmin = user ? isAdminRole(user.role as import('../types').UserRole) : false;
 
   const fetchRegistrations = useCallback(async (): Promise<void> => {
     try {
@@ -762,36 +766,29 @@ export const useRegistrationNotifications = (): {
     }
   }, [startLoading, stopLoading]);
 
-  // WebSocket підключення
+  // WebSocket підключення (тільки для адмінів — кімната реєстрацій адмінська)
   useEffect(() => {
+    if (!isAdmin) return;
+
     const token = localStorage.getItem('token');
     if (!token) return;
-    
 
-    // Імпортуємо socket.io-client динамічно
     import('socket.io-client').then(({ io }) => {
       const socketBase = (
         process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || ''
       ).replace(/\/api\/?$/, '');
 
       if (!socketBase) {
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
         console.warn('Socket URL is not configured via REACT_APP_SOCKET_URL or REACT_APP_API_URL');
         return;
       }
 
       const socketInstance = io(socketBase, {
-        auth: {
-          token: token
-        },
+        auth: { token },
         transports: ['websocket', 'polling']
       });
 
       socketInstance.on('connect', (): void => {
-        // eslint-disable-next-line no-console
-        console.log('🔌 WebSocket підключено для реєстрацій');
-        // Приєднуємося до кімнати адміністраторів
         socketInstance.emit('join-admin-room');
       });
 
@@ -846,19 +843,19 @@ export const useRegistrationNotifications = (): {
         socketInstance.disconnect();
       };
     });
-  }, []);
+  }, [isAdmin]);
 
-  // Початкове завантаження та резервне оновлення
+  // Початкове завантаження тільки для адмінів (API повертає 403 для не-адмінів)
   useEffect(() => {
+    if (!isAdmin) return;
+
     fetchRegistrations();
-    
-    // Резервне оновлення кожні 5 хвилин (на випадок проблем з WebSocket)
     const interval = setInterval((): void => {
       fetchRegistrations();
-    }, 300000); // 5 хвилин
+    }, 300000);
 
     return (): void => clearInterval(interval);
-  }, [fetchRegistrations]);
+  }, [isAdmin, fetchRegistrations]);
 
   // Функція для скидання лічильника нових реєстрацій
   const resetNewRegistrationCount = useCallback((): void => {

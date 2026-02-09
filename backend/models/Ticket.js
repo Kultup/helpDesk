@@ -253,7 +253,7 @@ const ticketSchema = new mongoose.Schema({
   metadata: {
     source: {
       type: String,
-      enum: ['web', 'telegram', 'api', 'import', 'mobile'],
+      enum: ['web', 'telegram', 'telegram_ai', 'api', 'import', 'mobile'],
       default: 'web'
     },
     ipAddress: { type: String },
