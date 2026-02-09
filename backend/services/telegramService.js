@@ -39,6 +39,23 @@ class TelegramService {
   static get INTERNET_REQUESTS_LIMIT_PER_DAY() { return 5; }
   static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
 
+  /**
+   * Нормалізує текст підказки: якщо кроки типу "1. … 2. … 3. …" або "1) … 2) …" йдуть в одному рядку,
+   * розбиває їх на окремі рядки для кращої читабельності в Telegram. Застосовується лише до тексту,
+   * що виглядає як інструкція (містить ключові слова та не менше двох нумерованих кроків).
+   * @param {string} text
+   * @returns {string}
+   */
+  _normalizeQuickSolutionSteps(text) {
+    if (!text || typeof text !== 'string') return text;
+    const t = text.trim();
+    const stepMarkers = t.match(/\d+[.)]\s+/g);
+    const hasMultipleSteps = stepMarkers && stepMarkers.length >= 2;
+    const looksLikeInstruction = /(спробуйте|перевірте|зробіть|кроки|покроково|по черзі)/i.test(t);
+    if (!hasMultipleSteps || !looksLikeInstruction) return text;
+    return t.replace(/\s+(\d+[.)]\s+)/g, '\n$1').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
   /** Запити з інтернету (курс, погода тощо) дозволені лише одному користувачу — 6070910226. Решта отримують відмову. */
   canMakeInternetRequest(telegramId) {
     const id = String(telegramId);
@@ -2477,7 +2494,8 @@ class TelegramService {
 
     // 1.5) Тікет + є швидка підказка — спочатку одна підказка; якщо користувач вже натиснув «Ні, створити тікет», не показувати підказку знову
     // Якщо потрібна ще інформація (нечіткий опис) — не показуємо підказку з кнопками «Допомогло», а йдемо в збір питань нижче
-    const quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
+    let quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
+    if (quickSolutionText) quickSolutionText = this._normalizeQuickSolutionSteps(quickSolutionText);
     const skipQuickSolution = !!session.afterTipNotHelped;
     if (session.afterTipNotHelped) delete session.afterTipNotHelped;
     if (result.isTicketIntent && quickSolutionText && !result.needsMoreInfo && session.step !== 'awaiting_tip_feedback' && !skipQuickSolution) {
@@ -3154,9 +3172,12 @@ class TelegramService {
     }
     if (analysisText && analysisText.trim()) {
       session.step = 'awaiting_tip_feedback';
+      const normalizedPhotoText = this._normalizeQuickSolutionSteps(analysisText.trim());
+      const photoMessageWithClosing = normalizedPhotoText + '\n\n_Якщо не допоможе — натисніть «Ні, створити тікет», і я зберу деталі для заявки._';
       session.dialog_history.push({ role: 'assistant', content: analysisText });
       botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => {});
-      await this.sendMessage(chatId, analysisText, {
+      await this.sendMessage(chatId, photoMessageWithClosing, {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
