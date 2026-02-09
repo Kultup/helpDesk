@@ -1342,22 +1342,46 @@ class TelegramService {
           );
         }
         await this.answerCallbackQuery(callbackQuery.id);
-      } else if (data === 'edit_ticket_info') {
+} else if (data === 'edit_ticket_info') {
         // Користувач хоче виправити інформацію (AI або класика)
         const session = this.userSessions.get(chatId);
         if (session && session.step === 'confirm_ticket') {
           session.step = 'gathering_information';
-          if (session.mode === 'ai') session.ticketDraft = null;
-          await this.sendMessage(chatId, 
+          session.editingFromConfirm = true;
+          // Не скидаємо ticketDraft — щоб при відповіді «Нічого» повернутися до підтвердження
+          await this.sendMessage(chatId,
             `✏️ *Добре, давайте уточнимо.*\n\n` +
-            `Що саме потрібно виправити або доповнити?`, {
+            `Що саме потрібно виправити або доповнити?\n\n` +
+            `_(Якщо нічого — напишіть «Нічого» або «Залишити як є»)_`, {
               reply_markup: {
                 inline_keyboard: [
+                  [{ text: '⏭️ Нічого не змінювати', callback_data: 'edit_nothing_change' }],
                   [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
                 ]
-              }
+              },
+              parse_mode: 'Markdown'
             }
           );
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'edit_nothing_change') {
+        // Редагування: «нічого не змінювати» — повертаємо до екрану підтвердження тікета
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'gathering_information' && session.editingFromConfirm && session.ticketDraft) {
+          session.step = 'confirm_ticket';
+          session.editingFromConfirm = false;
+          const d = session.ticketDraft;
+          const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+          await this.sendMessage(chatId, msg, {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+              ]
+            },
+            parse_mode: 'Markdown'
+          });
         }
         await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'cancel_info_gathering') {
@@ -2093,6 +2117,31 @@ class TelegramService {
     const CONFIDENCE_THRESHOLD = 0.6;
     const MAX_AI_QUESTIONS = 4;
     const MAX_AI_ATTEMPTS = 2;
+
+    // Редагування з підтвердження: якщо користувач відповів «нічого» / «залишити як є» — повертаємо до екрану підтвердження
+    if (session.step === 'gathering_information' && session.editingFromConfirm && session.ticketDraft) {
+      const t = (text || '').toLowerCase().trim();
+      const nothingToChange = /^(нічого|ничого|nothing|ні|нi|пропустити|залишити як є|залишити|все ок|все добре|ок|окей|добре|норм|нормально)$/.test(t) || t === 'нч' || t === 'нчого';
+      if (nothingToChange) {
+        session.step = 'confirm_ticket';
+        session.editingFromConfirm = false;
+        const d = session.ticketDraft;
+        await this.sendTyping(chatId);
+        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+        await this.sendMessage(chatId, msg, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        });
+        return;
+      }
+      session.editingFromConfirm = false;
+    }
 
     if (!session.dialog_history) session.dialog_history = [];
     session.dialog_history.push({ role: 'user', content: text });
@@ -2870,7 +2919,38 @@ class TelegramService {
     try {
       switch (session.step) {
         case 'gathering_information': {
+          // Редагування з підтвердження: «нічого не змінювати» — повертаємо до екрану підтвердження
+          if (session.editingFromConfirm && session.ticketDraft) {
+            const t = (text || '').toLowerCase().trim();
+            const nothingToChange = /^(нічого|ничого|nothing|ні|нi|пропустити|залишити як є|залишити|все ок|все добре|ок|окей|добре|норм|нормально)$/.test(t) || t === 'нч' || t === 'нчого';
+            if (nothingToChange) {
+              session.step = 'confirm_ticket';
+              session.editingFromConfirm = false;
+              const categoryEmoji = this.getCategoryEmoji(session.ticketDraft.subcategory);
+              const summaryMessage =
+                `✅ *Дякую за інформацію!*\n\n` +
+                `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
+                `📌 *Заголовок:*\n${session.ticketDraft.title || '—'}\n\n` +
+                `📝 *Опис:*\n${session.ticketDraft.description || '—'}\n\n` +
+                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory || '—'}\n\n` +
+                `💡 Все правильно?`;
+              await this.sendMessage(chatId, summaryMessage, {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                    [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
+                    [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }]
+                  ]
+                }
+              });
+              break;
+            }
+            session.editingFromConfirm = false;
+          }
           // Збір інформації без AI: додаємо відповідь і показуємо резюме для підтвердження
+          if (!session.ticketDraft || !Array.isArray(session.ticketDraft.collectedInfo)) {
+            break;
+          }
           logger.info(`Збір інформації, етап ${session.stage}`);
           session.ticketDraft.collectedInfo.push(text);
           if (session.aiDialogId) {
