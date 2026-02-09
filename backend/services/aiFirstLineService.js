@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const AISettings = require('../models/AISettings');
 const Ticket = require('../models/Ticket');
-const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, PHOTO_ANALYSIS, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
+const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, PHOTO_ANALYSIS, COMPUTER_ACCESS_ANALYSIS, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
 
 let cachedSettings = null;
@@ -71,6 +71,8 @@ function formatUserContext(userContext) {
   if (userContext.userPosition) parts.push(`Посада: ${userContext.userPosition}`);
   if (userContext.userInstitution) parts.push(`Заклад: ${userContext.userInstitution}`);
   if (userContext.userName) parts.push(`ПІБ: ${userContext.userName}`);
+  if (userContext.hasComputerAccessPhoto) parts.push('Фото доступу до ПК: збережено в профілі');
+  if (userContext.computerAccessAnalysis) parts.push(`Розпізнано доступ: ${userContext.computerAccessAnalysis}`);
   return parts.length ? parts.join(', ') : '(немає)';
 }
 
@@ -475,12 +477,71 @@ async function analyzePhoto(imagePath, problemDescription, userContext) {
   }
 }
 
+/**
+ * Аналіз фото доступу до ПК: розпізнає AnyDesk, TeamViewer та інші програми віддаленого доступу та їх ID.
+ * Працює тільки з OpenAI (vision). Результат зберігається в профілі (computerAccessAnalysis).
+ * @param {string} imagePath - шлях до збереженого фото
+ * @returns {Promise<string|null>} - один рядок типу "AnyDesk: 123 456 789; TeamViewer: 987 654 321" або null
+ */
+async function analyzeComputerAccessPhoto(imagePath) {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled || settings.provider !== 'openai') return null;
+  if (!settings.openaiApiKey || !String(settings.openaiApiKey).trim()) return null;
+  if (!imagePath || !fs.existsSync(imagePath)) return null;
+  let base64;
+  let mimeType = 'image/jpeg';
+  try {
+    const ext = path.extname(imagePath).toLowerCase();
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    base64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+  } catch (err) {
+    logger.error('AI: не вдалося прочитати фото доступу', { imagePath, message: err.message });
+    return null;
+  }
+  const imageUrl = `data:${mimeType};base64,${base64}`;
+  try {
+    const OpenAI = require('openai').default;
+    const openai = new OpenAI({ apiKey: settings.openaiApiKey.trim() });
+    const response = await openai.chat.completions.create({
+      model: settings.openaiModel && settings.openaiModel.includes('gpt-4') ? settings.openaiModel : 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: COMPUTER_ACCESS_ANALYSIS },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Проаналізуй це фото доступу до комп\'ютера. Визнач програму та ID якщо видно.' },
+            { type: 'image_url', image_url: { url: imageUrl } }
+          ]
+        }
+      ],
+      max_tokens: MAX_TOKENS.COMPUTER_ACCESS_ANALYSIS || 150,
+      temperature: 0.2
+    });
+    const u = response?.usage;
+    if (u && typeof u.prompt_tokens === 'number') {
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens || 0;
+      tokenUsage.totalTokens += u.total_tokens || u.prompt_tokens + (u.completion_tokens || 0);
+      tokenUsage.requestCount += 1;
+      addMonthlyUsage(u.prompt_tokens, u.completion_tokens || 0, u.total_tokens || u.prompt_tokens + (u.completion_tokens || 0));
+    }
+    const text = response?.choices?.[0]?.message?.content;
+    return text ? String(text).trim() : null;
+  } catch (err) {
+    logger.error('AI: помилка аналізу фото доступу (vision)', { message: err.message });
+    return null;
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
   generateNextQuestion,
   getTicketSummary,
   analyzePhoto,
+  analyzeComputerAccessPhoto,
   getSimilarResolvedTickets,
   formatUserContext,
   invalidateCache,

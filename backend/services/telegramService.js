@@ -566,9 +566,26 @@ class TelegramService {
           return;
         }
 
-        // Обробка фото: в AI-режимі — аналіз фото та інструкція; інакше — тільки під час створення тікета
+        // Обробка фото: оновлення доступу до ПК (кнопка з меню); AI-режим; або тільки під час створення тікета
         if (msg.photo) {
           const session = this.userSessions.get(msg.chat.id);
+          if (session && session.step === 'awaiting_computer_access_photo') {
+            const u = session.userForAccessPhoto || existingUser;
+            const result = await this._saveComputerAccessPhotoFromTelegram(msg.chat.id, msg.photo[msg.photo.length - 1].file_id, u);
+            this.userSessions.delete(msg.chat.id);
+            if (result && result.success) {
+              let text = '✅ Фото доступу до ПК оновлено у вашому профілі. Адмін перегляне його в картці користувача.';
+              if (result.analysis) text += `\n\n📋 Розпізнано: ${result.analysis}`;
+              await this.sendMessage(msg.chat.id, text, {
+                reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+              });
+            } else {
+              await this.sendMessage(msg.chat.id, 'Помилка збереження фото. Спробуйте ще раз або зверніться до адміна.', {
+                reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+              });
+            }
+            return;
+          }
           if (session && session.mode === 'ai') {
             await this.handlePhotoInAiMode(msg.chat.id, msg.photo, msg.caption || '', session, existingUser);
             return;
@@ -1154,7 +1171,8 @@ class TelegramService {
         [
           { text: '📜 Історія тікетів', callback_data: 'ticket_history' },
           { text: '📊 Статистика', callback_data: 'statistics' }
-        ]
+        ],
+        [{ text: '📷 Оновити доступ до ПК', callback_data: 'update_computer_access' }]
       ]
     };
 
@@ -1224,6 +1242,81 @@ class TelegramService {
         await this.deleteMessage(chatId, messageId);
       } catch (deleteError) {
         logger.warn('Не вдалося видалити повідомлення:', deleteError.message);
+      }
+
+      if (data === 'update_computer_access') {
+        this.userSessions.set(chatId, {
+          step: 'awaiting_computer_access_photo',
+          userForAccessPhoto: user
+        });
+        await this.sendMessage(chatId,
+          '📷 Надішліть фото доступу до комп\'ютера (скріншот або документ). Воно буде збережено у вашому профілі замість попереднього — адмін перегляне його в картці користувача.');
+        await this.answerCallbackQuery(callbackQuery.id);
+        return;
+      }
+
+      if (data === 'skip_computer_access_photo') {
+        const session = this.userSessions.get(chatId);
+        if (session && session.awaitingComputerAccessPhoto) {
+          session.awaitingComputerAccessPhoto = false;
+          session.dialog_history = session.dialog_history || [];
+          session.dialog_history.push({ role: 'user', content: '[Пропустив надання фото доступу до ПК]' });
+          botConversationService.appendMessage(chatId, user, 'user', 'Пропустив надання фото доступу до ПК').catch(() => {});
+          const lastMissing = session.lastMissingInfo || [];
+          const remaining = lastMissing.filter(m => !String(m).includes('фото доступу до ПК'));
+          session.lastMissingInfo = remaining;
+          if (remaining.length === 0) {
+            await this.sendTyping(chatId);
+            const summary = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+            if (summary) {
+              session.step = 'confirm_ticket';
+              session.ticketDraft = {
+                createdBy: user._id,
+                title: summary.title,
+                description: summary.description,
+                priority: summary.priority,
+                subcategory: summary.category,
+                type: 'problem'
+              };
+              const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+              await this.sendMessage(chatId, msg, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                    [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                  ]
+                }
+              });
+            } else {
+              await this.sendMessage(chatId, 'Не вдалося сформувати заявку. Спробуйте «Заповнити по-старому» або опишіть ще раз.', {
+                reply_markup: { inline_keyboard: [[{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }], [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
+              });
+            }
+          } else {
+            session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+            let nextQuestion;
+            try {
+              nextQuestion = await aiFirstLineService.generateNextQuestion(session.dialog_history, remaining, session.userContext);
+            } catch (err) {
+              nextQuestion = 'Опишіть, будь ласка, деталі для заявки.';
+            }
+            session.dialog_history.push({ role: 'assistant', content: nextQuestion });
+            botConversationService.appendMessage(chatId, user, 'assistant', nextQuestion).catch(() => {});
+            session.awaitingComputerAccessPhoto = remaining.some(m => String(m).includes('фото доступу до ПК'));
+            const kbd = [
+              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ];
+            if (session.awaitingComputerAccessPhoto) {
+              kbd.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+            }
+            await this.sendMessage(chatId, nextQuestion, { reply_markup: { inline_keyboard: kbd } });
+          }
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+        return;
       }
 
       if (data === 'my_tickets') {
@@ -2249,14 +2342,17 @@ class TelegramService {
         }
         session.dialog_history.push({ role: 'assistant', content: question });
         botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
-        await this.sendMessage(chatId, question, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-            ]
-          }
-        });
+        const missing = resultAfterTip.missingInfo || [];
+        session.awaitingComputerAccessPhoto = missing.some(m => String(m).includes('фото доступу до ПК'));
+        session.lastMissingInfo = missing;
+        const keyboardAfterTip = [
+          [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+          [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+        ];
+        if (session.awaitingComputerAccessPhoto) {
+          keyboardAfterTip.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+        }
+        await this.sendMessage(chatId, question, { reply_markup: { inline_keyboard: keyboardAfterTip } });
         return;
       }
       // Текст схожий на уточнення проблеми (наприклад "Не телефонує", "Не друкує") — продовжуємо збір інформації, не вимагаємо кнопку
@@ -2277,6 +2373,11 @@ class TelegramService {
         reply_markup: { inline_keyboard: [[{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }], [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
       });
       return;
+    }
+
+    if (session.userContext && session.userContext.hasComputerAccessPhoto && Array.isArray(result.missingInfo)) {
+      result.missingInfo = result.missingInfo.filter(m => !String(m).includes('фото доступу до ПК'));
+      if (result.missingInfo.length === 0) result.needsMoreInfo = false;
     }
 
     if (result.confidence < CONFIDENCE_THRESHOLD) {
@@ -2576,14 +2677,18 @@ class TelegramService {
     session.dialog_history.push({ role: 'assistant', content: question });
     botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
 
-    await this.sendMessage(chatId, question, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-          [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-        ]
-      }
-    });
+    const missing = result.missingInfo || [];
+    session.awaitingComputerAccessPhoto = missing.some(m => String(m).includes('фото доступу до ПК'));
+    session.lastMissingInfo = missing;
+
+    const keyboard = [
+      [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+    ];
+    if (session.awaitingComputerAccessPhoto) {
+      keyboard.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+    }
+    await this.sendMessage(chatId, question, { reply_markup: { inline_keyboard: keyboard } });
   }
 
   async handleTextMessage(msg) {
@@ -2644,7 +2749,9 @@ class TelegramService {
           userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
           userInstitution: profile.institution?.name || '',
           userName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
-          userEmail: profile.email
+          userEmail: profile.email,
+          hasComputerAccessPhoto: !!(profile.computerAccessPhoto && String(profile.computerAccessPhoto).trim()),
+          computerAccessAnalysis: (profile.computerAccessAnalysis && String(profile.computerAccessAnalysis).trim()) || ''
         };
         const session = {
           mode: 'ai',
@@ -3131,7 +3238,57 @@ class TelegramService {
   }
 
   /**
-   * У AI-режимі: завантажує фото, аналізує через vision (інструкція з інтернету/помилки), пропонує «Допомогло» / «Ні, створити тікет».
+   * Зберігає фото з Telegram в профіль (computerAccessPhoto), аналізує через AI (AnyDesk, TeamViewer).
+   * @param {number} chatId
+   * @param {string} fileId - Telegram file_id
+   * @param {Object} user - користувач з _id
+   * @returns {Promise<{ success: boolean, analysis?: string }>}
+   */
+  async _saveComputerAccessPhotoFromTelegram(chatId, fileId, user) {
+    if (!user || !user._id) return { success: false };
+    let localPath;
+    try {
+      const file = await this.bot.getFile(fileId);
+      if (!file || !file.file_path) return { success: false };
+      const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
+      localPath = await this.downloadTelegramFileByFileId(fileId, ext);
+    } catch (err) {
+      logger.error('Помилка завантаження фото доступу до ПК', { chatId, err: err.message });
+      return { success: false };
+    }
+    const computerAccessDir = path.join(__dirname, '../uploads/computer-access');
+    if (!fs.existsSync(computerAccessDir)) fs.mkdirSync(computerAccessDir, { recursive: true });
+    const fileName = `${user._id}_${Date.now()}${path.extname(localPath).toLowerCase() || '.jpg'}`;
+    const destPath = path.join(computerAccessDir, fileName);
+    try {
+      fs.copyFileSync(localPath, destPath);
+      if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+    } catch (e) {
+      logger.error('Помилка копіювання фото доступу', { err: e.message });
+      try { if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath); } catch (_) {}
+      return { success: false };
+    }
+    const relativePath = `computer-access/${fileName}`;
+    try {
+      await User.findByIdAndUpdate(user._id, { computerAccessPhoto: relativePath, computerAccessUpdatedAt: new Date() });
+    } catch (e) {
+      logger.error('Помилка оновлення профілю (computerAccessPhoto)', { userId: user._id, err: e.message });
+      return { success: false };
+    }
+    let analysis = null;
+    try {
+      analysis = await aiFirstLineService.analyzeComputerAccessPhoto(destPath);
+      if (analysis && String(analysis).trim()) {
+        await User.findByIdAndUpdate(user._id, { computerAccessAnalysis: String(analysis).trim() });
+      }
+    } catch (e) {
+      logger.error('AI: помилка аналізу фото доступу', { userId: user._id, err: e.message });
+    }
+    return { success: true, analysis: analysis && String(analysis).trim() ? String(analysis).trim() : undefined };
+  }
+
+  /**
+   * У AI-режимі: завантажує фото. Якщо очікували фото доступу до ПК — зберігає в профіль користувача; інакше аналізує через vision (інструкція/помилки) і пропонує «Допомогло» / «Ні, створити тікет».
    */
   async handlePhotoInAiMode(chatId, photos, caption, session, user) {
     if (!session.dialog_history) session.dialog_history = [];
@@ -3146,6 +3303,34 @@ class TelegramService {
     }
     const photo = photos[photos.length - 1];
     const fileId = photo.file_id;
+
+    if (session.awaitingComputerAccessPhoto && user && user._id) {
+      session.awaitingComputerAccessPhoto = false;
+      const result = await this._saveComputerAccessPhotoFromTelegram(chatId, fileId, user);
+      if (!result || !result.success) {
+        await this.sendMessage(chatId, 'Помилка збереження фото. Спробуйте надіслати ще раз.');
+        return;
+      }
+      if (session.userContext) {
+        session.userContext.hasComputerAccessPhoto = true;
+        if (result.analysis) session.userContext.computerAccessAnalysis = result.analysis;
+      }
+      let confirmText = '✅ Фото доступу до комп\'ютера збережено у вашому профілі. Адмін зможе переглянути його в картці користувача.';
+      if (result.analysis) confirmText += `\n\n📋 Розпізнано: ${result.analysis}`;
+      confirmText += '\n\nМожете продовжити опис проблеми або натиснути нижче для оформлення заявки.';
+      await this.sendMessage(chatId, confirmText,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+
     let localPath;
     try {
       const file = await this.bot.getFile(fileId);

@@ -121,6 +121,20 @@ const userSchema = new mongoose.Schema({
     ]
   }],
   
+  // Фото доступу до комп'ютера (зберігається з Telegram, адмін переглядає в картці користувача)
+  computerAccessPhoto: {
+    type: String,
+    default: null
+  },
+  computerAccessUpdatedAt: {
+    type: Date,
+    default: null
+  },
+  computerAccessAnalysis: {
+    type: String,
+    default: null
+  },
+
   // Інтеграція з Telegram
   telegramId: {
     type: String,

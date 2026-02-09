@@ -1537,7 +1537,10 @@
     "departmentRequired": "Відділ є обов'язковим",
     "cityRequired": "Місто є обов'язковим",
     "telegramInvalid": "Невірний формат Telegram ID",
-    "invalidTelegramNumeric": "Telegram ID має містити лише цифри (5-20 символів)"
+    "invalidTelegramNumeric": "Telegram ID має містити лише цифри (5-20 символів)",
+    "computerAccess": "Доступ до ПК",
+    "computerAccessDescription": "Фото доступу до комп'ютера, надане користувачем у Telegram (збережено в профілі для перегляду адміном).",
+    "computerAccessAnalysis": "Розпізнано (AnyDesk, TeamViewer тощо)"
   },
   "notifications": {
     "title": "Сповіщення",

@@ -40,6 +40,9 @@ export interface User {
   telegramUsername?: string;
   telegramChatId?: string;
   avatar?: string;
+  computerAccessPhoto?: string;
+  computerAccessUpdatedAt?: string;
+  computerAccessAnalysis?: string;
   isActive: boolean;
   deletedAt?: string;
   deletedBy?: string;

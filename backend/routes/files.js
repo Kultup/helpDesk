@@ -20,12 +20,13 @@ router.get('/:filename', async (req, res) => {
 
     // Шукаємо файл в різних папках
     const possiblePaths = [
-      path.join(__dirname, '../uploads/tickets', filename), // Файли з тікетів
-      path.join(__dirname, '../uploads/telegram-files', filename), // Файли з Telegram (документи та фото)
-      path.join(__dirname, '../uploads/telegram-photos', filename), // Старі фото з Telegram (для сумісності)
+      path.join(__dirname, '../uploads/tickets', filename),
+      path.join(__dirname, '../uploads/telegram-files', filename),
+      path.join(__dirname, '../uploads/telegram-photos', filename),
       path.join(__dirname, '../uploads/attachments', filename),
       path.join(__dirname, '../uploads/avatars', filename),
-      path.join(__dirname, '../uploads/kb', filename), // Файли з KB
+      path.join(__dirname, '../uploads/computer-access', filename), // Фото доступу до ПК (профіль користувача)
+      path.join(__dirname, '../uploads/kb', filename),
       path.join(__dirname, '../uploads', filename)
     ];
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe } from 'lucide-react';
+import { User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe, Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
@@ -190,6 +190,41 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
             </div>
           </div>
         </div>
+
+        {/* Доступ до ПК (фото збережене з Telegram) */}
+        {(user as { computerAccessPhoto?: string; computerAccessUpdatedAt?: string }).computerAccessPhoto && (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-gray-600" />
+              {t('users.computerAccess')}
+            </h4>
+            <p className="text-sm text-gray-600 mb-2">
+              {t('users.computerAccessDescription')}
+            </p>
+            {(user as { computerAccessAnalysis?: string }).computerAccessAnalysis && (
+              <p className="text-sm text-gray-800 mb-2 font-medium">
+                📋 {t('users.computerAccessAnalysis')}: {(user as { computerAccessAnalysis: string }).computerAccessAnalysis}
+              </p>
+            )}
+            {(user as { computerAccessUpdatedAt?: string }).computerAccessUpdatedAt && (
+              <p className="text-xs text-gray-500 mb-3">
+                {t('users.lastUpdate')}: {formatDate((user as { computerAccessUpdatedAt: string }).computerAccessUpdatedAt)}
+              </p>
+            )}
+            <a
+              href={`${window.location.origin}/uploads/${(user as { computerAccessPhoto: string }).computerAccessPhoto}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg overflow-hidden border border-gray-200 max-w-xs"
+            >
+              <img
+                src={`${window.location.origin}/uploads/${(user as { computerAccessPhoto: string }).computerAccessPhoto}`}
+                alt={t('users.computerAccess')}
+                className="max-h-64 w-auto object-contain"
+              />
+            </a>
+          </div>
+        )}
 
         {/* Системна інформація */}
         <div className="bg-gray-50 rounded-lg p-4">
