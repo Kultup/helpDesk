@@ -44,7 +44,10 @@ async function analyzeIntent(dialogHistory, userContext) {
     return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
   }
 
-  const apiKey = settings.provider === 'groq' ? settings.groqApiKey : settings.openaiApiKey;
+  let apiKey;
+  if (settings.provider === 'openai') apiKey = settings.openaiApiKey;
+  else if (settings.provider === 'gemini') apiKey = settings.geminiApiKey;
+
   if (!apiKey || !apiKey.trim()) {
     logger.warn('AI: відсутній API-ключ для провайдера', settings.provider);
     return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
@@ -101,7 +104,7 @@ async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) return 'Опишіть, будь ласка, проблему детальніше.';
 
-  const apiKey = settings.provider === 'groq' ? settings.groqApiKey : settings.openaiApiKey;
+  const apiKey = settings.provider === 'gemini' ? settings.geminiApiKey : settings.openaiApiKey;
   if (!apiKey || !apiKey.trim()) return 'Опишіть, будь ласка, проблему детальніше.';
 
   const systemPrompt = fillPrompt(NEXT_QUESTION, {
@@ -124,7 +127,7 @@ async function getTicketSummary(dialogHistory, userContext) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) return null;
 
-  const apiKey = settings.provider === 'groq' ? settings.groqApiKey : settings.openaiApiKey;
+  const apiKey = settings.provider === 'gemini' ? settings.geminiApiKey : settings.openaiApiKey;
   if (!apiKey || !apiKey.trim()) return null;
 
   const systemPrompt = fillPrompt(TICKET_SUMMARY, {
@@ -151,7 +154,7 @@ async function getTicketSummary(dialogHistory, userContext) {
 }
 
 /**
- * Загальний виклик chat completion (Groq або OpenAI).
+ * Загальний виклик chat completion (OpenAI або Gemini).
  * @param {Object} settings - AISettings з БД
  * @param {string} systemPrompt
  * @param {string} userMessage
@@ -163,22 +166,18 @@ async function getTicketSummary(dialogHistory, userContext) {
 async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens, jsonMode, temperature = 0.3) {
   const temp = typeof temperature === 'number' ? Math.max(0, Math.min(2, temperature)) : 0.3;
   try {
-    if (settings.provider === 'groq') {
-      const Groq = require('groq-sdk');
-      const groq = new Groq({ apiKey: settings.groqApiKey });
-      const groqOpts = {
-        model: settings.groqModel || 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ],
-        max_tokens: maxTokens || 350,
-        temperature: temp
-      };
-      if (jsonMode) groqOpts.response_format = { type: 'json_object' };
-      const completion = await groq.chat.completions.create(groqOpts);
-      const content = completion?.choices?.[0]?.message?.content;
-      return content ? String(content).trim() : null;
+    if (settings.provider === 'gemini') {
+      const { GoogleGenerativeAI } = require('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(settings.geminiApiKey);
+      const model = genAI.getGenerativeModel({
+        model: settings.geminiModel || 'gemini-1.5-flash'
+      });
+      const chat = model.startChat({
+        history: [{ role: 'user', parts: [{ text: systemPrompt }] }]
+      });
+      const result = await chat.sendMessage(userMessage);
+      const output = result.response.text();
+      return output ? output.trim() : null;
     }
 
     const OpenAI = require('openai').default;
@@ -193,9 +192,9 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
       temperature: temp
     };
     if (jsonMode) opts.response_format = { type: 'json_object' };
-    const completion = await openai.chat.completions.create(opts);
-    const content = completion?.choices?.[0]?.message?.content;
-    return content ? String(content).trim() : null;
+    const openaiCompletion = await openai.chat.completions.create(opts);
+    const openaiContent = openaiCompletion?.choices?.[0]?.message?.content;
+    return openaiContent ? String(openaiContent).trim() : null;
   } catch (err) {
     logger.error('AI: помилка виклику провайдера', { provider: settings?.provider, message: err.message });
     return null;
@@ -203,7 +202,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
 }
 
 /**
- * Парсить JSON з відповіді LLM (Groq може повертати ```json ... ``` або текст з JSON всередині).
+ * Парсить JSON з відповіді LLM (може повертати ```json ... ``` або текст з JSON всередині).
  * @param {string} response - сирий текст відповіді
  * @returns {Object|null} - розпарсений об'єкт або null
  */
@@ -212,17 +211,17 @@ function parseJsonFromResponse(response) {
   const raw = response.trim();
   try {
     return JSON.parse(raw);
-  } catch (_) { }
+  } catch (_) {}
   const withoutMarkdown = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
   try {
     return JSON.parse(withoutMarkdown);
-  } catch (_) { }
+  } catch (_) {}
   const first = raw.indexOf('{');
   const last = raw.lastIndexOf('}');
   if (first !== -1 && last !== -1 && last > first) {
     try {
       return JSON.parse(raw.slice(first, last + 1));
-    } catch (_) { }
+    } catch (_) {}
   }
   return null;
 }

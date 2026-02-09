@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const aiSettingsSchema = new mongoose.Schema({
   key: { type: String, default: 'default', unique: true },
-  provider: { type: String, enum: ['groq', 'openai'], default: 'groq' },
-  groqApiKey: { type: String, trim: true, default: '' },
+  provider: { type: String, enum: ['openai', 'gemini'], default: 'openai' },
   openaiApiKey: { type: String, trim: true, default: '' },
-  groqModel: { type: String, trim: true, default: 'llama-3.3-70b-versatile' },
+  geminiApiKey: { type: String, trim: true, default: '' },
   openaiModel: { type: String, trim: true, default: 'gpt-4o-mini' },
+  geminiModel: { type: String, trim: true, default: 'gemini-1.5-flash' },
   enabled: { type: Boolean, default: false }
 }, { timestamps: true });
 

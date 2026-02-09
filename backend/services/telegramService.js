@@ -1101,14 +1101,6 @@ class TelegramService {
       ]
     };
 
-    // Додаємо адмін-кнопки для адміністраторів
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'administrator';
-    if (isAdmin) {
-      keyboard.inline_keyboard.push([
-        { text: '🔧 Ліміт Groq API', callback_data: 'check_api_limit' }
-      ]);
-    }
-
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
   }
 
@@ -1196,9 +1188,6 @@ class TelegramService {
       } else if (data === 'statistics') {
         this.pushNavigationHistory(chatId, 'statistics');
         await this.handleStatisticsCallback(chatId, user);
-      } else if (data === 'check_api_limit') {
-        await this.handleCheckApiLimitCallback(chatId, user);
-        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'back') {
         await this.handleBackNavigation(chatId, user);
       } else if (data === 'back_to_menu') {
@@ -1968,8 +1957,8 @@ class TelegramService {
     const aiSettings = await aiFirstLineService.getAISettings();
     const aiEnabled = aiSettings && aiSettings.enabled === true;
     const hasApiKey = aiSettings && (
-      (aiSettings.provider === 'groq' && aiSettings.groqApiKey && String(aiSettings.groqApiKey).trim()) ||
-      (aiSettings.provider === 'openai' && aiSettings.openaiApiKey && String(aiSettings.openaiApiKey).trim())
+      (aiSettings.provider === 'openai' && aiSettings.openaiApiKey && String(aiSettings.openaiApiKey).trim()) ||
+      (aiSettings.provider === 'gemini' && aiSettings.geminiApiKey && String(aiSettings.geminiApiKey).trim())
     );
 
     if (aiEnabled && hasApiKey) {

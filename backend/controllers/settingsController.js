@@ -13,7 +13,7 @@ const axios = require('axios');
 exports.getTelegramSettings = async (req, res) => {
   try {
     let config = await TelegramConfig.findOne({ key: 'default' });
-    
+
     if (!config) {
       // Якщо немає в БД, створюємо з .env
       config = new TelegramConfig({
@@ -149,7 +149,7 @@ exports.setupWebhook = async (req, res) => {
     }
 
     let config = await TelegramConfig.findOne({ key: 'default' });
-    
+
     if (!config) {
       // Створюємо конфігурацію, якщо її немає
       config = new TelegramConfig({ key: 'default' });
@@ -159,7 +159,7 @@ exports.setupWebhook = async (req, res) => {
       }
       await config.save();
     }
-    
+
     if (!config.botToken || config.botToken.trim() === '') {
       return res.status(400).json({
         success: false,
@@ -243,7 +243,7 @@ exports.setupWebhook = async (req, res) => {
       logger.error('❌ Помилка налаштування webhook:', error);
       logger.error('❌ Stack trace:', error.stack);
       let errorMessage = error.message;
-      
+
       if (error.response) {
         errorMessage = error.response.data?.description || error.message;
         if (error.response.data?.description) {
@@ -278,7 +278,7 @@ exports.setupWebhook = async (req, res) => {
 exports.getWebhookInfo = async (req, res) => {
   try {
     let config = await TelegramConfig.findOne({ key: 'default' });
-    
+
     if (!config) {
       // Створюємо конфігурацію, якщо її немає
       config = new TelegramConfig({ key: 'default' });
@@ -288,7 +288,7 @@ exports.getWebhookInfo = async (req, res) => {
       }
       await config.save();
     }
-    
+
     if (!config.botToken || config.botToken.trim() === '') {
       return res.status(400).json({
         success: false,
@@ -300,7 +300,7 @@ exports.getWebhookInfo = async (req, res) => {
 
     try {
       const infoResponse = await axios.get(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
-      
+
       if (infoResponse.data.ok) {
         res.json({
           success: true,
@@ -341,7 +341,7 @@ exports.getWebhookInfo = async (req, res) => {
 exports.getActiveDirectorySettings = async (req, res) => {
   try {
     let config = await ActiveDirectoryConfig.findOne({ key: 'default' });
-    
+
     if (!config) {
       // Якщо немає в БД, створюємо з .env
       config = new ActiveDirectoryConfig({
@@ -604,11 +604,11 @@ exports.getAiSettings = async (req, res) => {
     if (!settings) {
       settings = new AISettings({
         key: 'default',
-        provider: process.env.AI_PROVIDER || 'groq',
-        groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+        provider: process.env.AI_PROVIDER || 'openai',
         openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        groqApiKey: process.env.GROQ_API_KEY || '',
+        geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
         openaiApiKey: process.env.OPENAI_API_KEY || '',
+        geminiApiKey: process.env.GEMINI_API_KEY || '',
         enabled: false
       });
       await settings.save();
@@ -617,13 +617,13 @@ exports.getAiSettings = async (req, res) => {
     const obj = settings.toObject();
     const safe = {
       ...obj,
-      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
-      groqApiKey: undefined,
-      openaiApiKey: undefined
+      hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
+      openaiApiKey: undefined,
+      geminiApiKey: undefined
     };
-    delete safe.groqApiKey;
     delete safe.openaiApiKey;
+    delete safe.geminiApiKey;
 
     res.json({
       success: true,
@@ -644,7 +644,7 @@ exports.getAiSettings = async (req, res) => {
  */
 exports.updateAiSettings = async (req, res) => {
   try {
-    const { provider, groqApiKey, openaiApiKey, groqModel, openaiModel, enabled } = req.body;
+    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled } = req.body;
 
     let settings = await AISettings.findOne({ key: 'default' });
 
@@ -653,27 +653,27 @@ exports.updateAiSettings = async (req, res) => {
     }
 
     if (provider !== undefined) {
-      if (!['groq', 'openai'].includes(provider)) {
+      if (!['openai', 'gemini'].includes(provider)) {
         return res.status(400).json({
           success: false,
-          message: 'Провайдер має бути groq або openai'
+          message: 'Провайдер має бути openai або gemini'
         });
       }
       settings.provider = provider;
     }
 
-    if (typeof groqApiKey === 'string' && groqApiKey.trim() !== '' && !groqApiKey.startsWith('••')) {
-      settings.groqApiKey = groqApiKey.trim();
-    }
     if (typeof openaiApiKey === 'string' && openaiApiKey.trim() !== '' && !openaiApiKey.startsWith('••')) {
       settings.openaiApiKey = openaiApiKey.trim();
     }
-
-    if (groqModel !== undefined) {
-      settings.groqModel = groqModel.trim() || 'llama-3.3-70b-versatile';
+    if (typeof geminiApiKey === 'string' && geminiApiKey.trim() !== '' && !geminiApiKey.startsWith('••')) {
+      settings.geminiApiKey = geminiApiKey.trim();
     }
+
     if (openaiModel !== undefined) {
       settings.openaiModel = openaiModel.trim() || 'gpt-4o-mini';
+    }
+    if (geminiModel !== undefined) {
+      settings.geminiModel = geminiModel.trim() || 'gemini-1.5-flash';
     }
     if (enabled !== undefined) {
       settings.enabled = !!enabled;
@@ -684,13 +684,13 @@ exports.updateAiSettings = async (req, res) => {
     const obj = settings.toObject();
     const safe = {
       ...obj,
-      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
-      groqApiKey: undefined,
-      openaiApiKey: undefined
+      hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
+      openaiApiKey: undefined,
+      geminiApiKey: undefined
     };
-    delete safe.groqApiKey;
     delete safe.openaiApiKey;
+    delete safe.geminiApiKey;
 
     res.json({
       success: true,
