@@ -258,7 +258,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
       model: settings.openaiModel || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
+        { role: 'user', content: userMessage + (jsonMode ? '\n\nВідповідь має бути лише одним валідним JSON-об\'єктом (без тексту до або після).' : '') }
       ],
       max_tokens: maxTokens || 350,
       temperature: temp
