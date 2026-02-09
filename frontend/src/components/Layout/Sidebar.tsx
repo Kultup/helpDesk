@@ -20,7 +20,9 @@ import {
   Bot,
   Activity,
   Monitor,
-  Sparkles
+  Sparkles,
+  MessageCircle,
+  Brain
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, isAdminRole } from '../../types';
@@ -67,6 +69,8 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
       { nameKey: 'sidebar.aiSettings', href: '/settings/ai', icon: Sparkles, adminOnly: true },
+      { nameKey: 'sidebar.conversations', href: '/conversations', icon: MessageCircle, adminOnly: true },
+      { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Brain, adminOnly: true },
       { nameKey: 'sidebar.telegramSettings', href: '/settings/telegram', icon: Bot, adminOnly: true },
       { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
       { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },

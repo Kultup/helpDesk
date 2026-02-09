@@ -118,6 +118,8 @@
     "telegramSettings": "Ustawienia Telegram",
     "botSettings": "Ustawienia bota",
     "aiSettings": "Ustawienia AI",
+    "conversations": "Historia rozmów",
+    "aiKnowledge": "Wiedza AI",
     "activeDirectorySettings": "Ustawienia Active Directory",
     "zabbixSettings": "Ustawienia Zabbix",
     "documents": "Dokumenty",

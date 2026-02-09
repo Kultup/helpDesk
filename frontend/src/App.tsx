@@ -36,6 +36,8 @@ import Settings from './pages/Settings';
 import PhotoViewer from './components/PhotoViewer';
 import ErrorNotifications from './components/ErrorNotifications';
 import Equipment from './pages/Equipment';
+import Conversations from './pages/Conversations';
+import AIKnowledge from './pages/AIKnowledge';
 
 
 // Компонент для розумного перенаправлення
@@ -197,6 +199,16 @@ const App: React.FC = () => {
             <Route path="admin/settings/ai" element={
               <ProtectedRoute requiredRole={UserRole.ADMIN}>
                 <AISettings />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/conversations" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <Conversations />
+              </ProtectedRoute>
+            } />
+            <Route path="admin/ai-knowledge" element={
+              <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                <AIKnowledge />
               </ProtectedRoute>
             } />
             <Route path="admin/settings/active-directory" element={

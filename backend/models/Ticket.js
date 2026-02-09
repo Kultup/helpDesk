@@ -262,6 +262,20 @@ const ticketSchema = new mongoose.Schema({
     browserInfo: { type: String }
   },
 
+  /** Діалог з ботом перед створенням тікета (для навчання AI). Зберігається при створенні з Telegram AI. */
+  aiDialogHistory: [{
+    role: { type: String, enum: ['user', 'assistant'], required: true },
+    content: { type: String, required: true, trim: true }
+  }],
+
+  /** Короткий опис рішення (заповнюється при закритті; для навчання AI). */
+  resolutionSummary: {
+    type: String,
+    trim: true,
+    maxlength: [2000, 'Resolution summary cannot exceed 2000 characters'],
+    default: null
+  },
+
   // Рейтинг якості
   qualityRating: {
     hasRating: { type: Boolean, default: false },

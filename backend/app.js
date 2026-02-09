@@ -488,6 +488,8 @@ app.use('/api/events', require('./routes/events')); // Календар поді
 app.use('/api/admin-notes', require('./routes/adminNotes')); // Особисті нотатки адміністратора
 
 // Telegram webhook
+app.use('/api/conversations', require('./routes/conversations'));
+app.use('/api/ai', require('./routes/aiKnowledge'));
 app.use('/api/telegram', require('./routes/telegram'));
 
 // Файли

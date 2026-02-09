@@ -23,6 +23,8 @@ const ZabbixAlert = require('./ZabbixAlert');
 const ZabbixAlertGroup = require('./ZabbixAlertGroup');
 const TelegramMessage = require('./TelegramMessage');
 const AISettings = require('./AISettings');
+const BotConversation = require('./BotConversation');
+const BotConversationMessage = require('./BotConversationMessage');
 
 module.exports = {
   User,
@@ -47,4 +49,6 @@ module.exports = {
   ZabbixAlertGroup,
   TelegramMessage,
   AISettings,
+  BotConversation,
+  BotConversationMessage,
 };

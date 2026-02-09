@@ -18,6 +18,7 @@ const { formatFileSize } = require('../utils/helpers');
 const ticketWebSocketService = require('./ticketWebSocketService');
 const fcmService = require('./fcmService');
 const aiFirstLineService = require('./aiFirstLineService');
+const botConversationService = require('./botConversationService');
 
 class TelegramService {
   constructor() {
@@ -548,8 +549,13 @@ class TelegramService {
           return;
         }
 
-        // Обробка фото для зареєстрованих користувачів
+        // Обробка фото: в AI-режимі — аналіз фото та інструкція; інакше — тільки під час створення тікета
         if (msg.photo) {
+          const session = this.userSessions.get(msg.chat.id);
+          if (session && session.mode === 'ai') {
+            await this.handlePhotoInAiMode(msg.chat.id, msg.photo, msg.caption || '', session, existingUser);
+            return;
+          }
           await this.handlePhoto(msg);
           return;
         }
@@ -2140,11 +2146,57 @@ class TelegramService {
         });
         return;
       }
+      // Користувач надіслав уточнення/виправлення — додаємо до діалогу та перераховуємо підсумок тікета
+      if (!session.dialog_history) session.dialog_history = [];
+      session.dialog_history.push({ role: 'user', content: text });
+      botConversationService.appendMessage(chatId, user, 'user', text, null, (session.dialog_history.length === 1 ? text : '').slice(0, 200)).catch(() => {});
       session.editingFromConfirm = false;
+      await this.sendTyping(chatId);
+      let summaryAfterEdit;
+      try {
+        summaryAfterEdit = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+      } catch (err) {
+        logger.error('AI: getTicketSummary після редагування', err);
+      }
+      if (summaryAfterEdit) {
+        session.step = 'confirm_ticket';
+        session.ticketDraft = {
+          ...session.ticketDraft,
+          title: summaryAfterEdit.title,
+          description: summaryAfterEdit.description,
+          priority: summaryAfterEdit.priority,
+          subcategory: summaryAfterEdit.category,
+          type: session.ticketDraft.type || 'problem'
+        };
+        const d = session.ticketDraft;
+        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+        await this.sendMessage(chatId, msg, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          },
+          parse_mode: 'Markdown'
+        });
+        return;
+      }
+      await this.sendMessage(chatId, 'Не вдалося оновити заявку за цим текстом. Спробуйте ще раз або натисніть «Так, створити тікет» з попереднього кроку.', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+            [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+            [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+          ]
+        }
+      });
+      return;
     }
 
     if (!session.dialog_history) session.dialog_history = [];
     session.dialog_history.push({ role: 'user', content: text });
+    botConversationService.appendMessage(chatId, user, 'user', text, null, (session.dialog_history.length === 1 ? text : '').slice(0, 200)).catch(() => {});
 
     // Якщо очікуємо відповідь на підказку — текст "ні"/"не допомогло" = перейти до створення тікета
     if (session.step === 'awaiting_tip_feedback') {
@@ -2160,6 +2212,7 @@ class TelegramService {
           resultAfterTip = { isTicketIntent: true, needsMoreInfo: true, missingInfo: ['деталі проблеми'], confidence: 0.7, quickSolution: null };
         }
         session.dialog_history.push({ role: 'assistant', content: 'Добре, тоді зберемо деталі для тікета.' });
+        botConversationService.appendMessage(chatId, user, 'assistant', 'Добре, тоді зберемо деталі для тікета.').catch(() => {});
         session.ai_questions_count = (session.ai_questions_count || 0) + 1;
         let question;
         try {
@@ -2168,6 +2221,8 @@ class TelegramService {
           question = 'Опишіть, будь ласка, що саме відбувається (модель принтера, текст помилки тощо).';
         }
         session.dialog_history.push({ role: 'assistant', content: question });
+    botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
+        botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
         await this.sendMessage(chatId, question, {
           reply_markup: {
             inline_keyboard: [
@@ -2490,6 +2545,7 @@ class TelegramService {
       question = 'Опишіть, будь ласка, проблему детальніше.';
     }
     session.dialog_history.push({ role: 'assistant', content: question });
+    botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => {});
 
     await this.sendMessage(chatId, question, {
       reply_markup: {
@@ -3042,6 +3098,76 @@ class TelegramService {
       await this.handleTicketPhoto(chatId, msg.photo, msg.caption);
     } else {
       await this.sendMessage(chatId, 'Фото можна прикріпляти тільки під час створення тікету.');
+    }
+  }
+
+  /**
+   * У AI-режимі: завантажує фото, аналізує через vision (інструкція з інтернету/помилки), пропонує «Допомогло» / «Ні, створити тікет».
+   */
+  async handlePhotoInAiMode(chatId, photos, caption, session, user) {
+    if (!session.dialog_history) session.dialog_history = [];
+    const lastUserMsg = session.dialog_history.filter(m => m.role === 'user').pop();
+    const problemDescription = (caption && String(caption).trim()) || (lastUserMsg && lastUserMsg.content) || 'Користувач надіслав фото по технічній проблемі.';
+    session.dialog_history.push({ role: 'user', content: `[Фото] ${caption || problemDescription}` });
+
+    await this.sendTyping(chatId);
+    if (!photos || photos.length === 0) {
+      await this.sendMessage(chatId, 'Не вдалося отримати фото. Спробуйте надіслати ще раз або опишіть проблему текстом.');
+      return;
+    }
+    const photo = photos[photos.length - 1];
+    const fileId = photo.file_id;
+    let localPath;
+    try {
+      const file = await this.bot.getFile(fileId);
+      if (!file || !file.file_path) {
+        await this.sendMessage(chatId, 'Помилка отримання фото. Спробуйте ще раз.');
+        return;
+      }
+      const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
+      localPath = await this.downloadTelegramFileByFileId(fileId, ext);
+    } catch (err) {
+      logger.error('Помилка завантаження фото в AI-режимі', { chatId, err: err.message });
+      await this.sendMessage(chatId, 'Помилка завантаження фото. Опишіть проблему текстом або спробуйте надіслати фото знову.');
+      return;
+    }
+    let analysisText = null;
+    try {
+      analysisText = await aiFirstLineService.analyzePhoto(localPath, problemDescription, session.userContext);
+    } catch (err) {
+      logger.error('AI: помилка analyzePhoto', err);
+    } finally {
+      try {
+        if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      } catch (_) {}
+    }
+    if (analysisText && analysisText.trim()) {
+      session.step = 'awaiting_tip_feedback';
+      session.dialog_history.push({ role: 'assistant', content: analysisText });
+      botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => {});
+      await this.sendMessage(chatId, analysisText, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+            [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+          ]
+        }
+      });
+    } else {
+      session.step = 'awaiting_tip_feedback';
+      await this.sendMessage(chatId,
+        'Не вдалося проаналізувати фото (або використано провайдера без підтримки зображень). Опишіть проблему текстом або натисніть «Ні, створити тікет», і я зберу деталі для заявки.',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+              [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
     }
   }
 
@@ -4003,6 +4129,11 @@ class TelegramService {
 
       const ticket = new Ticket(ticketData);
       await ticket.save();
+
+      // Зберігаємо діалог з ботом у тікет та привʼязуємо розмову (для навчання AI)
+      if (session.mode === 'ai' && session.dialog_history && session.dialog_history.length > 0) {
+        botConversationService.linkTicketAndSaveDialog(chatId, user, ticket._id, session.dialog_history).catch(() => {});
+      }
 
        // Заповнюємо дані для WebSocket сповіщення
        await ticket.populate([

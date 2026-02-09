@@ -2,7 +2,8 @@
 const path = require('path');
 const fs = require('fs');
 const AISettings = require('../models/AISettings');
-const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
+const Ticket = require('../models/Ticket');
+const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, PHOTO_ANALYSIS, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
 
 let cachedSettings = null;
@@ -73,6 +74,32 @@ function formatUserContext(userContext) {
   return parts.length ? parts.join(', ') : '(немає)';
 }
 
+/** Подібні закриті тікети для навчання AI (контекст). */
+async function getSimilarResolvedTickets(limit = 5) {
+  try {
+    const tickets = await Ticket.find({
+      status: { $in: ['resolved', 'closed'] },
+      isDeleted: { $ne: true },
+      $or: [
+        { resolutionSummary: { $exists: true, $ne: null, $ne: '' } },
+        { aiDialogHistory: { $exists: true, $not: { $size: 0 } } }
+      ]
+    })
+      .sort({ resolvedAt: -1, closedAt: -1, updatedAt: -1 })
+      .limit(limit)
+      .select('title description resolutionSummary subcategory')
+      .lean();
+    if (!tickets || tickets.length === 0) return '(немає)';
+    return tickets.map(t => {
+      const res = t.resolutionSummary || '(рішення не описано)';
+      return `[${t.subcategory || '—'}] ${t.title}\nОпис: ${(t.description || '').slice(0, 150)}…\nРішення: ${res.slice(0, 300)}`;
+    }).join('\n\n---\n\n');
+  } catch (err) {
+    logger.error('AI: getSimilarResolvedTickets', err);
+    return '(немає)';
+  }
+}
+
 /**
  * Виклик 1: аналіз наміру та достатності інформації.
  * @param {Array} dialogHistory
@@ -102,11 +129,13 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     `- ${s.problemType}: ${s.keywords.join(', ')}`
   ).join('\n');
 
+  const similarTickets = await getSimilarResolvedTickets(5);
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     quickSolutions: quickSolutionsText,
-    webSearchContext: webSearchContext ? String(webSearchContext).trim() : ''
+    webSearchContext: webSearchContext ? String(webSearchContext).trim() : '',
+    similarTickets
   });
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
@@ -374,11 +403,84 @@ async function transcribeVoiceToText(filePath) {
   }
 }
 
+/**
+ * Аналіз фото (скріншот помилки, роутер тощо) для інструкції з вирішення; якщо не допоможе — запросити створити тікет.
+ * Працює тільки з OpenAI (моделі з підтримкою vision). Якщо провайдер Gemini — повертає null.
+ * @param {string} imagePath - шлях до файлу зображення на диску
+ * @param {string} problemDescription - опис проблеми від користувача (з діалогу або підпис)
+ * @param {Object} userContext - контекст користувача (місто, заклад тощо)
+ * @returns {Promise<string|null>} - текст відповіді (інструкція + "якщо не допоможе — створю тікет") або null
+ */
+async function analyzePhoto(imagePath, problemDescription, userContext) {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled || settings.provider !== 'openai') {
+    return null;
+  }
+  if (!settings.openaiApiKey || !String(settings.openaiApiKey).trim()) {
+    logger.warn('AI: немає OpenAI API ключа для аналізу фото');
+    return null;
+  }
+  if (!imagePath || !fs.existsSync(imagePath)) {
+    return null;
+  }
+  let base64;
+  let mimeType = 'image/jpeg';
+  try {
+    const ext = path.extname(imagePath).toLowerCase();
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    base64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+  } catch (err) {
+    logger.error('AI: не вдалося прочитати фото для аналізу', { imagePath, message: err.message });
+    return null;
+  }
+  const imageUrl = `data:${mimeType};base64,${base64}`;
+  const systemPrompt = fillPrompt(PHOTO_ANALYSIS, {
+    problemDescription: problemDescription || 'Користувач не описав проблему.',
+    userContext: formatUserContext(userContext)
+  });
+  try {
+    const OpenAI = require('openai').default;
+    const openai = new OpenAI({ apiKey: settings.openaiApiKey.trim() });
+    const response = await openai.chat.completions.create({
+      model: settings.openaiModel && settings.openaiModel.includes('gpt-4') ? settings.openaiModel : 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Проаналізуй фото та дай інструкцію. Ось зображення:' },
+            { type: 'image_url', image_url: { url: imageUrl } }
+          ]
+        }
+      ],
+      max_tokens: MAX_TOKENS.PHOTO_ANALYSIS || 400,
+      temperature: 0.4
+    });
+    const u = response?.usage;
+    if (u && typeof u.prompt_tokens === 'number') {
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens || 0;
+      tokenUsage.totalTokens += u.total_tokens || u.prompt_tokens + (u.completion_tokens || 0);
+      tokenUsage.requestCount += 1;
+      addMonthlyUsage(u.prompt_tokens, u.completion_tokens || 0, u.total_tokens || u.prompt_tokens + (u.completion_tokens || 0));
+    }
+    const text = response?.choices?.[0]?.message?.content;
+    return text ? String(text).trim() : null;
+  } catch (err) {
+    logger.error('AI: помилка аналізу фото (vision)', { message: err.message });
+    return null;
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
   generateNextQuestion,
   getTicketSummary,
+  analyzePhoto,
+  getSimilarResolvedTickets,
   formatUserContext,
   invalidateCache,
   getTokenUsage,

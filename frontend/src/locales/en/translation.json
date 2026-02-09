@@ -118,6 +118,8 @@
     "telegramSettings": "Telegram Settings",
     "botSettings": "Bot Settings",
     "aiSettings": "AI Settings",
+    "conversations": "Conversation history",
+    "aiKnowledge": "AI Knowledge",
     "activeDirectorySettings": "Active Directory Settings",
     "zabbixSettings": "Zabbix Settings",
     "documents": "Documents",
@@ -130,7 +132,6 @@
     "users": "Users",
     "pendingRegistrations": "Pending Registrations",
     "quickNotifications": "Quick Notifications",
-    "aiKnowledge": "AI Knowledge",
     "aiReports": "AI Reports",
     "aiFAQ": "FAQ Generator",
     "groups": {

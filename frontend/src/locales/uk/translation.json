@@ -119,6 +119,7 @@
     "telegramSettings": "Налаштування Telegram",
     "botSettings": "Налаштування бота",
     "aiSettings": "Налаштування AI (Groq/OpenAI)",
+    "conversations": "Історія спілкувань",
     "aiPrompts": "AI Промпти",
     "aiDialogHistory": "Історія AI",
     "activeDirectorySettings": "Налаштування Active Directory",
