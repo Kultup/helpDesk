@@ -65,7 +65,7 @@ Few-shot приклади (оффтоп-ситуації):
 Тікет (не оффтоп):
 
 Повідомлення: "Принтер не друкує"
-→ {"isTicketIntent":true, "needsMoreInfo":true, "category":"Принтери", "missingInfo":["модель принтера","деталі проблеми"], "confidence":0.9, "offTopicResponse":null}`;
+→ {"isTicketIntent":true, "needsMoreInfo":true, "category":"Hardware", "missingInfo":["модель принтера","деталі проблеми"], "confidence":0.9, "offTopicResponse":null}`;
 
 // ——— Виклик 2: Генерація одного уточнюючого питання ———
 // Вхід: userContext. MissingInfo передається в user message. Вихід: тільки текст питання (не JSON). max_tokens ≈ 100.
@@ -103,7 +103,7 @@ const TICKET_SUMMARY = `Ти — експерт helpdesk. На основі ді
   2. Деталі з діалогу
   3. Вплив на роботу
   4. Додатково (контекст, фото якщо є)
-- category: з списку або "Інше"
+- category (subcategory): обирай з фіксованого списку: "Hardware", "Software", "Network", "Access", "Other". Якщо нічого не підходить — "Other" або "Інше".
 - priority: "low", "medium", "high", "urgent" (якщо емоції/критичність — підвищуй)
 
 Поверни СТРОГО JSON, без додаткового тексту:
@@ -121,7 +121,7 @@ const TICKET_SUMMARY = `Ти — експерт helpdesk. На основі ді
 → {
   "title": "Принтер HP застрягає папір — Київ / Пушкінська 14",
   "description": "Принтер HP LaserJet не друкує нормально, папір часто застрягає.\nЗаклад: Пушкінська 14, Київ.\nВпливає на видачу чеків.",
-  "category": "Принтери",
+  "category": "Hardware",
   "priority": "medium"
 }`;
 

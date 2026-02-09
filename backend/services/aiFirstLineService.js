@@ -1,10 +1,3 @@
-/**
- * Сервіс першої лінії AI для Telegram-бота HelpDesk.
- * Виклики: аналіз наміру, генерація питання, підсумок тікета.
- * Використовує AISettings з БД (Groq або OpenAI).
- *
- * Додано: docs/AI_BOT_LOGIC.md — реалізація викликів 1–3.
- */
 
 const AISettings = require('../models/AISettings');
 const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
@@ -68,21 +61,20 @@ async function analyzeIntent(dialogHistory, userContext) {
   const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature);
   if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0, offTopicResponse: null };
 
-  try {
-    const parsed = typeof response === 'string' ? JSON.parse(response) : response;
-    const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
-    return {
-      isTicketIntent: !!parsed.isTicketIntent,
-      needsMoreInfo: !!parsed.needsMoreInfo,
-      category: parsed.category || null,
-      missingInfo: Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [],
-      confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7,
-      offTopicResponse
-    };
-  } catch (e) {
-    logger.error('AI: помилка парсингу результату analyzeIntent', e);
+  const parsed = parseJsonFromResponse(response);
+  if (!parsed || typeof parsed !== 'object') {
+    logger.error('AI: не вдалося розпарсити результат analyzeIntent');
     return { isTicketIntent: true, needsMoreInfo: true, missingInfo: [], confidence: 0.5, offTopicResponse: null };
   }
+  const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
+  return {
+    isTicketIntent: !!parsed.isTicketIntent,
+    needsMoreInfo: !!parsed.needsMoreInfo,
+    category: parsed.category || null,
+    missingInfo: Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [],
+    confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7,
+    offTopicResponse
+  };
 }
 
 /**
@@ -128,19 +120,18 @@ async function getTicketSummary(dialogHistory, userContext) {
   const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.TICKET_SUMMARY, true);
   if (!response) return null;
 
-  try {
-    const parsed = typeof response === 'string' ? JSON.parse(response) : response;
-    const priority = ['low', 'medium', 'high', 'urgent'].includes(parsed.priority) ? parsed.priority : 'medium';
-    return {
-      title: String(parsed.title || 'Проблема').slice(0, 200),
-      description: String(parsed.description || ''),
-      category: String(parsed.category || 'Інше').slice(0, 100),
-      priority
-    };
-  } catch (e) {
-    logger.error('AI: помилка парсингу результату getTicketSummary', e);
+  const parsed = parseJsonFromResponse(response);
+  if (!parsed || typeof parsed !== 'object') {
+    logger.error('AI: не вдалося розпарсити результат getTicketSummary');
     return null;
   }
+  const priority = ['low', 'medium', 'high', 'urgent'].includes(parsed.priority) ? parsed.priority : 'medium';
+  return {
+    title: String(parsed.title || 'Проблема').slice(0, 200),
+    description: String(parsed.description || ''),
+    category: String(parsed.category || 'Інше').slice(0, 100),
+    priority
+  };
 }
 
 /**
@@ -159,7 +150,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
     if (settings.provider === 'groq') {
       const Groq = require('groq-sdk');
       const groq = new Groq({ apiKey: settings.groqApiKey });
-      const completion = await groq.chat.completions.create({
+      const groqOpts = {
         model: settings.groqModel || 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -167,7 +158,9 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
         ],
         max_tokens: maxTokens || 350,
         temperature: temp
-      });
+      };
+      if (jsonMode) groqOpts.response_format = { type: 'json_object' };
+      const completion = await groq.chat.completions.create(groqOpts);
       const content = completion?.choices?.[0]?.message?.content;
       return content ? String(content).trim() : null;
     }
@@ -191,6 +184,31 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
     logger.error('AI: помилка виклику провайдера', { provider: settings?.provider, message: err.message });
     return null;
   }
+}
+
+/**
+ * Парсить JSON з відповіді LLM (Groq може повертати ```json ... ``` або текст з JSON всередині).
+ * @param {string} response - сирий текст відповіді
+ * @returns {Object|null} - розпарсений об'єкт або null
+ */
+function parseJsonFromResponse(response) {
+  if (response == null || typeof response !== 'string') return null;
+  const raw = response.trim();
+  try {
+    return JSON.parse(raw);
+  } catch (_) {}
+  const withoutMarkdown = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  try {
+    return JSON.parse(withoutMarkdown);
+  } catch (_) {}
+  const first = raw.indexOf('{');
+  const last = raw.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    try {
+      return JSON.parse(raw.slice(first, last + 1));
+    } catch (_) {}
+  }
+  return null;
 }
 
 function invalidateCache() {

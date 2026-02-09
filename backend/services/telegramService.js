@@ -38,17 +38,15 @@ class TelegramService {
   static get INTERNET_REQUESTS_LIMIT_PER_DAY() { return 5; }
   static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
 
+  /** Запити з інтернету (курс, погода тощо) дозволені лише одному користувачу — 6070910226. Решта отримують відмову. */
   canMakeInternetRequest(telegramId) {
     const id = String(telegramId);
-    if (id === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) return true;
-    const today = new Date().toISOString().slice(0, 10);
-    const rec = this.internetRequestCounts.get(id);
-    if (!rec || rec.date !== today) return true;
-    return rec.count < TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY;
+    return id === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID;
   }
 
   recordInternetRequest(telegramId) {
     const id = String(telegramId);
+    if (id === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) return; // єдиний дозволений — ліміт не рахуємо
     const today = new Date().toISOString().slice(0, 10);
     let rec = this.internetRequestCounts.get(id);
     if (!rec || rec.date !== today) rec = { date: today, count: 0 };
@@ -397,12 +395,23 @@ class TelegramService {
     }
   }
 
+  /** Показати індикатор «друкує» в чаті (typing). Діє ~5 сек, для довгих операцій викликати перед кожною. */
+  async sendTyping(chatId) {
+    if (!this.bot) return;
+    try {
+      await this.bot.sendChatAction(chatId, 'typing');
+    } catch (err) {
+      logger.debug('sendTyping не вдалося', { chatId, message: err?.message });
+    }
+  }
+
   async sendMessage(chatId, text, options = {}) {
     if (!this.bot) {
       logger.error('Telegram бот не ініціалізовано');
       return;
     }
-    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    // Завжди надсилати пуш-сповіщення (disable_notification в кінці, щоб ніхто не вимкнув)
+    const defaultOptions = { parse_mode: 'Markdown', ...options, disable_notification: false };
     const maxAttempts = 3;
     let attempt = 0;
     let lastError = null;
@@ -2032,6 +2041,7 @@ class TelegramService {
     if (!session.dialog_history) session.dialog_history = [];
     session.dialog_history.push({ role: 'user', content: text });
 
+    await this.sendTyping(chatId);
     let result;
     try {
       result = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext);
@@ -2047,6 +2057,7 @@ class TelegramService {
       session.ai_attempts = (session.ai_attempts || 0) + 1;
     }
 
+    // 1) Якщо це не намір тікета — обробляємо оффтоп і виходимо
     if (!result.isTicketIntent) {
       const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
       const textLower = (text || '').toLowerCase().trim();
@@ -2057,13 +2068,14 @@ class TelegramService {
       if (isExchangeRateRequest) {
         if (!this.canMakeInternetRequest(telegramId)) {
           await this.sendMessage(chatId,
-            `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+            `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
               reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
             }
           );
           this.userSessions.delete(chatId);
           return;
         }
+        await this.sendTyping(chatId);
         const nbu = await this.fetchNbuUsdRate();
         if (nbu) {
           this.recordInternetRequest(telegramId);
@@ -2096,13 +2108,14 @@ class TelegramService {
         }
         if (!this.canMakeInternetRequest(telegramId)) {
           await this.sendMessage(chatId,
-            `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+            `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
               reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
             }
           );
           this.userSessions.delete(chatId);
           return;
         }
+        await this.sendTyping(chatId);
         const weather = await this.fetchWeatherForCity(userCity);
         if (weather) {
           this.recordInternetRequest(telegramId);
@@ -2125,7 +2138,7 @@ class TelegramService {
       // Рандомні (будь-які інші оффтоп) питання теж рахуються як запити з інтернету — ліміт 5/день
       if (!this.canMakeInternetRequest(telegramId)) {
         await this.sendMessage(chatId,
-          `Ліміт запитів інформації з інтернету на сьогодні — ${TelegramService.INTERNET_REQUESTS_LIMIT_PER_DAY}. Завтра буде доступно знову.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+          `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
             reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
           }
         );
@@ -2253,25 +2266,9 @@ class TelegramService {
       return;
     }
 
-    if ((session.ai_attempts || 0) >= MAX_AI_ATTEMPTS || (session.ai_questions_count || 0) >= MAX_AI_QUESTIONS) {
-      session.mode = 'choosing';
-      const count = session.ai_questions_count || 0;
-      await this.sendMessage(chatId,
-        `Я вже ${count} раз(и) уточнював і все ще не до кінця зрозумів. Давай так:\n\n` +
-        `Оберіть дію:`, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Продовжити зі мною', callback_data: 'ai_continue' }],
-              [{ text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' }],
-              [{ text: 'Скасувати заявку', callback_data: 'cancel_ticket' }]
-            ]
-          }
-        }
-      );
-      return;
-    }
-
+    // 2) Тікет і достатньо інформації — формуємо підсумок і показуємо підтвердження
     if (!result.needsMoreInfo && (result.confidence || 0) >= CONFIDENCE_THRESHOLD) {
+      await this.sendTyping(chatId);
       const summary = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
       if (summary) {
         session.step = 'confirm_ticket';
@@ -2298,7 +2295,27 @@ class TelegramService {
       }
     }
 
+    // 3) Fallback тільки коли потрібно ще одне питання і вже досягнуто ліміт
+    if (result.needsMoreInfo && ((session.ai_attempts || 0) >= MAX_AI_ATTEMPTS || (session.ai_questions_count || 0) >= MAX_AI_QUESTIONS)) {
+      session.mode = 'choosing';
+      const count = session.ai_questions_count || 0;
+      await this.sendMessage(chatId,
+        `Я вже ${count} раз(и) уточнював і все ще не до кінця зрозумів. Давай так:\n\n` +
+        `Оберіть дію:`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Продовжити зі мною', callback_data: 'ai_continue' }],
+              [{ text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' }],
+              [{ text: 'Скасувати заявку', callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+
     session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+    await this.sendTyping(chatId);
     let question;
     try {
       question = await aiFirstLineService.generateNextQuestion(session.dialog_history, result.missingInfo || [], session.userContext);
@@ -3679,6 +3696,8 @@ class TelegramService {
 
    async completeTicketCreation(chatId, user, session) {
     try {
+      const validTypes = ['incident', 'request', 'problem', 'change'];
+      const ticketType = validTypes.includes(session.ticketData.type) ? session.ticketData.type : 'problem';
       const ticketData = {
         title: session.ticketData.title,
         description: session.ticketData.description,
@@ -3686,6 +3705,8 @@ class TelegramService {
         createdBy: user._id,
         city: user.city,
         status: 'open',
+        ...(session.ticketData.subcategory != null && String(session.ticketData.subcategory).trim() && { subcategory: String(session.ticketData.subcategory).trim().slice(0, 100) }),
+        type: ticketType,
         metadata: {
           source: session.mode === 'ai' ? 'telegram_ai' : 'telegram'
         },
