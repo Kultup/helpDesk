@@ -1250,6 +1250,7 @@ class TelegramService {
         const session = this.userSessions.get(chatId);
         if (session && session.step === 'awaiting_tip_feedback') {
           session.step = 'gathering_information';
+          session.afterTipNotHelped = true; // не показувати ще одну «підказку», одразу збір інформації / форма тікета
           const msg = 'Підказка не допомогла, потрібен тікет';
           await this.handleMessageInAiMode(chatId, msg, session, user);
         }
@@ -2360,9 +2361,11 @@ class TelegramService {
       return;
     }
 
-    // 1.5) Тікет + є швидка підказка — спочатку одна підказка, потім (якщо не допомогло) збір інформації та тікет
+    // 1.5) Тікет + є швидка підказка — спочатку одна підказка; якщо користувач вже натиснув «Ні, створити тікет», не показувати підказку знову
     const quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
-    if (result.isTicketIntent && quickSolutionText && session.step !== 'awaiting_tip_feedback') {
+    const skipQuickSolution = !!session.afterTipNotHelped;
+    if (session.afterTipNotHelped) delete session.afterTipNotHelped;
+    if (result.isTicketIntent && quickSolutionText && session.step !== 'awaiting_tip_feedback' && !skipQuickSolution) {
       session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
       session.step = 'awaiting_tip_feedback';
       await this.sendMessage(chatId,
