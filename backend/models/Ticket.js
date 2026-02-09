@@ -69,6 +69,11 @@ const ticketSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'Creator is required']
   },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   firstResponseAt: {
     type: Date,
     default: null
@@ -360,6 +365,7 @@ ticketSchema.virtual('notesCount', {
 ticketSchema.index({ ticketNumber: 1 });
 ticketSchema.index({ status: 1, priority: 1 });
 ticketSchema.index({ createdBy: 1, status: 1 });
+ticketSchema.index({ assignedTo: 1, status: 1 });
 ticketSchema.index({ city: 1, status: 1 });
 ticketSchema.index({ createdAt: -1 });
 ticketSchema.index({ dueDate: 1 });
