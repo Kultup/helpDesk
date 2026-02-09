@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CreateTicketForm, TicketPriority, City, ApiResponse, UserRole, TicketStatus, Ticket } from '../types';
+import { CreateTicketForm, TicketPriority, City, ApiResponse, UserRole, TicketStatus, Ticket, isAdminRole } from '../types';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/UI/Button';
@@ -13,7 +13,7 @@ const CreateTicket: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
   const { id } = useParams<{ id?: string }>();
   const isEditMode = !!id;
   const [isLoading, setIsLoading] = useState(false);
@@ -151,7 +151,7 @@ const CreateTicket: React.FC = () => {
       
       if (response.success) {
         // Перенаправляємо залежно від ролі користувача
-        const basePath = user?.role === UserRole.ADMIN ? '/admin' : '';
+        const basePath = isAdmin ? '/admin' : '';
         navigate(`${basePath}/tickets`, { 
           state: { 
             message: isEditMode ? t('createTicketPage.messages.updated') : t('createTicketPage.messages.created'),
@@ -179,7 +179,7 @@ const CreateTicket: React.FC = () => {
   };
 
   const handleCancel = () => {
-    const basePath = user?.role === UserRole.ADMIN ? '/admin' : '';
+    const basePath = isAdmin ? '/admin' : '';
     navigate(`${basePath}/tickets`);
   };
 

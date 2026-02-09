@@ -14,7 +14,7 @@ const commentController = require('../controllers/commentController');
 const attachmentController = require('../controllers/attachmentController');
 const timeEntryController = require('../controllers/timeEntryController');
 const tagController = require('../controllers/tagController');
-const { authenticateToken, logUserAction, requirePermission } = require('../middleware/auth');
+const { authenticateToken, logUserAction, requirePermission, isAdminRole } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const { rateLimits } = require('../middleware');
 const telegramService = require('../services/telegramServiceInstance');
@@ -122,8 +122,8 @@ router.get('/', authenticateToken, async (req, res) => {
       ];
 
       // Якщо є обмеження доступу, об'єднуємо їх з пошуком
-      if (req.user.role !== 'admin') {
-        // Для не-адмінів пошук має працювати тільки для їх тікетів
+      if (!isAdminRole(req.user.role)) {
+        // Для не-адмінів пошук тільки по їх тікетах
         filters.$and = [
           {
             createdBy: req.user._id
@@ -137,8 +137,8 @@ router.get('/', authenticateToken, async (req, res) => {
         filters.$or = searchConditions;
       }
     } else {
-      // Обмеження доступу для звичайних користувачів (якщо немає пошуку)
-      if (req.user.role !== 'admin') {
+      // Обмеження доступу для звичайних користувачів
+      if (!isAdminRole(req.user.role)) {
         filters.createdBy = req.user._id;
       }
     }
@@ -203,8 +203,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // Перевірка доступу
-    if (req.user.role !== 'admin' &&
+    // Перевірка доступу: адмін бачить усі, користувач — лише свої
+    if (!isAdminRole(req.user.role) &&
       ticket.createdBy._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -446,7 +446,7 @@ router.put('/:id',
       }
 
       // Перевірка доступу: тільки адміністратор може редагувати заявки
-      if (req.user.role !== 'admin') {
+      if (!isAdminRole(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'Тільки адміністратор може редагувати заявки'
@@ -454,7 +454,7 @@ router.put('/:id',
       }
 
       // Перевірка: тільки адміністратор може змінювати статус
-      if (value.status && value.status !== ticket.status && req.user.role !== 'admin') {
+      if (value.status && value.status !== ticket.status && !isAdminRole(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'Тільки адміністратор може змінювати статус тікету'
@@ -462,7 +462,7 @@ router.put('/:id',
       }
 
       // Перевірка: тільки адміністратор може змінювати пріоритет
-      if (value.priority && value.priority !== ticket.priority && req.user.role !== 'admin') {
+      if (value.priority && value.priority !== ticket.priority && !isAdminRole(req.user.role)) {
         return res.status(403).json({
           success: false,
           message: 'Тільки адміністратор може змінювати пріоритет тікету'
@@ -475,7 +475,7 @@ router.put('/:id',
 
       // Оновлення тикету (виключаємо status та priority, якщо користувач не адмін)
       const updateData = { ...value };
-      if (req.user.role !== 'admin') {
+      if (!isAdminRole(req.user.role)) {
         if (value.status) {
           // Видаляємо status з даних оновлення для не-адмінів
           delete updateData.status;
@@ -804,7 +804,7 @@ router.post('/:id/comments',
       }
 
       // Перевірка доступу
-      if (req.user.role !== 'admin' &&
+      if (!isAdminRole(req.user.role) &&
         ticket.createdBy.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
@@ -931,7 +931,7 @@ router.post('/:id/comments',
         }
 
         // Якщо коментар додав користувач (не адмін), додаємо всіх адмінів до списку отримувачів
-        const isAdminComment = req.user.role === 'admin' || req.user.role === 'manager';
+        const isAdminComment = isAdminRole(req.user.role) || req.user.role === 'manager';
         if (!isAdminComment) {
           logger.info(`🔔 Коментар додав користувач, додаємо всіх адмінів до списку отримувачів`);
           try {
@@ -1399,7 +1399,7 @@ router.get('/:id/telegram-messages',
       }
 
       // Перевірка доступу: тільки адміни або автор тікету можуть переглядати повідомлення
-      const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
+      const isAdmin = isAdminRole(req.user.role);
       const isCreator = String(ticket.createdBy) === String(req.user._id);
 
       if (!isAdmin && !isCreator) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
-import { TicketPriority, UserRole } from '../types';
+import { TicketPriority, UserRole, isAdminRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
@@ -38,7 +38,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user != null && isAdminRole(user.role as UserRole);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cities, setCities] = useState<any[]>([]);
   const [admins, setAdmins] = useState<any[]>([]);

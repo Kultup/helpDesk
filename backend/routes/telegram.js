@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const telegramService = require('../services/telegramServiceInstance');
 const User = require('../models/User');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, isAdminRole } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 /**
@@ -218,8 +218,7 @@ router.delete('/unlink', authenticateToken, async (req, res) => {
  */
 router.post('/send-notification', authenticateToken, async (req, res) => {
   try {
-    // Перевірка прав адміністратора
-    if (req.user.role !== 'admin') {
+    if (!isAdminRole(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Недостатньо прав доступу'

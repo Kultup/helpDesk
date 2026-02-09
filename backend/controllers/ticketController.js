@@ -848,8 +848,9 @@ exports.getTicketStatistics = async (req, res) => {
 
     if (city) {matchStage.city = new mongoose.Types.ObjectId(city);}
 
-    // Перевірка прав доступу
-    if (req.user.role !== 'admin') {
+    // Перевірка прав доступу: не-адмін бачить лише свої тікети
+    const isAdminRole = (r) => r === 'admin' || r === 'super_admin' || r === 'administrator';
+    if (!isAdminRole(req.user.role)) {
       matchStage.createdBy = req.user._id;
     }
 
@@ -945,8 +946,9 @@ exports.exportTickets = async (req, res) => {
       if (dateTo) {filters.createdAt.$lte = new Date(dateTo);}
     }
 
-    // Перевірка прав доступу
-    if (req.user.role !== 'admin') {
+    // Перевірка прав доступу: не-адмін експортує лише свої тікети
+    const isAdminRole = (r) => r === 'admin' || r === 'super_admin' || r === 'administrator';
+    if (!isAdminRole(req.user.role)) {
       filters.createdBy = req.user._id;
     }
 

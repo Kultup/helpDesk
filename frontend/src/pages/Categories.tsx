@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Category, CreateCategoryForm, UpdateCategoryForm, CategoryStats } from '../types';
+import { Category, CreateCategoryForm, UpdateCategoryForm, CategoryStats, isAdminRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
@@ -295,7 +295,7 @@ const Categories: React.FC = () => {
             {showInactive ? <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
             {showInactive ? t('categories.hideInactive') : t('categories.showInactive')}
           </Button>
-          {user?.role === 'admin' && (
+          {user && isAdminRole(user.role) && (
             <Button onClick={handleCreate} className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto">
               <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
               {t('categories.create')}
@@ -448,7 +448,7 @@ const Categories: React.FC = () => {
                     </div>
                   </div>
                   
-                  {user?.role === 'admin' && (
+                  {user && isAdminRole(user.role) && (
                     <div className="flex items-center gap-2 flex-shrink-0 ml-0 sm:ml-4 w-full sm:w-auto justify-end sm:justify-start">
                       {isEditing ? (
                         <>

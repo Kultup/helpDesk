@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
-import { Comment } from '../types';
+import { Comment, isAdminRole } from '../types';
 import Card from './UI/Card';
 import Button from './UI/Button';
 import LoadingSpinner from './UI/LoadingSpinner';
@@ -199,7 +199,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     const authorId = typeof comment.author === 'object' && (comment.author as any)._id 
       ? (comment.author as any)._id 
       : comment.author;
-    return user?._id === authorId || user?.role === 'admin';
+    return user?._id === authorId || (user?.role != null && isAdminRole(user.role));
   };
 
   const getAuthorEmail = (comment: Comment): string => {

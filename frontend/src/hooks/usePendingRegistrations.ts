@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../types';
 
 interface UsePendingRegistrationsReturn {
   count: number;
@@ -36,7 +37,7 @@ export const usePendingRegistrations = (): UsePendingRegistrationsReturn => {
   };
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user?.role === 'admin') {
+    if (!isLoading && isAuthenticated && user && isAdminRole(user.role)) {
       fetchCount();
     } else {
       setCount(0);
@@ -46,7 +47,7 @@ export const usePendingRegistrations = (): UsePendingRegistrationsReturn => {
   }, [isLoading, isAuthenticated, user]);
 
   const refetch = () => {
-    if (isAuthenticated && user?.role === 'admin') {
+    if (isAuthenticated && user && isAdminRole(user.role)) {
       fetchCount();
     }
   };

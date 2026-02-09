@@ -4,7 +4,7 @@ const { body, query, param } = require('express-validator');
 const Joi = require('joi');
 const Position = require('../models/Position');
 const positionController = require('../controllers/positionController');
-const { authenticateToken, requirePermission, logUserAction } = require('../middleware/auth');
+const { authenticateToken, requirePermission, logUserAction, isAdminRole } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const logger = require('../utils/logger');
 
@@ -130,8 +130,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     // Виключаємо посаду "адміністратор системи" для звичайних користувачів
-    // Адміністратори мають бачити всі посади
-    if (req.user.role !== 'admin') {
+    if (!isAdminRole(req.user.role)) {
       // Додаємо фільтр для виключення посади "адміністратор системи"
       // Використовуємо $not для regex, щоб виключити посади з такою назвою
       filters.$and = filters.$and || [];
@@ -155,8 +154,8 @@ router.get('/', authenticateToken, async (req, res) => {
       .limit(options.limit * options.page)
       .skip((options.page - 1) * options.limit);
 
-    // Додаткова фільтрація для звичайних користувачів (на випадок, якщо regex не спрацював)
-    if (req.user.role !== 'admin') {
+    // Додаткова фільтрація для звичайних користувачів
+    if (!isAdminRole(req.user.role)) {
       positions = positions.filter(position => {
         const titleLower = position.title.toLowerCase();
         return !titleLower.includes('адміністратор системи') && 
@@ -203,8 +202,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Перевірка, чи звичайний користувач намагається отримати посаду "адміністратор системи"
-    if (req.user.role !== 'admin') {
+    // Перевірка доступу до посади "адміністратор системи"
+    if (!isAdminRole(req.user.role)) {
       const titleLower = position.title.toLowerCase();
       const isAdminPosition = titleLower.includes('адміністратор системи') || 
                              titleLower.includes('администратор системы') ||

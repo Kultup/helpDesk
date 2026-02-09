@@ -46,7 +46,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 
 // Types and Utils
-import { TicketStatus, TicketPriority, UserRole } from '../types';
+import { TicketStatus, TicketPriority, UserRole, isAdminRole } from '../types';
 import { getStatusColor, getPriorityColor, formatDate } from '../utils';
 
 // ============================================================================
@@ -133,7 +133,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
   const basePath = isAdmin ? '/admin' : '';
   
   // Data hooks
@@ -709,7 +709,7 @@ const Dashboard: React.FC = () => {
             )}
 
             {/* Bottom Section - Admin Tools */}
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
                 <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
                   <StickyNote className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-warning" />

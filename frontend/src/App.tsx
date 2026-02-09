@@ -5,7 +5,7 @@ import { PendingRegistrationsProvider } from './contexts/PendingRegistrationsCon
 import { ThemeProvider } from './contexts/ThemeContext';
 import RoleBasedRedirect from './components/RoleBasedRedirect';
 import { Layout } from './components/Layout';
-import { UserRole } from './types';
+import { UserRole, isAdminRole } from './types';
 import './i18n'; // Ініціалізація i18n
 import logService from './services/logService'; // Ініціалізація логів
 import { Toaster } from 'react-hot-toast';
@@ -51,11 +51,7 @@ const SmartRedirect: React.FC = () => {
   }
   
   if (isAuthenticated && user) {
-    if (user.role === UserRole.ADMIN) {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else {
-      return <Navigate to="/dashboard" replace />;
-    }
+    return <Navigate to={isAdminRole(user.role as UserRole) ? '/admin/dashboard' : '/dashboard'} replace />;
   }
   
   return <Navigate to="/login" replace />;

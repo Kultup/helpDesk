@@ -77,9 +77,14 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+/** Чи є роль адміністраторською (повний доступ до панелі). */
+function isAdminRole(role) {
+  return role === 'admin' || role === 'super_admin' || role === 'administrator';
+}
+
 // Middleware для перевірки ролі адміністратора
 const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
+  if (!isAdminRole(req.user.role)) {
     return res.status(403).json({
       success: false,
       message: 'Доступ заборонено. Потрібні права адміністратора'
@@ -91,7 +96,7 @@ const requireAdmin = (req, res, next) => {
 // Middleware для перевірки дозволів
 const requirePermission = (permission) => {
   return (req, res, next) => {
-    if (req.user.role === 'admin') {
+    if (isAdminRole(req.user.role)) {
       return next(); // Адміністратор має всі дозволи
     }
     
@@ -129,8 +134,7 @@ const requirePermission = (permission) => {
 // Middleware для перевірки власності ресурсу або прав адміністратора
 const requireOwnershipOrAdmin = (resourceField = 'createdBy') => {
   return (req, res, next) => {
-    // Адміністратор має доступ до всіх ресурсів
-    if (req.user.role === 'admin') {
+    if (isAdminRole(req.user.role)) {
       return next();
     }
     
@@ -200,7 +204,8 @@ const userRateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
 
 module.exports = {
   authenticateToken,
-  auth: authenticateToken, // Alias for backward compatibility
+  auth: authenticateToken,
+  isAdminRole,
   requireAdmin,
   requirePermission,
   requireOwnershipOrAdmin,

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, AlertCircle, CheckCircle, User, X } from 'lucide-react';
-import { Ticket, UserRole } from '../../types';
+import { Ticket, UserRole, isAdminRole } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 // Theme context is no longer used
 import { useTranslation } from 'react-i18next';
@@ -23,7 +23,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const { width } = useWindowSize();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user != null && isAdminRole(user.role as UserRole);
   const basePath = isAdmin ? '/admin' : '';
   const dropdownRef = useRef<HTMLDivElement>(null);
   

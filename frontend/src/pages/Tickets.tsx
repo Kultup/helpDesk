@@ -27,7 +27,7 @@ import { useTicketExport } from '../hooks/useTicketExport';
 import { TicketStatus, TicketPriority, TicketFilters } from '../types';
 import { getStatusColor, getPriorityColor, formatDate, formatDaysAgo, cn } from '../utils';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
+import { UserRole, isAdminRole } from '../types';
 import DayIndicator from '../components/DayIndicator';
 import { apiService } from '../services/api';
 
@@ -37,7 +37,7 @@ const Tickets: React.FC = () => {
   const { width } = useWindowSize();
   const [searchParams] = useSearchParams();
   const isMobile = width < 768;
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
   const basePath = isAdmin ? '/admin' : '';
   
   const {

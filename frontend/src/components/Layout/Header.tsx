@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 // Theme context is no longer used
 import { useClickOutside, useNotifications, useRegistrationNotifications } from '../../hooks';
+import { isAdminRole } from '../../types';
 import { usePendingRegistrationsContext } from '../../contexts/PendingRegistrationsContext';
 import { apiService } from '../../services/api';
 import Button from '../UI/Button';
@@ -109,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
   // Fetch position requests count
   useEffect(() => {
     const fetchPositionRequests = async () => {
-      if (user?.role === 'admin') {
+      if (user && isAdminRole(user.role)) {
         try {
           setPositionRequestsLoading(true);
           // Only fetch if menu is open or we need the count
@@ -288,7 +289,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           </div>
 
           {/* Position Requests - Admin Only */}
-          {user?.role === 'admin' && (
+          {user && isAdminRole(user.role) && (
             <div className="relative" ref={positionRequestsMenuRef}>
               <Button 
                 variant="ghost" 
@@ -318,7 +319,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           )}
 
           {/* Registration Requests - Admin Only */}
-          {user?.role === 'admin' && (
+          {user && isAdminRole(user.role) && (
             <div className="relative" ref={registrationMenuRef}>
               <Button 
                 variant="ghost" 
@@ -352,7 +353,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           )}
 
           {/* Calendar - Only for admins */}
-          {user?.role === 'admin' && (
+          {user && isAdminRole(user.role) && (
             <div className="relative" ref={calendarMenuRef}>
               <Button 
                 variant="ghost" 
@@ -392,7 +393,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
                     {user?.email}
                   </p>
                   <p className="text-xs text-text-secondary">
-                    {user?.role === 'admin' ? t('header.administrator') : t('header.user')}
+                    {user && isAdminRole(user.role) ? t('header.administrator') : t('header.user')}
                   </p>
                 </div>
               )}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../services/api';
 import { useAuth } from './AuthContext';
+import { isAdminRole } from '../types';
 
 interface PendingRegistrationsContextType {
   count: number;
@@ -44,7 +45,7 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
   useEffect(() => {
     // Виконуємо запит лише після завершення ініціалізації авторизації
     // і тільки якщо користувач автентифікований та має роль admin
-    if (!isLoading && isAuthenticated && user?.role === 'admin') {
+    if (!isLoading && isAuthenticated && user && isAdminRole(user.role)) {
       fetchCount();
 
       // Підключення до WebSocket для отримання оновлень кількості реєстрацій
@@ -95,7 +96,7 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
   }, [isLoading, isAuthenticated, user]);
 
   const refetch = () => {
-    if (isAuthenticated && user?.role === 'admin') {
+    if (isAuthenticated && user && isAdminRole(user.role)) {
       fetchCount();
     }
   };

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../types';
 
 const SocketNotifications = () => {
   const { user, isAuthenticated } = useAuth();
@@ -38,7 +39,7 @@ const SocketNotifications = () => {
         if (user._id) {
           socket.emit('join-user-room', user._id);
         }
-        if (user?.role === 'admin') {
+        if (user?.role != null && isAdminRole(user.role)) {
           socket.emit('join-admin-room');
         }
       });

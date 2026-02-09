@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole, Ticket, TicketStatus, TicketPriority } from '../types';
+import { UserRole, Ticket, TicketStatus, TicketPriority, isAdminRole } from '../types';
 import { apiService } from '../services/api';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -30,7 +30,7 @@ const TicketDetails: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const { user } = useAuth();
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
   const basePath = isAdmin ? '/admin' : '';
   const ticketHistoryRef = useRef<TicketHistoryRef>(null);
 

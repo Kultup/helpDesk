@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LogIn, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouteHistory } from '../hooks';
-import { UserRole } from '../types';
+import { UserRole, isAdminRole } from '../types';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
@@ -22,11 +22,7 @@ const Login: React.FC = () => {
 
   // Redirect if already logged in - враховуємо роль користувача
   if (user) {
-    if (user.role === UserRole.ADMIN) {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else {
-      return <Navigate to="/dashboard" replace />;
-    }
+    return <Navigate to={isAdminRole(user.role as UserRole) ? '/admin/dashboard' : '/dashboard'} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
