@@ -75,9 +75,12 @@ function formatUserContext(userContext) {
 
 /**
  * Виклик 1: аналіз наміру та достатності інформації.
+ * @param {Array} dialogHistory
+ * @param {Object} userContext
+ * @param {string} [webSearchContext] - опційний фрагмент з пошуку в інтернеті (troubleshooting) для формування quickSolution
  * @returns {Promise<{ isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number, priority?: string, emotionalTone?: string, quickSolution?: string }>}
  */
-async function analyzeIntent(dialogHistory, userContext) {
+async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
     return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
@@ -102,7 +105,8 @@ async function analyzeIntent(dialogHistory, userContext) {
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
-    quickSolutions: quickSolutionsText
+    quickSolutions: quickSolutionsText,
+    webSearchContext: webSearchContext ? String(webSearchContext).trim() : ''
   });
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;

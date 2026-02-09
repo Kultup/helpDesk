@@ -144,6 +144,40 @@ class TelegramService {
     });
   }
 
+  /**
+   * Пошук підказки в інтернеті (DuckDuckGo) для формування quickSolution. Викликати лише для користувача з правом на інтернет.
+   * @param {string} query - наприклад "принтер не друкує як виправити"
+   * @returns {Promise<string>}
+   */
+  fetchTroubleshootingSnippet(query) {
+    if (!query || String(query).trim() === '') return Promise.resolve('');
+    const q = encodeURIComponent(String(query).trim().substring(0, 200));
+    const url = `https://api.duckduckgo.com/?q=${q}&format=json`;
+    return new Promise((resolve) => {
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const parts = [];
+            if (json.AbstractText && String(json.AbstractText).trim()) {
+              parts.push(String(json.AbstractText).trim().substring(0, 800));
+            }
+            if (Array.isArray(json.RelatedTopics) && json.RelatedTopics.length > 0) {
+              const first = json.RelatedTopics[0];
+              const text = first.Text || null;
+              if (text && String(text).trim()) parts.push(String(text).trim().substring(0, 400));
+            }
+            resolve(parts.join('\n\n').trim());
+          } catch (e) {
+            resolve('');
+          }
+        });
+      }).on('error', () => resolve(''));
+    });
+  }
+
   async initialize() {
     // Перевіряємо, чи бот вже ініціалізований
     if (this.isInitialized && this.bot) {
@@ -1203,6 +1237,23 @@ class TelegramService {
           await this.sendMessage(chatId, '✅ Лічильник токенів скинуто.');
         }
         await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'tip_helped') {
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'awaiting_tip_feedback') {
+          this.userSessions.delete(chatId);
+          await this.sendMessage(chatId, 'Супер! Якщо ще щось знадобиться — пиши 😊', {
+            reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+          });
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
+      } else if (data === 'tip_not_helped') {
+        const session = this.userSessions.get(chatId);
+        if (session && session.step === 'awaiting_tip_feedback') {
+          session.step = 'gathering_information';
+          const msg = 'Підказка не допомогла, потрібен тікет';
+          await this.handleMessageInAiMode(chatId, msg, session, user);
+        }
+        await this.answerCallbackQuery(callbackQuery.id);
       } else if (data === 'back') {
         await this.handleBackNavigation(chatId, user);
       } else if (data === 'back_to_menu') {
@@ -2045,10 +2096,49 @@ class TelegramService {
     if (!session.dialog_history) session.dialog_history = [];
     session.dialog_history.push({ role: 'user', content: text });
 
+    // Якщо очікуємо відповідь на підказку — текст "ні"/"не допомогло" = перейти до створення тікета
+    if (session.step === 'awaiting_tip_feedback') {
+      const t = (text || '').toLowerCase().trim();
+      const notHelped = /^(ні|нi|не допомогло|не вийшло|не допомогло|створити тікет|потрібен тікет|оформити заявку)$/.test(t) || t.includes('не допомогло') || t.includes('не вийшло');
+      if (notHelped) {
+        session.step = 'gathering_information';
+        await this.sendTyping(chatId);
+        let resultAfterTip;
+        try {
+          resultAfterTip = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext);
+        } catch (err) {
+          resultAfterTip = { isTicketIntent: true, needsMoreInfo: true, missingInfo: ['деталі проблеми'], confidence: 0.7, quickSolution: null };
+        }
+        session.dialog_history.push({ role: 'assistant', content: 'Добре, тоді зберемо деталі для тікета.' });
+        session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+        let question;
+        try {
+          question = await aiFirstLineService.generateNextQuestion(session.dialog_history, resultAfterTip.missingInfo || [], session.userContext);
+        } catch (_) {
+          question = 'Опишіть, будь ласка, що саме відбувається (модель принтера, текст помилки тощо).';
+        }
+        session.dialog_history.push({ role: 'assistant', content: question });
+        await this.sendMessage(chatId, question, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
+        });
+        return;
+      }
+      await this.sendMessage(chatId, 'Оберіть кнопкою: **Допомогло** чи **Ні, створити тікет**.', { parse_mode: 'Markdown' });
+      return;
+    }
+
     await this.sendTyping(chatId);
+    // Завжди шукаємо підказку в інтернеті для технічної проблеми; якщо не допоможе — далі збір інформації та тікет
+    const searchQuery = (text || '').trim() ? `${String(text).trim()} як виправити troubleshooting` : '';
+    const webSearchContext = searchQuery ? await this.fetchTroubleshootingSnippet(searchQuery) : '';
     let result;
     try {
-      result = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext);
+      result = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext, webSearchContext);
     } catch (err) {
       logger.error('AI: помилка analyzeIntent', err);
       await this.sendMessage(chatId, 'Зараз не можу обробити. Спробуйте ще раз або натисніть «Заповнити по-старому».', {
@@ -2267,6 +2357,26 @@ class TelegramService {
         reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
       });
       this.userSessions.delete(chatId);
+      return;
+    }
+
+    // 1.5) Тікет + є швидка підказка — спочатку одна підказка, потім (якщо не допомогло) збір інформації та тікет
+    const quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
+    if (result.isTicketIntent && quickSolutionText && session.step !== 'awaiting_tip_feedback') {
+      session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
+      session.step = 'awaiting_tip_feedback';
+      await this.sendMessage(chatId,
+        quickSolutionText + '\n\n_Якщо не допоможе — натисніть «Ні, створити тікет», і я зберу деталі для заявки._', {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+              [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+              [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+            ]
+          }
+        }
+      );
       return;
     }
 
