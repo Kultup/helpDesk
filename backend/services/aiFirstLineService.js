@@ -346,6 +346,34 @@ function resetTokenUsage() {
   tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, requestCount: 0 };
 }
 
+/**
+ * Транскрибує голосовий файл (OGG/MP3 тощо) в текст через OpenAI Whisper.
+ * @param {string} filePath - шлях до файлу на диску
+ * @returns {Promise<string|null>} - розпізнаний текст або null при помилці
+ */
+async function transcribeVoiceToText(filePath) {
+  const settings = await getAISettings();
+  if (!settings || !settings.openaiApiKey || !String(settings.openaiApiKey).trim()) {
+    logger.warn('AI: немає OpenAI API ключа для Whisper');
+    return null;
+  }
+  try {
+    const OpenAI = require('openai').default;
+    const openai = new OpenAI({ apiKey: settings.openaiApiKey.trim() });
+    const stream = fs.createReadStream(filePath);
+    const transcription = await openai.audio.transcriptions.create({
+      file: stream,
+      model: 'whisper-1',
+      language: 'uk'
+    });
+    const text = transcription && typeof transcription.text === 'string' ? transcription.text.trim() : null;
+    return text || null;
+  } catch (err) {
+    logger.error('AI: помилка Whisper транскрипції', { message: err.message, filePath });
+    return null;
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
@@ -354,5 +382,6 @@ module.exports = {
   formatUserContext,
   invalidateCache,
   getTokenUsage,
-  resetTokenUsage
+  resetTokenUsage,
+  transcribeVoiceToText
 };

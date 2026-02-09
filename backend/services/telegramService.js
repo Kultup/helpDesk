@@ -3545,24 +3545,8 @@ class TelegramService {
   async handleSkipPhotoCallback(chatId, _user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      session.step = 'priority';
-      
-      await this.sendMessage(chatId, 
-        this.getPriorityPromptText(), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: this.getPriorityText('high'), callback_data: 'priority_high' },
-                { text: this.getPriorityText('medium'), callback_data: 'priority_medium' }
-              ],
-              [
-                { text: this.getPriorityText('low'), callback_data: 'priority_low' },
-                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
-              ]
-            ]
-          }
-        }
-      );
+      session.ticketData.priority = session.ticketData.priority || 'medium';
+      await this.completeTicketCreation(chatId, _user, session);
     }
   }
 
@@ -3575,24 +3559,8 @@ class TelegramService {
   async handleFinishTicketCallback(chatId, _user) {
     const session = this.userSessions.get(chatId);
     if (session) {
-      session.step = 'priority';
-      
-      await this.sendMessage(chatId, 
-        this.getPriorityPromptText(), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: this.getPriorityText('high'), callback_data: 'priority_high' },
-                { text: this.getPriorityText('medium'), callback_data: 'priority_medium' }
-              ],
-              [
-                { text: this.getPriorityText('low'), callback_data: 'priority_low' },
-                { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }
-              ]
-            ]
-          }
-        }
-      );
+      session.ticketData.priority = session.ticketData.priority || 'medium';
+      await this.completeTicketCreation(chatId, _user, session);
     }
   }
 
@@ -3704,6 +3672,13 @@ class TelegramService {
         const remaining = Math.max(0, limit - monthlyTotal);
         msg += `\n\n📌 *Ваш місячний ліміт:* ${limit.toLocaleString()}\n` +
           `✅ *Залишилось по квоті:* ${remaining.toLocaleString()} токенів`;
+      }
+      const topUp = settings && typeof settings.topUpAmount === 'number' && settings.topUpAmount > 0 ? settings.topUpAmount : 0;
+      const balance = settings && typeof settings.remainingBalance === 'number' ? settings.remainingBalance : null;
+      if (topUp > 0 || (balance !== null && balance >= 0)) {
+        msg += '\n\n💰 *По сумі:*';
+        if (topUp > 0) msg += ` поповнення $${topUp.toFixed(2)}`;
+        if (balance !== null && balance >= 0) msg += (topUp > 0 ? ' |' : '') + ` залишок $${Number(balance).toFixed(2)}`;
       }
       msg += `\n\n_Лічильник сесії — з перезапуску сервера. Місячний — зберігається._`;
       await this.sendMessage(chatId, msg, {
@@ -5841,9 +5816,43 @@ class TelegramService {
   }
 
   // Обробка голосових повідомлень (AI інтеграція вимкнена)
+  /**
+   * Обробка голосового повідомлення: завантаження → транскрипція (Whisper) → обробка як текст (AI/тікет).
+   */
   async handleVoice(msg, user) {
     const chatId = msg.chat.id;
-    await this.sendMessage(chatId, 'Голосові повідомлення не підтримуються. Використайте текст або команду /create для створення заявки.');
+    const userId = msg.from?.id;
+    if (!msg.voice?.file_id) {
+      await this.sendMessage(chatId, 'Не вдалося отримати голосове повідомлення. Спробуйте ще раз або опишіть проблему текстом.');
+      return;
+    }
+    await this.sendTyping(chatId);
+    let localPath;
+    try {
+      localPath = await this.downloadTelegramFileByFileId(msg.voice.file_id, '.ogg');
+    } catch (err) {
+      logger.error('Помилка завантаження голосового файлу', { err: err.message });
+      await this.sendMessage(chatId, 'Не вдалося завантажити голосове. Спробуйте надіслати текстом або /create для створення заявки.');
+      return;
+    }
+    let text = null;
+    try {
+      text = await aiFirstLineService.transcribeVoiceToText(localPath);
+    } finally {
+      try {
+        if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      } catch (_) {}
+    }
+    if (!text || String(text).trim().length === 0) {
+      await this.sendMessage(chatId, 'Не вдалося розпізнати мову. Напишіть, будь ласка, проблему текстом або спробуйте ще раз записати голосове.');
+      return;
+    }
+    const syntheticMsg = {
+      chat: msg.chat,
+      from: msg.from || { id: userId },
+      text: text.trim()
+    };
+    await this.handleTextMessage(syntheticMsg);
   }
 
   async showPrioritySelection(chatId, _session) {

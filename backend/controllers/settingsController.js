@@ -644,7 +644,7 @@ exports.getAiSettings = async (req, res) => {
  */
 exports.updateAiSettings = async (req, res) => {
   try {
-    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled, monthlyTokenLimit } = req.body;
+    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled, monthlyTokenLimit, topUpAmount, remainingBalance } = req.body;
 
     let settings = await AISettings.findOne({ key: 'default' });
 
@@ -681,6 +681,14 @@ exports.updateAiSettings = async (req, res) => {
     if (monthlyTokenLimit !== undefined) {
       const val = parseInt(monthlyTokenLimit, 10);
       settings.monthlyTokenLimit = Number.isNaN(val) || val < 0 ? 0 : val;
+    }
+    if (topUpAmount !== undefined) {
+      const val = parseFloat(topUpAmount);
+      settings.topUpAmount = Number.isNaN(val) || val < 0 ? 0 : val;
+    }
+    if (remainingBalance !== undefined) {
+      const val = parseFloat(remainingBalance);
+      settings.remainingBalance = Number.isNaN(val) || val < 0 ? 0 : val;
     }
 
     await settings.save();

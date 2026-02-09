@@ -13,6 +13,10 @@ interface AISettingsData {
   openaiModel: string;
   enabled: boolean;
   monthlyTokenLimit?: number;
+  /** Сума поповнення рахунку OpenAI (USD). */
+  topUpAmount?: number;
+  /** Залишок по рахунку (USD), для контролю. */
+  remainingBalance?: number;
   hasOpenaiKey?: boolean;
 }
 
@@ -51,7 +55,9 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
           openaiApiKey: data.hasOpenaiKey ? '••••••••••••' : '',
           openaiModel: data.openaiModel || 'gpt-4o-mini',
           enabled: !!data.enabled,
-          monthlyTokenLimit: typeof data.monthlyTokenLimit === 'number' ? data.monthlyTokenLimit : 0
+          monthlyTokenLimit: typeof data.monthlyTokenLimit === 'number' ? data.monthlyTokenLimit : 0,
+          topUpAmount: typeof data.topUpAmount === 'number' ? data.topUpAmount : 0,
+          remainingBalance: typeof data.remainingBalance === 'number' ? data.remainingBalance : 0
         });
       }
     } catch (error: unknown) {
@@ -76,7 +82,9 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
         provider: 'openai',
         openaiModel: settings.openaiModel,
         enabled: settings.enabled,
-        monthlyTokenLimit: settings.monthlyTokenLimit ?? 0
+        monthlyTokenLimit: settings.monthlyTokenLimit ?? 0,
+        topUpAmount: settings.topUpAmount ?? 0,
+        remainingBalance: settings.remainingBalance ?? 0
       };
       if (settings.openaiApiKey && !settings.openaiApiKey.startsWith('••')) {
         payload.openaiApiKey = settings.openaiApiKey;
@@ -215,6 +223,40 @@ const AISettings: React.FC<AISettingsProps> = ({ embedded = false }) => {
               <p className="mt-1 text-sm text-gray-500">
                 У боті (кнопка «Перевірити токени AI») буде показано, скільки залишилось по квоті.
               </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Сума поповнення (USD)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={settings.topUpAmount ?? 0}
+                  onChange={(e) => handleChange('topUpAmount', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  На яку суму поповнювали рахунок OpenAI (для контролю).
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Залишок по сумі (USD)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={settings.remainingBalance ?? 0}
+                  onChange={(e) => handleChange('remainingBalance', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Скільки залишилось на рахунку (оновлюйте вручну з platform.openai.com).
+                </p>
+              </div>
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
