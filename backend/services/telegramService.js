@@ -365,7 +365,7 @@ class TelegramService {
             return;
           }
           if (session && session.mode === 'ai') {
-            await this.handlePhotoInAiMode(
+            await this.aiService.handlePhotoInAiMode(
               msg.chat.id,
               msg.photo,
               msg.caption || '',
@@ -1202,7 +1202,7 @@ class TelegramService {
         } else if (data === 'tip_helped') {
           const session = this.userSessions.get(chatId);
           if (session && session.step === 'awaiting_tip_feedback') {
-            const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+            const filler = await aiFirstLineService.generateConversationalResponse(
               session.dialog_history || [],
               'accept_thanks',
               session.userContext || {}
@@ -1218,8 +1218,7 @@ class TelegramService {
         } else if (data === 'tip_not_helped') {
           const session = this.userSessions.get(chatId);
           if (session && session.step === 'awaiting_tip_feedback') {
-            session.step = 'gathering_information';
-            session.afterTipNotHelped = true; // не показувати ще одну «підказку», одразу збір інформації / форма тікета
+            // let handleMessageInAiMode handle the transition so it can check for photo requirements
             await this.aiService.handleMessageInAiMode(chatId, 'Не допомогло', session, user);
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1372,7 +1371,7 @@ class TelegramService {
           if (session && session.aiDialogId) {
             await this.aiService.completeAIDialog(session.aiDialogId, 'cancelled');
           }
-          const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+          const filler = await aiFirstLineService.generateConversationalResponse(
             session.dialog_history || [],
             'session_closed',
             session.userContext || {}
@@ -1632,7 +1631,7 @@ class TelegramService {
     }
 
     if (session) {
-      await this.handleTicketCreationStep(chatId, text, session);
+      await this.ticketService.handleTicketCreationStep(chatId, text, session);
     } else {
       await this.sendMessage(chatId, 'Я не розумію. Використайте меню для навігації.');
     }
