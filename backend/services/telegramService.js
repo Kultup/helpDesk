@@ -1727,7 +1727,7 @@ class TelegramService {
       logger.error('Помилка завантаження фото доступу до ПК', { chatId, err: err.message });
       return { success: false };
     }
-    const computerAccessDir = path.join(__dirname, '../uploads/computer-access');
+    const computerAccessDir = path.resolve(__dirname, '../uploads/computer-access');
     if (!fs.existsSync(computerAccessDir)) {
       fs.mkdirSync(computerAccessDir, { recursive: true });
     }

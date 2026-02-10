@@ -1,9 +1,13 @@
 // Обробка deprecation warnings від залежностей
 // Приховуємо попередження про util._extend від залежностей (yamljs, imap, тощо)
 const originalEmitWarning = process.emitWarning;
-process.emitWarning = function (warning, type, code, ctor) {
-  if (type === 'DeprecationWarning' &&
-    (warning && warning.includes && warning.includes('util._extend'))) {
+process.emitWarning = function (warning, type) {
+  if (
+    type === 'DeprecationWarning' &&
+    warning &&
+    warning.includes &&
+    warning.includes('util._extend')
+  ) {
     return; // Ігноруємо це попередження
   }
   if (typeof warning === 'string' && warning.includes('util._extend')) {
@@ -13,10 +17,13 @@ process.emitWarning = function (warning, type, code, ctor) {
 };
 
 // Також обробляємо через process.on('warning')
-process.on('warning', (warning) => {
+process.on('warning', warning => {
   // Ігноруємо попередження про util._extend від залежностей
-  if (warning.name === 'DeprecationWarning' &&
-    (warning.message && warning.message.includes('util._extend'))) {
+  if (
+    warning.name === 'DeprecationWarning' &&
+    warning.message &&
+    warning.message.includes('util._extend')
+  ) {
     return; // Не показуємо це попередження
   }
   // Показуємо інші попередження
@@ -56,7 +63,7 @@ const {
   globalErrorHandler,
   notFoundHandler,
   unhandledRejectionHandler,
-  uncaughtExceptionHandler
+  uncaughtExceptionHandler,
 } = require('./middleware');
 
 const app = express();
@@ -68,10 +75,40 @@ app.set('trust proxy', 1); // Довіряємо першому проксі
 // Вимикаємо ETag для динамічних відповідей, щоб уникнути 304 та показувати актуальні дані
 app.set('etag', false);
 
+// --- Ініціалізація структури папок для завантажень ---
+const uploadsPath = path.resolve(__dirname, 'uploads');
+const subdirs = [
+  'tickets',
+  'telegram-files',
+  'telegram-photos',
+  'attachments',
+  'avatars',
+  'computer-access',
+  'kb',
+];
+
+try {
+  if (!require('fs').existsSync(uploadsPath)) {
+    require('fs').mkdirSync(uploadsPath, { recursive: true });
+  }
+  subdirs.forEach(subdir => {
+    const subdirPath = path.join(uploadsPath, subdir);
+    if (!require('fs').existsSync(subdirPath)) {
+      require('fs').mkdirSync(subdirPath, { recursive: true });
+    }
+  });
+  logger.info(`📁 Структура папок для завантажень ініціалізована: ${uploadsPath}`);
+} catch (err) {
+  logger.error('Помилка створення папок для завантажень:', err);
+}
+// -----------------------------------------------------
+
 // Socket.IO конфігурація
 // Використовуємо ту саму логіку для origins, що й для HTTP CORS
-const parseOrigins = (originString) => {
-  if (!originString) return [];
+const parseOrigins = originString => {
+  if (!originString) {
+    return [];
+  }
   return originString
     .split(',')
     .map(origin => origin.trim())
@@ -79,36 +116,42 @@ const parseOrigins = (originString) => {
 };
 
 // Додаткові завжди дозволені origins (локальні мережі та production домени)
-const additionalSocketOrigins = [
-  'http://192.168.100.15:3000',
-  'https://helpdesk.krainamriy.fun'
-];
+const additionalSocketOrigins = ['http://192.168.100.15:3000', 'https://helpdesk.krainamriy.fun'];
 
 const allowedSocketOrigins = [
   process.env.FRONTEND_URL,
   ...parseOrigins(process.env.CORS_ORIGIN),
-  ...additionalSocketOrigins
+  ...additionalSocketOrigins,
 ].filter(Boolean);
 
-const isSocketOriginAllowed = (origin) => {
-  if (!origin) return true;
+const isSocketOriginAllowed = origin => {
+  if (!origin) {
+    return true;
+  }
 
   // Дозволяємо localhost
-  const isLocalhost = origin.startsWith('http://localhost:') ||
+  const isLocalhost =
+    origin.startsWith('http://localhost:') ||
     origin.startsWith('http://127.0.0.1:') ||
     origin.includes('localhost');
-  if (isLocalhost) return true;
+  if (isLocalhost) {
+    return true;
+  }
 
   // Точна відповідність
-  if (allowedSocketOrigins.includes(origin)) return true;
+  if (allowedSocketOrigins.includes(origin)) {
+    return true;
+  }
 
   // Перевірка на піддомени
   for (const allowedOrigin of allowedSocketOrigins) {
     try {
       const allowedUrl = new URL(allowedOrigin);
       const originUrl = new URL(origin);
-      if (originUrl.hostname === allowedUrl.hostname ||
-        originUrl.hostname.endsWith('.' + allowedUrl.hostname)) {
+      if (
+        originUrl.hostname === allowedUrl.hostname ||
+        originUrl.hostname.endsWith('.' + allowedUrl.hostname)
+      ) {
         return true;
       }
     } catch (e) {
@@ -133,13 +176,13 @@ const io = new Server(server, {
       }
     },
     methods: ['GET', 'POST'],
-    credentials: true
+    credentials: true,
   },
   maxHttpBufferSize: 1e6, // 1MB обмеження для запобігання проблем з великими пакетами
   pingTimeout: 60000,
   pingInterval: 25000,
   // Вимкнути бінарний парсер, якщо він викликає проблеми
-  allowEIO3: false
+  allowEIO3: false,
 });
 
 // Зберігаємо io в app для використання в інших частинах додатку
@@ -160,13 +203,13 @@ const mongoOptions = {
   minPoolSize: 2, // Мінімальна кількість з'єднань в пулі
   maxIdleTimeMS: 30000, // Час очікування перед закриттям неактивного з'єднання
   heartbeatFrequencyMS: 10000, // Частота перевірки з'єднання
-  retryWrites: true
+  retryWrites: true,
   // bufferMaxEntries та bufferCommands більше не підтримуються в новій версії MongoDB драйвера
   // Буферизація команд увімкнена за замовчуванням
 };
 
 // Обробка подій підключення MongoDB
-mongoose.connection.on('error', (err) => {
+mongoose.connection.on('error', err => {
   logger.error('❌ MongoDB connection error:', err);
 });
 
@@ -186,13 +229,16 @@ mongoose.connection.on('connected', () => {
   logger.info('✅ MongoDB connected');
 });
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', mongoOptions)
+mongoose
+  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', mongoOptions)
   .then(async () => {
     logger.info('✅ Підключено до MongoDB');
-    logger.info(`MongoDB URI: ${process.env.MONGODB_URI ? 'встановлено' : 'використовується за замовчуванням'}`);
+    logger.info(
+      `MongoDB URI: ${process.env.MONGODB_URI ? 'встановлено' : 'використовується за замовчуванням'}`
+    );
     // Ініціалізуємо всі моделі
     require('./models');
-    console.log('✅ Моделі ініціалізовано');
+    logger.info('✅ Моделі ініціалізовано');
 
     // Ініціалізуємо Redis кеш
     const cacheService = require('./services/cacheService');
@@ -201,14 +247,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     // Ініціалізуємо Telegram бота
     const telegramService = require('./services/telegramServiceInstance');
     telegramService.initialize();
-    console.log('✅ Telegram бот ініціалізовано');
+    logger.info('✅ Telegram бот ініціалізовано');
 
     // Ініціалізуємо автоматичне очищення застарілих реєстрацій
     const { setupCleanupJob } = require('./jobs/cleanupJob');
     setupCleanupJob();
     logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
-
-
 
     // Ініціалізуємо Zabbix polling
     const { setupZabbixPolling } = require('./jobs/zabbixPolling');
@@ -218,13 +262,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     // Ініціалізуємо оновлення SLA статусів
     const { updateSLAStatus } = require('./jobs/updateSLAStatus');
     // Запускаємо оновлення SLA кожні 15 хвилин
-    setInterval(async () => {
-      try {
-        await updateSLAStatus();
-      } catch (error) {
-        logger.error('Помилка виконання SLA update job:', error);
-      }
-    }, 15 * 60 * 1000); // 15 хвилин
+    setInterval(
+      async () => {
+        try {
+          await updateSLAStatus();
+        } catch (error) {
+          logger.error('Помилка виконання SLA update job:', error);
+        }
+      },
+      15 * 60 * 1000
+    ); // 15 хвилин
     logger.info('✅ SLA status update job налаштовано (кожні 15 хвилин)');
 
     // Ініціалізуємо WebSocket сервіс для реєстрації
@@ -261,13 +308,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
       const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
       logger.info(`🌐 API базова адреса: ${apiBase}`);
       logger.info(
-        `🔌 Дозволені CORS origins для WebSocket: ${allowedSocketOrigins.length ? allowedSocketOrigins.join(', ') : 'будь-яке (DEV або не налаштовано)'
+        `🔌 Дозволені CORS origins для WebSocket: ${
+          allowedSocketOrigins.length
+            ? allowedSocketOrigins.join(', ')
+            : 'будь-яке (DEV або не налаштовано)'
         }`
       );
 
       // Логуємо старт сервера у щоденний audit лог
       try {
-        const { auditLogger } = require('./middleware/logging');
+        require('./middleware/logging');
         const fs = require('fs').promises;
         const logsDir = path.join(__dirname, 'logs');
 
@@ -289,8 +339,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
             port: PORT,
             nodeEnv: process.env.NODE_ENV || 'development',
             apiBase: apiBase,
-            pid: process.pid
-          }
+            pid: process.pid,
+          },
         };
         await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
       } catch (error) {
@@ -300,11 +350,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     });
 
     // WebSocket обробка підключень
-    io.on('connection', (socket) => {
+    io.on('connection', socket => {
       logger.info('👤 Користувач підключився:', socket.id);
 
       // Обробка помилок підключення
-      socket.on('error', (error) => {
+      socket.on('error', error => {
         logger.error('Socket.IO error:', error);
       });
 
@@ -333,7 +383,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
       });
 
       // Приєднання до кімнати користувача для персональних сповіщень (наприклад, запит на оцінку)
-      socket.on('join-user-room', (userId) => {
+      socket.on('join-user-room', userId => {
         if (userId) {
           socket.join(`user-${userId}`);
           logger.info(`👤 Користувач ${userId} приєднався до своєї кімнати:`, socket.id);
@@ -353,7 +403,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
       });
 
       // Обробка логів від фронтенду (з валідацією)
-      socket.on('frontend-log', (data) => {
+      socket.on('frontend-log', data => {
         try {
           // Перевіряємо, чи дані не містять цикличних посилань
           if (data && typeof data === 'object') {
@@ -376,7 +426,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
     });
 
     // Глобальна обробка помилок Socket.IO
-    io.engine.on('connection_error', (err) => {
+    io.engine.on('connection_error', err => {
       logger.error('Socket.IO connection error:', err);
     });
   })
@@ -387,7 +437,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk'
       message: err.message,
       name: err.name,
       code: err.code,
-      stack: err.stack
+      stack: err.stack,
     });
     // Не завершуємо процес, але логуємо помилку
     // Сервер може продовжити роботу, але операції з БД будуть невдалі
@@ -441,18 +491,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Статичні файли
-const uploadsPath = path.join(__dirname, 'uploads');
-logger.info(`📁 Статичні файли доступні за шляхом: /uploads -> ${uploadsPath}`);
-app.use('/uploads', express.static(uploadsPath, {
-  maxAge: '1d', // Кешування на 1 день
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    // Дозволяємо CORS для статичних файлів
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET');
-  }
-}));
+app.use(
+  '/uploads',
+  express.static(uploadsPath, {
+    maxAge: '1d', // Кешування на 1 день
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, _filePath) => {
+      // Дозволяємо CORS для статичних файлів
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Access-Control-Allow-Methods', 'GET');
+    },
+  })
+);
 
 // Маршрути API
 app.use('/api/swagger', require('./routes/swagger')); // Swagger документація
@@ -510,7 +561,7 @@ app.get('/', (req, res) => {
     success: true,
     message: 'Help Desk API працює',
     version: '1.0.0',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -523,8 +574,8 @@ app.get('/api/test', (req, res) => {
     middleware: {
       cors: 'enabled',
       security: 'enabled',
-      compression: 'enabled'
-    }
+      compression: 'enabled',
+    },
   });
 });
 
@@ -539,7 +590,7 @@ const healthHandler = async (req, res) => {
 
     const [userCount, ticketCount] = await Promise.all([
       User.countDocuments(),
-      Ticket.countDocuments()
+      Ticket.countDocuments(),
     ]);
 
     res.json({
@@ -548,22 +599,22 @@ const healthHandler = async (req, res) => {
       timestamp: new Date().toISOString(),
       database: {
         status: dbStatus,
-        state: dbState
+        state: dbState,
       },
       statistics: {
         users: userCount,
-        tickets: ticketCount
+        tickets: ticketCount,
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: process.version
+      version: process.version,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       status: 'unhealthy',
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 };
@@ -581,8 +632,9 @@ app.get('/favicon.ico', (req, res) => {
 app.use('/share', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Це frontend роут. Будь ласка, відкрийте цю сторінку через frontend (http://localhost:3000/share/kb/:token)',
-    frontendUrl: `http://localhost:${process.env.FRONTEND_PORT || 3000}${req.originalUrl}`
+    message:
+      'Це frontend роут. Будь ласка, відкрийте цю сторінку через frontend (http://localhost:3000/share/kb/:token)',
+    frontendUrl: `http://localhost:${process.env.FRONTEND_PORT || 3000}${req.originalUrl}`,
   });
 });
 
