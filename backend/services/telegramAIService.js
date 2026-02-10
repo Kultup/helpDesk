@@ -946,6 +946,7 @@ class TelegramAIService {
       await this.telegramService.sendMessage(chatId, confirmText, {
         reply_markup: {
           inline_keyboard: [
+            [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
             [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
             [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
           ],
@@ -1188,6 +1189,69 @@ class TelegramAIService {
 
   findActiveAIDialog() {
     return null;
+  }
+
+  async generateSummaryAndShowConfirmation(chatId, user) {
+    const session = this.telegramService.userSessions.get(chatId);
+    if (!session || !session.dialog_history) {
+      await this.telegramService.sendMessage(
+        chatId,
+        'Не вдалося знайти сесію діалогу. Спробуйте почати знову.'
+      );
+      return;
+    }
+
+    await this.telegramService.sendTyping(chatId);
+    let summary;
+    try {
+      summary = await aiFirstLineService.getTicketSummary(
+        session.dialog_history,
+        session.userContext
+      );
+    } catch (err) {
+      logger.error('AI: помилка getTicketSummary', err);
+    }
+
+    if (summary) {
+      session.step = 'confirm_ticket';
+      session.ticketDraft = {
+        createdBy: user._id,
+        title: summary.title,
+        description: summary.description,
+        priority: summary.priority,
+        subcategory: summary.category,
+        type: 'problem',
+      };
+      const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+      await this.telegramService.sendMessage(chatId, msg, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+            [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+          ],
+        },
+      });
+    } else {
+      await this.telegramService.sendMessage(
+        chatId,
+        'Не вдалося автоматично сформувати заявку. Будь ласка, спробуйте «Заповнити по-старому» або опишіть проблему ще раз.',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+              [
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ],
+            ],
+          },
+        }
+      );
+    }
   }
 }
 

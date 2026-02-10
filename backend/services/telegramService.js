@@ -1192,6 +1192,9 @@ class TelegramService {
         } else if (data === 'check_tokens') {
           await this.aiService.handleCheckTokensCallback(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id);
+        } else if (data === 'ai_generate_summary') {
+          await this.aiService.generateSummaryAndShowConfirmation(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'reset_tokens') {
           const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
           if (telegramIdStr === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
