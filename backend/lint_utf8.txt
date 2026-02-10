@@ -1,0 +1,15 @@
+
+D:\helpDesk\backend\services\aiFirstLineService.js
+  33:15  error  Empty block statement  no-empty
+
+D:\helpDesk\backend\services\telegramAIService.js
+  629:25  error    Empty block statement                                                   no-empty
+  663:28  error    'user' is defined but never used. Allowed unused args must match /^_/u  no-unused-vars
+  685:25  error    Empty block statement                                                   no-empty
+  772:5   warning  Async method 'createAIDialog' has no 'await' expression                 require-await
+  776:5   warning  Async method 'addMessageToAIDialog' has no 'await' expression           require-await
+  780:5   warning  Async method 'completeAIDialog' has no 'await' expression               require-await
+  784:5   warning  Async method 'findActiveAIDialog' has no 'await' expression             require-await
+
+??? 8 problems (4 errors, 4 warnings)
+

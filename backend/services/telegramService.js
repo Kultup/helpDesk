@@ -1202,8 +1202,13 @@ class TelegramService {
         } else if (data === 'tip_helped') {
           const session = this.userSessions.get(chatId);
           if (session && session.step === 'awaiting_tip_feedback') {
+            const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+              session.dialog_history || [],
+              'accept_thanks',
+              session.userContext || {}
+            );
             this.userSessions.delete(chatId);
-            await this.sendMessage(chatId, 'Супер! Якщо ще щось знадобиться — пиши 😊', {
+            await this.sendMessage(chatId, filler, {
               reply_markup: {
                 inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
               },
@@ -1215,8 +1220,7 @@ class TelegramService {
           if (session && session.step === 'awaiting_tip_feedback') {
             session.step = 'gathering_information';
             session.afterTipNotHelped = true; // не показувати ще одну «підказку», одразу збір інформації / форма тікета
-            const msg = 'Підказка не допомогла, потрібен тікет';
-            await this.aiService.handleMessageInAiMode(chatId, msg, session, user);
+            await this.aiService.handleMessageInAiMode(chatId, 'Не допомогло', session, user);
           }
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'back') {
@@ -1262,10 +1266,14 @@ class TelegramService {
               documents: [],
             };
 
+            const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+              session.dialog_history || [],
+              'confirm_photo_saved',
+              session.userContext || {}
+            );
             await this.sendMessage(
               chatId,
-              `✅ *Чудово! Створюю тікет.*\n\n` +
-                `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
+              `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
               {
                 reply_markup: {
                   inline_keyboard: [
@@ -1364,12 +1372,13 @@ class TelegramService {
           if (session && session.aiDialogId) {
             await this.aiService.completeAIDialog(session.aiDialogId, 'cancelled');
           }
-          this.userSessions.delete(chatId);
-          await this.sendMessage(
-            chatId,
-            `❌ Збір інформації скасовано.\n\n` +
-              `Якщо потрібна допомога - просто напишіть мені! 😊`
+          const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+            session.dialog_history || [],
+            'session_closed',
+            session.userContext || {}
           );
+          this.userSessions.delete(chatId);
+          await this.sendMessage(chatId, `❌ ${filler}`);
           await this.showUserDashboard(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'ai_continue') {
