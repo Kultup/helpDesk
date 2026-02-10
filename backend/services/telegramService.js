@@ -1,29 +1,22 @@
 const TelegramBot = require('node-telegram-bot-api');
-const mongoose = require('mongoose');
+const https = require('https');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
-const City = require('../models/City');
-const Position = require('../models/Position');
-const Institution = require('../models/Institution');
 const PendingRegistration = require('../models/PendingRegistration');
-const PositionRequest = require('../models/PositionRequest');
-const Notification = require('../models/Notification');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 
 const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
-const { formatFileSize } = require('../utils/helpers');
-const ticketWebSocketService = require('./ticketWebSocketService');
-const fcmService = require('./fcmService');
-
 const sessionManager = require('./sessionManager');
 const TelegramUtils = require('./telegramUtils');
 const TelegramNotificationService = require('./telegramNotificationService');
 const TelegramRegistrationService = require('./telegramRegistrationService');
 const TelegramTicketService = require('./telegramTicketService');
 const TelegramAIService = require('./telegramAIService');
+const aiFirstLineService = require('./aiFirstLineService');
+const botConversationService = require('./botConversationService');
 
 class TelegramService {
   constructor() {
@@ -46,8 +39,12 @@ class TelegramService {
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
-  static get INTERNET_REQUESTS_LIMIT_PER_DAY() { return 5; }
-  static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
+  static get INTERNET_REQUESTS_LIMIT_PER_DAY() {
+    return 5;
+  }
+  static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() {
+    return '6070910226';
+  }
 
   async initialize() {
     // Перевіряємо, чи бот вже ініціалізований
@@ -59,7 +56,7 @@ class TelegramService {
     // Якщо бот вже ініціалізується, чекаємо
     if (this._initializing) {
       logger.info('Telegram бот вже ініціалізується, чекаємо...');
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const checkInterval = setInterval(() => {
           if (this.isInitialized) {
             clearInterval(checkInterval);
@@ -95,22 +92,32 @@ class TelegramService {
       this.mode = usePolling ? 'polling' : 'webhook';
 
       try {
-        this.bot = new TelegramBot(token, usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false });
+        this.bot = new TelegramBot(
+          token,
+          usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false }
+        );
         if (usePolling) {
-          this.bot.on('message', (msg) => this.handleMessage(msg));
-          this.bot.on('callback_query', (cq) => this.handleCallbackQuery(cq));
-          this.bot.on('polling_error', (err) => {
+          this.bot.on('message', msg => this.handleMessage(msg));
+          this.bot.on('callback_query', cq => this.handleCallbackQuery(cq));
+          this.bot.on('polling_error', err => {
             // Якщо помилка 404 - токен невалідний, вимикаємо бота
             if (err.code === 'ETELEGRAM' && err.response?.statusCode === 404) {
-              logger.warn('⚠️ Telegram токен невалідний або бот не знайдено. Telegram бот вимкнено.');
+              logger.warn(
+                '⚠️ Telegram токен невалідний або бот не знайдено. Telegram бот вимкнено.'
+              );
               this.bot = null;
               this.isInitialized = false;
               this._initializing = false;
               return;
             }
             // Якщо помилка 409 - конфлікт з іншим інстансом бота
-            if (err.code === 'ETELEGRAM' && (err.response?.statusCode === 409 || err.message?.includes('409'))) {
-              logger.warn('⚠️ Конфлікт з іншим інстансом Telegram бота (409). Можливо, запущено кілька процесів. Зупиняємо polling.');
+            if (
+              err.code === 'ETELEGRAM' &&
+              (err.response?.statusCode === 409 || err.message?.includes('409'))
+            ) {
+              logger.warn(
+                '⚠️ Конфлікт з іншим інстансом Telegram бота (409). Можливо, запущено кілька процесів. Зупиняємо polling.'
+              );
               try {
                 if (this.bot && this.bot.stopPolling) {
                   this.bot.stopPolling();
@@ -153,7 +160,7 @@ class TelegramService {
           stateStack: this.stateStack,
           conversationHistory: this.conversationHistory,
           navigationHistory: this.navigationHistory,
-          internetRequestCounts: this.internetRequestCounts
+          internetRequestCounts: this.internetRequestCounts,
         });
       } catch (hydrateErr) {
         logger.warn('⚠️ Не вдалося відновити сесії з Redis:', hydrateErr.message);
@@ -166,36 +173,45 @@ class TelegramService {
 
   /**
    * Відправка сповіщення користувачу через Telegram
-   * @param {String} telegramId - Telegram ID користувача
-   * @param {Object} notification - Об'єкт сповіщення {title, message, type}
+   * @param {String} chatId - ID чату користувача
+   * @param {String} message - Текст сповіщення
+   * @param {Object} options - Додаткові опції для відправки повідомлення
    * @returns {Promise}
    */
-  async sendNotification(telegramId, notification) {
-    return this.notificationService.sendNotification(telegramId, notification);
+  sendNotification(chatId, message, options = {}) {
+    return this.sendMessage(chatId, message, options);
   }
 
   /**
    * Відправити сповіщення про підтвердження реєстрації
-   * @param {Object} user - Об'єкт користувача з полями firstName, lastName, email, telegramId
+   * @param {String} chatId - ID чату користувача
    * @returns {Promise}
    */
-  async sendRegistrationApprovedNotification(user) {
-    return this.notificationService.sendRegistrationApprovedNotification(user);
+  sendRegistrationApprovedNotification(chatId) {
+    return this.sendMessage(
+      chatId,
+      '✅ Ваш запит на реєстрацію схвалено! Тепер ви можете створювати тікети.'
+    );
   }
 
   /**
    * Відправити сповіщення про відхилення реєстрації
-   * @param {Object} user - Об'єкт користувача з полями firstName, lastName, email, telegramId
+   * @param {String} chatId - ID чату користувача
    * @param {String} reason - Причина відхилення (необов'язково)
    * @returns {Promise}
    */
-  async sendRegistrationRejectedNotification(user, reason = null) {
-    return this.notificationService.sendRegistrationRejectedNotification(user, reason);
+  sendRegistrationRejectedNotification(chatId, reason) {
+    return this.sendMessage(
+      chatId,
+      `❌ Ваш запит на реєстрацію відхилено.\nПричина: ${reason || 'не вказана'}`
+    );
   }
 
   /** Показати індикатор «друкує» в чаті (typing). Діє ~5 сек, для довгих операцій викликати перед кожною. */
   async sendTyping(chatId) {
-    if (!this.bot) return;
+    if (!this.bot) {
+      return;
+    }
     try {
       await this.bot.sendChatAction(chatId, 'typing');
     } catch (err) {
@@ -217,15 +233,19 @@ class TelegramService {
       try {
         logger.debug(`Відправляю повідомлення в чат ${chatId}`, { text: text?.substring(0, 50) });
         const result = await this.bot.sendMessage(chatId, text, defaultOptions);
-        logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, { messageId: result.message_id });
+        logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, {
+          messageId: result.message_id,
+        });
         return result;
       } catch (error) {
         // Якщо помилка пов'язана з парсингом Markdown, спробуємо відправити як звичайний текст
         if (
-          error.message?.includes('can\'t parse entities') ||
-          error.message?.includes('Bad Request: can\'t parse entities')
+          error.message?.includes("can't parse entities") ||
+          error.message?.includes("Bad Request: can't parse entities")
         ) {
-          logger.warn(`Помилка парсингу Markdown для чату ${chatId}, спроба відправки як звичайний текст`);
+          logger.warn(
+            `Помилка парсингу Markdown для чату ${chatId}, спроба відправки як звичайний текст`
+          );
           try {
             const noMarkdownOptions = { ...defaultOptions };
             delete noMarkdownOptions.parse_mode;
@@ -244,14 +264,14 @@ class TelegramService {
           break;
         }
         const delayMs = attempt * 500;
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
     logger.error('Помилка відправки повідомлення:', {
       chatId,
       error: lastError?.message,
       stack: lastError?.stack,
-      response: lastError?.response?.data
+      response: lastError?.response?.data,
     });
     throw lastError;
   }
@@ -280,7 +300,7 @@ class TelegramService {
         logger.info(`Повідомлення ігноровано - не приватний чат (тип: ${chatType})`, {
           chatId,
           userId,
-          chatType
+          chatType,
         });
         return; // Ігноруємо повідомлення з груп, супергруп та каналів
       }
@@ -290,16 +310,13 @@ class TelegramService {
         hasPhoto: !!msg.photo,
         hasVoice: !!msg.voice,
         hasContact: !!msg.contact,
-        chatType
+        chatType,
       });
 
       // Перевірка, чи користувач вже зареєстрований
       // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
       const existingUser = await User.findOne({
-        $or: [
-          { telegramId: String(userId) },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
       })
         .populate('position', 'title')
         .populate('city', 'name');
@@ -317,23 +334,44 @@ class TelegramService {
           const session = this.userSessions.get(msg.chat.id);
           if (session && session.step === 'awaiting_computer_access_photo') {
             const u = session.userForAccessPhoto || existingUser;
-            const result = await this._saveComputerAccessPhotoFromTelegram(msg.chat.id, msg.photo[msg.photo.length - 1].file_id, u);
+            const result = await this._saveComputerAccessPhotoFromTelegram(
+              msg.chat.id,
+              msg.photo[msg.photo.length - 1].file_id,
+              u
+            );
             this.userSessions.delete(msg.chat.id);
             if (result && result.success) {
-              let text = '✅ Фото доступу до ПК оновлено у вашому профілі. Адмін перегляне його в картці користувача.';
-              if (result.analysis) text += `\n\n📋 Розпізнано: ${result.analysis}`;
+              let text =
+                '✅ Фото доступу до ПК оновлено у вашому профілі. Адмін перегляне його в картці користувача.';
+              if (result.analysis) {
+                text += `\n\n📋 Розпізнано: ${result.analysis}`;
+              }
               await this.sendMessage(msg.chat.id, text, {
-                reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+                reply_markup: {
+                  inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+                },
               });
             } else {
-              await this.sendMessage(msg.chat.id, 'Помилка збереження фото. Спробуйте ще раз або зверніться до адміна.', {
-                reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
-              });
+              await this.sendMessage(
+                msg.chat.id,
+                'Помилка збереження фото. Спробуйте ще раз або зверніться до адміна.',
+                {
+                  reply_markup: {
+                    inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+                  },
+                }
+              );
             }
             return;
           }
           if (session && session.mode === 'ai') {
-            await this.handlePhotoInAiMode(msg.chat.id, msg.photo, msg.caption || '', session, existingUser);
+            await this.handlePhotoInAiMode(
+              msg.chat.id,
+              msg.photo,
+              msg.caption || '',
+              session,
+              existingUser
+            );
             return;
           }
           await this.handlePhoto(msg);
@@ -385,7 +423,7 @@ class TelegramService {
         error: error.message,
         stack: error.stack,
         chatId: msg.chat?.id,
-        userId: msg.from?.id
+        userId: msg.from?.id,
       });
       try {
         await this.sendMessage(msg.chat.id, 'Виникла помилка. Спробуйте ще раз.');
@@ -403,10 +441,7 @@ class TelegramService {
     try {
       // Конвертуємо userId в рядок для пошуку
       const user = await User.findOne({
-        $or: [
-          { telegramId: String(userId) },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
       });
 
       switch (command) {
@@ -418,10 +453,11 @@ class TelegramService {
           if (user) {
             await this.showUserDashboard(chatId, user);
           } else {
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `🚫 *Помилка авторизації*\n\n` +
-              `Ви не авторизовані в системі.\n\n` +
-              `🔑 Використайте /start для початку роботи.`
+                `Ви не авторизовані в системі.\n\n` +
+                `🔑 Використайте /start для початку роботи.`
             );
           }
           break;
@@ -432,34 +468,38 @@ class TelegramService {
           if (user) {
             await this.handleStatusCommand(chatId, user);
           } else {
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `🚫 *Помилка авторизації*\n\n` +
-              `Ви не авторизовані в системі.\n\n` +
-              `🔑 Використайте /start для початку роботи.`
+                `Ви не авторизовані в системі.\n\n` +
+                `🔑 Використайте /start для початку роботи.`
             );
           }
           break;
         default:
           if (!user) {
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `🚫 *Помилка авторизації*\n\n` +
-              `Ви не авторизовані в системі.\n\n` +
-              `🔑 Використайте /start для початку роботи.`
+                `Ви не авторизовані в системі.\n\n` +
+                `🔑 Використайте /start для початку роботи.`
             );
             return;
           }
-          await this.sendMessage(chatId,
+          await this.sendMessage(
+            chatId,
             `❓ *Невідома команда*\n\n` +
-            `Команда не розпізнана системою.\n\n` +
-            `💡 Використайте /start для перегляду доступних опцій.`
+              `Команда не розпізнана системою.\n\n` +
+              `💡 Використайте /start для перегляду доступних опцій.`
           );
       }
     } catch (error) {
       logger.error('Помилка обробки команди:', error);
-      await this.sendMessage(chatId,
+      await this.sendMessage(
+        chatId,
         `❌ *Системна помилка*\n\n` +
-        `Виникла помилка при обробці команди.\n\n` +
-        `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          `Виникла помилка при обробці команди.\n\n` +
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
       );
     }
@@ -476,10 +516,7 @@ class TelegramService {
 
       // Спочатку шукаємо за telegramId
       let user = await User.findOne({
-        $or: [
-          { telegramId: userIdString },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: userIdString }, { telegramId: userId }],
       })
         .populate('position', 'name')
         .populate('city', 'name');
@@ -490,19 +527,22 @@ class TelegramService {
         const spacedId = ` ${userIdString} `;
         user = await User.findOne({
           telegramId: {
-            $in: [prefixedId, spacedId, `@ ${userIdString}`, `${userIdString} `]
-          }
+            $in: [prefixedId, spacedId, `@ ${userIdString}`, `${userIdString} `],
+          },
         })
           .populate('position', 'name')
           .populate('city', 'name');
 
         if (user) {
-          logger.info('Знайдено користувача з telegramId у форматі з префіксом або пробілами. Оновлюємо значення.', {
-            userId: user._id,
-            email: user.email,
-            storedTelegramId: user.telegramId,
-            sanitizedTelegramId: userIdString
-          });
+          logger.info(
+            'Знайдено користувача з telegramId у форматі з префіксом або пробілами. Оновлюємо значення.',
+            {
+              userId: user._id,
+              email: user.email,
+              storedTelegramId: user.telegramId,
+              sanitizedTelegramId: userIdString,
+            }
+          );
           user.telegramId = userIdString;
           await user.save();
         }
@@ -512,14 +552,11 @@ class TelegramService {
       if (!user) {
         logger.info('Пробуємо знайти користувача за telegramChatId:', {
           chatIdString,
-          chatId
+          chatId,
         });
 
         user = await User.findOne({
-          $or: [
-            { telegramChatId: chatIdString },
-            { telegramChatId: String(chatId) }
-          ]
+          $or: [{ telegramChatId: chatIdString }, { telegramChatId: String(chatId) }],
         })
           .populate('position', 'name')
           .populate('city', 'name');
@@ -531,7 +568,7 @@ class TelegramService {
             oldTelegramId: user.telegramId,
             newTelegramId: userIdString,
             oldTelegramChatId: user.telegramChatId,
-            newTelegramChatId: chatIdString
+            newTelegramChatId: chatIdString,
           });
 
           user.telegramId = userIdString;
@@ -551,15 +588,15 @@ class TelegramService {
         // Шукаємо за значенням @userIdString
         const idInUsernameWithAt = `@${userIdString}`;
         user = await User.findOne({
-          telegramUsername: idInUsernameWithAt
+          telegramUsername: idInUsernameWithAt,
         })
           .populate('position', 'name')
           .populate('city', 'name');
 
-        // Якщо не знайдено, пробуємо без префікса @
+        // Якщо не знайдено, пробуємо без префіса @
         if (!user) {
           user = await User.findOne({
-            telegramUsername: userIdString
+            telegramUsername: userIdString,
           })
             .populate('position', 'name')
             .populate('city', 'name');
@@ -572,7 +609,7 @@ class TelegramService {
             telegramUsername: user.telegramUsername,
             extractedId: userIdString,
             expectedId: userIdString,
-            foundWithAt: user.telegramUsername === idInUsernameWithAt
+            foundWithAt: user.telegramUsername === idInUsernameWithAt,
           });
 
           logger.info('Оновлюємо дані Telegram для користувача (ID був в telegramUsername):', {
@@ -582,7 +619,7 @@ class TelegramService {
             newTelegramId: userIdString,
             oldTelegramChatId: user.telegramChatId,
             newTelegramChatId: chatIdString,
-            oldTelegramUsername: user.telegramUsername
+            oldTelegramUsername: user.telegramUsername,
           });
 
           user.telegramId = userIdString;
@@ -600,11 +637,11 @@ class TelegramService {
       if (!user && usernameFromMsg) {
         logger.info('Пробуємо знайти користувача за telegramUsername (звичайний пошук):', {
           usernameFromMsg,
-          originalUsername: msg.from.username
+          originalUsername: msg.from.username,
         });
 
         user = await User.findOne({
-          telegramUsername: { $regex: new RegExp(`^${usernameFromMsg}$`, 'i') }
+          telegramUsername: { $regex: new RegExp(`^${usernameFromMsg}$`, 'i') },
         })
           .populate('position', 'name')
           .populate('city', 'name');
@@ -617,7 +654,7 @@ class TelegramService {
             newTelegramId: userIdString,
             oldTelegramChatId: user.telegramChatId,
             newTelegramChatId: chatIdString,
-            storedTelegramUsername: user.telegramUsername
+            storedTelegramUsername: user.telegramUsername,
           });
 
           user.telegramId = userIdString;
@@ -645,7 +682,7 @@ class TelegramService {
         isActive: user?.isActive,
         registrationStatus: user?.registrationStatus,
         email: user?.email,
-        userId_db: user?._id
+        userId_db: user?._id,
       });
 
       if (user) {
@@ -655,7 +692,7 @@ class TelegramService {
             userId: user._id,
             email: user.email,
             oldChatId: user.telegramChatId,
-            newChatId: chatIdString
+            newChatId: chatIdString,
           });
           user.telegramChatId = chatIdString;
           await user.save();
@@ -667,10 +704,11 @@ class TelegramService {
 
         // Перевіряємо, чи користувач активний
         if (!user.isActive) {
-          await this.sendMessage(chatId,
+          await this.sendMessage(
+            chatId,
             `🚫 *Доступ обмежено*\n\n` +
-            `Ваш обліковий запис поки не активований.\n\n` +
-            `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
+              `Ваш обліковий запис поки не активований.\n\n` +
+              `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
             { parse_mode: 'Markdown' }
           );
           return;
@@ -694,8 +732,8 @@ class TelegramService {
             'telegramUsername containing ID (@1234567890)',
             'telegramUsername containing ID (1234567890 without @)',
             'telegramUsername (case-insensitive)',
-            'test user auto-update (admin/test.com)'
-          ]
+            'test user auto-update (admin/test.com)',
+          ],
         });
 
         // Додаткова діагностика: перевіряємо тестового користувача та автоматично оновлюємо telegramId
@@ -712,18 +750,22 @@ class TelegramService {
               role: testUser.role,
               expectedTelegramId: userIdString,
               telegramIdMatch: testUser.telegramId === userIdString,
-              usernameFromMsg
+              usernameFromMsg,
             });
 
             // Автоматично оновлюємо telegramId для тестового/адмін користувача, якщо:
             // 1. telegramId відсутній (null/undefined) АБО
             // 2. telegramId не співпадає з поточним userId АБО
             // 3. користувач має роль admin
-            const shouldUpdate = !testUser.telegramId ||
+            const shouldUpdate =
+              !testUser.telegramId ||
               testUser.telegramId !== userIdString ||
               testUser.role === 'admin';
 
-            if (shouldUpdate && (testUser.role === 'admin' || testUser.email === 'kultup@test.com')) {
+            if (
+              shouldUpdate &&
+              (testUser.role === 'admin' || testUser.email === 'kultup@test.com')
+            ) {
               logger.info('Автоматично оновлюємо telegramId для тестового/адмін користувача:', {
                 email: testUser.email,
                 role: testUser.role,
@@ -731,9 +773,11 @@ class TelegramService {
                 newTelegramId: userIdString,
                 oldTelegramChatId: testUser.telegramChatId || 'відсутній',
                 newTelegramChatId: chatIdString,
-                reason: !testUser.telegramId ? 'telegramId відсутній' :
-                  testUser.telegramId !== userIdString ? 'telegramId не співпадає' :
-                    'роль admin'
+                reason: !testUser.telegramId
+                  ? 'telegramId відсутній'
+                  : testUser.telegramId !== userIdString
+                    ? 'telegramId не співпадає'
+                    : 'роль admin',
               });
 
               testUser.telegramId = userIdString;
@@ -746,7 +790,7 @@ class TelegramService {
               logger.info('✅ Дані Telegram оновлено для користувача:', {
                 email: testUser.email,
                 telegramId: testUser.telegramId,
-                telegramChatId: testUser.telegramChatId
+                telegramChatId: testUser.telegramChatId,
               });
 
               // Використовуємо оновленого користувача
@@ -759,7 +803,7 @@ class TelegramService {
                 reason: 'умова не виконана',
                 shouldUpdate,
                 isAdmin: testUser.role === 'admin',
-                isTestEmail: testUser.email === 'kultup@test.com'
+                isTestEmail: testUser.email === 'kultup@test.com',
               });
             }
           } else {
@@ -777,7 +821,7 @@ class TelegramService {
               userId: user._id,
               email: user.email,
               oldChatId: user.telegramChatId,
-              newChatId: chatIdString
+              newChatId: chatIdString,
             });
             user.telegramChatId = chatIdString;
             await user.save();
@@ -789,10 +833,11 @@ class TelegramService {
 
           // Перевіряємо, чи користувач активний
           if (!user.isActive) {
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `🚫 *Доступ обмежено*\n\n` +
-              `Ваш обліковий запис поки не активований.\n\n` +
-              `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
+                `Ваш обліковий запис поки не активований.\n\n` +
+                `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
               { parse_mode: 'Markdown' }
             );
             return;
@@ -801,23 +846,22 @@ class TelegramService {
           await this.showUserDashboard(chatId, user);
         } else {
           // Якщо користувача все ще не знайдено, показуємо повідомлення про реєстрацію
-          await this.sendMessage(chatId,
+          await this.sendMessage(
+            chatId,
             `🚫 *Доступ обмежено*\n` +
-            `Для використання бота потрібно зареєструватися.\n` +
-            `📞 Адміністратор: [@Kultup](https://t.me/Kultup)`,
+              `Для використання бота потрібно зареєструватися.\n` +
+              `📞 Адміністратор: [@Kultup](https://t.me/Kultup)`,
             {
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
                   [
                     { text: '🔐 Авторизуватися', callback_data: 'login_user' },
-                    { text: '📝 Зареєструватися', callback_data: 'register_user' }
+                    { text: '📝 Зареєструватися', callback_data: 'register_user' },
                   ],
-                  [
-                    { text: '📞 Зв\'язатися з адміністратором', url: 'https://t.me/Kultup' }
-                  ]
-                ]
-              }
+                  [{ text: "📞 Зв'язатися з адміністратором", url: 'https://t.me/Kultup' }],
+                ],
+              },
             }
           );
         }
@@ -828,11 +872,12 @@ class TelegramService {
         stack: error.stack,
         chatId,
         userId,
-        usernameFromMsg: msg?.from?.username
+        usernameFromMsg: msg?.from?.username,
       });
-      await this.sendMessage(chatId,
+      await this.sendMessage(
+        chatId,
         `❌ *Помилка системи*\n\n` +
-        `Виникла технічна помилка. Спробуйте ще раз через кілька хвилин.`
+          `Виникла технічна помилка. Спробуйте ще раз через кілька хвилин.`
       );
     }
   }
@@ -849,14 +894,17 @@ class TelegramService {
 
       if (!user) {
         logger.error('Користувач не знайдений при показі dashboard', { chatId, userId: user?._id });
-        await this.sendMessage(chatId, '❌ Помилка: користувач не знайдений. Зверніться до адміністратора.');
+        await this.sendMessage(
+          chatId,
+          '❌ Помилка: користувач не знайдений. Зверніться до адміністратора.'
+        );
         return;
       }
     } catch (error) {
       logger.error('Помилка завантаження даних користувача для dashboard', {
         chatId,
         userId: user?._id,
-        error: error.message
+        error: error.message,
       });
       await this.sendMessage(chatId, '❌ Помилка завантаження даних профілю. Спробуйте ще раз.');
       return;
@@ -899,7 +947,7 @@ class TelegramService {
       cityType: typeof user.city,
       cityValue: user.city,
       positionName,
-      cityName
+      cityName,
     });
 
     const welcomeText =
@@ -912,19 +960,21 @@ class TelegramService {
       inline_keyboard: [
         [
           { text: '📝 Створити тікет', callback_data: 'create_ticket' },
-          { text: '📋 Мої тікети', callback_data: 'my_tickets' }
+          { text: '📋 Мої тікети', callback_data: 'my_tickets' },
         ],
         [
           { text: '📜 Історія тікетів', callback_data: 'ticket_history' },
-          { text: '📊 Статистика', callback_data: 'statistics' }
+          { text: '📊 Статистика', callback_data: 'statistics' },
         ],
-        [{ text: '📷 Оновити доступ до ПК', callback_data: 'update_computer_access' }]
-      ]
+        [{ text: '📷 Оновити доступ до ПК', callback_data: 'update_computer_access' }],
+      ],
     };
 
     const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
     if (telegramIdStr === TelegramService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
-      keyboard.inline_keyboard.push([{ text: '🔢 Перевірити токени AI', callback_data: 'check_tokens' }]);
+      keyboard.inline_keyboard.push([
+        { text: '🔢 Перевірити токени AI', callback_data: 'check_tokens' },
+      ]);
     }
 
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
@@ -938,7 +988,8 @@ class TelegramService {
     const chatType = callbackQuery.message.chat.type;
 
     // Дозволяємо обробку callback для підтвердження/відхилення посади з груп
-    const isPositionRequestCallback = data.startsWith('approve_position_') || data.startsWith('reject_position_');
+    const isPositionRequestCallback =
+      data.startsWith('approve_position_') || data.startsWith('reject_position_');
 
     // Заборона обробки callback-запитів з груп - тільки приватні чати (крім position request)
     if (chatType !== 'private' && !isPositionRequestCallback) {
@@ -946,7 +997,7 @@ class TelegramService {
         chatId,
         userId,
         data,
-        chatType
+        chatType,
       });
       await this.answerCallbackQuery(callbackQuery.id, 'Бот працює тільки в приватних чатах');
       return; // Ігноруємо callback-запити з груп, супергруп та каналів
@@ -964,10 +1015,7 @@ class TelegramService {
       // Спочатку перевіряємо, чи користувач вже зареєстрований
       // Конвертуємо userId в рядок для пошуку
       const user = await User.findOne({
-        $or: [
-          { telegramId: String(userId) },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
       })
         .populate('position', 'title')
         .populate('city', 'name');
@@ -993,10 +1041,12 @@ class TelegramService {
         if (data === 'update_computer_access') {
           this.userSessions.set(chatId, {
             step: 'awaiting_computer_access_photo',
-            userForAccessPhoto: user
+            userForAccessPhoto: user,
           });
-          await this.sendMessage(chatId,
-            '📷 Надішліть фото доступу до комп\'ютера (скріншот або документ). Воно буде збережено у вашому профілі замість попереднього — адмін перегляне його в картці користувача.');
+          await this.sendMessage(
+            chatId,
+            "📷 Надішліть фото доступу до комп'ютера (скріншот або документ). Воно буде збережено у вашому профілі замість попереднього — адмін перегляне його в картці користувача."
+          );
           await this.answerCallbackQuery(callbackQuery.id);
           return;
         }
@@ -1005,15 +1055,23 @@ class TelegramService {
           const session = this.userSessions.get(chatId);
           const isAccess = data === 'skip_computer_access_photo';
           const triggerString = isAccess ? 'фото доступу до ПК' : 'фото помилки';
-          const logMsg = isAccess ? 'Пропустив надання фото доступу до ПК' : 'Пропустив надання фото помилки';
+          const logMsg = isAccess
+            ? 'Пропустив надання фото доступу до ПК'
+            : 'Пропустив надання фото помилки';
 
-          if (session && (isAccess ? session.awaitingComputerAccessPhoto : session.awaitingErrorPhoto)) {
-            if (isAccess) session.awaitingComputerAccessPhoto = false;
-            else session.awaitingErrorPhoto = false;
+          if (
+            session &&
+            (isAccess ? session.awaitingComputerAccessPhoto : session.awaitingErrorPhoto)
+          ) {
+            if (isAccess) {
+              session.awaitingComputerAccessPhoto = false;
+            } else {
+              session.awaitingErrorPhoto = false;
+            }
 
             session.dialog_history = session.dialog_history || [];
             session.dialog_history.push({ role: 'user', content: `[${logMsg}]` });
-            botConversationService.appendMessage(chatId, user, 'user', logMsg).catch(() => { });
+            botConversationService.appendMessage(chatId, user, 'user', logMsg).catch(() => {});
 
             const lastMissing = session.lastMissingInfo || [];
             const remaining = lastMissing.filter(m => !String(m).includes(triggerString));
@@ -1021,7 +1079,10 @@ class TelegramService {
 
             if (remaining.length === 0) {
               await this.sendTyping(chatId);
-              const summary = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+              const summary = await aiFirstLineService.getTicketSummary(
+                session.dialog_history,
+                session.userContext
+              );
               if (summary) {
                 session.step = 'confirm_ticket';
                 session.ticketDraft = {
@@ -1030,7 +1091,7 @@ class TelegramService {
                   description: summary.description,
                   priority: summary.priority,
                   subcategory: summary.category,
-                  type: 'problem'
+                  type: 'problem',
                 };
                 const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
                 await this.sendMessage(chatId, msg, {
@@ -1039,39 +1100,65 @@ class TelegramService {
                     inline_keyboard: [
                       [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
                       [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-                      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                    ]
-                  }
+                      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                    ],
+                  },
                 });
               } else {
-                await this.sendMessage(chatId, 'Не вдалося сформувати заявку. Спробуйте «Заповнити по-старому» або опишіть ще раз.', {
-                  reply_markup: { inline_keyboard: [[{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }], [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
-                });
+                await this.sendMessage(
+                  chatId,
+                  'Не вдалося сформувати заявку. Спробуйте «Заповнити по-старому» або опишіть ще раз.',
+                  {
+                    reply_markup: {
+                      inline_keyboard: [
+                        [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+                        [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                      ],
+                    },
+                  }
+                );
               }
             } else {
               session.ai_questions_count = (session.ai_questions_count || 0) + 1;
               let nextQuestion;
               try {
-                nextQuestion = await aiFirstLineService.generateNextQuestion(session.dialog_history, remaining, session.userContext);
+                nextQuestion = await aiFirstLineService.generateNextQuestion(
+                  session.dialog_history,
+                  remaining,
+                  session.userContext
+                );
               } catch (err) {
                 nextQuestion = 'Опишіть, будь ласка, деталі для заявки.';
               }
               session.dialog_history.push({ role: 'assistant', content: nextQuestion });
-              botConversationService.appendMessage(chatId, user, 'assistant', nextQuestion).catch(() => { });
+              botConversationService
+                .appendMessage(chatId, user, 'assistant', nextQuestion)
+                .catch(() => {});
 
-              session.awaitingComputerAccessPhoto = remaining.some(m => String(m).includes('фото доступу до ПК'));
+              session.awaitingComputerAccessPhoto = remaining.some(m =>
+                String(m).includes('фото доступу до ПК')
+              );
               session.awaitingErrorPhoto = remaining.some(m => String(m).includes('фото помилки'));
 
               const kbd = [
                 [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-                [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
               ];
               if (session.awaitingComputerAccessPhoto) {
-                kbd.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+                kbd.unshift([
+                  {
+                    text: '⏭️ Пропустити (без фото доступу)',
+                    callback_data: 'skip_computer_access_photo',
+                  },
+                ]);
               } else if (session.awaitingErrorPhoto) {
-                kbd.unshift([{ text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' }]);
+                kbd.unshift([
+                  { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
+                ]);
               }
-              await this.sendMessage(chatId, nextQuestion, { reply_markup: { inline_keyboard: kbd } });
+              await this.sendMessage(chatId, nextQuestion, {
+                reply_markup: { inline_keyboard: kbd },
+              });
             }
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1117,7 +1204,9 @@ class TelegramService {
           if (session && session.step === 'awaiting_tip_feedback') {
             this.userSessions.delete(chatId);
             await this.sendMessage(chatId, 'Супер! Якщо ще щось знадобиться — пиши 😊', {
-              reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+              reply_markup: {
+                inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+              },
             });
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1170,20 +1259,22 @@ class TelegramService {
               subcategory: session.ticketDraft.subcategory,
               type: session.ticketDraft.type,
               photos: [],
-              documents: []
+              documents: [],
             };
 
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `✅ *Чудово! Створюю тікет.*\n\n` +
-              `📸 *Останній крок:* Бажаєте додати фото до заявки?`, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                ]
+                `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                    [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                  ],
+                },
               }
-            }
             );
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1200,20 +1291,21 @@ class TelegramService {
               priority: session.ticketDraft.priority,
               subcategory: session.ticketDraft.subcategory,
               type: session.ticketDraft.type,
-              photos: []
+              photos: [],
             };
             session.step = 'photo';
 
-            await this.sendMessage(chatId,
-              `✅ *Добре, створюю тікет з наявною інформацією.*\n\n` +
-              `📸 Бажаєте додати фото?`, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }]
-                ]
+            await this.sendMessage(
+              chatId,
+              `✅ *Добре, створюю тікет з наявною інформацією.*\n\n` + `📸 Бажаєте додати фото?`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
+                    [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
+                  ],
+                },
               }
-            }
             );
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1224,25 +1316,32 @@ class TelegramService {
             session.step = 'gathering_information';
             session.editingFromConfirm = true;
             // Не скидаємо ticketDraft — щоб при відповіді «Нічого» повернутися до підтвердження
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `✏️ *Добре, давайте уточнимо.*\n\n` +
-              `Що саме потрібно виправити або доповнити?\n\n` +
-              `_(Якщо нічого — напишіть «Нічого» або «Залишити як є»)_`, {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '⏭️ Нічого не змінювати', callback_data: 'edit_nothing_change' }],
-                  [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }]
-                ]
-              },
-              parse_mode: 'Markdown'
-            }
+                `Що саме потрібно виправити або доповнити?\n\n` +
+                `_(Якщо нічого — напишіть «Нічого» або «Залишити як є»)_`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '⏭️ Нічого не змінювати', callback_data: 'edit_nothing_change' }],
+                    [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }],
+                  ],
+                },
+                parse_mode: 'Markdown',
+              }
             );
           }
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'edit_nothing_change') {
           // Редагування: «нічого не змінювати» — повертаємо до екрану підтвердження тікета
           const session = this.userSessions.get(chatId);
-          if (session && session.step === 'gathering_information' && session.editingFromConfirm && session.ticketDraft) {
+          if (
+            session &&
+            session.step === 'gathering_information' &&
+            session.editingFromConfirm &&
+            session.ticketDraft
+          ) {
             session.step = 'confirm_ticket';
             session.editingFromConfirm = false;
             const d = session.ticketDraft;
@@ -1252,10 +1351,10 @@ class TelegramService {
                 inline_keyboard: [
                   [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
                   [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
-                ]
+                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                ],
               },
-              parse_mode: 'Markdown'
+              parse_mode: 'Markdown',
             });
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1266,9 +1365,10 @@ class TelegramService {
             await this.aiService.completeAIDialog(session.aiDialogId, 'cancelled');
           }
           this.userSessions.delete(chatId);
-          await this.sendMessage(chatId,
+          await this.sendMessage(
+            chatId,
             `❌ Збір інформації скасовано.\n\n` +
-            `Якщо потрібна допомога - просто напишіть мені! 😊`
+              `Якщо потрібна допомога - просто напишіть мені! 😊`
           );
           await this.showUserDashboard(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1278,9 +1378,17 @@ class TelegramService {
           if (session && session.mode === 'choosing') {
             session.mode = 'ai';
             session.ai_attempts = Math.max(0, (session.ai_attempts || 0) - 1);
-            await this.sendMessage(chatId, 'Добре, продовжуємо. Опишіть ще раз або доповніть інформацію.', {
-              reply_markup: { inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
-            });
+            await this.sendMessage(
+              chatId,
+              'Добре, продовжуємо. Опишіть ще раз або доповніть інформацію.',
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                  ],
+                },
+              }
+            );
           }
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'ai_switch_to_classic') {
@@ -1292,12 +1400,18 @@ class TelegramService {
             session.dialog_history = [];
             session.ticketDraft = null;
             session.ticketData = { createdBy: user._id, photos: [], documents: [] };
-            await this.sendMessage(chatId,
+            await this.sendMessage(
+              chatId,
               `📝 *Створення тікета (покроково)*\n` +
-              `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
-              `💡 Опишіть коротко суть проблеми`, {
-              reply_markup: { inline_keyboard: [[{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
-            }
+                `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+                `💡 Опишіть коротко суть проблеми`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                  ],
+                },
+              }
             );
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1307,50 +1421,13 @@ class TelegramService {
         } else if (data.startsWith('priority_')) {
           const priority = data.replace('priority_', '');
           await this.ticketService.handlePriorityCallback(chatId, user, priority);
-        } else if (data === 'create_ticket') {
-          await this.ticketService.handleCreateTicketCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'my_tickets') {
-          await this.ticketService.handleMyTicketsCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'ticket_history') {
-          await this.ticketService.handleTicketHistoryCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('view_ticket_')) {
-          const ticketId = data.replace('view_ticket_', '');
-          await this.ticketService.handleViewTicketCallback(chatId, user, ticketId);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('rate_ticket_')) {
-          // data format: rate_ticket_RATING_TICKETID (e.g. rate_ticket_5_12345)
-          const parts = data.split('_');
-          if (parts.length >= 4) {
-            const rating = parseInt(parts[2], 10);
-            const ticketId = parts.slice(3).join('_');
-            await this.ticketService.handleRateTicketCallback(chatId, user, ticketId, rating);
-          }
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('recreate_ticket_')) {
-          const ticketId = data.replace('recreate_ticket_', '');
-          await this.ticketService.handleRecreateTicketCallback(chatId, user, ticketId);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'use_previous_title') {
-          await this.ticketService.handleUsePreviousTitleCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'use_previous_desc') {
-          await this.ticketService.handleUsePreviousDescriptionCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'add_more_photos') {
-          await this.ticketService.handleAddMorePhotosCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data === 'finish_ticket') {
-          await this.ticketService.handleFinishTicketCallback(chatId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data.startsWith('reply_ticket_')) {
           // Функція відповіді на тікет через Telegram вимкнена
-          await this.sendMessage(chatId,
+          await this.sendMessage(
+            chatId,
             `ℹ️ *Відповідь на тікет через Telegram недоступна*\n\n` +
-            `Будь ласка, використовуйте веб-панель для додавання коментарів до тікету.\n\n` +
-            `Натисніть /menu для повернення до головного меню.`,
+              `Будь ласка, використовуйте веб-панель для додавання коментарів до тікету.\n\n` +
+              `Натисніть /menu для повернення до головного меню.`,
             { parse_mode: 'Markdown' }
           );
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1375,16 +1452,21 @@ class TelegramService {
 
       if (data === 'cancel_login') {
         this.userSessions.delete(chatId);
-        await this.sendMessage(chatId,
-          `❌ *Авторизацію скасовано*\n\n` +
-          `Ви можете спробувати авторизуватися пізніше.`
+        await this.sendMessage(
+          chatId,
+          `❌ *Авторизацію скасовано*\n\n` + `Ви можете спробувати авторизуватися пізніше.`
         );
         await this.answerCallbackQuery(callbackQuery.id);
         return;
       }
 
       // Обробка callback-запитів для реєстрації (вибір міста, посади та закладу)
-      if (data.startsWith('city_') || data.startsWith('position_') || data.startsWith('institution_') || data === 'skip_institution') {
+      if (
+        data.startsWith('city_') ||
+        data.startsWith('position_') ||
+        data.startsWith('institution_') ||
+        data === 'skip_institution'
+      ) {
         logger.info('Виявлено callback для реєстрації:', { userId, data });
         await this.registrationService.handleRegistrationCallback(chatId, userId, data);
         await this.answerCallbackQuery(callbackQuery.id);
@@ -1392,7 +1474,10 @@ class TelegramService {
       }
 
       // Якщо користувач не зареєстрований і це не callback для реєстрації/авторизації
-      await this.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані. Використайте /start для реєстрації або авторизації.');
+      await this.answerCallbackQuery(
+        callbackQuery.id,
+        'Ви не авторизовані. Використайте /start для реєстрації або авторизації.'
+      );
     } catch (error) {
       logger.error('Помилка обробки callback query:', error);
       await this.answerCallbackQuery(callbackQuery.id, 'Виникла помилка');
@@ -1408,10 +1493,7 @@ class TelegramService {
     // Перевіряємо, чи користувач вже зареєстрований
     // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
     const existingUser = await User.findOne({
-      $or: [
-        { telegramId: String(userId) },
-        { telegramId: userId }
-      ]
+      $or: [{ telegramId: String(userId) }, { telegramId: userId }],
     })
       .populate('position', 'name')
       .populate('city', 'name');
@@ -1445,21 +1527,33 @@ class TelegramService {
       // Додано: docs/AI_BOT_LOGIC.md — якщо користувач пише проблему без натискання «Створити тікет», запускаємо AI-флоу
       const aiSettings = await aiFirstLineService.getAISettings();
       const aiEnabled = aiSettings && aiSettings.enabled === true;
-      const hasApiKey = aiSettings && (
-        (aiSettings.provider === 'groq' && aiSettings.groqApiKey && String(aiSettings.groqApiKey).trim()) ||
-        (aiSettings.provider === 'openai' && aiSettings.openaiApiKey && String(aiSettings.openaiApiKey).trim())
-      );
+      const hasApiKey =
+        aiSettings &&
+        ((aiSettings.provider === 'groq' &&
+          aiSettings.groqApiKey &&
+          String(aiSettings.groqApiKey).trim()) ||
+          (aiSettings.provider === 'openai' &&
+            aiSettings.openaiApiKey &&
+            String(aiSettings.openaiApiKey).trim()));
       if (aiEnabled && hasApiKey && text && String(text).trim().length > 0) {
-        const fullUser = await User.findById(existingUser._id).populate('position', 'title name').populate('city', 'name region').populate('institution', 'name').lean();
+        const fullUser = await User.findById(existingUser._id)
+          .populate('position', 'title name')
+          .populate('city', 'name region')
+          .populate('institution', 'name')
+          .lean();
         const profile = fullUser || existingUser;
         const userContext = {
           userCity: profile.city?.name || 'Не вказано',
           userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
           userInstitution: profile.institution?.name || '',
-          userName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
+          userName:
+            [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
           userEmail: profile.email,
-          hasComputerAccessPhoto: !!(profile.computerAccessPhoto && String(profile.computerAccessPhoto).trim()),
-          computerAccessAnalysis: (profile.computerAccessAnalysis && String(profile.computerAccessAnalysis).trim()) || ''
+          hasComputerAccessPhoto: !!(
+            profile.computerAccessPhoto && String(profile.computerAccessPhoto).trim()
+          ),
+          computerAccessAnalysis:
+            (profile.computerAccessAnalysis && String(profile.computerAccessAnalysis).trim()) || '',
         };
         const session = {
           mode: 'ai',
@@ -1469,7 +1563,7 @@ class TelegramService {
           dialog_history: [],
           userContext,
           ticketData: { createdBy: existingUser._id, photos: [], documents: [] },
-          ticketDraft: null
+          ticketDraft: null,
         };
         this.userSessions.set(chatId, session);
         await this.aiService.handleMessageInAiMode(chatId, text.trim(), session, existingUser);
@@ -1478,15 +1572,16 @@ class TelegramService {
 
       // Якщо AI вимкнений і користувач написав текст — підказка та кнопка «Створити тікет» (робота лише через кнопки)
       if (text && String(text).trim().length > 0) {
-        await this.sendMessage(chatId,
+        await this.sendMessage(
+          chatId,
           `🤖 AI зараз недоступний. Спробуйте пізніше або використайте стандартну процедуру подачі звернення.`,
           {
             reply_markup: {
               inline_keyboard: [
                 [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]
-              ]
-            }
+                [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
           }
         );
         return;
@@ -1506,13 +1601,15 @@ class TelegramService {
     // Перевіряємо, чи користувач в процесі реєстрації
     // Конвертуємо userId в рядок для пошуку
     const pendingRegistration = await PendingRegistration.findOne({
-      $or: [
-        { telegramId: String(userId) },
-        { telegramId: userId }
-      ]
+      $or: [{ telegramId: String(userId) }, { telegramId: userId }],
     });
     if (pendingRegistration) {
-      await this.registrationService.handleRegistrationTextInput(chatId, userId, text, pendingRegistration);
+      await this.registrationService.handleRegistrationTextInput(
+        chatId,
+        userId,
+        text,
+        pendingRegistration
+      );
       return;
     }
 
@@ -1531,8 +1628,6 @@ class TelegramService {
       await this.sendMessage(chatId, 'Я не розумію. Використайте меню для навігації.');
     }
   }
-
-
 
   // Екранування спеціальних символів Markdown для Telegram
   // Екранування спеціальних символів Markdown для Telegram
@@ -1578,8 +1673,6 @@ class TelegramService {
     return TelegramUtils.validateDepartment(department);
   }
 
-
-
   // Обробка фото
   async handlePhoto(msg) {
     const chatId = msg.chat.id;
@@ -1608,11 +1701,15 @@ class TelegramService {
    * @returns {Promise<{ success: boolean, analysis?: string }>}
    */
   async _saveComputerAccessPhotoFromTelegram(chatId, fileId, user) {
-    if (!user || !user._id) return { success: false };
+    if (!user || !user._id) {
+      return { success: false };
+    }
     let localPath;
     try {
       const file = await this.bot.getFile(fileId);
-      if (!file || !file.file_path) return { success: false };
+      if (!file || !file.file_path) {
+        return { success: false };
+      }
       const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
       localPath = await this.downloadTelegramFileByFileId(fileId, ext);
     } catch (err) {
@@ -1620,22 +1717,38 @@ class TelegramService {
       return { success: false };
     }
     const computerAccessDir = path.join(__dirname, '../uploads/computer-access');
-    if (!fs.existsSync(computerAccessDir)) fs.mkdirSync(computerAccessDir, { recursive: true });
+    if (!fs.existsSync(computerAccessDir)) {
+      fs.mkdirSync(computerAccessDir, { recursive: true });
+    }
     const fileName = `${user._id}_${Date.now()}${path.extname(localPath).toLowerCase() || '.jpg'}`;
     const destPath = path.join(computerAccessDir, fileName);
     try {
       fs.copyFileSync(localPath, destPath);
-      if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      if (localPath && fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+      }
     } catch (e) {
       logger.error('Помилка копіювання фото доступу', { err: e.message });
-      try { if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath); } catch (_) { }
+      try {
+        if (localPath && fs.existsSync(localPath)) {
+          fs.unlinkSync(localPath);
+        }
+      } catch (_) {
+        /* ignore unlink error */
+      }
       return { success: false };
     }
     const relativePath = `computer-access/${fileName}`;
     try {
-      await User.findByIdAndUpdate(user._id, { computerAccessPhoto: relativePath, computerAccessUpdatedAt: new Date() });
+      await User.findByIdAndUpdate(user._id, {
+        computerAccessPhoto: relativePath,
+        computerAccessUpdatedAt: new Date(),
+      });
     } catch (e) {
-      logger.error('Помилка оновлення профілю (computerAccessPhoto)', { userId: user._id, err: e.message });
+      logger.error('Помилка оновлення профілю (computerAccessPhoto)', {
+        userId: user._id,
+        err: e.message,
+      });
       return { success: false };
     }
     let analysis = null;
@@ -1647,7 +1760,10 @@ class TelegramService {
     } catch (e) {
       logger.error('AI: помилка аналізу фото доступу', { userId: user._id, err: e.message });
     }
-    return { success: true, analysis: analysis && String(analysis).trim() ? String(analysis).trim() : undefined };
+    return {
+      success: true,
+      analysis: analysis && String(analysis).trim() ? String(analysis).trim() : undefined,
+    };
   }
 
   async handleDocument(msg) {
@@ -1661,10 +1777,6 @@ class TelegramService {
     }
   }
 
-
-
-
-
   async handleContact(msg) {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
@@ -1673,10 +1785,7 @@ class TelegramService {
       // Перевіряємо, чи користувач вже зареєстрований
       // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
       const existingUser = await User.findOne({
-        $or: [
-          { telegramId: String(userId) },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
       })
         .populate('position', 'name')
         .populate('city', 'name');
@@ -1690,26 +1799,32 @@ class TelegramService {
       // Перевіряємо, чи користувач в процесі реєстрації на етапі phone
       // Конвертуємо userId в рядок для пошуку
       const pendingRegistration = await PendingRegistration.findOne({
-        $or: [
-          { telegramId: String(userId) },
-          { telegramId: userId }
-        ]
+        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
       });
 
       if (!pendingRegistration) {
-        await this.sendMessage(chatId, 'Ви не в процесі реєстрації. Використайте /start для початку.');
+        await this.sendMessage(
+          chatId,
+          'Ви не в процесі реєстрації. Використайте /start для початку.'
+        );
         return;
       }
 
       if (pendingRegistration.step !== 'phone') {
-        await this.sendMessage(chatId, 'Номер телефону можна поділитися тільки на етапі введення номера.');
+        await this.sendMessage(
+          chatId,
+          'Номер телефону можна поділитися тільки на етапі введення номера.'
+        );
         return;
       }
 
       // Отримуємо номер телефону з контакту
       const contact = msg.contact;
       if (!contact || !contact.phone_number) {
-        await this.sendMessage(chatId, '❌ Не вдалося отримати номер телефону. Спробуйте ввести номер вручну.');
+        await this.sendMessage(
+          chatId,
+          '❌ Не вдалося отримати номер телефону. Спробуйте ввести номер вручну.'
+        );
         return;
       }
 
@@ -1722,22 +1837,25 @@ class TelegramService {
 
       // Валідуємо номер телефону
       if (!this.validatePhone(phoneNumber)) {
-        await this.sendMessage(chatId,
+        await this.sendMessage(
+          chatId,
           `❌ *Некоректний номер телефону*\n\n` +
-          `Отриманий номер: ${phoneNumber}\n\n` +
-          `Номер повинен містити від 10 до 15 цифр та починатися з +.\n\n` +
-          `💡 Спробуйте ввести номер вручну:`,
+            `Отриманий номер: ${phoneNumber}\n\n` +
+            `Номер повинен містити від 10 до 15 цифр та починатися з +.\n\n` +
+            `💡 Спробуйте ввести номер вручну:`,
           {
             reply_markup: {
               keyboard: [
-                [{
-                  text: '📱 Поділитися номером',
-                  request_contact: true
-                }]
+                [
+                  {
+                    text: '📱 Поділитися номером',
+                    request_contact: true,
+                  },
+                ],
               ],
               resize_keyboard: true,
-              one_time_keyboard: true
-            }
+              one_time_keyboard: true,
+            },
           }
         );
         return;
@@ -1749,20 +1867,15 @@ class TelegramService {
       await pendingRegistration.save();
 
       // Приховуємо клавіатуру і переходимо до наступного кроку
-      await this.sendMessage(chatId,
-        `✅ <b>Номер телефону отримано!</b>\n` +
-        `📱 ${phoneNumber}`,
-        {
-          parse_mode: 'HTML',
-          reply_markup: {
-            remove_keyboard: true
-          }
-        }
-      );
+      await this.sendMessage(chatId, `✅ <b>Номер телефону отримано!</b>\n` + `📱 ${phoneNumber}`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          remove_keyboard: true,
+        },
+      });
 
       // Переходимо до наступного кроку (пароль)
       await this.askForPassword(chatId);
-
     } catch (error) {
       logger.error('Помилка обробки контакту:', error);
       await this.sendMessage(chatId, '❌ Помилка обробки номеру телефону. Спробуйте ще раз.');
@@ -1788,107 +1901,109 @@ class TelegramService {
       const localPath = path.join(uploadsDir, fileName);
       const file = fs.createWriteStream(localPath);
 
-      https.get(url, (response) => {
-        // Перевіряємо статус код відповіді
-        if (response.statusCode !== 200) {
-          file.close();
-          fs.unlink(localPath, () => { });
-          logger.error(`Помилка завантаження файлу з Telegram: статус ${response.statusCode}`, {
-            filePath,
-            url,
-            statusCode: response.statusCode,
-            statusMessage: response.statusMessage
-          });
-          reject(new Error(`Помилка завантаження файлу: ${response.statusCode} ${response.statusMessage}`));
-          return;
-        }
-
-        // Перевіряємо Content-Length
-        const contentLength = parseInt(response.headers['content-length'] || '0', 10);
-        let _downloadedBytes = 0;
-
-        response.on('data', (chunk) => {
-          _downloadedBytes += chunk.length;
-        });
-
-        response.pipe(file);
-
-        file.on('finish', () => {
-          file.close();
-
-          // Перевіряємо, чи файл не порожній
-          const stats = fs.statSync(localPath);
-          if (stats.size === 0) {
-            fs.unlink(localPath, () => { });
-            logger.error('Завантажений файл має нульовий розмір', {
+      https
+        .get(url, response => {
+          // Перевіряємо статус код відповіді
+          if (response.statusCode !== 200) {
+            file.close();
+            fs.unlink(localPath, () => {});
+            logger.error(`Помилка завантаження файлу з Telegram: статус ${response.statusCode}`, {
               filePath,
-              localPath,
-              contentLength
+              url,
+              statusCode: response.statusCode,
+              statusMessage: response.statusMessage,
             });
-            reject(new Error('Завантажений файл має нульовий розмір'));
+            reject(
+              new Error(
+                `Помилка завантаження файлу: ${response.statusCode} ${response.statusMessage}`
+              )
+            );
             return;
           }
 
-          // Перевіряємо, чи розмір відповідає Content-Length (якщо вказано)
-          if (contentLength > 0 && stats.size !== contentLength) {
-            logger.warn('Розмір завантаженого файлу не відповідає Content-Length', {
-              filePath,
-              localPath,
-              expected: contentLength,
-              actual: stats.size
-            });
-          }
+          // Перевіряємо Content-Length
+          const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+          let _downloadedBytes = 0;
 
-          logger.info('Файл успішно завантажено з Telegram', {
-            filePath,
-            localPath,
-            size: stats.size,
-            contentLength
+          response.on('data', chunk => {
+            _downloadedBytes += chunk.length;
           });
 
-          resolve(localPath);
-        });
+          response.pipe(file);
 
-        file.on('error', (error) => {
-          file.close();
-          fs.unlink(localPath, () => { });
-          logger.error('Помилка запису файлу', {
+          file.on('finish', () => {
+            file.close();
+
+            // Перевіряємо, чи файл не порожній
+            const stats = fs.statSync(localPath);
+            if (stats.size === 0) {
+              fs.unlink(localPath, () => {});
+              logger.error('Завантажений файл має нульовий розмір', {
+                filePath,
+                localPath,
+                contentLength,
+              });
+              reject(new Error('Завантажений файл має нульовий розмір'));
+              return;
+            }
+
+            // Перевіряємо, чи розмір відповідає Content-Length (якщо вказано)
+            if (contentLength > 0 && stats.size !== contentLength) {
+              logger.warn('Розмір завантаженого файлу не відповідає Content-Length', {
+                filePath,
+                localPath,
+                expected: contentLength,
+                actual: stats.size,
+              });
+            }
+
+            logger.info('Файл успішно завантажено з Telegram', {
+              filePath,
+              localPath,
+              size: stats.size,
+              contentLength,
+            });
+
+            resolve(localPath);
+          });
+
+          file.on('error', error => {
+            file.close();
+            fs.unlink(localPath, () => {});
+            logger.error('Помилка запису файлу', {
+              filePath,
+              localPath,
+              error: error.message,
+            });
+            reject(error);
+          });
+        })
+        .on('error', error => {
+          fs.unlink(localPath, () => {}); // Видаляємо файл при помилці
+          logger.error('Помилка HTTP запиту при завантаженні файлу з Telegram', {
             filePath,
-            localPath,
-            error: error.message
+            url,
+            error: error.message,
           });
           reject(error);
         });
-      }).on('error', (error) => {
-        fs.unlink(localPath, () => { }); // Видаляємо файл при помилці
-        logger.error('Помилка HTTP запиту при завантаженні файлу з Telegram', {
-          filePath,
-          url,
-          error: error.message
-        });
-        reject(error);
-      });
     });
   }
-
-
-
-
 
   async handleStatisticsCallback(chatId, user) {
     try {
       const totalTickets = await Ticket.countDocuments({ createdBy: user._id });
       const openTickets = await Ticket.countDocuments({
         createdBy: user._id,
-        status: 'open'
+        status: 'open',
       });
       const inProgressTickets = await Ticket.countDocuments({
         createdBy: user._id,
-        status: 'in_progress'
+        status: 'in_progress',
       });
       const closedTickets = await Ticket.countDocuments({
         createdBy: user._id,
-        status: { $in: ['closed', 'resolved'] }
+        status: { $in: ['closed', 'resolved'] },
       });
 
       // Статистика за останній місяць
@@ -1896,14 +2011,14 @@ class TelegramService {
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const ticketsLastMonth = await Ticket.countDocuments({
         createdBy: user._id,
-        createdAt: { $gte: oneMonthAgo }
+        createdAt: { $gte: oneMonthAgo },
       });
 
       // Середній час закриття тікетів (в днях)
       const closedTicketsWithDates = await Ticket.find({
         createdBy: user._id,
         status: { $in: ['closed', 'resolved'] },
-        closedAt: { $exists: true }
+        closedAt: { $exists: true },
       })
         .select('createdAt closedAt')
         .limit(100)
@@ -1912,7 +2027,8 @@ class TelegramService {
       let avgDays = 0;
       if (closedTicketsWithDates.length > 0) {
         const totalDays = closedTicketsWithDates.reduce((sum, ticket) => {
-          const days = (new Date(ticket.closedAt) - new Date(ticket.createdAt)) / (1000 * 60 * 60 * 24);
+          const days =
+            (new Date(ticket.closedAt) - new Date(ticket.createdAt)) / (1000 * 60 * 60 * 24);
           return sum + days;
         }, 0);
         avgDays = Math.round((totalDays / closedTicketsWithDates.length) * 10) / 10;
@@ -1929,16 +2045,17 @@ class TelegramService {
 
       await this.sendMessage(chatId, text, {
         reply_markup: {
-          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
+          inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
         },
-        parse_mode: 'Markdown'
+        parse_mode: 'Markdown',
       });
     } catch (error) {
       logger.error('Помилка отримання статистики:', error);
-      await this.sendMessage(chatId,
+      await this.sendMessage(
+        chatId,
         `❌ *Помилка завантаження статистики*\n\n` +
-        `Не вдалося завантажити дані статистики.\n\n` +
-        `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
+          `Не вдалося завантажити дані статистики.\n\n` +
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
         { parse_mode: 'Markdown' }
       );
     }
@@ -1964,9 +2081,9 @@ class TelegramService {
 
     await this.sendMessage(chatId, helpText, {
       reply_markup: {
-        inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]]
+        inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]],
       },
-      parse_mode: 'Markdown'
+      parse_mode: 'Markdown',
     });
   }
 
@@ -1974,7 +2091,7 @@ class TelegramService {
     try {
       const openTickets = await Ticket.find({
         createdBy: user._id,
-        status: 'open'
+        status: 'open',
       })
         .sort({ createdAt: -1 })
         .limit(5)
@@ -1983,7 +2100,7 @@ class TelegramService {
 
       const inProgressTickets = await Ticket.find({
         createdBy: user._id,
-        status: 'in_progress'
+        status: 'in_progress',
       })
         .sort({ createdAt: -1 })
         .limit(5)
@@ -1995,7 +2112,10 @@ class TelegramService {
       if (openTickets.length > 0) {
         text += `🔓 *Відкриті тікети (${openTickets.length}):*\n`;
         openTickets.forEach((ticket, index) => {
-          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', {
+            day: '2-digit',
+            month: '2-digit',
+          });
           text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
         });
         text += `\n`;
@@ -2004,7 +2124,10 @@ class TelegramService {
       if (inProgressTickets.length > 0) {
         text += `⚙️ *У роботі (${inProgressTickets.length}):*\n`;
         inProgressTickets.forEach((ticket, index) => {
-          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+          const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', {
+            day: '2-digit',
+            month: '2-digit',
+          });
           text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
         });
         text += `\n`;
@@ -2022,21 +2145,20 @@ class TelegramService {
           inline_keyboard: [
             [
               { text: '📋 Мої тікети', callback_data: 'my_tickets' },
-              { text: '📊 Статистика', callback_data: 'statistics' }
+              { text: '📊 Статистика', callback_data: 'statistics' },
             ],
-            [
-              { text: '🏠 Головне меню', callback_data: 'back_to_menu' }
-            ]
-          ]
+            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+          ],
         },
-        parse_mode: 'Markdown'
+        parse_mode: 'Markdown',
       });
     } catch (error) {
       logger.error('Помилка отримання статусу тікетів:', error);
-      await this.sendMessage(chatId,
+      await this.sendMessage(
+        chatId,
         `❌ *Помилка завантаження статусу*\n\n` +
-        `Не вдалося завантажити інформацію про тікети.\n\n` +
-        `🔄 Спробуйте ще раз.`,
+          `Не вдалося завантажити інформацію про тікети.\n\n` +
+          `🔄 Спробуйте ще раз.`,
         { parse_mode: 'Markdown' }
       );
     }
@@ -2049,13 +2171,6 @@ class TelegramService {
       logger.error('Помилка відповіді на callback query:', error);
     }
   }
-
-
-
-
-
-
-
 
   getStatusText(status) {
     return TelegramUtils.getStatusText(status);
@@ -2094,8 +2209,6 @@ class TelegramService {
     return TelegramUtils.truncateButtonText(text, maxLength);
   }
 
-
-
   async loadBotSettings() {
     try {
       this.botSettings = await BotSettings.findOne();
@@ -2107,13 +2220,6 @@ class TelegramService {
     }
   }
 
-
-
-
-
-
-
-
   handleFeedbackMessage(_chatId, _text, _user) {
     // Placeholder for feedback handling
     // This can be implemented based on your requirements
@@ -2124,22 +2230,20 @@ class TelegramService {
     const keyboard = [
       [
         { text: '🟢 Низький', callback_data: 'priority_low' },
-        { text: '🟡 Середній', callback_data: 'priority_medium' }
+        { text: '🟡 Середній', callback_data: 'priority_medium' },
       ],
       [
         { text: '🔴 Високий', callback_data: 'priority_high' },
-        { text: '🔥 Критичний', callback_data: 'priority_urgent' }
+        { text: '🔥 Критичний', callback_data: 'priority_urgent' },
       ],
-      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+      [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
     ];
 
-    await this.sendMessage(chatId,
-      `⚡ *Крок 4/4:* Оберіть пріоритет`, {
+    await this.sendMessage(chatId, `⚡ *Крок 4/4:* Оберіть пріоритет`, {
       reply_markup: {
-        inline_keyboard: keyboard
-      }
-    }
-    );
+        inline_keyboard: keyboard,
+      },
+    });
   }
 
   // Методи для навігації
@@ -2205,7 +2309,6 @@ class TelegramService {
       await this.showUserDashboard(chatId, user);
     }
   }
-
 }
 
 module.exports = TelegramService;

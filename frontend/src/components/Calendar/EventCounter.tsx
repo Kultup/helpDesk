@@ -24,12 +24,12 @@ const EventCounter: React.FC<EventCounterProps> = ({ events, currentDate, classN
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - today.getDay());
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    
+
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
@@ -46,13 +46,17 @@ const EventCounter: React.FC<EventCounterProps> = ({ events, currentDate, classN
         [EventType.REMINDER]: 0,
         [EventType.DEADLINE]: 0,
         [EventType.APPOINTMENT]: 0,
-        [EventType.HOLIDAY]: 0
-      }
+        [EventType.HOLIDAY]: 0,
+      },
     };
 
     events.forEach(event => {
       const eventDate = new Date(event.date);
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      const eventDateOnly = new Date(
+        eventDate.getFullYear(),
+        eventDate.getMonth(),
+        eventDate.getDate()
+      );
 
       // Підрахунок за періодами
       if (eventDateOnly.getTime() === today.getTime()) {
@@ -81,8 +85,8 @@ const EventCounter: React.FC<EventCounterProps> = ({ events, currentDate, classN
       }
 
       // Підрахунок за типами
-      if (event.type && eventStats.byType.hasOwnProperty(event.type)) {
-        eventStats.byType[event.type]++;
+      if (event.type && Object.prototype.hasOwnProperty.call(eventStats.byType, event.type)) {
+        eventStats.byType[event.type as EventType]++;
       }
     });
 
@@ -115,7 +119,7 @@ const EventCounter: React.FC<EventCounterProps> = ({ events, currentDate, classN
       [EventType.REMINDER]: 'Нагадування',
       [EventType.DEADLINE]: 'Дедлайни',
       [EventType.APPOINTMENT]: 'Призначення',
-      [EventType.HOLIDAY]: 'Свята'
+      [EventType.HOLIDAY]: 'Свята',
     };
     return labels[type] || 'Інше';
   };
@@ -186,7 +190,7 @@ const EventCounter: React.FC<EventCounterProps> = ({ events, currentDate, classN
               </span>
             </div>
           )}
-          
+
           {stats.highPriority > 0 && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 flex items-center">
               <AlertCircle className="h-4 w-4 text-orange-500 mr-2" />
