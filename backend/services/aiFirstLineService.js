@@ -186,9 +186,9 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
         logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
         return {
           isTicketIntent: true,
-          needsMoreInfo: false, // Force false!
+          needsMoreInfo: fastTrack.needsMoreInfo || false,
           category: fastTrack.category || 'Other',
-          missingInfo: [],
+          missingInfo: fastTrack.missingInfo || [],
           confidence: 1.0,
           priority: 'medium',
           emotionalTone: 'calm',
@@ -346,7 +346,7 @@ async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
  * Виклик 3: підсумок тікета (title, description, category, priority).
  * @returns {Promise<{ title: string, description: string, category: string, priority: string }|null>}
  */
-async function getTicketSummary(dialogHistory, userContext) {
+async function getTicketSummary(dialogHistory, userContext, priorityHint = '', categoryHint = '') {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
     return null;
@@ -359,6 +359,10 @@ async function getTicketSummary(dialogHistory, userContext) {
 
   const systemPrompt = fillPrompt(TICKET_SUMMARY, {
     userContext: formatUserContext(userContext),
+    dialogHistory: formatDialogHistory(dialogHistory),
+    priority: priorityHint || 'medium',
+    category: categoryHint || 'Other',
+    similarTickets: await getSimilarResolvedTickets(3), // Add context awareness
   });
 
   const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;
@@ -800,11 +804,16 @@ async function analyzeComputerAccessPhoto(imagePath) {
 /**
  * Виклик 4: генерація природної перехідної фрази (filler/transition).
  * @param {Array} dialogHistory
- * @param {string} transitionType - тип переходу (accept_thanks, start_gathering_info etc.)
+ * @param {string} transitionType - тип переходу: 'accept_thanks', 'start_gathering_info', 'confirm_photo_saved', 'ask_for_details_fallback', 'request_details', 'session_closed'
  * @param {Object} userContext
  * @returns {Promise<string>}
  */
-async function generateConversationalResponse(dialogHistory, transitionType, userContext) {
+async function generateConversationalResponse(
+  dialogHistory,
+  transitionType = 'request_details',
+  userContext,
+  emotionalTone = 'neutral'
+) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
     return 'Гаразд, зрозумів.';
@@ -820,6 +829,7 @@ async function generateConversationalResponse(dialogHistory, transitionType, use
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     transitionType,
+    emotionalTone,
   });
 
   const userMessage = `Згенеруй фразу для типу: ${transitionType}`;
@@ -847,6 +857,10 @@ async function generateConversationalResponse(dialogHistory, transitionType, use
         return 'Добре, тоді давайте зберемо деталі для заявки.';
       case 'confirm_photo_saved':
         return 'Дякую, фото отримав. Рухаємось далі.';
+      case 'request_details':
+        return 'Опишіть, будь ласка, проблему детальніше.';
+      case 'session_closed':
+        return 'Добре, якщо щось — звертайтесь!';
       default:
         return 'Зрозумів, продовжуємо.';
     }

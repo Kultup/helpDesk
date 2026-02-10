@@ -209,6 +209,31 @@ class AIEnhancedService {
         category: 'Access',
         estimatedTime: '10-15 хвилин',
       },
+
+      new_accountant: {
+        keywords: ['новий бухгалтер', 'нового бухгалтера', 'оформити бухгалтера'],
+        solution:
+          'Для оформлення нового співробітника потрібні його дані. Підкажіть, будь ласка, як звати нового бухгалтера?',
+        category: 'Access',
+        needsMoreInfo: true, // Custom flag to trigger gathering_information
+        missingInfo: ['ПІБ нового співробітника'],
+        estimatedTime: '15-20 хвилин',
+      },
+
+      setup_accountant: {
+        keywords: [
+          'налаштувати ноутбук для бухгалтера',
+          'ноутбук бухгалтеру',
+          'підготувати ноутбук бухгалтеру',
+        ],
+        solution: `Зрозуміло. 💻
+        
+Створюю заявку на налаштування ноутбука для бухгалтера (стандартний набір ПЗ + M.E.Doc).
+Системний адміністратор візьме в роботу.`,
+        category: 'Hardware',
+        autoTicket: true,
+        estimatedTime: '1-2 години',
+      },
     };
 
     // Ключові слова для визначення емоційного стану
@@ -275,6 +300,9 @@ class AIEnhancedService {
           category: solution.category,
           estimatedTime: solution.estimatedTime,
           hasQuickFix: true,
+          needsMoreInfo: solution.needsMoreInfo,
+          missingInfo: solution.missingInfo,
+          autoTicket: solution.autoTicket,
         };
       }
     }

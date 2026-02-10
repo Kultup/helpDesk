@@ -291,7 +291,9 @@ class TelegramAIService {
       try {
         summaryAfterEdit = await aiFirstLineService.getTicketSummary(
           session.dialog_history,
-          session.userContext
+          session.userContext,
+          session.cachedPriority,
+          session.cachedCategory
         );
       } catch (err) {
         logger.error('AI: getTicketSummary після редагування', err);
@@ -361,7 +363,8 @@ class TelegramAIService {
       const filler = await aiFirstLineService.generateConversationalResponse(
         session.dialog_history,
         'request_details',
-        session.userContext
+        session.userContext,
+        session.cachedEmotionalTone
       );
       session.dialog_history.push({ role: 'assistant', content: filler });
       botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
@@ -400,7 +403,8 @@ class TelegramAIService {
         const filler = await aiFirstLineService.generateConversationalResponse(
           session.dialog_history,
           'accept_thanks',
-          session.userContext
+          session.userContext,
+          session.cachedEmotionalTone
         );
         await this.telegramService.sendMessage(chatId, filler, {
           reply_markup: {
@@ -439,7 +443,8 @@ class TelegramAIService {
         const filler = await aiFirstLineService.generateConversationalResponse(
           session.dialog_history,
           'start_gathering_info',
-          session.userContext
+          session.userContext,
+          resultAfterTip.emotionalTone
         );
         session.dialog_history.push({ role: 'assistant', content: filler });
         botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
@@ -554,6 +559,17 @@ class TelegramAIService {
 
     if (result.confidence < CONFIDENCE_THRESHOLD) {
       session.ai_attempts = (session.ai_attempts || 0) + 1;
+    }
+
+    // Cache AI insights for later use in ticket summary
+    if (result.priority) {
+      session.cachedPriority = result.priority;
+    }
+    if (result.category) {
+      session.cachedCategory = result.category;
+    }
+    if (result.emotionalTone) {
+      session.cachedEmotionalTone = result.emotionalTone;
     }
 
     if (!result.isTicketIntent) {
@@ -715,7 +731,8 @@ class TelegramAIService {
           : await aiFirstLineService.generateConversationalResponse(
               session.dialog_history,
               'ask_for_details_fallback',
-              session.userContext
+              session.userContext,
+              result.emotionalTone
             );
       await this.telegramService.sendMessage(chatId, msg, {
         reply_markup: {
@@ -762,6 +779,35 @@ class TelegramAIService {
         );
         session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
         session.lastMissingInfo = missing;
+
+        session.step = 'gathering_information';
+        session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
+
+        const keyboard = [];
+        // Якщо ми очікуємо фото, додаємо кнопку пропуску
+        if (session.awaitingComputerAccessPhoto) {
+          keyboard.push([
+            {
+              text: '⏭️ Пропустити (без фото доступу)',
+              callback_data: 'skip_computer_access_photo',
+            },
+          ]);
+        } else if (session.awaitingErrorPhoto) {
+          keyboard.push([
+            { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
+          ]);
+        }
+        keyboard.push([
+          { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+        ]);
+
+        await this.telegramService.sendMessage(chatId, quickSolutionText, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: keyboard,
+          },
+        });
+        return;
       }
 
       session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
@@ -772,22 +818,6 @@ class TelegramAIService {
         [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
         [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
       ];
-
-      // Якщо ми очікуємо фото, додаємо кнопку пропуску
-      if (result.needsMoreInfo) {
-        if (session.awaitingComputerAccessPhoto) {
-          keyboard.unshift([
-            {
-              text: '⏭️ Пропустити (без фото доступу)',
-              callback_data: 'skip_computer_access_photo',
-            },
-          ]);
-        } else if (session.awaitingErrorPhoto) {
-          keyboard.unshift([
-            { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
-          ]);
-        }
-      }
 
       await this.telegramService.sendMessage(chatId, quickSolutionText, {
         parse_mode: 'Markdown',
@@ -802,7 +832,9 @@ class TelegramAIService {
       await this.telegramService.sendTyping(chatId);
       const summary = await aiFirstLineService.getTicketSummary(
         session.dialog_history,
-        session.userContext
+        session.userContext,
+        session.cachedPriority,
+        session.cachedCategory
       );
       if (summary) {
         session.step = 'confirm_ticket';
@@ -1023,7 +1055,8 @@ class TelegramAIService {
       const filler = await aiFirstLineService.generateConversationalResponse(
         session.dialog_history,
         'ask_for_details_fallback',
-        session.userContext
+        session.userContext,
+        session.cachedEmotionalTone
       );
       await this.telegramService.sendMessage(chatId, filler, {
         reply_markup: {
