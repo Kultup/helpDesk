@@ -193,6 +193,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
           priority: 'medium',
           emotionalTone: 'calm',
           quickSolution: fastTrack.solution,
+          autoTicket: fastTrack.autoTicket || false,
           offTopicResponse: null,
         };
       }

@@ -733,6 +733,13 @@ class TelegramAIService {
     if (quickSolutionText) {
       quickSolutionText = TelegramUtils.normalizeQuickSolutionSteps(quickSolutionText);
     }
+
+    // Special handling for auto-ticket quick solutions (Fast-Track)
+    if (result.autoTicket && quickSolutionText) {
+      await this.telegramService.sendMessage(chatId, quickSolutionText, { parse_mode: 'Markdown' });
+      // Fall through to ticket confirmation block
+    }
+
     const skipQuickSolution = !!session.afterTipNotHelped;
     if (session.afterTipNotHelped) {
       delete session.afterTipNotHelped;
@@ -743,6 +750,7 @@ class TelegramAIService {
     if (
       result.isTicketIntent &&
       quickSolutionText &&
+      !result.autoTicket && // Skip this block if it's an auto-ticket
       session.step !== 'awaiting_tip_feedback' &&
       !skipQuickSolution
     ) {
