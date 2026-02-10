@@ -5,6 +5,10 @@ const AISettings = require('../models/AISettings');
 const Ticket = require('../models/Ticket');
 const { INTENT_ANALYSIS, NEXT_QUESTION, TICKET_SUMMARY, PHOTO_ANALYSIS, COMPUTER_ACCESS_ANALYSIS, fillPrompt, MAX_TOKENS, INTENT_ANALYSIS_TEMPERATURE } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
+const aiResponseValidator = require('../utils/aiResponseValidator');
+const { AIServiceError } = require('../utils/customErrors');
+const metricsCollector = require('./metricsCollector');
+const retryHelper = require('../utils/retryHelper');
 
 let cachedSettings = null;
 let cachedAt = 0;
@@ -27,7 +31,7 @@ function readMonthlyUsage() {
     if (data.month === month) {
       return { month: data.month, promptTokens: data.promptTokens || 0, completionTokens: data.completionTokens || 0, totalTokens: data.totalTokens || 0 };
     }
-  } catch (_) {}
+  } catch (_) { }
   return { month: getCurrentMonth(), promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 }
 
@@ -143,7 +147,13 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
 
   const temperature = typeof INTENT_ANALYSIS_TEMPERATURE === 'number' ? INTENT_ANALYSIS_TEMPERATURE : 0.55;
-  const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature);
+
+  // Виклик AI з retry механізмом
+  const response = await retryHelper.retryAIRequest(
+    () => callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.INTENT_ANALYSIS, true, temperature),
+    'analyzeIntent'
+  );
+
   if (!response) return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0, offTopicResponse: null };
 
   const responseStr = String(response).trim();
@@ -156,6 +166,24 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
   }
   const offTopicResponse = parsed.offTopicResponse != null && String(parsed.offTopicResponse).trim() ? String(parsed.offTopicResponse).trim() : null;
 
+  // Записати AI відповідь
+  metricsCollector.recordAIResponse(parsed);
+
+  // Валідація quickSolution якщо є
+  let validatedQuickSolution = parsed.quickSolution || null;
+  if (validatedQuickSolution) {
+    const validation = aiResponseValidator.validate(validatedQuickSolution, 'quickSolution');
+    if (!validation.valid) {
+      metricsCollector.recordValidationFailure('quickSolution', validation.reason);
+      logger.warn('AI quickSolution validation failed', {
+        reason: validation.reason,
+        original: validatedQuickSolution.substring(0, 100)
+      });
+      // Використовуємо fallback
+      validatedQuickSolution = null;
+    }
+  }
+
   return {
     isTicketIntent: !!parsed.isTicketIntent,
     needsMoreInfo: !!parsed.needsMoreInfo,
@@ -164,7 +192,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7,
     priority: parsed.priority || 'medium',
     emotionalTone: parsed.emotionalTone || 'calm',
-    quickSolution: parsed.quickSolution || null,
+    quickSolution: validatedQuickSolution,
     offTopicResponse
   };
 }
@@ -188,9 +216,28 @@ async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}\n\nЧого бракує: ${missingStr}. Згенеруй одне коротке питання українською.`;
 
-  const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.NEXT_QUESTION, false);
+  // Виклик AI з retry механізмом
+  const response = await retryHelper.retryAIRequest(
+    () => callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.NEXT_QUESTION, false),
+    'generateNextQuestion'
+  );
+
   if (!response || typeof response !== 'string') return 'Що саме не працює? Опишіть детальніше.';
-  return response.trim().slice(0, 300);
+
+  const trimmedResponse = response.trim().slice(0, 300);
+
+  // Валідація питання
+  const validation = aiResponseValidator.validate(trimmedResponse, 'nextQuestion');
+  if (!validation.valid) {
+    metricsCollector.recordValidationFailure('nextQuestion', validation.reason);
+    logger.warn('AI nextQuestion validation failed', {
+      reason: validation.reason,
+      original: trimmedResponse
+    });
+    return aiResponseValidator.getFallbackQuestion();
+  }
+
+  return trimmedResponse;
 }
 
 /**
@@ -210,7 +257,12 @@ async function getTicketSummary(dialogHistory, userContext) {
 
   const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;
 
-  const response = await callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.TICKET_SUMMARY, true);
+  // Виклик AI з retry механізмом
+  const response = await retryHelper.retryAIRequest(
+    () => callChatCompletion(settings, systemPrompt, userMessage, MAX_TOKENS.TICKET_SUMMARY, true),
+    'getTicketSummary'
+  );
+
   if (!response) return null;
 
   const parsed = parseJsonFromResponse(response);
@@ -218,6 +270,20 @@ async function getTicketSummary(dialogHistory, userContext) {
     logger.error('AI: не вдалося розпарсити результат getTicketSummary');
     return null;
   }
+
+  // Валідація підсумку тікета
+  const validation = aiResponseValidator.validate(parsed, 'ticketSummary');
+  if (!validation.valid) {
+    metricsCollector.recordValidationFailure('ticketSummary', validation.reason);
+    logger.warn('AI ticketSummary validation failed', {
+      reason: validation.reason,
+      parsed
+    });
+    // Використовуємо fallback
+    const lastUserMessage = dialogHistory.filter(m => m.role === 'user').pop()?.content || 'Проблема';
+    return aiResponseValidator.getFallbackTicketSummary(lastUserMessage);
+  }
+
   const priority = ['low', 'medium', 'high', 'urgent'].includes(parsed.priority) ? parsed.priority : 'medium';
   return {
     title: String(parsed.title || 'Проблема').slice(0, 200),
@@ -281,6 +347,7 @@ async function callChatCompletion(settings, systemPrompt, userMessage, maxTokens
     const openaiContent = openaiCompletion?.choices?.[0]?.message?.content;
     return openaiContent ? String(openaiContent).trim() : null;
   } catch (err) {
+    metricsCollector.recordAIError(err, `callChatCompletion - provider: ${settings?.provider}`);
     logger.error('AI: помилка виклику провайдера', { provider: settings?.provider, message: err.message });
     return null;
   }
@@ -297,24 +364,24 @@ function parseJsonFromResponse(response) {
   if (!raw) return null;
   try {
     return JSON.parse(raw);
-  } catch (_) {}
+  } catch (_) { }
   const withoutMarkdown = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
   try {
     return JSON.parse(withoutMarkdown);
-  } catch (_) {}
+  } catch (_) { }
   const first = raw.indexOf('{');
   const last = raw.lastIndexOf('}');
   if (first !== -1 && last !== -1 && last > first) {
     try {
       return JSON.parse(raw.slice(first, last + 1));
-    } catch (_) {}
+    } catch (_) { }
   }
   // Спроба знайти JSON-об'єкт серед тексту
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       return JSON.parse(jsonMatch[0]);
-    } catch (_) {}
+    } catch (_) { }
   }
   // Обрізана відповідь (немає закриваючої }): пробуємо дописати недостатнє
   if (raw.startsWith('{') && !raw.trim().endsWith('}')) {
@@ -322,7 +389,7 @@ function parseJsonFromResponse(response) {
     if (closed) {
       try {
         return JSON.parse(closed);
-      } catch (_) {}
+      } catch (_) { }
     }
   }
   return null;

@@ -1,0 +1,724 @@
+const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const aiFirstLineService = require('./aiFirstLineService');
+const botConversationService = require('./botConversationService');
+const TelegramUtils = require('./telegramUtils');
+
+class TelegramAIService {
+    constructor(telegramService) {
+        this.telegramService = telegramService;
+    }
+
+    static get INTERNET_REQUESTS_LIMIT_PER_DAY() { return 5; }
+    static get INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID() { return '6070910226'; }
+
+    static get CITY_NAME_FOR_WEATHER() {
+        return { 'київ': 'Kyiv', 'львів': 'Lviv', 'одеса': 'Odesa', 'харків': 'Kharkiv', 'дніпро': 'Dnipro', 'запоріжжя': 'Zaporizhzhia', 'вінниця': 'Vinnytsia', 'полтава': 'Poltava', 'чернігів': 'Chernihiv', 'івано-франківськ': 'Ivano-Frankivsk', 'тернопіль': 'Ternopil', 'ужгород': 'Uzhhorod', 'луцьк': 'Lutsk', 'рівне': 'Rivne', 'черкаси': 'Cherkasy', 'кропивницький': 'Kropyvnytskyi', 'миколаїв': 'Mykolaiv', 'херсон': 'Kherson', 'маріуполь': 'Mariupol' };
+    }
+
+    canMakeInternetRequest(telegramId) {
+        const id = String(telegramId);
+        return id === TelegramAIService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID;
+    }
+
+    recordInternetRequest(telegramId) {
+        const id = String(telegramId);
+        if (id === TelegramAIService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) return;
+        const today = new Date().toISOString().slice(0, 10);
+        let rec = this.telegramService.internetRequestCounts.get(id);
+        if (!rec || rec.date !== today) rec = { date: today, count: 0 };
+        rec.count += 1;
+        this.telegramService.internetRequestCounts.set(id, rec);
+    }
+
+    fetchNbuUsdRate() {
+        return new Promise((resolve) => {
+            const url = 'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json';
+            https.get(url, (res) => {
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        const arr = JSON.parse(data);
+                        const item = Array.isArray(arr) && arr[0];
+                        if (item && typeof item.rate === 'number') resolve({ rate: item.rate, date: item.exchangedate || '' });
+                        else resolve(null);
+                    } catch (e) {
+                        logger.error('NBU rate parse error', e);
+                        resolve(null);
+                    }
+                });
+            }).on('error', (err) => {
+                logger.error('NBU rate request error', err);
+                resolve(null);
+            });
+        });
+    }
+
+    fetchWeatherForCity(cityName) {
+        if (!cityName || String(cityName).trim() === '' || String(cityName).toLowerCase() === 'не вказано') return Promise.resolve(null);
+        const name = String(cityName).trim();
+        const nameLower = name.toLowerCase();
+        const cityForApi = TelegramAIService.CITY_NAME_FOR_WEATHER[nameLower] || name;
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityForApi)}&count=1&language=uk`;
+        return new Promise((resolve) => {
+            https.get(geoUrl, (res) => {
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(data);
+                        const results = json.results;
+                        const first = Array.isArray(results) && results[0];
+                        if (!first || typeof first.latitude !== 'number' || typeof first.longitude !== 'number') {
+                            resolve(null);
+                            return;
+                        }
+                        const lat = first.latitude;
+                        const lon = first.longitude;
+                        const placeName = first.name || name;
+                        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code`;
+                        https.get(forecastUrl, (res2) => {
+                            let data2 = '';
+                            res2.on('data', (chunk) => { data2 += chunk; });
+                            res2.on('end', () => {
+                                try {
+                                    const f = JSON.parse(data2);
+                                    const cur = f.current;
+                                    if (!cur || typeof cur.temperature_2m !== 'number') {
+                                        resolve(null);
+                                        return;
+                                    }
+                                    const code = cur.weather_code;
+                                    const descMap = { 0: 'Ясно', 1: 'Переважно ясно', 2: 'Змінна хмарність', 3: 'Хмарно', 45: 'Туман', 48: 'Іній', 51: 'Морось', 53: 'Морось', 55: 'Морось', 61: 'Дощ', 63: 'Дощ', 65: 'Сильний дощ', 71: 'Сніг', 73: 'Сніг', 75: 'Сніг', 77: 'Сніг', 80: 'Злива', 81: 'Злива', 82: 'Злива', 85: 'Снігопад', 86: 'Снігопад', 95: 'Гроза', 96: 'Гроза з градом', 99: 'Гроза з градом' };
+                                    const description = descMap[code] || 'Опади';
+                                    resolve({ temp: cur.temperature_2m, description, city: placeName });
+                                } catch (e2) {
+                                    logger.error('Open-Meteo forecast parse error', e2);
+                                    resolve(null);
+                                }
+                            });
+                        }).on('error', (err2) => {
+                            logger.error('Open-Meteo forecast request error', err2);
+                            resolve(null);
+                        });
+                    } catch (e) {
+                        logger.error('Open-Meteo geocoding parse error', e);
+                        resolve(null);
+                    }
+                });
+            }).on('error', (err) => {
+                logger.error('Open-Meteo geocoding request error', err);
+                resolve(null);
+            });
+        });
+    }
+
+    fetchTroubleshootingSnippet(query) {
+        if (!query || String(query).trim() === '') return Promise.resolve('');
+        const q = encodeURIComponent(String(query).trim().substring(0, 200));
+        const url = `https://api.duckduckgo.com/?q=${q}&format=json`;
+        return new Promise((resolve) => {
+            https.get(url, (res) => {
+                let data = '';
+                res.on('data', (chunk) => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(data);
+                        const parts = [];
+                        if (json.AbstractText && String(json.AbstractText).trim()) {
+                            parts.push(String(json.AbstractText).trim().substring(0, 800));
+                        }
+                        if (Array.isArray(json.RelatedTopics) && json.RelatedTopics.length > 0) {
+                            const first = json.RelatedTopics[0];
+                            const text = first.Text || null;
+                            if (text && String(text).trim()) parts.push(String(text).trim().substring(0, 400));
+                        }
+                        resolve(parts.join('\n\n').trim());
+                    } catch (e) {
+                        resolve('');
+                    }
+                });
+            }).on('error', () => resolve(''));
+        });
+    }
+
+    async handleMessageInAiMode(chatId, text, session, user) {
+        const CONFIDENCE_THRESHOLD = 0.6;
+        const MAX_AI_QUESTIONS = 4;
+        const MAX_AI_ATTEMPTS = 2;
+
+        if (session.step === 'gathering_information' && session.editingFromConfirm && session.ticketDraft) {
+            const t = (text || '').toLowerCase().trim();
+            const nothingToChange = /^(нічого|ничого|nothing|ні|нi|пропустити|залишити як є|залишити|все ок|все добре|ок|окей|добре|норм|нормально)$/.test(t) || t === 'нч' || t === 'нчого';
+            if (nothingToChange) {
+                session.step = 'confirm_ticket';
+                session.editingFromConfirm = false;
+                const d = session.ticketDraft;
+                await this.telegramService.sendTyping(chatId);
+                const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+                await this.telegramService.sendMessage(chatId, msg, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                            [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                        ]
+                    },
+                    parse_mode: 'Markdown'
+                });
+                return;
+            }
+            if (!session.dialog_history) session.dialog_history = [];
+            session.dialog_history.push({ role: 'user', content: text });
+            botConversationService.appendMessage(chatId, user, 'user', text, null, (session.dialog_history.length === 1 ? text : '').slice(0, 200)).catch(() => { });
+            session.editingFromConfirm = false;
+            await this.telegramService.sendTyping(chatId);
+            let summaryAfterEdit;
+            try {
+                summaryAfterEdit = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+            } catch (err) {
+                logger.error('AI: getTicketSummary після редагування', err);
+            }
+            if (summaryAfterEdit) {
+                session.step = 'confirm_ticket';
+                session.ticketDraft = {
+                    ...session.ticketDraft,
+                    title: summaryAfterEdit.title,
+                    description: summaryAfterEdit.description,
+                    priority: summaryAfterEdit.priority,
+                    subcategory: summaryAfterEdit.category,
+                    type: session.ticketDraft.type || 'problem'
+                };
+                const d = session.ticketDraft;
+                const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+                await this.telegramService.sendMessage(chatId, msg, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                            [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                        ]
+                    },
+                    parse_mode: 'Markdown'
+                });
+                return;
+            }
+            await this.telegramService.sendMessage(chatId, 'Не вдалося оновити заявку за цим текстом. Спробуйте ще раз або натисніть «Так, створити тікет» з попереднього кроку.', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                        [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                        [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                    ]
+                }
+            });
+            return;
+        }
+
+        if (!session.dialog_history) session.dialog_history = [];
+        session.dialog_history.push({ role: 'user', content: text });
+        botConversationService.appendMessage(chatId, user, 'user', text, null, (session.dialog_history.length === 1 ? text : '').slice(0, 200)).catch(() => { });
+
+        if (session.step === 'awaiting_tip_feedback') {
+            const t = (text || '').toLowerCase().trim();
+            const helped = /^(так|да|допомогло|ок|окей|все добре|все ок|супер|дякую)$/.test(t);
+            const notHelped = /^(ні|нi|не допомогло|не вийшло|створити тікет|потрібен тікет|оформити заявку)$/.test(t) || t.includes('не допомогло') || t.includes('не вийшло');
+            if (helped) {
+                session.step = null;
+                this.telegramService.userSessions.delete(chatId);
+                await this.telegramService.sendMessage(chatId, 'Супер! Якщо ще щось знадобиться — пишіть 😊', {
+                    reply_markup: { inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]] }
+                });
+                return;
+            }
+            if (notHelped) {
+                session.step = 'gathering_information';
+                session.afterTipNotHelped = true;
+                await this.telegramService.sendTyping(chatId);
+                let resultAfterTip;
+                try {
+                    resultAfterTip = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext);
+                } catch (err) {
+                    resultAfterTip = { isTicketIntent: true, needsMoreInfo: true, missingInfo: ['деталі проблеми'], confidence: 0.7, quickSolution: null };
+                }
+                session.dialog_history.push({ role: 'assistant', content: 'Добре, тоді зберемо деталі для тікета.' });
+                botConversationService.appendMessage(chatId, user, 'assistant', 'Добре, тоді зберемо деталі для тікета.').catch(() => { });
+                session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+                let question;
+                try {
+                    question = await aiFirstLineService.generateNextQuestion(session.dialog_history, resultAfterTip.missingInfo || [], session.userContext);
+                } catch (_) {
+                    question = 'Опишіть, будь ласка, що саме відбувається (модель принтера, текст помилки тощо).';
+                }
+                session.dialog_history.push({ role: 'assistant', content: question });
+                botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => { });
+                const missing = resultAfterTip.missingInfo || [];
+                session.awaitingComputerAccessPhoto = missing.some(m => String(m).includes('фото доступу до ПК'));
+                session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
+                session.lastMissingInfo = missing;
+                const keyboardAfterTip = [
+                    [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+                    [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                ];
+                if (session.awaitingComputerAccessPhoto) {
+                    keyboardAfterTip.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+                } else if (session.awaitingErrorPhoto) {
+                    keyboardAfterTip.unshift([{ text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' }]);
+                }
+                await this.telegramService.sendMessage(chatId, question, { reply_markup: { inline_keyboard: keyboardAfterTip } });
+                return;
+            }
+            session.step = 'gathering_information';
+        }
+
+        await this.telegramService.sendTyping(chatId);
+        const searchQuery = (text || '').trim() ? `${String(text).trim()} як виправити troubleshooting` : '';
+        const webSearchContext = searchQuery ? await this.fetchTroubleshootingSnippet(searchQuery) : '';
+        let result;
+        try {
+            result = await aiFirstLineService.analyzeIntent(session.dialog_history, session.userContext, webSearchContext);
+        } catch (err) {
+            logger.error('AI: помилка analyzeIntent', err);
+            await this.telegramService.sendMessage(chatId, 'Зараз не можу обробити. Спробуйте ще раз або натисніть «Заповнити по-старому».', {
+                reply_markup: { inline_keyboard: [[{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }], [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]] }
+            });
+            return;
+        }
+
+        if (session.userContext && session.userContext.hasComputerAccessPhoto && Array.isArray(result.missingInfo)) {
+            result.missingInfo = result.missingInfo.filter(m => !String(m).includes('фото доступу до ПК'));
+            if (result.missingInfo.length === 0) result.needsMoreInfo = false;
+        }
+
+        if (result.confidence < CONFIDENCE_THRESHOLD) {
+            session.ai_attempts = (session.ai_attempts || 0) + 1;
+        }
+
+        if (!result.isTicketIntent) {
+            const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+            const textLower = (text || '').toLowerCase().trim();
+            const isExchangeRateRequest = textLower.includes('курс') || textLower.includes('долар') || textLower.includes('євро') || textLower.includes('валюта') || textLower.includes('usd');
+            const isWeatherRequest = textLower.includes('погода');
+            const userCity = session.userContext && session.userContext.userCity ? String(session.userContext.userCity).trim() : '';
+
+            if (isExchangeRateRequest) {
+                if (!this.canMakeInternetRequest(telegramId)) {
+                    await this.telegramService.sendMessage(chatId,
+                        `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    }
+                    );
+                    this.telegramService.userSessions.delete(chatId);
+                    return;
+                }
+                await this.telegramService.sendTyping(chatId);
+                const nbu = await this.fetchNbuUsdRate();
+                if (nbu) {
+                    this.recordInternetRequest(telegramId);
+                    const rateText = nbu.date ? `Курс USD за ${nbu.date}` : 'Курс USD (НБУ)';
+                    await this.telegramService.sendMessage(chatId,
+                        `💵 *${rateText}:* ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`, {
+                        parse_mode: 'Markdown',
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    }
+                    );
+                } else {
+                    const msg = result.offTopicResponse && String(result.offTopicResponse).trim() ? String(result.offTopicResponse).trim().slice(0, 500) : 'Зараз не вдалося отримати курс. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.';
+                    await this.telegramService.sendMessage(chatId, msg, {
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    });
+                }
+                this.telegramService.userSessions.delete(chatId);
+                return;
+            }
+
+            if (isWeatherRequest) {
+                if (!userCity || userCity.toLowerCase() === 'не вказано') {
+                    await this.telegramService.sendMessage(chatId,
+                        'Не знаю ваше місто. Вкажіть місто в профілі — тоді зможу показати погоду для вас.\n\nЯкщо є технічна проблема — опишіть її, допоможу з тікетом.', {
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    }
+                    );
+                    this.telegramService.userSessions.delete(chatId);
+                    return;
+                }
+                if (!this.canMakeInternetRequest(telegramId)) {
+                    await this.telegramService.sendMessage(chatId,
+                        `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    }
+                    );
+                    this.telegramService.userSessions.delete(chatId);
+                    return;
+                }
+                await this.telegramService.sendTyping(chatId);
+                const weather = await this.fetchWeatherForCity(userCity);
+                if (weather) {
+                    this.recordInternetRequest(telegramId);
+                    await this.telegramService.sendMessage(chatId,
+                        `🌤 *Погода в ${weather.city}:* ${weather.description}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`, {
+                        parse_mode: 'Markdown',
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    }
+                    );
+                } else {
+                    const msg = result.offTopicResponse && String(result.offTopicResponse).trim() ? String(result.offTopicResponse).trim().slice(0, 500) : `Зараз не вдалося отримати погоду для ${userCity}. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.`;
+                    await this.telegramService.sendMessage(chatId, msg, {
+                        reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                    });
+                }
+                this.telegramService.userSessions.delete(chatId);
+                return;
+            }
+
+            if (!this.canMakeInternetRequest(telegramId)) {
+                await this.telegramService.sendMessage(chatId,
+                    `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`, {
+                    reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+                }
+                );
+                this.telegramService.userSessions.delete(chatId);
+                return;
+            }
+            this.recordInternetRequest(telegramId);
+            const msg = result.offTopicResponse && String(result.offTopicResponse).trim() ? String(result.offTopicResponse).trim().slice(0, 500) : 'Я тут для технічних заявок. Якщо раптом щось зламалося — просто скажіть, що саме, і я все оформлю швидко.';
+            await this.telegramService.sendMessage(chatId, msg, {
+                reply_markup: { inline_keyboard: [[{ text: 'Створити тікет', callback_data: 'create_ticket' }], [{ text: 'Головне меню', callback_data: 'back_to_menu' }]] }
+            });
+            this.telegramService.userSessions.delete(chatId);
+            return;
+        }
+
+        let quickSolutionText = result.quickSolution && String(result.quickSolution).trim();
+        if (quickSolutionText) quickSolutionText = TelegramUtils.normalizeQuickSolutionSteps(quickSolutionText);
+        const skipQuickSolution = !!session.afterTipNotHelped;
+        if (session.afterTipNotHelped) delete session.afterTipNotHelped;
+        if (result.isTicketIntent && quickSolutionText && !result.needsMoreInfo && session.step !== 'awaiting_tip_feedback' && !skipQuickSolution) {
+            session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
+            session.step = 'awaiting_tip_feedback';
+            await this.telegramService.sendMessage(chatId,
+                quickSolutionText + '\n\n_Якщо не допоможе — натисніть «Ні, створити тікет», і я зберу деталі для заявки._', {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+                        [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+                        [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                    ]
+                }
+            }
+            );
+            return;
+        }
+
+        if (!result.needsMoreInfo && (result.confidence || 0) >= CONFIDENCE_THRESHOLD) {
+            await this.telegramService.sendTyping(chatId);
+            const summary = await aiFirstLineService.getTicketSummary(session.dialog_history, session.userContext);
+            if (summary) {
+                session.step = 'confirm_ticket';
+                session.ticketDraft = {
+                    createdBy: user._id,
+                    title: summary.title,
+                    description: summary.description,
+                    priority: summary.priority,
+                    subcategory: summary.category,
+                    type: 'problem'
+                };
+                const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+                await this.telegramService.sendMessage(chatId, msg, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+                            [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+                            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                        ]
+                    },
+                    parse_mode: 'Markdown'
+                });
+                return;
+            }
+        }
+
+        if (result.needsMoreInfo && ((session.ai_attempts || 0) >= MAX_AI_ATTEMPTS || (session.ai_questions_count || 0) >= MAX_AI_QUESTIONS)) {
+            session.mode = 'choosing';
+            const count = session.ai_questions_count || 0;
+            await this.telegramService.sendMessage(chatId,
+                `Я вже ${count} раз(и) уточнював і все ще не до кінця зрозумів. Давай так:\n\n` +
+                `Оберіть дію:`, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'Продовжити зі мною', callback_data: 'ai_continue' }],
+                        [{ text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' }],
+                        [{ text: 'Скасувати заявку', callback_data: 'cancel_ticket' }]
+                    ]
+                }
+            }
+            );
+            return;
+        }
+
+        session.ai_questions_count = (session.ai_questions_count || 0) + 1;
+        await this.telegramService.sendTyping(chatId);
+        let question;
+        try {
+            question = await aiFirstLineService.generateNextQuestion(session.dialog_history, result.missingInfo || [], session.userContext);
+        } catch (err) {
+            logger.error('AI: помилка generateNextQuestion', err);
+            question = 'Опишіть, будь ласка, проблему детальніше.';
+        }
+        session.dialog_history.push({ role: 'assistant', content: question });
+        botConversationService.appendMessage(chatId, user, 'assistant', question).catch(() => { });
+
+        const missing = result.missingInfo || [];
+        session.awaitingComputerAccessPhoto = missing.some(m => String(m).includes('фото доступу до ПК'));
+        session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
+        session.lastMissingInfo = missing;
+
+        const keyboard = [
+            [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+        ];
+        if (session.awaitingComputerAccessPhoto) {
+            keyboard.unshift([{ text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' }]);
+        } else if (session.awaitingErrorPhoto) {
+            keyboard.unshift([{ text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' }]);
+        }
+        await this.telegramService.sendMessage(chatId, question, { reply_markup: { inline_keyboard: keyboard } });
+    }
+
+    async handlePhotoInAiMode(chatId, photos, caption, session, user) {
+        if (!session.dialog_history) session.dialog_history = [];
+        const lastUserMsg = session.dialog_history.filter(m => m.role === 'user').pop();
+        const problemDescription = (caption && String(caption).trim()) || (lastUserMsg && lastUserMsg.content) || 'Користувач надіслав фото по технічній проблемі.';
+        session.dialog_history.push({ role: 'user', content: `[Фото] ${caption || problemDescription}` });
+
+        await this.telegramService.sendTyping(chatId);
+        if (!photos || photos.length === 0) {
+            await this.telegramService.sendMessage(chatId, 'Не вдалося отримати фото. Спробуйте надіслати ще раз або опишіть проблему текстом.');
+            return;
+        }
+        const photo = photos[photos.length - 1];
+        const fileId = photo.file_id;
+
+        if (session.awaitingComputerAccessPhoto && user && user._id) {
+            session.awaitingComputerAccessPhoto = false;
+            const result = await this.telegramService._saveComputerAccessPhotoFromTelegram(chatId, fileId, user);
+            if (!result || !result.success) {
+                await this.telegramService.sendMessage(chatId, 'Завантаження не вдалося — спробуйте прикріпити фото доступу ще раз.');
+                return;
+            }
+            if (session.userContext) {
+                session.userContext.hasComputerAccessPhoto = true;
+                if (result.analysis) session.userContext.computerAccessAnalysis = result.analysis;
+            }
+            let confirmText = '✅ Фото доступу до комп\'ютера збережено у вашому профілі. Адмін зможе переглянути його в картці користувача.';
+            if (result.analysis) confirmText += `\n\n📋 Розпізнано: ${result.analysis}`;
+            confirmText += '\n\nМожете продовжити опис проблеми або натиснути нижче для оформлення заявки.';
+            await this.telegramService.sendMessage(chatId, confirmText,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
+                            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                        ]
+                    }
+                }
+            );
+            return;
+        }
+
+        // Якщо це фото помилки або просто фото під час збору інфо
+        if (session.awaitingErrorPhoto) {
+            session.awaitingErrorPhoto = false;
+        }
+
+        let localPath;
+        try {
+            const file = await this.telegramService.bot.getFile(fileId);
+            if (!file || !file.file_path) {
+                await this.telegramService.sendMessage(chatId, 'Помилка отримання фото. Спробуйте ще раз.');
+                return;
+            }
+            const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
+            localPath = await this.telegramService.downloadTelegramFileByFileId(fileId, ext);
+        } catch (err) {
+            logger.error('Помилка завантаження фото в AI-режимі', { chatId, err: err.message });
+            const errorMsg = session.awaitingErrorPhoto
+                ? 'Завантаження не вдалося — спробуйте прикріпити фото помилки ще раз.'
+                : 'Завантаження не вдалося — спробуйте прикріпити фото ще раз.';
+            await this.telegramService.sendMessage(chatId, errorMsg);
+            return;
+        }
+        let analysisText = null;
+        try {
+            analysisText = await aiFirstLineService.analyzePhoto(localPath, problemDescription, session.userContext);
+        } catch (err) {
+            logger.error('AI: помилка analyzePhoto', err);
+        } finally {
+            try {
+                if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+            } catch (_) { }
+        }
+        if (analysisText && analysisText.trim()) {
+            session.step = 'awaiting_tip_feedback';
+            const normalizedPhotoText = TelegramUtils.normalizeQuickSolutionSteps(analysisText.trim());
+            const photoMessageWithClosing = normalizedPhotoText + '\n\n_Якщо не допоможе — натисніть «Ні, створити тікет», і я зберу деталі для заявки._';
+            session.dialog_history.push({ role: 'assistant', content: analysisText });
+            botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => { });
+            await this.telegramService.sendMessage(chatId, photoMessageWithClosing, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+                        [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+                        [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                    ]
+                }
+            });
+        } else {
+            session.step = 'awaiting_tip_feedback';
+            await this.telegramService.sendMessage(chatId,
+                'Не вдалося проаналізувати фото (або використано провайдера без підтримки зображень). Опишіть проблему текстом або натисніть «Ні, створити тікет», і я зберу деталі для заявки.',
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+                            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+                            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }]
+                        ]
+                    }
+                }
+            );
+        }
+    }
+
+    async handleVoice(msg, user) {
+        const chatId = msg.chat.id;
+        const userId = msg.from?.id;
+        if (!msg.voice?.file_id) {
+            await this.telegramService.sendMessage(chatId, 'Не вдалося отримати голосове повідомлення. Спробуйте ще раз або опишіть проблему текстом.');
+            return;
+        }
+        await this.telegramService.sendTyping(chatId);
+        let localPath;
+        try {
+            localPath = await this.telegramService.downloadTelegramFileByFileId(msg.voice.file_id, '.ogg');
+        } catch (err) {
+            logger.error('Помилка завантаження голосового файлу', { err: err.message });
+            await this.telegramService.sendMessage(chatId, 'Не вдалося завантажити голосове. Спробуйте надіслати текстом або /create для створення заявки.');
+            return;
+        }
+        let text = null;
+        try {
+            text = await aiFirstLineService.transcribeVoiceToText(localPath);
+        } finally {
+            try {
+                if (localPath && fs.existsSync(localPath)) fs.unlinkSync(localPath);
+            } catch (_) { }
+        }
+        if (!text || String(text).trim().length === 0) {
+            await this.telegramService.sendMessage(chatId, 'Не вдалося розпізнати мову. Напишіть, будь ласка, проблему текстом або спробуйте ще раз записати голосове.');
+            return;
+        }
+        const syntheticMsg = {
+            chat: msg.chat,
+            from: msg.from || { id: userId },
+            text: text.trim()
+        };
+        await this.telegramService.handleTextMessage(syntheticMsg);
+    }
+
+    async handleAIChat(msg, user) {
+        const chatId = msg.chat.id;
+        await this.telegramService.sendMessage(chatId, 'Для створення заявки використайте команду /create.');
+        await this.telegramService.showUserDashboard(chatId, user);
+    }
+
+    async handleCheckTokensCallback(chatId, user) {
+        try {
+            const telegramIdStr = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+            if (telegramIdStr !== TelegramAIService.INTERNET_REQUESTS_EXEMPT_TELEGRAM_ID) {
+                await this.telegramService.sendMessage(chatId, '❌ Ця функція недоступна.');
+                return;
+            }
+            const usage = aiFirstLineService.getTokenUsage();
+            const settings = await aiFirstLineService.getAISettings();
+            const limit = settings && typeof settings.monthlyTokenLimit === 'number' && settings.monthlyTokenLimit > 0 ? settings.monthlyTokenLimit : 0;
+            const monthlyTotal = usage.monthlyTotalTokens || 0;
+            let msg =
+                `🔢 *Використання токенів AI (OpenAI)*\n\n` +
+                `📥 Вхідні (prompt): ${usage.promptTokens.toLocaleString()}\n` +
+                `📤 Вихідні (completion): ${usage.completionTokens.toLocaleString()}\n` +
+                `📊 Всього (з перезапуску): ${usage.totalTokens.toLocaleString()}\n` +
+                `🔄 Запитів: ${usage.requestCount}\n\n` +
+                `📅 *Цього місяця (${usage.monthlyMonth || '—'}):* ${monthlyTotal.toLocaleString()} токенів`;
+            if (limit > 0) {
+                const remaining = Math.max(0, limit - monthlyTotal);
+                msg += `\n\n📌 *Ваш місячний ліміт:* ${limit.toLocaleString()}\n` +
+                    `✅ *Залишилось по квоті:* ${remaining.toLocaleString()} токенів`;
+            }
+            const topUp = settings && typeof settings.topUpAmount === 'number' && settings.topUpAmount > 0 ? settings.topUpAmount : 0;
+            const balance = settings && typeof settings.remainingBalance === 'number' ? settings.remainingBalance : null;
+            if (topUp > 0 || (balance !== null && balance >= 0)) {
+                msg += '\n\n💰 *По сумі:*';
+                if (topUp > 0) msg += ` поповнення $${topUp.toFixed(2)}`;
+                if (balance !== null && balance >= 0) msg += (topUp > 0 ? ' |' : '') + ` залишок $${Number(balance).toFixed(2)}`;
+            }
+            msg += `\n\n_Лічильник сесії — з перезапуску сервера. Місячний — зберігається._`;
+            await this.telegramService.sendMessage(chatId, msg, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔄 Скинути лічильник', callback_data: 'reset_tokens' }],
+                        [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]
+                    ]
+                }
+            });
+        } catch (error) {
+            logger.error('Помилка handleCheckTokensCallback:', error);
+            await this.telegramService.sendMessage(chatId, 'Виникла помилка при отриманні даних.');
+        }
+    }
+
+    async handleCheckApiLimitCallback(chatId, user) {
+        try {
+            const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'administrator';
+            if (!isAdmin) {
+                await this.telegramService.sendMessage(chatId,
+                    `❌ *Доступ заборонено*\n\nЦя функція доступна тільки адміністраторам.`,
+                    { parse_mode: 'Markdown' }
+                );
+                return;
+            }
+            await this.telegramService.sendMessage(chatId, 'AI інтеграція вимкнена.', {
+                reply_markup: {
+                    inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]]
+                }
+            });
+        } catch (error) {
+            logger.error('Помилка handleCheckApiLimitCallback:', error);
+            await this.telegramService.sendMessage(chatId, 'Виникла помилка.', { parse_mode: 'Markdown' });
+        }
+    }
+
+    async createAIDialog() {
+        return null;
+    }
+
+    async addMessageToAIDialog() {
+        return null;
+    }
+
+    async completeAIDialog() {
+        return null;
+    }
+
+    async findActiveAIDialog() {
+        return null;
+    }
+}
+
+module.exports = TelegramAIService;
