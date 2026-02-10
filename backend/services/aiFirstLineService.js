@@ -176,6 +176,30 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     .map(s => `- ${s.problemType}: ${s.keywords.join(', ')}`)
     .join('\n');
 
+  // --- FAST-TRACK CHECK ---
+  // Якщо це чіткий запит з quickSolutions, повертаємо результат одразу без LLM
+  if (dialogHistory.length > 0) {
+    const lastMsg = dialogHistory[dialogHistory.length - 1];
+    if (lastMsg && lastMsg.role === 'user') {
+      const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content);
+      if (fastTrack && fastTrack.hasQuickFix) {
+        logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
+        return {
+          isTicketIntent: true,
+          needsMoreInfo: false, // Force false!
+          category: fastTrack.category || 'Other',
+          missingInfo: [],
+          confidence: 1.0,
+          priority: 'medium',
+          emotionalTone: 'calm',
+          quickSolution: fastTrack.solution,
+          offTopicResponse: null,
+        };
+      }
+    }
+  }
+  // --- END FAST-TRACK ---
+
   const similarTickets = await getSimilarResolvedTickets(5);
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
