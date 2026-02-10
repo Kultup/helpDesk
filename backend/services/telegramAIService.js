@@ -469,6 +469,7 @@ class TelegramAIService {
             session.userContext
           );
         } catch (_) {
+          // Ignore error and use default question
           question = 'Опишіть, будь ласка, що саме відбувається.';
         }
         session.dialog_history.push({ role: 'assistant', content: question });

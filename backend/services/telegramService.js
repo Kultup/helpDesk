@@ -1266,7 +1266,7 @@ class TelegramService {
               documents: [],
             };
 
-            const filler = await this.aiService.aiFirstLineService.generateConversationalResponse(
+            const filler = await aiFirstLineService.generateConversationalResponse(
               session.dialog_history || [],
               'confirm_photo_saved',
               session.userContext || {}

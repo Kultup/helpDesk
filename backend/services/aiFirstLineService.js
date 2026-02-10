@@ -231,7 +231,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     };
   }
   const offTopicResponse =
-    parsed.offTopicResponse !== null && String(parsed.offTopicResponse).trim()
+    parsed.offTopicResponse !== null && String(parsed.offTopicResponse).trim() !== ''
       ? String(parsed.offTopicResponse).trim()
       : null;
 
