@@ -747,21 +747,26 @@ class TelegramAIService {
         const attachments = Array.isArray(article.attachments) ? article.attachments : [];
         const kbUploadsPath = path.join(__dirname, '..', 'uploads', 'kb');
         for (const att of attachments) {
-          if (!att.filePath) {
+          const fp = att && (att.filePath || att.filepath);
+          if (!fp || typeof fp !== 'string') {
             continue;
           }
-          const fullPath = path.join(kbUploadsPath, att.filePath);
+          const fullPath = path.isAbsolute(fp) ? fp : path.join(kbUploadsPath, path.basename(fp));
           try {
-            if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-              if (att.type === 'image') {
-                await this.telegramService.bot.sendPhoto(chatId, fs.createReadStream(fullPath));
-              } else if (att.type === 'video') {
-                await this.telegramService.bot.sendVideo(chatId, fs.createReadStream(fullPath));
-              }
+            if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+              logger.warn('KB: файл не знайдено для відправки', { fullPath, filePath: fp });
+              continue;
+            }
+            const type = String(att.type || '').toLowerCase();
+            if (type === 'image') {
+              await this.telegramService.bot.sendPhoto(chatId, fullPath);
+            } else if (type === 'video') {
+              await this.telegramService.bot.sendVideo(chatId, fullPath);
             }
           } catch (err) {
             logger.warn('KB: не вдалося відправити вкладений файл', {
-              filePath: att.filePath,
+              fullPath,
+              filePath: fp,
               err: err.message,
             });
           }
