@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Joi = require('joi');
-const { body, query, param, validationResult } = require('express-validator');
+const { body, param, validationResult } = require('express-validator');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
 const ticketController = require('../controllers/ticketController');
-const commentController = require('../controllers/commentController');
-const attachmentController = require('../controllers/attachmentController');
 const timeEntryController = require('../controllers/timeEntryController');
 const tagController = require('../controllers/tagController');
-const { authenticateToken, logUserAction, requirePermission, isAdminRole } = require('../middleware/auth');
-const adminAuth = require('../middleware/adminAuth');
+const {
+  authenticateToken,
+  logUserAction,
+  requirePermission,
+  isAdminRole,
+} = require('../middleware/auth');
 const { rateLimits } = require('../middleware');
 const telegramService = require('../services/telegramServiceInstance');
 const ticketWebSocketService = require('../services/ticketWebSocketService');
@@ -30,15 +31,15 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 const upload = multer({
   storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024 // 5MB
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
@@ -50,24 +51,24 @@ const upload = multer({
     } else {
       cb(new Error('Непідтримуваний тип файлу'));
     }
-  }
+  },
 });
 
 // Схеми валідації
 const createTicketSchema = Joi.object({
   title: Joi.string().max(200).required().messages({
     'string.max': 'Заголовок не може перевищувати 200 символів',
-    'any.required': 'Заголовок є обов\'язковим'
+    'any.required': "Заголовок є обов'язковим",
   }),
   description: Joi.string().max(2000).required().messages({
     'string.max': 'Опис не може перевищувати 2000 символів',
-    'any.required': 'Опис є обов\'язковим'
+    'any.required': "Опис є обов'язковим",
   }),
   priority: Joi.string().valid('low', 'medium', 'high').default('medium'),
   city: Joi.string().optional().allow(null),
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).optional(),
-  dueDate: Joi.date().optional()
+  dueDate: Joi.date().optional(),
 });
 
 const updateTicketSchema = Joi.object({
@@ -78,15 +79,15 @@ const updateTicketSchema = Joi.object({
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).allow(null).optional(),
   actualTime: Joi.number().min(0).allow(null).optional(),
-  dueDate: Joi.date().allow(null).optional()
+  dueDate: Joi.date().allow(null).optional(),
 });
 
 const commentSchema = Joi.object({
   content: Joi.string().max(1000).required().messages({
     'string.max': 'Коментар не може перевищувати 1000 символів',
-    'any.required': 'Зміст коментаря є обов\'язковим'
+    'any.required': "Зміст коментаря є обов'язковим",
   }),
-  isInternal: Joi.boolean().default(false)
+  isInternal: Joi.boolean().default(false),
 });
 
 // @route   GET /api/tickets
@@ -103,22 +104,30 @@ router.get('/', authenticateToken, async (req, res) => {
       createdBy,
       search,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
     } = req.query;
 
     // Побудова фільтрів
     const filters = {};
 
-    if (status) filters.status = status;
-    if (priority) filters.priority = priority;
-    if (city) filters.city = city;
-    if (createdBy) filters.createdBy = createdBy;
+    if (status) {
+      filters.status = status;
+    }
+    if (priority) {
+      filters.priority = priority;
+    }
+    if (city) {
+      filters.city = city;
+    }
+    if (createdBy) {
+      filters.createdBy = createdBy;
+    }
 
     // Пошук по заголовку та опису
     if (search) {
       const searchConditions = [
         { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
       ];
 
       // Якщо є обмеження доступу, об'єднуємо їх з пошуком
@@ -126,11 +135,11 @@ router.get('/', authenticateToken, async (req, res) => {
         // Для не-адмінів пошук тільки по їх тікетах
         filters.$and = [
           {
-            createdBy: req.user._id
+            createdBy: req.user._id,
           },
           {
-            $or: searchConditions
-          }
+            $or: searchConditions,
+          },
         ];
       } else {
         // Для адмінів просто додаємо пошук
@@ -149,8 +158,8 @@ router.get('/', authenticateToken, async (req, res) => {
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
       populate: [
         { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' }
-      ]
+        { path: 'city', select: 'name region' },
+      ],
     };
 
     const tickets = await Ticket.paginate(filters, options);
@@ -163,20 +172,17 @@ router.get('/', authenticateToken, async (req, res) => {
         totalPages: tickets.totalPages,
         totalItems: tickets.totalDocs,
         hasNext: tickets.hasNextPage,
-        hasPrev: tickets.hasPrevPage
-      }
+        hasPrev: tickets.hasPrevPage,
+      },
     });
-
   } catch (error) {
     logger.error('Помилка отримання тикетів:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
-
-
 
 // Експорт тікетів
 router.get('/export', authenticateToken, ticketController.exportTickets);
@@ -199,29 +205,30 @@ router.get('/:id', authenticateToken, async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тикет не знайдено'
+        message: 'Тикет не знайдено',
       });
     }
 
     // Перевірка доступу: адмін бачить усі, користувач — лише свої
-    if (!isAdminRole(req.user.role) &&
-      ticket.createdBy._id.toString() !== req.user._id.toString()) {
+    if (
+      !isAdminRole(req.user.role) &&
+      ticket.createdBy._id.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Доступ заборонено'
+        message: 'Доступ заборонено',
       });
     }
 
     res.json({
       success: true,
-      data: ticket
+      data: ticket,
     });
-
   } catch (error) {
     logger.error('Помилка отримання тикету:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -229,7 +236,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // @route   POST /api/tickets
 // @desc    Створення нового тикету
 // @access  Private
-router.post('/',
+router.post(
+  '/',
   authenticateToken,
   rateLimits.createTicket,
   upload.array('attachments', 5),
@@ -247,7 +255,7 @@ router.post('/',
         return res.status(400).json({
           success: false,
           message: error.details[0].message,
-          errors: error.details
+          errors: error.details,
         });
       }
 
@@ -260,40 +268,51 @@ router.post('/',
           logger.warn('❌ Місто не знайдено:', value.city);
           return res.status(400).json({
             success: false,
-            message: 'Вказане місто не існує'
+            message: 'Вказане місто не існує',
           });
         }
       }
 
       // Обробка вкладених файлів
-      const attachments = req.files ? req.files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        size: file.size,
-        mimetype: file.mimetype,
-        uploadedBy: req.user._id, // Додаємо uploadedBy для кожного вкладення
-        uploadedAt: new Date()
-      })) : [];
+      const attachments = req.files
+        ? req.files.map(file => ({
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            size: file.size,
+            mimetype: file.mimetype,
+            uploadedBy: req.user._id, // Додаємо uploadedBy для кожного вкладення
+            uploadedAt: new Date(),
+          }))
+        : [];
 
       // Визначаємо місто: якщо не вказано в формі, використовуємо місто з профілю користувача (як в боті)
       let cityId = value.city;
       if (!cityId && req.user.city) {
         cityId = req.user.city;
-        logger.info('🏙️ Місто не вказано в формі, використовуємо місто з профілю користувача:', cityId);
+        logger.info(
+          '🏙️ Місто не вказано в формі, використовуємо місто з профілю користувача:',
+          cityId
+        );
       }
 
       // Визначаємо джерело створення тікету
       let source = 'web'; // За замовчуванням - веб (для веб-інтерфейсу)
 
       // Якщо source передано в запиті (для мобільного додатку), використовуємо його
-      if (value.source && (value.source === 'mobile' || value.source === 'web' || value.source === 'telegram')) {
+      if (
+        value.source &&
+        (value.source === 'mobile' || value.source === 'web' || value.source === 'telegram')
+      ) {
         source = value.source;
         logger.info(`📱 Визначено джерело з запиту: ${source}`);
       } else {
         // Перевіряємо User-Agent для визначення мобільного додатку
         const userAgent = req.get('user-agent') || '';
-        const isMobileApp = userAgent.includes('okhttp') || userAgent.includes('MobileApp') || userAgent.includes('Android') && userAgent.includes('HelpDesk');
+        const isMobileApp =
+          userAgent.includes('okhttp') ||
+          userAgent.includes('MobileApp') ||
+          (userAgent.includes('Android') && userAgent.includes('HelpDesk'));
 
         if (isMobileApp) {
           source = 'mobile';
@@ -321,7 +340,9 @@ router.post('/',
           if (categorization.confidence >= 0.7) {
             category = categorization.category;
             subcategory = categorization.subcategory;
-            logger.info(`🤖 AI категоризація: ${category} → ${subcategory} (${Math.round(categorization.confidence * 100)}%)`);
+            logger.info(
+              `🤖 AI категоризація: ${category} → ${subcategory} (${Math.round(categorization.confidence * 100)}%)`
+            );
           }
         } catch (error) {
           logger.warn('Помилка автоматичної категоризації:', error.message);
@@ -342,8 +363,8 @@ router.post('/',
         createdBy: req.user._id,
         attachments,
         metadata: {
-          source: source // 'web' або 'mobile' в залежності від наявності активних пристроїв
-        }
+          source: source, // 'web' або 'mobile' в залежності від наявності активних пристроїв
+        },
       };
       const ticket = new Ticket(ticketData);
 
@@ -354,7 +375,7 @@ router.post('/',
       await ticket.populate([
         { path: 'createdBy', select: 'firstName lastName email telegramId' },
         { path: 'assignedTo', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' }
+        { path: 'city', select: 'name region' },
       ]);
 
       // При створенні тікету - ВСІ тікети отримують сповіщення в Telegram групу
@@ -388,10 +409,11 @@ router.post('/',
             ticketTitle: ticket.title,
             ticketStatus: ticket.status,
             ticketPriority: ticket.priority,
-            createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName
-              ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
-              : 'Невідомий користувач'
-          }
+            createdBy:
+              ticket.createdBy?.firstName && ticket.createdBy?.lastName
+                ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+                : 'Невідомий користувач',
+          },
         });
         logger.info(`✅ FCM сповіщення про новий тікет відправлено ${adminCount} адміністраторам`);
       } catch (error) {
@@ -400,20 +422,18 @@ router.post('/',
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
       }
 
-
       res.status(201).json({
         success: true,
         message: 'Тикет успішно створено',
-        data: ticket
+        data: ticket,
       });
-
     } catch (error) {
       logger.error('❌ Помилка створення тикету:', error);
       logger.error('❌ Stack trace:', error.stack);
       res.status(500).json({
         success: false,
         message: error.message || 'Помилка сервера',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       });
     }
   }
@@ -422,175 +442,141 @@ router.post('/',
 // @route   PUT /api/tickets/:id
 // @desc    Оновлення тикету
 // @access  Private
-router.put('/:id',
-  authenticateToken,
-  logUserAction('оновив тикет'),
-  async (req, res) => {
-    try {
-      logger.info(`🎯 ПОЧАТОК updateTicket для тікета ${req.params.id}, body:`, JSON.stringify(req.body));
-      // Валідація даних
-      const { error, value } = updateTicketSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({
-          success: false,
-          message: error.details[0].message
-        });
+router.put('/:id', authenticateToken, logUserAction('оновив тикет'), async (req, res) => {
+  try {
+    logger.info(
+      `🎯 ПОЧАТОК updateTicket для тікета ${req.params.id}, body:`,
+      JSON.stringify(req.body)
+    );
+    // Валідація даних
+    const { error, value } = updateTicketSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.details[0].message,
+      });
+    }
+
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Тикет не знайдено',
+      });
+    }
+
+    // Перевірка доступу: тільки адміністратор може редагувати заявки
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Тільки адміністратор може редагувати заявки',
+      });
+    }
+
+    // Перевірка: тільки адміністратор може змінювати статус
+    if (value.status && value.status !== ticket.status && !isAdminRole(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Тільки адміністратор може змінювати статус тікету',
+      });
+    }
+
+    // Перевірка: тільки адміністратор може змінювати пріоритет
+    if (value.priority && value.priority !== ticket.priority && !isAdminRole(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Тільки адміністратор може змінювати пріоритет тікету',
+      });
+    }
+
+    // Збереження попереднього статусу для перевірки змін
+    const previousStatus = ticket.status;
+    logger.info(
+      `🚀 Оновлення тікету ${req.params.id}: попередній статус="${previousStatus}", новий статус="${value.status || 'не змінено'}"`
+    );
+
+    // Оновлення тикету (виключаємо status та priority, якщо користувач не адмін)
+    const updateData = { ...value };
+    if (!isAdminRole(req.user.role)) {
+      if (value.status) {
+        // Видаляємо status з даних оновлення для не-адмінів
+        delete updateData.status;
+        logger.info('⚠️ Спроба змінити статус не-адміністратором - статус не оновлено');
       }
-
-      const ticket = await Ticket.findById(req.params.id);
-      if (!ticket) {
-        return res.status(404).json({
-          success: false,
-          message: 'Тикет не знайдено'
-        });
+      if (value.priority) {
+        // Видаляємо priority з даних оновлення для не-адмінів
+        delete updateData.priority;
+        logger.info('⚠️ Спроба змінити пріоритет не-адміністратором - пріоритет не оновлено');
       }
+    }
 
-      // Перевірка доступу: тільки адміністратор може редагувати заявки
-      if (!isAdminRole(req.user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Тільки адміністратор може редагувати заявки'
-        });
-      }
+    // Оновлення тикету
+    Object.assign(ticket, updateData);
+    await ticket.save();
 
-      // Перевірка: тільки адміністратор може змінювати статус
-      if (value.status && value.status !== ticket.status && !isAdminRole(req.user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Тільки адміністратор може змінювати статус тікету'
-        });
-      }
+    // Перевірка зміни статусу та відправка сповіщень
+    if (value.status && value.status !== previousStatus) {
+      logger.info(
+        `✅ Статус тікету змінився з "${previousStatus}" на "${value.status}". Відправляю сповіщення...`
+      );
 
-      // Перевірка: тільки адміністратор може змінювати пріоритет
-      if (value.priority && value.priority !== ticket.priority && !isAdminRole(req.user.role)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Тільки адміністратор може змінювати пріоритет тікету'
-        });
-      }
+      // Визначаємо джерело створення тікету
+      const ticketSource = ticket.metadata?.source || 'web';
+      const isTicketClosed = value.status === 'resolved' || value.status === 'closed';
 
-      // Збереження попереднього статусу для перевірки змін
-      const previousStatus = ticket.status;
-      logger.info(`🚀 Оновлення тікету ${req.params.id}: попередній статус="${previousStatus}", новий статус="${value.status || 'не змінено'}"`);
+      // Завантажуємо повну інформацію про автора для відправки сповіщень
+      await ticket.populate([{ path: 'createdBy', select: 'firstName lastName email telegramId' }]);
 
-      // Оновлення тикету (виключаємо status та priority, якщо користувач не адмін)
-      const updateData = { ...value };
-      if (!isAdminRole(req.user.role)) {
-        if (value.status) {
-          // Видаляємо status з даних оновлення для не-адмінів
-          delete updateData.status;
-          logger.info('⚠️ Спроба змінити статус не-адміністратором - статус не оновлено');
-        }
-        if (value.priority) {
-          // Видаляємо priority з даних оновлення для не-адмінів
-          delete updateData.priority;
-          logger.info('⚠️ Спроба змінити пріоритет не-адміністратором - пріоритет не оновлено');
-        }
-      }
-
-      // Оновлення тикету
-      Object.assign(ticket, updateData);
-      await ticket.save();
-
-      // Перевірка зміни статусу та відправка сповіщень
-      if (value.status && value.status !== previousStatus) {
-        logger.info(`✅ Статус тікету змінився з "${previousStatus}" на "${value.status}". Відправляю сповіщення...`);
-
-        // Визначаємо джерело створення тікету
-        const ticketSource = ticket.metadata?.source || 'web';
-        const isTicketClosed = value.status === 'resolved' || value.status === 'closed';
-
-        // Завантажуємо повну інформацію про автора для відправки сповіщень
-        await ticket.populate([
-          { path: 'createdBy', select: 'firstName lastName email telegramId' }
-        ]);
-
-        if (isTicketClosed) {
-          // При закритті тікету - відправляємо сповіщення в відповідний месенджер залежно від джерела
-          if (ticketSource === 'telegram') {
-            // Тікет створено з Telegram - відправляємо сповіщення в Telegram користувачу
-            if (ticket.createdBy?.telegramId) {
-              try {
-                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
-                const statusEmoji = value.status === 'resolved' ? '✅' : '🔒';
-                const message =
-                  `${statusEmoji} *Тікет ${statusText.toLowerCase()}*\n` +
-                  `📋 ${ticket.title}\n` +
-                  `🆔 \`${ticket._id}\`\n` +
-                  `\n${statusEmoji} *${statusText}*`;
-
-                await telegramService.sendMessage(ticket.createdBy.telegramId, message, { parse_mode: 'Markdown' });
-                logger.info('✅ Telegram сповіщення про закриття тікету відправлено користувачу');
-              } catch (error) {
-                logger.error('❌ Помилка відправки Telegram сповіщення користувачу:', error);
-              }
-            }
-          } else if (ticketSource === 'mobile') {
-            // Тікет створено з мобільного додатку - відправляємо FCM сповіщення користувачу
-            if (ticket.createdBy) {
-              try {
-                const fcmService = require('../services/fcmService');
-                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
-                await fcmService.sendToUser(ticket.createdBy.toString(), {
-                  title: `🎫 Тікет ${statusText.toLowerCase()}`,
-                  body: `Тікет "${ticket.title}" має статус: ${statusText}`,
-                  type: 'ticket_status_changed',
-                  data: {
-                    ticketId: ticket._id.toString(),
-                    ticketTitle: ticket.title,
-                    previousStatus: previousStatus,
-                    newStatus: value.status,
-                    changedBy: req.user.firstName && req.user.lastName
-                      ? `${req.user.firstName} ${req.user.lastName}`
-                      : 'Адміністратор'
-                  }
-                });
-                logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (mobile)');
-              } catch (error) {
-                logger.error('❌ Помилка відправки FCM сповіщення користувачу (mobile):', error);
-              }
-            }
-          } else {
-            // Тікет створено з веб-інтерфейсу - відправляємо в групу Telegram та FCM (якщо є пристрій)
+      if (isTicketClosed) {
+        // При закритті тікету - відправляємо сповіщення в відповідний месенджер залежно від джерела
+        if (ticketSource === 'telegram') {
+          // Тікет створено з Telegram - відправляємо сповіщення в Telegram користувачу
+          if (ticket.createdBy?.telegramId) {
             try {
-              await telegramService.sendTicketStatusNotificationToGroup(
-                ticket,
-                previousStatus,
-                value.status,
-                req.user
-              );
-              logger.info('✅ Telegram сповіщення про закриття тікету відправлено в групу (web)');
-            } catch (error) {
-              logger.error('❌ Помилка відправки Telegram сповіщення в групу (web):', error);
-            }
+              const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+              const statusEmoji = value.status === 'resolved' ? '✅' : '🔒';
+              const message =
+                `${statusEmoji} *Тікет ${statusText.toLowerCase()}*\n` +
+                `📋 ${ticket.title}\n` +
+                `🆔 \`${ticket._id}\`\n` +
+                `\n${statusEmoji} *${statusText}*`;
 
-            // Відправляємо FCM сповіщення користувачу, якщо він має пристрій
-            if (ticket.createdBy) {
-              try {
-                const fcmService = require('../services/fcmService');
-                const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
-                await fcmService.sendToUser(ticket.createdBy.toString(), {
-                  title: `🎫 Тікет ${statusText.toLowerCase()}`,
-                  body: `Тікет "${ticket.title}" має статус: ${statusText}`,
-                  type: 'ticket_status_changed',
-                  data: {
-                    ticketId: ticket._id.toString(),
-                    ticketTitle: ticket.title,
-                    previousStatus: previousStatus,
-                    newStatus: value.status,
-                    changedBy: req.user.firstName && req.user.lastName
+              await telegramService.sendMessage(ticket.createdBy.telegramId, message, {
+                parse_mode: 'Markdown',
+              });
+              logger.info('✅ Telegram сповіщення про закриття тікету відправлено користувачу');
+            } catch (error) {
+              logger.error('❌ Помилка відправки Telegram сповіщення користувачу:', error);
+            }
+          }
+        } else if (ticketSource === 'mobile') {
+          // Тікет створено з мобільного додатку - відправляємо FCM сповіщення користувачу
+          if (ticket.createdBy) {
+            try {
+              const fcmService = require('../services/fcmService');
+              const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+              await fcmService.sendToUser(ticket.createdBy.toString(), {
+                title: `🎫 Тікет ${statusText.toLowerCase()}`,
+                body: `Тікет "${ticket.title}" має статус: ${statusText}`,
+                type: 'ticket_status_changed',
+                data: {
+                  ticketId: ticket._id.toString(),
+                  ticketTitle: ticket.title,
+                  previousStatus: previousStatus,
+                  newStatus: value.status,
+                  changedBy:
+                    req.user.firstName && req.user.lastName
                       ? `${req.user.firstName} ${req.user.lastName}`
-                      : 'Адміністратор'
-                  }
-                });
-                logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (web)');
-              } catch (error) {
-                logger.error('❌ Помилка відправки FCM сповіщення користувачу (web):', error);
-              }
+                      : 'Адміністратор',
+                },
+              });
+              logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (mobile)');
+            } catch (error) {
+              logger.error('❌ Помилка відправки FCM сповіщення користувачу (mobile):', error);
             }
           }
         } else {
-          // Для інших змін статусу - відправляємо в групу для всіх джерел
+          // Тікет створено з веб-інтерфейсу - відправляємо в групу Telegram та FCM (якщо є пристрій)
           try {
             await telegramService.sendTicketStatusNotificationToGroup(
               ticket,
@@ -598,85 +584,161 @@ router.put('/:id',
               value.status,
               req.user
             );
-            logger.info(`📤 Сповіщення про зміну статусу відправлено в групу`);
+            logger.info('✅ Telegram сповіщення про закриття тікету відправлено в групу (web)');
           } catch (error) {
-            logger.error('❌ Помилка відправки Telegram сповіщення в групу:', error);
+            logger.error('❌ Помилка відправки Telegram сповіщення в групу (web):', error);
+          }
+
+          // Відправляємо FCM сповіщення користувачу, якщо він має пристрій
+          if (ticket.createdBy) {
+            try {
+              const fcmService = require('../services/fcmService');
+              const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
+              await fcmService.sendToUser(ticket.createdBy.toString(), {
+                title: `🎫 Тікет ${statusText.toLowerCase()}`,
+                body: `Тікет "${ticket.title}" має статус: ${statusText}`,
+                type: 'ticket_status_changed',
+                data: {
+                  ticketId: ticket._id.toString(),
+                  ticketTitle: ticket.title,
+                  previousStatus: previousStatus,
+                  newStatus: value.status,
+                  changedBy:
+                    req.user.firstName && req.user.lastName
+                      ? `${req.user.firstName} ${req.user.lastName}`
+                      : 'Адміністратор',
+                },
+              });
+              logger.info('✅ FCM сповіщення про закриття тікету відправлено користувачу (web)');
+            } catch (error) {
+              logger.error('❌ Помилка відправки FCM сповіщення користувачу (web):', error);
+            }
           }
         }
       } else {
-        logger.info(`❌ Статус тікету не змінився, сповіщення не відправляється`);
-      }
-
-      // Перевірка на закриття тікета для відправки запиту на оцінку через Telegram
-      const isTicketClosed = value.status && (value.status === 'resolved' || value.status === 'closed');
-      const wasTicketOpen = previousStatus && previousStatus !== 'resolved' && previousStatus !== 'closed';
-
-      logger.info(`🔍 Перевірка умов для відправки оцінки:`);
-      logger.info(`   - value.status: ${value.status}`);
-      logger.info(`   - previousStatus: ${previousStatus}`);
-      logger.info(`   - isTicketClosed: ${isTicketClosed}`);
-      logger.info(`   - wasTicketOpen: ${wasTicketOpen}`);
-      logger.info(`   - Умова виконується: ${isTicketClosed && wasTicketOpen}`);
-
-      // Відправка запиту на оцінку якості при закритті тікету
-      if (isTicketClosed && wasTicketOpen) {
+        // Для інших змін статусу - відправляємо в групу та сповіщення автору тікета
         try {
-          logger.info(`📊 Відправка запиту на оцінку якості для тікету ${req.params.id}`);
-          logger.info(`🔍 Статус qualityRating: ratingRequested=${ticket.qualityRating.ratingRequested}, hasRating=${ticket.qualityRating.hasRating}`);
+          await telegramService.sendTicketStatusNotificationToGroup(
+            ticket,
+            previousStatus,
+            value.status,
+            req.user
+          );
+          logger.info(`📤 Сповіщення про зміну статусу відправлено в групу`);
 
-          // Перевіряємо, чи не було вже відправлено запит на оцінку
-          if (!ticket.qualityRating.ratingRequested) {
-            await telegramService.sendQualityRatingRequest(ticket);
-
-            // Позначаємо, що запит на оцінку відправлено
-            ticket.qualityRating.ratingRequested = true;
-            ticket.qualityRating.requestedAt = new Date();
-            await ticket.save();
-
-            logger.info(`✅ Запит на оцінку якості відправлено успішно`);
-          } else {
-            logger.info(`ℹ️ Запит на оцінку вже було відправлено раніше (requestedAt: ${ticket.qualityRating.requestedAt})`);
+          // Сповіщення автору тікета про зміну статусу (Telegram + FCM)
+          if (ticket.createdBy) {
+            try {
+              await telegramService.notificationService.sendTicketNotification(ticket, 'updated');
+            } catch (tgErr) {
+              logger.error('❌ Помилка відправки Telegram сповіщення автору тікета:', tgErr);
+            }
+            try {
+              const fcmService = require('../services/fcmService');
+              const statusText = {
+                open: 'Відкрито',
+                in_progress: 'В роботі',
+                resolved: 'Вирішено',
+                closed: 'Закрито',
+              };
+              await fcmService.sendToUser(ticket.createdBy.toString(), {
+                title: '🔄 Статус тікету змінено',
+                body: `Тікет "${ticket.title}" тепер має статус: ${statusText[value.status] || value.status}`,
+                type: 'ticket_status_changed',
+                data: {
+                  ticketId: ticket._id.toString(),
+                  ticketTitle: ticket.title,
+                  previousStatus: previousStatus,
+                  newStatus: value.status,
+                  changedBy:
+                    req.user.firstName && req.user.lastName
+                      ? `${req.user.firstName} ${req.user.lastName}`
+                      : 'Адміністратор',
+                },
+              });
+            } catch (fcmErr) {
+              logger.error('❌ Помилка відправки FCM сповіщення автору тікета:', fcmErr);
+            }
           }
         } catch (error) {
-          logger.error('❌ Помилка відправки запиту на оцінку якості:', error);
-          // Не зупиняємо виконання, якщо запит на оцінку не вдалося відправити
+          logger.error('❌ Помилка відправки Telegram сповіщення в групу:', error);
         }
       }
-      // Заповнення полів для відповіді
-      await ticket.populate([
-        { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'city', select: 'name region' }
-      ]);
-
-      res.json({
-        success: true,
-        message: 'Тикет успішно оновлено',
-        data: ticket
-      });
-
-    } catch (error) {
-      logger.error('Помилка оновлення тикету:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Помилка сервера'
-      });
+    } else {
+      logger.info(`❌ Статус тікету не змінився, сповіщення не відправляється`);
     }
+
+    // Перевірка на закриття тікета для відправки запиту на оцінку через Telegram
+    const isTicketClosed =
+      value.status && (value.status === 'resolved' || value.status === 'closed');
+    const wasTicketOpen =
+      previousStatus && previousStatus !== 'resolved' && previousStatus !== 'closed';
+
+    logger.info(`🔍 Перевірка умов для відправки оцінки:`);
+    logger.info(`   - value.status: ${value.status}`);
+    logger.info(`   - previousStatus: ${previousStatus}`);
+    logger.info(`   - isTicketClosed: ${isTicketClosed}`);
+    logger.info(`   - wasTicketOpen: ${wasTicketOpen}`);
+    logger.info(`   - Умова виконується: ${isTicketClosed && wasTicketOpen}`);
+
+    // Відправка запиту на оцінку якості при закритті тікету
+    if (isTicketClosed && wasTicketOpen) {
+      try {
+        logger.info(`📊 Відправка запиту на оцінку якості для тікету ${req.params.id}`);
+        logger.info(
+          `🔍 Статус qualityRating: ratingRequested=${ticket.qualityRating.ratingRequested}, hasRating=${ticket.qualityRating.hasRating}`
+        );
+
+        // Перевіряємо, чи не було вже відправлено запит на оцінку
+        if (!ticket.qualityRating.ratingRequested) {
+          await telegramService.sendQualityRatingRequest(ticket);
+
+          // Позначаємо, що запит на оцінку відправлено
+          ticket.qualityRating.ratingRequested = true;
+          ticket.qualityRating.requestedAt = new Date();
+          await ticket.save();
+
+          logger.info(`✅ Запит на оцінку якості відправлено успішно`);
+        } else {
+          logger.info(
+            `ℹ️ Запит на оцінку вже було відправлено раніше (requestedAt: ${ticket.qualityRating.requestedAt})`
+          );
+        }
+      } catch (error) {
+        logger.error('❌ Помилка відправки запиту на оцінку якості:', error);
+        // Не зупиняємо виконання, якщо запит на оцінку не вдалося відправити
+      }
+    }
+    // Заповнення полів для відповіді
+    await ticket.populate([
+      { path: 'createdBy', select: 'firstName lastName email' },
+      { path: 'city', select: 'name region' },
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Тикет успішно оновлено',
+      data: ticket,
+    });
+  } catch (error) {
+    logger.error('Помилка оновлення тикету:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера',
+    });
   }
-);
+});
 
 // @route   DELETE /api/tickets/bulk/delete
 // @desc    Масове видалення тікетів
 // @access  Private (Admin only)
-router.delete('/bulk/delete',
+router.delete(
+  '/bulk/delete',
   authenticateToken,
   requirePermission('delete_tickets'),
   [
-    body('ticketIds')
-      .isArray({ min: 1 })
-      .withMessage('ticketIds повинен бути непустим масивом'),
-    body('ticketIds.*')
-      .isMongoId()
-      .withMessage('Кожен ID тікету повинен бути валідним')
+    body('ticketIds').isArray({ min: 1 }).withMessage('ticketIds повинен бути непустим масивом'),
+    body('ticketIds.*').isMongoId().withMessage('Кожен ID тікету повинен бути валідним'),
   ],
   logUserAction('масово видалив тікети'),
   async (req, res) => {
@@ -686,7 +748,7 @@ router.delete('/bulk/delete',
         return res.status(400).json({
           success: false,
           message: 'Помилки валідації',
-          errors: errors.array()
+          errors: errors.array(),
         });
       }
 
@@ -697,7 +759,7 @@ router.delete('/bulk/delete',
       if (tickets.length !== ticketIds.length) {
         return res.status(404).json({
           success: false,
-          message: 'Деякі тікети не знайдено'
+          message: 'Деякі тікети не знайдено',
         });
       }
 
@@ -721,16 +783,15 @@ router.delete('/bulk/delete',
         success: true,
         message: `Успішно видалено ${result.deletedCount} тікетів`,
         data: {
-          deletedCount: result.deletedCount
-        }
+          deletedCount: result.deletedCount,
+        },
       });
-
     } catch (error) {
       logger.error('Помилка масового видалення тікетів:', error);
       res.status(500).json({
         success: false,
         message: 'Помилка сервера при масовому видаленні',
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -739,7 +800,8 @@ router.delete('/bulk/delete',
 // @route   DELETE /api/tickets/:id
 // @desc    Видалення тикету
 // @access  Private (Admin only)
-router.delete('/:id',
+router.delete(
+  '/:id',
   authenticateToken,
   requirePermission('delete_tickets'),
   logUserAction('видалив тикет'),
@@ -749,7 +811,7 @@ router.delete('/:id',
       if (!ticket) {
         return res.status(404).json({
           success: false,
-          message: 'Тикет не знайдено'
+          message: 'Тикет не знайдено',
         });
       }
 
@@ -764,14 +826,13 @@ router.delete('/:id',
 
       res.json({
         success: true,
-        message: 'Тикет успішно видалено'
+        message: 'Тикет успішно видалено',
       });
-
     } catch (error) {
       logger.error('Помилка видалення тикету:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
@@ -780,7 +841,8 @@ router.delete('/:id',
 // @route   POST /api/tickets/:id/comments
 // @desc    Додавання коментаря до тикету
 // @access  Private
-router.post('/:id/comments',
+router.post(
+  '/:id/comments',
   authenticateToken,
   upload.array('attachments', 3),
   logUserAction('додав коментар'),
@@ -791,7 +853,7 @@ router.post('/:id/comments',
       if (error) {
         return res.status(400).json({
           success: false,
-          message: error.details[0].message
+          message: error.details[0].message,
         });
       }
 
@@ -799,27 +861,28 @@ router.post('/:id/comments',
       if (!ticket) {
         return res.status(404).json({
           success: false,
-          message: 'Тикет не знайдено'
+          message: 'Тикет не знайдено',
         });
       }
 
       // Перевірка доступу
-      if (!isAdminRole(req.user.role) &&
-        ticket.createdBy.toString() !== req.user._id.toString()) {
+      if (!isAdminRole(req.user.role) && ticket.createdBy.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'Доступ заборонено'
+          message: 'Доступ заборонено',
         });
       }
 
       // Обробка вкладених файлів
-      const attachments = req.files ? req.files.map(file => ({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        size: file.size,
-        mimetype: file.mimetype
-      })) : [];
+      const attachments = req.files
+        ? req.files.map(file => ({
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            size: file.size,
+            mimetype: file.mimetype,
+          }))
+        : [];
 
       // Підтримка шаблонів відповідей (Canned Responses)
       let finalContent = value.content;
@@ -855,7 +918,7 @@ router.post('/:id/comments',
         author: req.user._id,
         content: finalContent,
         isInternal: value.isInternal,
-        attachments
+        attachments,
       };
 
       ticket.comments.push(comment);
@@ -864,7 +927,7 @@ router.post('/:id/comments',
       // Заповнення автора коментаря та автора тікету
       await ticket.populate([
         { path: 'comments.author', select: 'firstName lastName email' },
-        { path: 'createdBy', select: '_id email firstName lastName' }
+        { path: 'createdBy', select: '_id email firstName lastName' },
       ]);
 
       const newComment = ticket.comments[ticket.comments.length - 1];
@@ -894,7 +957,7 @@ router.post('/:id/comments',
           createdByType: typeof ticket.createdBy,
           createdByValue: ticket.createdBy,
           createdById: ticketCreatedById,
-          commentAuthorId: commentAuthorId
+          commentAuthorId: commentAuthorId,
         });
 
         let ticketAssignedToId = null;
@@ -910,7 +973,9 @@ router.post('/:id/comments',
         logger.info(`🔔 Автор коментаря: ${commentAuthorId} (${req.user.email})`);
         logger.info(`🔔 Автор тікету: ${ticketCreatedById || 'не вказано'}`);
         logger.info(`🔔 Призначений користувач: ${ticketAssignedToId || 'не вказано'}`);
-        logger.info(`🔔 Порівняння: createdBy === author? ${ticketCreatedById === commentAuthorId}, assignedTo === author? ${ticketAssignedToId === commentAuthorId}`);
+        logger.info(
+          `🔔 Порівняння: createdBy === author? ${ticketCreatedById === commentAuthorId}, assignedTo === author? ${ticketAssignedToId === commentAuthorId}`
+        );
 
         // Додаємо автора тікету до списку отримувачів (якщо він не є автором коментаря)
         if (ticketCreatedById && ticketCreatedById !== commentAuthorId) {
@@ -925,9 +990,13 @@ router.post('/:id/comments',
         // Додаємо призначеного користувача до списку отримувачів (якщо він не є автором коментаря)
         if (ticketAssignedToId && ticketAssignedToId !== commentAuthorId) {
           recipients.push(ticketAssignedToId);
-          logger.info(`✅ Додано призначеного користувача до списку отримувачів: ${ticketAssignedToId}`);
+          logger.info(
+            `✅ Додано призначеного користувача до списку отримувачів: ${ticketAssignedToId}`
+          );
         } else if (ticketAssignedToId === commentAuthorId) {
-          logger.info(`ℹ️ Призначений користувач збігається з автором коментаря, не додаємо до списку`);
+          logger.info(
+            `ℹ️ Призначений користувач збігається з автором коментаря, не додаємо до списку`
+          );
         }
 
         // Якщо коментар додав користувач (не адмін), додаємо всіх адмінів до списку отримувачів
@@ -937,7 +1006,7 @@ router.post('/:id/comments',
           try {
             const admins = await User.find({
               role: { $in: ['admin', 'manager'] },
-              _id: { $ne: commentAuthorId } // Виключаємо автора коментаря
+              _id: { $ne: commentAuthorId }, // Виключаємо автора коментаря
             }).select('_id');
 
             for (const admin of admins) {
@@ -953,7 +1022,10 @@ router.post('/:id/comments',
 
         // Видаляємо дублікати
         const uniqueRecipients = [...new Set(recipients)];
-        logger.info(`🔔 Фінальний список отримувачів: ${uniqueRecipients.length} користувачів`, uniqueRecipients);
+        logger.info(
+          `🔔 Фінальний список отримувачів: ${uniqueRecipients.length} користувачів`,
+          uniqueRecipients
+        );
 
         logger.info('🔔 Відправка сповіщень про коментар:', {
           ticketId: ticket._id.toString(),
@@ -961,7 +1033,7 @@ router.post('/:id/comments',
           recipients: uniqueRecipients,
           uniqueRecipientsCount: uniqueRecipients.length,
           isInternal: value.isInternal,
-          commentAuthorId: commentAuthorId
+          commentAuthorId: commentAuthorId,
         });
 
         if (uniqueRecipients.length === 0) {
@@ -970,12 +1042,15 @@ router.post('/:id/comments',
 
         // Заповнюємо тікет для отримання інформації про користувачів
         const populatePaths = [
-          { path: 'createdBy', select: 'telegramId telegramChatId email firstName lastName' }
+          { path: 'createdBy', select: 'telegramId telegramChatId email firstName lastName' },
         ];
 
         // Перевіряємо, чи існує поле assignedTo в схемі перед populate
         if (ticket.schema.paths.assignedTo) {
-          populatePaths.push({ path: 'assignedTo', select: 'telegramId telegramChatId email firstName lastName' });
+          populatePaths.push({
+            path: 'assignedTo',
+            select: 'telegramId telegramChatId email firstName lastName',
+          });
         }
 
         await ticket.populate(populatePaths);
@@ -986,7 +1061,7 @@ router.post('/:id/comments',
 
         logger.info('🔔 Перевірка Telegram сервісу:', {
           isInitialized: telegramService.isInitialized,
-          hasBot: !!telegramService.bot
+          hasBot: !!telegramService.bot,
         });
 
         for (const userId of uniqueRecipients) {
@@ -1003,39 +1078,51 @@ router.post('/:id/comments',
                 ticketTitle: ticket.title,
                 commentId: newComment._id.toString(),
                 commentAuthor: authorName,
-                commentPreview: value.content.substring(0, 100)
-              }
+                commentPreview: value.content.substring(0, 100),
+              },
             });
           } catch (fcmError) {
-            logger.error(`❌ Помилка відправки FCM сповіщення для користувача ${userId}:`, fcmError);
+            logger.error(
+              `❌ Помилка відправки FCM сповіщення для користувача ${userId}:`,
+              fcmError
+            );
           }
 
           // Telegram сповіщення
           try {
             logger.info(`🔔 Пошук користувача ${userId} для Telegram сповіщення`);
-            const recipientUser = await User.findById(userId).select('telegramId telegramChatId email firstName lastName');
+            const recipientUser = await User.findById(userId).select(
+              'telegramId telegramChatId email firstName lastName'
+            );
 
             logger.info(`🔔 Дані користувача для Telegram:`, {
               userId: userId,
-              recipientUser: recipientUser ? {
-                email: recipientUser.email,
-                telegramId: recipientUser.telegramId,
-                telegramChatId: recipientUser.telegramChatId,
-                hasTelegramId: !!recipientUser.telegramId,
-                hasTelegramChatId: !!recipientUser.telegramChatId
-              } : null
+              recipientUser: recipientUser
+                ? {
+                    email: recipientUser.email,
+                    telegramId: recipientUser.telegramId,
+                    telegramChatId: recipientUser.telegramChatId,
+                    hasTelegramId: !!recipientUser.telegramId,
+                    hasTelegramChatId: !!recipientUser.telegramChatId,
+                  }
+                : null,
             });
 
             const telegramId = recipientUser?.telegramId || recipientUser?.telegramChatId;
 
             if (recipientUser && telegramId && !value.isInternal) {
               if (!telegramService.isInitialized || !telegramService.bot) {
-                logger.warn(`⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`, {
-                  isInitialized: telegramService.isInitialized,
-                  hasBot: !!telegramService.bot
-                });
+                logger.warn(
+                  `⚠️ Telegram бот не ініціалізований для відправки коментаря користувачу ${recipientUser.email}`,
+                  {
+                    isInitialized: telegramService.isInitialized,
+                    hasBot: !!telegramService.bot,
+                  }
+                );
               } else {
-                logger.info(`🔔 Відправка Telegram сповіщення користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
+                logger.info(
+                  `🔔 Відправка Telegram сповіщення користувачу ${recipientUser.email} (telegramId: ${telegramId})`
+                );
 
                 // Встановлюємо активний тікет для користувача
                 telegramService.setActiveTicketForUser(telegramId, ticket._id.toString());
@@ -1052,26 +1139,31 @@ router.post('/:id/comments',
                   `Або надішліть /menu для виходу.`;
 
                 try {
-                  await telegramService.sendMessage(
-                    telegramId,
-                    message,
-                    { parse_mode: 'Markdown' }
-                  );
-
-                  logger.info(`✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`);
-                } catch (sendError) {
-                  logger.error(`❌ Помилка виклику sendMessage для користувача ${recipientUser.email}:`, {
-                    error: sendError.message,
-                    stack: sendError.stack,
-                    telegramId: telegramId
+                  await telegramService.sendMessage(telegramId, message, {
+                    parse_mode: 'Markdown',
                   });
+
+                  logger.info(
+                    `✅ Telegram сповіщення про коментар відправлено користувачу ${recipientUser.email} (telegramId: ${telegramId})`
+                  );
+                } catch (sendError) {
+                  logger.error(
+                    `❌ Помилка виклику sendMessage для користувача ${recipientUser.email}:`,
+                    {
+                      error: sendError.message,
+                      stack: sendError.stack,
+                      telegramId: telegramId,
+                    }
+                  );
                 }
               }
             } else {
               if (!recipientUser) {
                 logger.warn(`⚠️ Користувач з ID ${userId} не знайдено`);
               } else if (!telegramId) {
-                logger.warn(`⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`);
+                logger.warn(
+                  `⚠️ Користувач ${recipientUser.email} (${userId}) не має telegramId або telegramChatId`
+                );
               } else if (value.isInternal) {
                 logger.info(`ℹ️ Коментар внутрішній, Telegram сповіщення не відправляється`);
               }
@@ -1079,7 +1171,7 @@ router.post('/:id/comments',
           } catch (telegramError) {
             logger.error(`❌ Помилка відправки Telegram сповіщення для користувача ${userId}:`, {
               error: telegramError.message,
-              stack: telegramError.stack
+              stack: telegramError.stack,
             });
           }
         }
@@ -1092,14 +1184,13 @@ router.post('/:id/comments',
       res.status(201).json({
         success: true,
         message: 'Коментар успішно додано',
-        data: newComment
+        data: newComment,
       });
-
     } catch (error) {
       logger.error('Помилка додавання коментаря:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
@@ -1167,8 +1258,6 @@ router.patch('/:id/notes/:noteId/reminder', authenticateToken, noteController.se
 // Отримати статистику нотаток
 router.get('/:id/notes/statistics', authenticateToken, noteController.getNotesStatistics);
 
-
-
 // Маршрути історії тікетів
 const ticketHistoryController = require('../controllers/ticketHistoryController');
 
@@ -1186,7 +1275,7 @@ router.post('/:id/rate', authenticateToken, async (req, res) => {
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({
         success: false,
-        message: 'Оцінка повинна бути від 1 до 5'
+        message: 'Оцінка повинна бути від 1 до 5',
       });
     }
 
@@ -1194,7 +1283,7 @@ router.post('/:id/rate', authenticateToken, async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тікет не знайдено'
+        message: 'Тікет не знайдено',
       });
     }
 
@@ -1202,7 +1291,7 @@ router.post('/:id/rate', authenticateToken, async (req, res) => {
     if (String(ticket.createdBy) !== String(req.user._id)) {
       return res.status(403).json({
         success: false,
-        message: 'Доступ заборонено. Тільки автор тікету може оцінити якість вирішення'
+        message: 'Доступ заборонено. Тільки автор тікету може оцінити якість вирішення',
       });
     }
 
@@ -1221,20 +1310,21 @@ router.post('/:id/rate', authenticateToken, async (req, res) => {
       message: 'Оцінка успішно збережена',
       data: {
         rating: ticket.qualityRating.rating,
-        feedback: ticket.qualityRating.feedback
-      }
+        feedback: ticket.qualityRating.feedback,
+      },
     });
   } catch (error) {
     logger.error('Помилка збереження оцінки тікету:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
 
 // POST /api/tickets/:id/send-telegram-message - Відправити повідомлення користувачу через Telegram
-router.post('/:id/send-telegram-message',
+router.post(
+  '/:id/send-telegram-message',
   authenticateToken,
   requirePermission('tickets.manage'),
   async (req, res) => {
@@ -1245,24 +1335,26 @@ router.post('/:id/send-telegram-message',
       if (!messageContent || !messageContent.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Повідомлення не може бути порожнім'
+          message: 'Повідомлення не може бути порожнім',
         });
       }
 
       if (messageContent.length > 1000) {
         return res.status(400).json({
           success: false,
-          message: 'Повідомлення не може перевищувати 1000 символів'
+          message: 'Повідомлення не може перевищувати 1000 символів',
         });
       }
 
-      const ticket = await Ticket.findById(req.params.id)
-        .populate('createdBy', 'firstName lastName email telegramId telegramChatId');
+      const ticket = await Ticket.findById(req.params.id).populate(
+        'createdBy',
+        'firstName lastName email telegramId telegramChatId'
+      );
 
       if (!ticket) {
         return res.status(404).json({
           success: false,
-          message: 'Тікет не знайдено'
+          message: 'Тікет не знайдено',
         });
       }
 
@@ -1271,7 +1363,7 @@ router.post('/:id/send-telegram-message',
       if (!user || (!user.telegramId && !user.telegramChatId)) {
         return res.status(400).json({
           success: false,
-          message: 'Користувач не має Telegram ID для відправки повідомлення'
+          message: 'Користувач не має Telegram ID для відправки повідомлення',
         });
       }
 
@@ -1285,7 +1377,9 @@ router.post('/:id/send-telegram-message',
         `💡 Ви можете відповісти на це повідомлення, і ваша відповідь буде додана як коментар до тікету.`;
 
       try {
-        const result = await telegramService.sendMessage(chatId, telegramMessage, { parse_mode: 'Markdown' });
+        const result = await telegramService.sendMessage(chatId, telegramMessage, {
+          parse_mode: 'Markdown',
+        });
 
         // Зберігаємо повідомлення в окрему колекцію TelegramMessage
         const TelegramMessage = require('../models/TelegramMessage');
@@ -1298,7 +1392,7 @@ router.post('/:id/send-telegram-message',
           telegramMessageId: result?.message_id?.toString() || null,
           telegramChatId: String(chatId),
           sentAt: new Date(),
-          deliveredAt: new Date()
+          deliveredAt: new Date(),
         });
         await telegramMsg.save();
 
@@ -1306,7 +1400,7 @@ router.post('/:id/send-telegram-message',
         try {
           await telegramMsg.populate([
             { path: 'senderId', select: 'firstName lastName email' },
-            { path: 'recipientId', select: 'firstName lastName email' }
+            { path: 'recipientId', select: 'firstName lastName email' },
           ]);
           ticketWebSocketService.notifyNewTelegramMessage(ticket._id.toString(), telegramMsg);
         } catch (wsError) {
@@ -1319,7 +1413,10 @@ router.post('/:id/send-telegram-message',
 
         // Також встановлюємо за telegramId, якщо він відрізняється від chatId
         if (user.telegramId && String(user.telegramId) !== String(chatId)) {
-          await telegramService.setActiveTicketForUser(String(user.telegramId), ticket._id.toString());
+          await telegramService.setActiveTicketForUser(
+            String(user.telegramId),
+            ticket._id.toString()
+          );
         }
 
         // Також встановлюємо за userId (якщо потрібно)
@@ -1328,105 +1425,106 @@ router.post('/:id/send-telegram-message',
           await telegramService.setActiveTicketForUser(String(userId), ticket._id.toString());
         }
 
-        logger.info(`Повідомлення відправлено користувачу ${user.email} через Telegram для тікету ${ticket._id}`, {
-          chatId: String(chatId),
-          telegramId: user.telegramId,
-          telegramChatId: user.telegramChatId,
-          ticketId: ticket._id.toString()
-        });
+        logger.info(
+          `Повідомлення відправлено користувачу ${user.email} через Telegram для тікету ${ticket._id}`,
+          {
+            chatId: String(chatId),
+            telegramId: user.telegramId,
+            telegramChatId: user.telegramChatId,
+            ticketId: ticket._id.toString(),
+          }
+        );
 
         res.json({
           success: true,
           message: 'Повідомлення успішно відправлено через Telegram',
           data: {
             ticketId: ticket._id,
-            sentAt: new Date()
-          }
+            sentAt: new Date(),
+          },
         });
       } catch (telegramError) {
         logger.error('Помилка відправки повідомлення через Telegram:', telegramError);
         return res.status(500).json({
           success: false,
           message: 'Помилка відправки повідомлення через Telegram',
-          error: telegramError.message
+          error: telegramError.message,
         });
       }
     } catch (error) {
       logger.error('Помилка відправки повідомлення через Telegram:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
 );
 
 // POST /api/tickets/:id/analyze - Аналіз тікета через AI
-router.post('/:id/analyze',
+router.post(
+  '/:id/analyze',
   authenticateToken,
   requirePermission('view_tickets'),
   param('id').isMongoId().withMessage('Невірний ID тікету'),
-  async (req, res) => {
+  (req, res) => {
     try {
       return res.status(503).json({
         success: false,
-        message: 'AI інтеграція вимкнена.'
+        message: 'AI інтеграція вимкнена.',
       });
     } catch (error) {
       logger.error('Помилка analyze тікета:', error);
       res.status(500).json({
         success: false,
         message: 'Помилка сервера',
-        error: error.message
+        error: error.message,
       });
     }
   }
 );
 
 // GET /api/tickets/:id/telegram-messages - Отримати всі Telegram повідомлення для тікету
-router.get('/:id/telegram-messages',
-  authenticateToken,
-  async (req, res) => {
-    try {
-      const TelegramMessage = require('../models/TelegramMessage');
-      const ticket = await Ticket.findById(req.params.id);
+router.get('/:id/telegram-messages', authenticateToken, async (req, res) => {
+  try {
+    const TelegramMessage = require('../models/TelegramMessage');
+    const ticket = await Ticket.findById(req.params.id);
 
-      if (!ticket) {
-        return res.status(404).json({
-          success: false,
-          message: 'Тікет не знайдено'
-        });
-      }
-
-      // Перевірка доступу: тільки адміни або автор тікету можуть переглядати повідомлення
-      const isAdmin = isAdminRole(req.user.role);
-      const isCreator = String(ticket.createdBy) === String(req.user._id);
-
-      if (!isAdmin && !isCreator) {
-        return res.status(403).json({
-          success: false,
-          message: 'Доступ заборонено'
-        });
-      }
-
-      // Отримуємо всі повідомлення для тікету, відсортовані за датою
-      const messages = await TelegramMessage.find({ ticketId: ticket._id })
-        .populate('senderId', 'firstName lastName email avatar')
-        .populate('recipientId', 'firstName lastName email avatar')
-        .sort({ createdAt: 1 }); // Сортування за датою (від старіших до новіших)
-
-      res.json({
-        success: true,
-        data: messages
-      });
-    } catch (error) {
-      logger.error('Помилка отримання Telegram повідомлень:', error);
-      res.status(500).json({
+    if (!ticket) {
+      return res.status(404).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Тікет не знайдено',
       });
     }
+
+    // Перевірка доступу: тільки адміни або автор тікету можуть переглядати повідомлення
+    const isAdmin = isAdminRole(req.user.role);
+    const isCreator = String(ticket.createdBy) === String(req.user._id);
+
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({
+        success: false,
+        message: 'Доступ заборонено',
+      });
+    }
+
+    // Отримуємо всі повідомлення для тікету, відсортовані за датою
+    const messages = await TelegramMessage.find({ ticketId: ticket._id })
+      .populate('senderId', 'firstName lastName email avatar')
+      .populate('recipientId', 'firstName lastName email avatar')
+      .sort({ createdAt: 1 }); // Сортування за датою (від старіших до новіших)
+
+    res.json({
+      success: true,
+      data: messages,
+    });
+  } catch (error) {
+    logger.error('Помилка отримання Telegram повідомлень:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера',
+    });
   }
-);
+});
 
 module.exports = router;
