@@ -745,18 +745,36 @@ class TelegramAIService {
           .catch(() => {});
 
         const attachments = Array.isArray(article.attachments) ? article.attachments : [];
-        const kbUploadsPath = path.join(__dirname, '..', 'uploads', 'kb');
-        for (const att of attachments) {
+        const filename = att => {
           const fp = att && (att.filePath || att.filepath);
-          if (!fp || typeof fp !== 'string') {
+          return fp && typeof fp === 'string' ? path.basename(fp) : null;
+        };
+        const possibleKbDirs = [
+          path.join(__dirname, '..', 'uploads', 'kb'),
+          path.join(process.cwd(), 'uploads', 'kb'),
+          path.join(process.cwd(), 'backend', 'uploads', 'kb'),
+        ].map(p => path.resolve(p));
+        for (const att of attachments) {
+          const name = filename(att);
+          if (!name) {
             continue;
           }
-          const fullPath = path.isAbsolute(fp) ? fp : path.join(kbUploadsPath, path.basename(fp));
-          try {
-            if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
-              logger.warn('KB: файл не знайдено для відправки', { fullPath, filePath: fp });
-              continue;
+          let fullPath = null;
+          for (const dir of possibleKbDirs) {
+            const candidate = path.join(dir, name);
+            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+              fullPath = candidate;
+              break;
             }
+          }
+          if (!fullPath) {
+            logger.warn('KB: файл не знайдено для відправки', {
+              filename: name,
+              triedDirs: possibleKbDirs,
+            });
+            continue;
+          }
+          try {
             const type = String(att.type || '').toLowerCase();
             if (type === 'image') {
               await this.telegramService.bot.sendPhoto(chatId, fullPath);
@@ -766,7 +784,6 @@ class TelegramAIService {
           } catch (err) {
             logger.warn('KB: не вдалося відправити вкладений файл', {
               fullPath,
-              filePath: fp,
               err: err.message,
             });
           }
