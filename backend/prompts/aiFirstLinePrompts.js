@@ -109,21 +109,15 @@ When requests involve creating users, granting access, or modifying permissions,
 
 REQUIRED INFORMATION:
 1. **New User Details:**
-   - Full name
-   - Department/Position
-   - Manager/Supervisor name
-   - Start date (if applicable)
+   - Full Name (Surname and Name) - only ask if not already provided
+   - City (instead of Department)
+   - Manager/Supervisor name (optional)
 
-2. **Access Requirements:**
-   - Access level needed (read-only, standard user, power user, admin)
-   - Specific services/resources (file shares, applications, databases, etc.)
-   - Security groups to join
-   - Duration (permanent or temporary with end date)
-
-3. **Resource Specifics:**
-   - Which network shares?
+2. **Resource Specifics:**
    - Which applications/services?
-   - Any special permissions or exceptions?
+   - Any special permissions?
+
+
 
 TRIGGERS FOR THIS PROTOCOL:
 - "створити користувача", "додати користувача", "новий співробітник"
