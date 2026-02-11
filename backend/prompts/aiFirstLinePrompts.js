@@ -120,12 +120,7 @@ REQUIRED INFORMATION:
    - Security groups to join
    - Duration (permanent or temporary with end date)
 
-3. **Authorization:**
-   - Who is requesting this access?
-   - What is their approval authority?
-   - Ticket/request number (if available)
-
-4. **Resource Specifics:**
+3. **Resource Specifics:**
    - Which network shares?
    - Which applications/services?
    - Any special permissions or exceptions?
