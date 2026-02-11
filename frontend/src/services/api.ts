@@ -829,6 +829,19 @@ class ApiService {
     return response.data as { success: boolean; message?: string };
   }
 
+  async generateKnowledgeBaseArticleContent(title: string): Promise<{
+    success: boolean;
+    data?: { content: string; category: string; tags: string };
+    message?: string;
+  }> {
+    const response = await this.api.post('/kb/generate-article', { title });
+    return response.data as {
+      success: boolean;
+      data?: { content: string; category: string; tags: string };
+      message?: string;
+    };
+  }
+
   async uploadKnowledgeBaseFiles(formData: FormData): Promise<{
     success: boolean;
     message?: string;

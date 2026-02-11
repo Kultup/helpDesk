@@ -5,7 +5,7 @@ import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import { Plus, Edit2, Trash2, X, Upload, Image, Video } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Upload, Image, Video, Sparkles } from 'lucide-react';
 
 interface KBArticle {
   _id: string;
@@ -45,6 +45,7 @@ const KnowledgeBase: React.FC = () => {
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +132,10 @@ const KnowledgeBase: React.FC = () => {
       const res = await apiService.uploadKnowledgeBaseFiles(formData);
       if (res.success && res.data && res.data.length > 0) {
         const newAttachments = res.data
-          .filter(f => f.type === 'image' || f.type === 'video')
+          .filter(
+            (f): f is typeof f & { type: 'image' | 'video' } =>
+              f.type === 'image' || f.type === 'video'
+          )
           .map(f => ({
             type: f.type,
             filePath: f.filePath,
@@ -157,6 +161,35 @@ const KnowledgeBase: React.FC = () => {
       ...prev,
       attachments: prev.attachments.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleGenerateContent = async () => {
+    const title = form.title.trim();
+    if (!title) {
+      setError(t('knowledgeBase.messages.titleRequired'));
+      return;
+    }
+    setGeneratingContent(true);
+    setError(null);
+    try {
+      const res = await apiService.generateKnowledgeBaseArticleContent(title);
+      if (res.success && res.data) {
+        setForm(prev => ({
+          ...prev,
+          content: res.data!.content ?? prev.content,
+          category: res.data!.category ?? prev.category,
+          tagsStr: res.data!.tags ?? prev.tagsStr,
+        }));
+        setSuccess(t('knowledgeBase.messages.generateSuccess'));
+      } else {
+        setError(res.message || t('knowledgeBase.messages.generateError'));
+      }
+    } catch (err) {
+      console.error(err);
+      setError(t('knowledgeBase.messages.generateError'));
+    } finally {
+      setGeneratingContent(false);
+    }
   };
 
   const handleSave = async () => {
@@ -377,9 +410,31 @@ const KnowledgeBase: React.FC = () => {
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('knowledgeBase.form.title')} *
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    {t('knowledgeBase.form.title')} *
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!form.title.trim() || generatingContent}
+                    onClick={handleGenerateContent}
+                    className="flex items-center gap-1.5 shrink-0"
+                  >
+                    {generatingContent ? (
+                      <>
+                        <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+                        {t('knowledgeBase.generating')}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        {t('knowledgeBase.generateAnswer')}
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Input
                   value={form.title}
                   onChange={e => setForm(p => ({ ...p, title: e.target.value }))}

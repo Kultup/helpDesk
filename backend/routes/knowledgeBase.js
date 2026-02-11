@@ -3,11 +3,47 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const https = require('https');
 const { authenticateToken: auth } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const KnowledgeBase = require('../models/KnowledgeBase');
 const kbSearchService = require('../services/kbSearchService');
+const aiFirstLineService = require('../services/aiFirstLineService');
 const logger = require('../utils/logger');
+
+function fetchDuckDuckGoSnippet(query) {
+  return new Promise(resolve => {
+    const q = encodeURIComponent(String(query).trim().substring(0, 200));
+    const url = `https://api.duckduckgo.com/?q=${q}&format=json`;
+    https
+      .get(url, res => {
+        let data = '';
+        res.on('data', chunk => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            const parts = [];
+            if (json.AbstractText && String(json.AbstractText).trim()) {
+              parts.push(String(json.AbstractText).trim().substring(0, 800));
+            }
+            if (Array.isArray(json.RelatedTopics) && json.RelatedTopics.length > 0) {
+              const first = json.RelatedTopics[0];
+              const text = first.Text || null;
+              if (text && String(text).trim()) {
+                parts.push(String(text).trim().substring(0, 400));
+              }
+            }
+            resolve(parts.join('\n\n').trim());
+          } catch (_) {
+            resolve('');
+          }
+        });
+      })
+      .on('error', () => resolve(''));
+  });
+}
 
 // Налаштування multer для завантаження файлів KB
 const storage = multer.diskStorage({
@@ -362,6 +398,51 @@ router.get('/search', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка пошуку статей KB',
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/kb/generate-article
+ * @desc    Згенерувати зміст, категорію та теги за заголовком (пошук в інтернеті + AI)
+ * @access  Private (Admin)
+ */
+router.post('/generate-article', auth, adminAuth, async (req, res) => {
+  try {
+    const title = req.body?.title && String(req.body.title).trim();
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Потрібен заголовок (title)',
+      });
+    }
+    let webSnippet = '';
+    try {
+      webSnippet = await fetchDuckDuckGoSnippet(title);
+    } catch (_) {
+      // ігноруємо помилку пошуку, AI працюватиме без контексту
+    }
+    const result = await aiFirstLineService.generateKbArticleFromTitle(title, webSnippet);
+    if (!result) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI вимкнено або не налаштовано. Увімкніть та налаштуйте AI в налаштуваннях.',
+      });
+    }
+    res.json({
+      success: true,
+      data: {
+        content: result.content,
+        category: result.category,
+        tags: result.tags,
+      },
+    });
+  } catch (error) {
+    logger.error('Error generating KB article content:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка генерації контенту',
       error: error.message,
     });
   }

@@ -1802,6 +1802,7 @@ module.exports = {
     CONVERSATIONAL_TRANSITION: 100,
     RATING_EMOTION: 80,
     STATISTICS_ANALYSIS: 1500, // More tokens for complex analysis
+    KB_ARTICLE_GENERATION: 1000,
   },
 
   TEMPERATURES: {

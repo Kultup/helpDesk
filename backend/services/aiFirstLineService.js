@@ -1059,6 +1059,67 @@ async function generateStatisticsAnalysis(statsData, dateRange = 'не вказ�
   }
 }
 
+/**
+ * Згенерувати зміст, категорію та теги для статті KB за заголовком (з використанням контексту з інтернету).
+ * @param {string} title - заголовок статті
+ * @param {string} [webSnippet] - опційний фрагмент з пошуку в інтернеті
+ * @returns {Promise<{ content: string, category: string, tags: string }|null>}
+ */
+async function generateKbArticleFromTitle(title, webSnippet = '') {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled) {
+    return null;
+  }
+  const apiKey = settings.provider === 'openai' ? settings.openaiApiKey : settings.geminiApiKey;
+  if (!apiKey || !String(apiKey).trim()) {
+    return null;
+  }
+  const systemPrompt =
+    `Ти допомагаєш заповнити статтю бази знань. За заголовком статті (та опційно контекстом з інтернету) згенеруй:
+- content: короткий текст статті/інструкції українською (2-6 абзаців), корисний для користувача. Якщо є контекст з інтернету — використай його, але перефразуй і структуруй.
+- category: одна категорія (одне слово або коротка фраза, українською), наприклад "Друк", "Паролі", "Доступ".
+- tags: кілька тегів через кому (українською), наприклад "друк, принтер, документ".
+
+Поверни лише один валідний JSON-об'єкт без додаткового тексту, у форматі:
+{"content": "...", "category": "...", "tags": "тег1, тег2, тег3"}`.trim();
+
+  const userParts = [`Заголовок статті: ${title}`];
+  if (webSnippet && String(webSnippet).trim()) {
+    userParts.push(
+      `Контекст з інтернету (можна використати для наповнення):\n${String(webSnippet).trim().slice(0, 1500)}`
+    );
+  }
+  const userMessage = userParts.join('\n\n');
+
+  const response = await callChatCompletion(
+    settings,
+    systemPrompt,
+    userMessage,
+    MAX_TOKENS.KB_ARTICLE_GENERATION || 1000,
+    true,
+    0.5
+  );
+  if (!response) {
+    return null;
+  }
+  const parsed = parseJsonFromResponse(response);
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+  const content = typeof parsed.content === 'string' ? parsed.content.trim() : '';
+  const category = typeof parsed.category === 'string' ? parsed.category.trim() : '';
+  const tags =
+    typeof parsed.tags === 'string'
+      ? parsed.tags.trim()
+      : Array.isArray(parsed.tags)
+        ? parsed.tags
+            .map(t => String(t).trim())
+            .filter(Boolean)
+            .join(', ')
+        : '';
+  return { content, category, tags };
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
@@ -1075,4 +1136,5 @@ module.exports = {
   resetTokenUsage,
   transcribeVoiceToText,
   generateStatisticsAnalysis,
+  generateKbArticleFromTitle,
 };

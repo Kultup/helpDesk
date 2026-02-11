@@ -2034,6 +2034,8 @@
     },
     "addMedia": "Dodaj zdjęcie lub wideo",
     "uploading": "Przesyłanie...",
+    "generateAnswer": "Wygeneruj odpowiedź",
+    "generating": "Generowanie...",
     "deleteConfirmation": "Usunąć ten artykuł?",
     "messages": {
       "loadError": "Błąd ładowania artykułów",
@@ -2043,7 +2045,9 @@
       "updateSuccess": "Artykuł zaktualizowano",
       "saveError": "Błąd zapisywania",
       "deleteSuccess": "Artykuł usunięto",
-      "deleteError": "Błąd usuwania"
+      "deleteError": "Błąd usuwania",
+      "generateSuccess": "Wygenerowano treść, kategorię i tagi",
+      "generateError": "Nie udało się wygenerować. Sprawdź ustawienia AI."
     }
   }
 }

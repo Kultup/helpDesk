@@ -2125,6 +2125,8 @@
     },
     "addMedia": "Add photo or video",
     "uploading": "Uploading...",
+    "generateAnswer": "Generate answer",
+    "generating": "Generating...",
     "deleteConfirmation": "Delete this article?",
     "messages": {
       "loadError": "Error loading articles",
@@ -2134,7 +2136,9 @@
       "updateSuccess": "Article updated",
       "saveError": "Error saving",
       "deleteSuccess": "Article deleted",
-      "deleteError": "Error deleting"
+      "deleteError": "Error deleting",
+      "generateSuccess": "Content, category and tags generated",
+      "generateError": "Could not generate. Check AI settings."
     }
   }
 }

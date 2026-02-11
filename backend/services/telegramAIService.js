@@ -515,6 +515,150 @@ class TelegramAIService {
       session.afterTipNotHelped = true; // Якщо користувач замість кнопок просто відповів на питання — вважаємо що тіпс не закрив питання
     }
 
+    // Рання обробка погоди та курсу — без виклику AI, щоб не задавати зайвих уточнюючих питань
+    const textLower = (text || '').toLowerCase().trim();
+    const isExchangeRateRequest =
+      textLower.includes('курс') ||
+      textLower.includes('долар') ||
+      textLower.includes('євро') ||
+      textLower.includes('валюта') ||
+      textLower.includes('usd');
+    const isWeatherRequest = textLower.includes('погода');
+    const userCity =
+      session.userContext && session.userContext.userCity
+        ? String(session.userContext.userCity).trim()
+        : '';
+    const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
+
+    if (isExchangeRateRequest) {
+      if (!this.canMakeInternetRequest(telegramId)) {
+        await this.telegramService.sendMessage(
+          chatId,
+          `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+        this.telegramService.userSessions.delete(chatId);
+        return;
+      }
+      await this.telegramService.sendTyping(chatId);
+      const nbu = await this.fetchNbuUsdRate();
+      if (nbu) {
+        this.recordInternetRequest(telegramId);
+        const rateText = nbu.date ? `Курс USD за ${nbu.date}` : 'Курс USD (НБУ)';
+        await this.telegramService.sendMessage(
+          chatId,
+          `💵 *${rateText}:* ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+      } else {
+        await this.telegramService.sendMessage(
+          chatId,
+          'Зараз не вдалося отримати курс. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+      }
+      session.dialog_history.push({
+        role: 'assistant',
+        content: nbu ? `Курс USD: ${nbu.rate.toFixed(2)} грн` : 'Не вдалося отримати курс.',
+      });
+      this.telegramService.userSessions.delete(chatId);
+      return;
+    }
+
+    if (isWeatherRequest) {
+      if (!userCity || userCity.toLowerCase() === 'не вказано') {
+        await this.telegramService.sendMessage(
+          chatId,
+          'Не знаю ваше місто. Вкажіть місто в профілі — тоді зможу показати погоду для вас.\n\nЯкщо є технічна проблема — опишіть її, допоможу з тікетом.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+        this.telegramService.userSessions.delete(chatId);
+        return;
+      }
+      if (!this.canMakeInternetRequest(telegramId)) {
+        await this.telegramService.sendMessage(
+          chatId,
+          `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+        this.telegramService.userSessions.delete(chatId);
+        return;
+      }
+      await this.telegramService.sendTyping(chatId);
+      const weather = await this.fetchWeatherForCity(userCity);
+      if (weather) {
+        this.recordInternetRequest(telegramId);
+        await this.telegramService.sendMessage(
+          chatId,
+          `🌤 *Погода в ${weather.city}:* ${weather.description}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+        session.dialog_history.push({
+          role: 'assistant',
+          content: `Погода в ${weather.city}: ${weather.description}, ${Math.round(weather.temp)}°C`,
+        });
+      } else {
+        await this.telegramService.sendMessage(
+          chatId,
+          `Зараз не вдалося отримати погоду для ${userCity}. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          }
+        );
+      }
+      this.telegramService.userSessions.delete(chatId);
+      return;
+    }
+
     await this.telegramService.sendTyping(chatId);
     const searchQuery = (text || '').trim()
       ? `${String(text).trim()} як виправити troubleshooting`
