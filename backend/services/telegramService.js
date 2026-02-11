@@ -1140,6 +1140,11 @@ class TelegramService {
               );
               session.awaitingErrorPhoto = remaining.some(m => String(m).includes('фото помилки'));
 
+              if (session.awaitingErrorPhoto) {
+                nextQuestion =
+                  nextQuestion +
+                  '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
+              }
               const kbd = [
                 [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
                 [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],

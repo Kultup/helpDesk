@@ -485,6 +485,11 @@ class TelegramAIService {
         );
         session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
         session.lastMissingInfo = missing;
+        if (session.awaitingErrorPhoto) {
+          question =
+            question +
+            '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
+        }
         const keyboardAfterTip = [
           [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
           [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
@@ -780,8 +785,14 @@ class TelegramAIService {
         session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
         session.lastMissingInfo = missing;
 
+        let messageToSend = quickSolutionText;
+        if (session.awaitingErrorPhoto) {
+          messageToSend =
+            messageToSend +
+            '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
+        }
         session.step = 'gathering_information';
-        session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
+        session.dialog_history.push({ role: 'assistant', content: messageToSend });
 
         const keyboard = [];
         // Якщо ми очікуємо фото, додаємо кнопку пропуску
@@ -801,7 +812,7 @@ class TelegramAIService {
           { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
         ]);
 
-        await this.telegramService.sendMessage(chatId, quickSolutionText, {
+        await this.telegramService.sendMessage(chatId, messageToSend, {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: keyboard,
@@ -913,6 +924,11 @@ class TelegramAIService {
     session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
     session.lastMissingInfo = missing;
 
+    if (session.awaitingErrorPhoto) {
+      question =
+        question +
+        '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
+    }
     const keyboard = [
       [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
       [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
