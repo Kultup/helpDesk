@@ -555,7 +555,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
             try {
               const fcmService = require('../services/fcmService');
               const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
-              await fcmService.sendToUser(ticket.createdBy.toString(), {
+              await fcmService.sendToUser((ticket.createdBy._id || ticket.createdBy).toString(), {
                 title: `🎫 Тікет ${statusText.toLowerCase()}`,
                 body: `Тікет "${ticket.title}" має статус: ${statusText}`,
                 type: 'ticket_status_changed',
@@ -578,7 +578,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
         } else {
           // Тікет створено з веб-інтерфейсу - відправляємо в групу Telegram та FCM (якщо є пристрій)
           try {
-            await telegramService.sendTicketStatusNotificationToGroup(
+            await telegramService.notificationService.sendTicketStatusNotificationToGroup(
               ticket,
               previousStatus,
               value.status,
@@ -594,7 +594,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
             try {
               const fcmService = require('../services/fcmService');
               const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
-              await fcmService.sendToUser(ticket.createdBy.toString(), {
+              await fcmService.sendToUser((ticket.createdBy._id || ticket.createdBy).toString(), {
                 title: `🎫 Тікет ${statusText.toLowerCase()}`,
                 body: `Тікет "${ticket.title}" має статус: ${statusText}`,
                 type: 'ticket_status_changed',
@@ -618,7 +618,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
       } else {
         // Для інших змін статусу - відправляємо в групу та сповіщення автору тікета
         try {
-          await telegramService.sendTicketStatusNotificationToGroup(
+          await telegramService.notificationService.sendTicketStatusNotificationToGroup(
             ticket,
             previousStatus,
             value.status,
@@ -629,7 +629,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
           // Сповіщення автору тікета про зміну статусу (Telegram + FCM)
           if (ticket.createdBy) {
             logger.info(
-              `📤 Відправка сповіщення автору тікета userId=${ticket.createdBy.toString()}, ticketId=${ticket._id}`
+              `📤 Відправка сповіщення автору тікета userId=${(ticket.createdBy._id || ticket.createdBy).toString()}, ticketId=${ticket._id}`
             );
             try {
               await telegramService.notificationService.sendTicketNotification(ticket, 'updated');
@@ -644,7 +644,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
                 resolved: 'Вирішено',
                 closed: 'Закрито',
               };
-              await fcmService.sendToUser(ticket.createdBy.toString(), {
+              await fcmService.sendToUser((ticket.createdBy._id || ticket.createdBy).toString(), {
                 title: '🔄 Статус тікету змінено',
                 body: `Тікет "${ticket.title}" тепер має статус: ${statusText[value.status] || value.status}`,
                 type: 'ticket_status_changed',
@@ -873,7 +873,10 @@ router.post(
       }
 
       // Перевірка доступу
-      if (!isAdminRole(req.user.role) && ticket.createdBy.toString() !== req.user._id.toString()) {
+      if (
+        !isAdminRole(req.user.role) &&
+        (ticket.createdBy._id || ticket.createdBy).toString() !== req.user._id.toString()
+      ) {
         return res.status(403).json({
           success: false,
           message: 'Доступ заборонено',
@@ -955,7 +958,7 @@ router.post(
           if (typeof ticket.createdBy === 'object' && ticket.createdBy._id) {
             ticketCreatedById = ticket.createdBy._id.toString();
           } else {
-            ticketCreatedById = ticket.createdBy.toString();
+            ticketCreatedById = (ticket.createdBy._id || ticket.createdBy).toString();
           }
         }
 
