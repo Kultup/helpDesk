@@ -232,16 +232,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       try {
         const kbSearchService = require('./kbSearchService');
         const query = String(lastMsg.content).trim();
-        const result = await kbSearchService.searchArticles(
-          query,
-          {
-            status: 'published',
-            isActive: true,
-          },
-          { limit: 1, page: 1, sortBy: 'relevance' }
-        );
-        if (result.articles && result.articles.length > 0) {
-          const article = result.articles[0];
+        const article = await kbSearchService.findBestMatchForBot(query);
+        if (article) {
           const plain = article.toObject ? article.toObject() : article;
           logger.info(
             `📚 KB article matched: "${plain.title}" for query: ${query.substring(0, 80)}`

@@ -1,7 +1,49 @@
 const KnowledgeBase = require('../models/KnowledgeBase');
 const logger = require('../utils/logger');
 
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 class KBSearchService {
+  /**
+   * Знайти одну найкращу статтю для бота за запитом користувача.
+   * Спочатку $text пошук; якщо нічого не знайдено — fallback по regex у title/content/tags (краще для української).
+   * @param {String} query - текст повідомлення користувача
+   * @returns {Promise<Object|null>} - стаття або null
+   */
+  async findBestMatchForBot(query = '') {
+    const q = String(query).trim();
+    if (!q) {
+      return null;
+    }
+    try {
+      const filters = { status: 'published', isActive: true };
+      const options = { limit: 1, page: 1, sortBy: 'relevance' };
+      const result = await this.searchArticles(q, filters, options);
+      if (result.articles && result.articles.length > 0) {
+        return result.articles[0];
+      }
+      const regex = new RegExp(escapeRegex(q), 'i');
+      const fallback = await KnowledgeBase.findOne({
+        status: 'published',
+        isActive: true,
+        $or: [{ title: regex }, { content: regex }, { tags: regex }],
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+      if (fallback) {
+        logger.info(
+          `📚 KB fallback match (regex): "${fallback.title}" for query: ${q.substring(0, 60)}`
+        );
+      }
+      return fallback;
+    } catch (err) {
+      logger.error('KB findBestMatchForBot error', err);
+      return null;
+    }
+  }
+
   /**
    * Пошук статей KB
    * @param {String} query - Пошуковий запит
