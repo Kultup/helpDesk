@@ -628,6 +628,9 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
 
           // Сповіщення автору тікета про зміну статусу (Telegram + FCM)
           if (ticket.createdBy) {
+            logger.info(
+              `📤 Відправка сповіщення автору тікета userId=${ticket.createdBy.toString()}, ticketId=${ticket._id}`
+            );
             try {
               await telegramService.notificationService.sendTicketNotification(ticket, 'updated');
             } catch (tgErr) {
@@ -659,6 +662,10 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
             } catch (fcmErr) {
               logger.error('❌ Помилка відправки FCM сповіщення автору тікета:', fcmErr);
             }
+          } else {
+            logger.info(
+              `📤 Автор тікета відсутній (createdBy пустий), сповіщення не відправляється, ticketId=${ticket._id}`
+            );
           }
         } catch (error) {
           logger.error('❌ Помилка відправки Telegram сповіщення в групу:', error);
