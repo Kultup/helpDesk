@@ -832,6 +832,32 @@ OR
 "⏰ УВАГА: Закривається о 18:00, необхідно встигнути сьогодні"
 `;
 
+// ——— 📸 Smart Photo Request Logic ———
+const PHOTO_REQUEST_LOGIC = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📸 SMART PHOTO REQUEST LOGIC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Evaluate if a photo/screenshot is TRULY helpful before adding "фото помилки" to missingInfo.
+
+✅ REQUEST PHOTO IF (VISUAL):
+- There is a specific error message on the screen.
+- Application crash with a "stack trace" or "error code".
+- Issue is physical/hardware (broken cable, printer light blinking, strange screen artifacts).
+- Formatting/UI issues in apps.
+
+❌ DO NOT REQUEST PHOTO IF (NON-VISUAL):
+- "Computer is slow" or "lagging".
+- "No sound" from speakers.
+- "Forgot password" or "Update my access".
+- "Internet is slow" (unless you need to see router indicators).
+- "Install this program".
+
+Ukrainian guidance:
+- If a photo IS needed: "Якщо на екрані є текст помилки, надішліть, будь ласка, фото — це дуже прискорить роботу."
+- If it's NOT needed: Don't mention photos at all.
+`;
+
 // ——— 🧠 Multi-Intent Detection ———
 const MULTI_INTENT_DETECTION = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -884,6 +910,7 @@ ${QUALITY_VALIDATION}
 ${EMOTIONAL_INTELLIGENCE}
 ${LOCALIZATION}
 ${MULTI_INTENT_DETECTION}
+${PHOTO_REQUEST_LOGIC}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 DECISION-MAKING PROCESS
@@ -1078,6 +1105,21 @@ Similar past tickets: {similarTickets}
   "quickSolution": "Бачу у вас одразу дві задачі: розібратися з інтернетом та встановити браузер. Давайте по порядку.\n\nЩодо інтернету:\n• Чи працює він на інших пристроях?\n• Спробуйте перезавантажити роутер.\n\nЩодо Chrome:\n• Я створю заявку, адмін підключиться і все встановить.\n\nДавайте спочатку відновимо інтернет, а потім адмін допоможе з софтом 👌",
   "offTopicResponse": null
 }
+
+┌─ #10: NO PHOTO NEEDED (SLOW PC) ───────────────────────────────┐
+│ "У мене дуже гальмує комп'ютер, неможливо працювати"         │
+└─────────────────────────────────────────────────────────────────┘
+{
+  "isTicketIntent": true,
+  "needsMoreInfo": true,
+  "category": "Performance",
+  "missingInfo": ["коли це почалося", "чи всі програми гальмують"],
+  "confidence": 0.9,
+  "priority": "medium",
+  "emotionalTone": "frustrated",
+  "quickSolution": "Розумію, як це дратує, коли техніка підводить у розпал роботи 😤\n\nДавайте перевіримо кілька моментів:\n• Це почалося сьогодні чи вже давно?\n• Гальмують усі програми чи якась конкретна?\n\nСпробуйте поки перезавантажити ПК — іноді це звільняє пам'ять. Я тим часом створю заявку.",
+  "offTopicResponse": null // NOTE: No photo requested because "slow PC" is not visual
+}
 `;
 
 // ============================================================================
@@ -1088,6 +1130,7 @@ const NEXT_QUESTION = `You are a real helpdesk person. Ask ONE short diagnostic 
 
 ${COMMUNICATION_STYLE}
 ${PROACTIVE_DIAGNOSTICS}
+${PHOTO_REQUEST_LOGIC}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🗣️ HOW TO ASK LIKE A HUMAN
@@ -1402,6 +1445,7 @@ module.exports = {
 
   // Extra rules
   MULTI_INTENT_DETECTION,
+  PHOTO_REQUEST_LOGIC,
 
   // Main prompts
   INTENT_ANALYSIS,
