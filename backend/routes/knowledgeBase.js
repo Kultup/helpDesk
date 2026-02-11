@@ -21,29 +21,33 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, 'kb-' + uniqueSuffix + ext);
-  }
+  },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-    files: 10 // максимум 10 файлів за раз
+    fileSize: 50 * 1024 * 1024, // 50MB (для відео)
+    files: 10,
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|zip|rar/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|zip|rar|mp4|webm|mov/;
+    const ext = path.extname(file.originalname).toLowerCase();
+    const extname = allowedTypes.test(ext);
     const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
+    const isVideo = /^video\//.test(file.mimetype);
+    if ((mimetype || isVideo) && extname) {
       return cb(null, true);
-    } else {
-      cb(new Error('Непідтримуваний тип файлу. Дозволені: зображення, PDF, DOC, TXT, ZIP, RAR'));
     }
-  }
+    cb(
+      new Error(
+        'Непідтримуваний тип файлу. Дозволені: зображення, відео (MP4, WebM), PDF, DOC, TXT, ZIP, RAR'
+      )
+    );
+  },
 });
 
 /**
@@ -53,25 +57,18 @@ const upload = multer({
  */
 router.get('/articles', auth, async (req, res) => {
   try {
-    const {
-      q = '',
-      status,
-      tags,
-      page = 1,
-      limit = 10,
-      sortBy = 'relevance'
-    } = req.query;
+    const { q = '', status, tags, page = 1, limit = 10, sortBy = 'relevance', all } = req.query;
 
     const filters = {
-      status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
-      isPublic: true,
-      tags: tags ? tags.split(',') : undefined
+      status: status && status !== 'undefined' && status !== 'null' ? status : undefined,
+      isPublic: all === '1' ? undefined : true,
+      tags: tags ? tags.split(',') : undefined,
     };
 
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sortBy
+      sortBy,
     };
 
     const result = await kbSearchService.searchArticles(q, filters, options);
@@ -79,14 +76,14 @@ router.get('/articles', auth, async (req, res) => {
     res.json({
       success: true,
       data: result.articles,
-      pagination: result.pagination
+      pagination: result.pagination,
     });
   } catch (error) {
     logger.error('Error fetching KB articles:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання статей KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -99,22 +96,19 @@ router.get('/articles', auth, async (req, res) => {
 router.get('/articles/:id', auth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id)
-      .populate('author', 'email position')
-      .populate('lastUpdatedBy', 'email position')
-      .populate('relatedArticles', 'title status');
+      .populate('createdBy', 'email firstName lastName')
+      .populate('lastUpdatedBy', 'email firstName lastName');
 
-    if (!article || article.isDeleted) {
+    if (!article || !article.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    // Збільшуємо кількість переглядів (тільки для published статей)
-    // Передаємо userId, щоб не рахувати повторні перегляди від того самого користувача
     if (article.status === 'published') {
-      const userId = req.user?._id || null;
-      await article.incrementViews(userId);
+      article.views = (article.views || 0) + 1;
+      await article.save();
     }
 
     // Знаходимо пов'язані статті
@@ -124,15 +118,15 @@ router.get('/articles/:id', auth, async (req, res) => {
       success: true,
       data: {
         ...article.toObject(),
-        relatedArticles
-      }
+        relatedArticles,
+      },
     });
   } catch (error) {
     logger.error('Error fetching KB article:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -144,25 +138,23 @@ router.get('/articles/:id', auth, async (req, res) => {
  */
 router.get('/articles/share/:token', async (req, res) => {
   try {
-    const article = await KnowledgeBase.findOne({ 
+    const article = await KnowledgeBase.findOne({
       shareToken: req.params.token,
-      isDeleted: false,
-      status: 'published'
+      isActive: true,
+      status: 'published',
     })
-      .populate('author', 'email position')
-      .populate('lastUpdatedBy', 'email position')
-      .populate('relatedArticles', 'title status');
+      .populate('createdBy', 'email firstName lastName')
+      .populate('lastUpdatedBy', 'email firstName lastName');
 
     if (!article) {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена або недоступна'
+        message: 'Стаття не знайдена або недоступна',
       });
     }
 
-    // Збільшуємо кількість переглядів
-    // Для публічного доступу не передаємо userId (завжди рахуємо перегляд)
-    await article.incrementViews(null);
+    article.views = (article.views || 0) + 1;
+    await article.save();
 
     // Знаходимо пов'язані статті
     const relatedArticles = await kbSearchService.findRelatedArticles(article._id.toString(), 5);
@@ -171,15 +163,15 @@ router.get('/articles/share/:token', async (req, res) => {
       success: true,
       data: {
         ...article.toObject(),
-        relatedArticles
-      }
+        relatedArticles,
+      },
     });
   } catch (error) {
     logger.error('Error fetching shared KB article:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -193,49 +185,47 @@ router.post('/articles/:id/share-token', auth, adminAuth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id);
 
-    if (!article || article.isDeleted) {
+    if (!article || !article.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    // Визначаємо frontend URL
-    // В development використовуємо localhost:3000, в production - з env або з FRONTEND_URL
-    let frontendUrl;
-    if (process.env.NODE_ENV === 'development') {
-      frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    } else {
-      frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    }
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      (process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000'
+        : `${req.protocol}://${req.get('host')}`);
 
-    // Якщо токен вже є, повертаємо його
     if (article.shareToken) {
       return res.json({
         success: true,
         data: {
           shareToken: article.shareToken,
-          shareUrl: `${frontendUrl}/share/kb/${article.shareToken}`
-        }
+          shareUrl: `${frontendUrl}/share/kb/${article.shareToken}`,
+        },
       });
     }
 
-    // Генеруємо новий токен
-    const token = await article.generateShareToken();
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(24).toString('hex');
+    article.shareToken = token;
+    await article.save();
 
     res.json({
       success: true,
       data: {
         shareToken: token,
-        shareUrl: `${frontendUrl}/share/kb/${token}`
-      }
+        shareUrl: `${frontendUrl}/share/kb/${token}`,
+      },
     });
   } catch (error) {
     logger.error('Error generating share token:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка генерації токену поділу',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -249,7 +239,7 @@ router.post('/articles', auth, adminAuth, async (req, res) => {
   try {
     const articleData = {
       ...req.body,
-      author: req.user._id
+      createdBy: req.user._id,
     };
 
     const article = new KnowledgeBase(articleData);
@@ -258,14 +248,14 @@ router.post('/articles', auth, adminAuth, async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Стаття KB успішно створена',
-      data: article
+      data: article,
     });
   } catch (error) {
     logger.error('Error creating KB article:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка створення статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -279,17 +269,13 @@ router.put('/articles/:id', auth, adminAuth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id);
 
-    if (!article || article.isDeleted) {
+    if (!article || !article.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    // Додаємо версію в історію перед оновленням
-    await article.addVersion(req.user._id, req.body.reason || 'Оновлення статті');
-
-    // Оновлюємо статтю
     Object.assign(article, req.body);
     article.lastUpdatedBy = req.user._id;
     await article.save();
@@ -297,14 +283,14 @@ router.put('/articles/:id', auth, adminAuth, async (req, res) => {
     res.json({
       success: true,
       message: 'Стаття KB успішно оновлена',
-      data: article
+      data: article,
     });
   } catch (error) {
     logger.error('Error updating KB article:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -318,25 +304,27 @@ router.delete('/articles/:id', auth, adminAuth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id);
 
-    if (!article || article.isDeleted) {
+    if (!article || !article.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    await article.softDelete(req.user._id);
+    article.isActive = false;
+    article.lastUpdatedBy = req.user._id;
+    await article.save();
 
     res.json({
       success: true,
-      message: 'Стаття KB успішно видалена'
+      message: 'Стаття KB успішно видалена',
     });
   } catch (error) {
     logger.error('Error deleting KB article:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка видалення статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -348,25 +336,18 @@ router.delete('/articles/:id', auth, adminAuth, async (req, res) => {
  */
 router.get('/search', auth, async (req, res) => {
   try {
-    const {
-      q = '',
-      status,
-      tags,
-      page = 1,
-      limit = 10,
-      sortBy = 'relevance'
-    } = req.query;
+    const { q = '', status, tags, page = 1, limit = 10, sortBy = 'relevance' } = req.query;
 
     const filters = {
-      status: (status && status !== 'undefined' && status !== 'null') ? status : undefined,
+      status: status && status !== 'undefined' && status !== 'null' ? status : undefined,
       isPublic: true,
-      tags: tags ? tags.split(',') : undefined
+      tags: tags ? tags.split(',') : undefined,
     };
 
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sortBy
+      sortBy,
     };
 
     const result = await kbSearchService.searchArticles(q, filters, options);
@@ -374,14 +355,14 @@ router.get('/search', auth, async (req, res) => {
     res.json({
       success: true,
       data: result.articles,
-      pagination: result.pagination
+      pagination: result.pagination,
     });
   } catch (error) {
     logger.error('Error searching KB articles:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка пошуку статей KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -395,29 +376,30 @@ router.post('/articles/:id/helpful', auth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id);
 
-    if (!article || article.isDeleted || article.status !== 'published') {
+    if (!article || !article.isActive || article.status !== 'published') {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    await article.markHelpful();
+    article.helpfulCount = (article.helpfulCount || 0) + 1;
+    await article.save();
 
     res.json({
       success: true,
       message: 'Статтю позначено як корисну',
       data: {
         helpfulCount: article.helpfulCount,
-        notHelpfulCount: article.notHelpfulCount
-      }
+        notHelpfulCount: article.notHelpfulCount,
+      },
     });
   } catch (error) {
     logger.error('Error marking article as helpful:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка позначення статті',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -431,29 +413,30 @@ router.post('/articles/:id/not-helpful', auth, async (req, res) => {
   try {
     const article = await KnowledgeBase.findById(req.params.id);
 
-    if (!article || article.isDeleted || article.status !== 'published') {
+    if (!article || !article.isActive || article.status !== 'published') {
       return res.status(404).json({
         success: false,
-        message: 'Стаття не знайдена'
+        message: 'Стаття не знайдена',
       });
     }
 
-    await article.markNotHelpful();
+    article.notHelpfulCount = (article.notHelpfulCount || 0) + 1;
+    await article.save();
 
     res.json({
       success: true,
       message: 'Статтю позначено як некорисну',
       data: {
         helpfulCount: article.helpfulCount,
-        notHelpfulCount: article.notHelpfulCount
-      }
+        notHelpfulCount: article.notHelpfulCount,
+      },
     });
   } catch (error) {
     logger.error('Error marking article as not helpful:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка позначення статті',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -466,7 +449,7 @@ router.post('/articles/:id/not-helpful', auth, async (req, res) => {
 router.post('/articles/generate-from-ticket/:ticketId', auth, adminAuth, async (req, res) => {
   try {
     const articleData = await kbSearchService.generateArticleFromTicket(req.params.ticketId);
-    articleData.author = req.user._id;
+    articleData.createdBy = req.user._id;
 
     const article = new KnowledgeBase(articleData);
     await article.save();
@@ -474,14 +457,14 @@ router.post('/articles/generate-from-ticket/:ticketId', auth, adminAuth, async (
     res.status(201).json({
       success: true,
       message: 'Стаття KB згенерована з тикету',
-      data: article
+      data: article,
     });
   } catch (error) {
     logger.error('Error generating article from ticket:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка генерації статті KB',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -495,14 +478,14 @@ router.post('/generate-faq', auth, adminAuth, async (req, res) => {
   try {
     return res.status(503).json({
       success: false,
-      message: 'AI інтеграція вимкнена.'
+      message: 'AI інтеграція вимкнена.',
     });
   } catch (error) {
     logger.error('Помилка генерації FAQ:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка сервера при генерації FAQ',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -517,40 +500,39 @@ router.post('/upload', auth, adminAuth, upload.array('files', 10), async (req, r
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Файли не надано'
+        message: 'Файли не надано',
       });
     }
 
-    const uploadedFiles = req.files.map(file => ({
+    const isImage = f => /^image\//.test(f.mimetype);
+    const isVideo = f => /^video\//.test(f.mimetype);
+    const baseUrl = process.env.BACKEND_URL || process.env.API_URL || '';
+
+    const filesWithUrl = req.files.map(file => ({
       filename: file.filename,
       originalName: file.originalname,
       mimetype: file.mimetype,
       size: file.size,
       path: file.path,
-      uploadedBy: req.user._id,
-      uploadedAt: new Date()
-    }));
-
-    // Формуємо URL для доступу до файлів
-    const filesWithUrl = uploadedFiles.map(file => ({
-      ...file,
-      url: `/api/files/${file.filename}`
+      url: `${baseUrl}/api/files/${file.filename}`.replace(/\/+/g, '/'),
+      // Для збереження в article.attachments
+      type: isVideo(file) ? 'video' : isImage(file) ? 'image' : null,
+      filePath: file.filename,
     }));
 
     res.json({
       success: true,
       message: 'Файли успішно завантажено',
-      data: filesWithUrl
+      data: filesWithUrl,
     });
   } catch (error) {
     logger.error('Error uploading KB files:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка завантаження файлів',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 module.exports = router;
-

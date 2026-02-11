@@ -9,12 +9,12 @@ router.get('/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
     logger.info(`Запит на файл: ${filename}, повний URL: ${req.originalUrl}`);
-    
+
     // Безпека: перевіряємо що filename не містить небезпечних символів
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
       return res.status(400).json({
         success: false,
-        message: 'Невірне ім\'я файлу'
+        message: "Невірне ім'я файлу",
       });
     }
 
@@ -27,7 +27,7 @@ router.get('/:filename', async (req, res) => {
       path.join(__dirname, '../uploads/avatars', filename),
       path.join(__dirname, '../uploads/computer-access', filename), // Фото доступу до ПК (профіль користувача)
       path.join(__dirname, '../uploads/kb', filename),
-      path.join(__dirname, '../uploads', filename)
+      path.join(__dirname, '../uploads', filename),
     ];
 
     let filePath = null;
@@ -52,14 +52,14 @@ router.get('/:filename', async (req, res) => {
       logger.warn(`Файл не знайдено: ${filename}, перевірені шляхи:`, possiblePaths);
       return res.status(404).json({
         success: false,
-        message: 'Файл не знайдено'
+        message: 'Файл не знайдено',
       });
     }
 
     // Визначаємо MIME тип на основі розширення файлу
     const ext = path.extname(filename).toLowerCase();
     let contentType = 'application/octet-stream';
-    
+
     switch (ext) {
       case '.jpg':
       case '.jpeg':
@@ -86,23 +86,31 @@ router.get('/:filename', async (req, res) => {
       case '.docx':
         contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         break;
+      case '.mp4':
+        contentType = 'video/mp4';
+        break;
+      case '.webm':
+        contentType = 'video/webm';
+        break;
+      case '.mov':
+        contentType = 'video/quicktime';
+        break;
     }
 
     // Встановлюємо заголовки
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', fileStats.size);
     res.setHeader('Cache-Control', 'public, max-age=31536000'); // Кешування на рік
-    
+
     // Відправляємо файл
     res.sendFile(filePath);
 
     logger.info(`Файл відправлено: ${filename}`);
-
   } catch (error) {
     logger.error('Помилка при відправці файлу:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні файлу'
+      message: 'Помилка сервера при отриманні файлу',
     });
   }
 });

@@ -137,14 +137,16 @@
     "pendingRegistrations": "Заявки на реєстрацію",
     "quickNotifications": "Швидкі сповіщення",
     "aiKnowledge": "AI Знання",
+    "knowledgeBase": "База знань",
     "aiReports": "AI Звіти",
     "aiFAQ": "Генерація FAQ",
     "groups": {
       "main": "Основне",
       "analytics": "Аналітика та звіти",
-      "ai": "Штучний інтелект",
-      "system": "Системні налаштування",
-      "users": "Управління користувачами"
+      "ai": "Штучний інтелект та бот",
+      "reference": "Довідники",
+      "system": "Система та інтеграції",
+      "users": "Користувачі"
     },
     "userRoles": {
       "admin": "Адміністратор",
@@ -1974,6 +1976,47 @@
       "deleteError": "Помилка видалення документа",
       "exportError": "Помилка експорту документів",
       "saveError": "Помилка збереження документа"
+    }
+  },
+  "knowledgeBase": {
+    "title": "База знань",
+    "addArticle": "Додати статтю",
+    "editArticle": "Редагувати статтю",
+    "createArticle": "Створити статтю",
+    "searchPlaceholder": "Пошук за заголовком, тегами...",
+    "statusAll": "Всі",
+    "status": {
+      "draft": "Чернетка",
+      "published": "Опубліковано",
+      "archived": "В архіві"
+    },
+    "table": {
+      "title": "Заголовок",
+      "tags": "Теги"
+    },
+    "noArticles": "Немає статей. Додайте першу статтю.",
+    "form": {
+      "title": "Заголовок",
+      "titlePlaceholder": "Назва статті",
+      "content": "Зміст",
+      "contentPlaceholder": "Текст статті, інструкції...",
+      "categoryPlaceholder": "Категорія",
+      "tags": "Теги",
+      "tagsPlaceholder": "друк, пароль, доступ (через кому)",
+      "media": "Фото та відео"
+    },
+    "addMedia": "Додати фото або відео",
+    "uploading": "Завантаження...",
+    "deleteConfirmation": "Видалити цю статтю?",
+    "messages": {
+      "loadError": "Помилка завантаження статей",
+      "uploadError": "Помилка завантаження файлів",
+      "titleRequired": "Вкажіть заголовок",
+      "createSuccess": "Статтю створено",
+      "updateSuccess": "Статтю оновлено",
+      "saveError": "Помилка збереження",
+      "deleteSuccess": "Статтю видалено",
+      "deleteError": "Помилка видалення"
     }
   }
 }

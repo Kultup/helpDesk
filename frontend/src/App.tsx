@@ -39,6 +39,7 @@ import ErrorNotifications from './components/ErrorNotifications';
 import Equipment from './pages/Equipment';
 import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
+import KnowledgeBase from './pages/KnowledgeBase';
 
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
@@ -279,6 +280,14 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute requiredRole={UserRole.ADMIN}>
                       <AIKnowledge />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/knowledge-base"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <KnowledgeBase />
                     </ProtectedRoute>
                   }
                 />

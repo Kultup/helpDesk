@@ -186,6 +186,21 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     if (lastMsg && lastMsg.role === 'user') {
       const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content);
       if (fastTrack && fastTrack.hasQuickFix) {
+        if (fastTrack.informationalOnly) {
+          logger.info(`⚡ AI Fast-Track (informational): ${fastTrack.problemType}`);
+          return {
+            isTicketIntent: false,
+            needsMoreInfo: false,
+            category: null,
+            missingInfo: [],
+            confidence: 1.0,
+            priority: 'low',
+            emotionalTone: 'calm',
+            quickSolution: null,
+            autoTicket: false,
+            offTopicResponse: fastTrack.solution || null,
+          };
+        }
         logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
         return {
           isTicketIntent: true,
@@ -203,6 +218,64 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     }
   }
   // --- END FAST-TRACK ---
+
+  // --- KNOWLEDGE BASE SEARCH ---
+  // Якщо користувач питає "як зробити...", шукаємо статтю в базі знань і повертаємо її без створення заявки
+  if (dialogHistory.length > 0) {
+    const lastMsg = dialogHistory[dialogHistory.length - 1];
+    if (
+      lastMsg &&
+      lastMsg.role === 'user' &&
+      lastMsg.content &&
+      String(lastMsg.content).trim().length > 0
+    ) {
+      try {
+        const kbSearchService = require('./kbSearchService');
+        const query = String(lastMsg.content).trim();
+        const result = await kbSearchService.searchArticles(
+          query,
+          {
+            status: 'published',
+            isActive: true,
+          },
+          { limit: 1, page: 1, sortBy: 'relevance' }
+        );
+        if (result.articles && result.articles.length > 0) {
+          const article = result.articles[0];
+          const plain = article.toObject ? article.toObject() : article;
+          logger.info(
+            `📚 KB article matched: "${plain.title}" for query: ${query.substring(0, 80)}`
+          );
+          return {
+            isTicketIntent: false,
+            needsMoreInfo: false,
+            category: null,
+            missingInfo: [],
+            confidence: 1.0,
+            priority: 'low',
+            emotionalTone: 'calm',
+            quickSolution: null,
+            autoTicket: false,
+            offTopicResponse: null,
+            kbArticle: {
+              id: plain._id?.toString(),
+              title: plain.title,
+              content: plain.content || '',
+              attachments: Array.isArray(plain.attachments)
+                ? plain.attachments.map(a => ({
+                    type: a.type,
+                    filePath: a.filePath,
+                  }))
+                : [],
+            },
+          };
+        }
+      } catch (err) {
+        logger.warn('KB search in analyzeIntent failed', err);
+      }
+    }
+  }
+  // --- END KNOWLEDGE BASE SEARCH ---
 
   const similarTickets = await getSimilarResolvedTickets(5);
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
@@ -292,6 +365,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     emotionalTone: parsed.emotionalTone || 'calm',
     quickSolution: validatedQuickSolution,
     offTopicResponse,
+    kbArticle: null,
   };
 }
 

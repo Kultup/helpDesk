@@ -578,6 +578,87 @@ class TelegramAIService {
     }
 
     if (!result.isTicketIntent) {
+      // Стаття з бази знань — відправити заголовок + текст, потім фото/відео
+      if (result.kbArticle && result.kbArticle.title) {
+        const article = result.kbArticle;
+        const textParts = [article.title];
+        if (article.content && String(article.content).trim()) {
+          textParts.push(String(article.content).trim());
+        }
+        const articleText = TelegramUtils.normalizeQuickSolutionSteps(textParts.join('\n\n'));
+        await this.telegramService.sendMessage(chatId, articleText, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+            ],
+          },
+        });
+        session.dialog_history.push({ role: 'assistant', content: articleText });
+        botConversationService
+          .appendMessage(chatId, user, 'assistant', articleText)
+          .catch(() => {});
+
+        const attachments = Array.isArray(article.attachments) ? article.attachments : [];
+        const kbUploadsPath = path.join(__dirname, '..', 'uploads', 'kb');
+        for (const att of attachments) {
+          if (!att.filePath) {
+            continue;
+          }
+          const fullPath = path.join(kbUploadsPath, att.filePath);
+          try {
+            if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+              if (att.type === 'image') {
+                await this.telegramService.bot.sendPhoto(chatId, fs.createReadStream(fullPath));
+              } else if (att.type === 'video') {
+                await this.telegramService.bot.sendVideo(chatId, fs.createReadStream(fullPath));
+              }
+            }
+          } catch (err) {
+            logger.warn('KB: не вдалося відправити вкладений файл', {
+              filePath: att.filePath,
+              err: err.message,
+            });
+          }
+        }
+        return;
+      }
+
+      // Якщо є quickSolution (наприклад інструкція "як роздрукувати Word") — відправити його, не питати уточнень
+      const quickSol = result.quickSolution && String(result.quickSolution).trim();
+      if (quickSol) {
+        const normalized = TelegramUtils.normalizeQuickSolutionSteps(quickSol);
+        await this.telegramService.sendMessage(chatId, normalized, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+            ],
+          },
+        });
+        session.dialog_history.push({ role: 'assistant', content: normalized });
+        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
+        return;
+      }
+      // Інформаційна відповідь без заявки (наприклад графік підтримки, контакт) — відправити одразу
+      const offTopic = result.offTopicResponse && String(result.offTopicResponse).trim();
+      if (offTopic) {
+        const msg = offTopic.slice(0, 500);
+        await this.telegramService.sendMessage(chatId, msg, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+            ],
+          },
+        });
+        session.dialog_history.push({ role: 'assistant', content: msg });
+        botConversationService.appendMessage(chatId, user, 'assistant', msg).catch(() => {});
+        return;
+      }
+
       const telegramId = String(user?.telegramId ?? user?.telegramChatId ?? chatId);
       const textLower = (text || '').toLowerCase().trim();
       const isExchangeRateRequest =

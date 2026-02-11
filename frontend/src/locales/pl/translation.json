@@ -121,6 +121,7 @@
     "aiSettings": "Ustawienia AI",
     "conversations": "Historia rozmów",
     "aiKnowledge": "Wiedza AI",
+    "knowledgeBase": "Baza wiedzy",
     "activeDirectorySettings": "Ustawienia Active Directory",
     "zabbixSettings": "Ustawienia Zabbix",
     "documents": "Dokumenty",
@@ -139,8 +140,10 @@
     "groups": {
       "main": "Główne",
       "analytics": "Analityka i raporty",
-      "system": "Ustawienia systemowe",
-      "users": "Zarządzanie użytkownikami"
+      "ai": "AI i bot",
+      "reference": "Słowniki",
+      "system": "System i integracje",
+      "users": "Użytkownicy"
     },
     "userRoles": {
       "admin": "Administrator",
@@ -2000,6 +2003,47 @@
       "deleteError": "Błąd usuwania dokumentu",
       "exportError": "Błąd eksportu dokumentów",
       "saveError": "Błąd zapisywania dokumentu"
+    }
+  },
+  "knowledgeBase": {
+    "title": "Baza wiedzy",
+    "addArticle": "Dodaj artykuł",
+    "editArticle": "Edytuj artykuł",
+    "createArticle": "Utwórz artykuł",
+    "searchPlaceholder": "Szukaj po tytule, tagach...",
+    "statusAll": "Wszystkie",
+    "status": {
+      "draft": "Szkic",
+      "published": "Opublikowano",
+      "archived": "W archiwum"
+    },
+    "table": {
+      "title": "Tytuł",
+      "tags": "Tagi"
+    },
+    "noArticles": "Brak artykułów. Dodaj pierwszy artykuł.",
+    "form": {
+      "title": "Tytuł",
+      "titlePlaceholder": "Tytuł artykułu",
+      "content": "Treść",
+      "contentPlaceholder": "Tekst artykułu, instrukcje...",
+      "categoryPlaceholder": "Kategoria",
+      "tags": "Tagi",
+      "tagsPlaceholder": "druk, hasło, dostęp (oddzielone przecinkami)",
+      "media": "Zdjęcia i wideo"
+    },
+    "addMedia": "Dodaj zdjęcie lub wideo",
+    "uploading": "Przesyłanie...",
+    "deleteConfirmation": "Usunąć ten artykuł?",
+    "messages": {
+      "loadError": "Błąd ładowania artykułów",
+      "uploadError": "Błąd przesyłania plików",
+      "titleRequired": "Podaj tytuł",
+      "createSuccess": "Artykuł utworzono",
+      "updateSuccess": "Artykuł zaktualizowano",
+      "saveError": "Błąd zapisywania",
+      "deleteSuccess": "Artykuł usunięto",
+      "deleteError": "Błąd usuwania"
     }
   }
 }

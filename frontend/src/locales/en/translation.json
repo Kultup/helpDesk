@@ -121,6 +121,7 @@
     "aiSettings": "AI Settings",
     "conversations": "Conversation history",
     "aiKnowledge": "AI Knowledge",
+    "knowledgeBase": "Knowledge Base",
     "activeDirectorySettings": "Active Directory Settings",
     "zabbixSettings": "Zabbix Settings",
     "documents": "Documents",
@@ -138,8 +139,10 @@
     "groups": {
       "main": "Main",
       "analytics": "Analytics & Reports",
-      "system": "System Settings",
-      "users": "User Management"
+      "ai": "AI & Bot",
+      "reference": "Reference",
+      "system": "System & Integrations",
+      "users": "Users"
     },
     "userRoles": {
       "admin": "Administrator",
@@ -2091,6 +2094,47 @@
       "deleteError": "Error deleting document",
       "exportError": "Error exporting documents",
       "saveError": "Error saving document"
+    }
+  },
+  "knowledgeBase": {
+    "title": "Knowledge Base",
+    "addArticle": "Add article",
+    "editArticle": "Edit article",
+    "createArticle": "Create article",
+    "searchPlaceholder": "Search by title, tags...",
+    "statusAll": "All",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "table": {
+      "title": "Title",
+      "tags": "Tags"
+    },
+    "noArticles": "No articles. Add the first article.",
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Article title",
+      "content": "Content",
+      "contentPlaceholder": "Article text, instructions...",
+      "categoryPlaceholder": "Category",
+      "tags": "Tags",
+      "tagsPlaceholder": "print, password, access (comma-separated)",
+      "media": "Photos and video"
+    },
+    "addMedia": "Add photo or video",
+    "uploading": "Uploading...",
+    "deleteConfirmation": "Delete this article?",
+    "messages": {
+      "loadError": "Error loading articles",
+      "uploadError": "Error uploading files",
+      "titleRequired": "Title is required",
+      "createSuccess": "Article created",
+      "updateSuccess": "Article updated",
+      "saveError": "Error saving",
+      "deleteSuccess": "Article deleted",
+      "deleteError": "Error deleting"
     }
   }
 }

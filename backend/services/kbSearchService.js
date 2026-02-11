@@ -14,10 +14,10 @@ class KBSearchService {
       const {
         page = 1,
         limit = 10,
-        sortBy = 'relevance' // relevance, popularity, date, helpful
+        sortBy = 'relevance', // relevance, popularity, date, helpful
       } = options;
 
-      let searchQuery = { isDeleted: false };
+      const searchQuery = { isActive: true };
 
       // Фільтр за статусом
       if (filters.status === 'all') {
@@ -69,7 +69,7 @@ class KBSearchService {
       let articles;
       if (query && query.trim() && sortBy === 'relevance') {
         articles = await KnowledgeBase.find(searchQuery, {
-          score: { $meta: 'textScore' }
+          score: { $meta: 'textScore' },
         })
           .populate('createdBy', 'email firstName lastName')
           .sort(sort)
@@ -91,8 +91,8 @@ class KBSearchService {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / parseInt(limit))
-        }
+          pages: Math.ceil(total / parseInt(limit)),
+        },
       };
     } catch (error) {
       logger.error('Error searching KB articles:', error);
@@ -114,11 +114,11 @@ class KBSearchService {
       }
 
       // Знаходимо статті з такими ж тегами
-      let relatedQuery = {
+      const relatedQuery = {
         _id: { $ne: articleId },
         status: 'published',
         isActive: true,
-        isPublic: true
+        isPublic: true,
       };
 
       if (article.tags && article.tags.length > 0) {
@@ -126,7 +126,7 @@ class KBSearchService {
       }
 
       const relatedArticles = await KnowledgeBase.find(relatedQuery)
-        .populate('author', 'email position')
+        .populate('createdBy', 'email firstName lastName')
         .sort({ views: -1, helpfulCount: -1 })
         .limit(limit);
 
@@ -145,10 +145,9 @@ class KBSearchService {
   async generateArticleFromTicket(ticketId) {
     try {
       const Ticket = require('../models/Ticket');
-      const ticket = await Ticket.findById(ticketId)
-        .populate('assignedTo', 'email position');
+      const ticket = await Ticket.findById(ticketId).populate('assignedTo', 'email position');
 
-      if (!ticket || ticket.status !== 'resolved' && ticket.status !== 'closed') {
+      if (!ticket || (ticket.status !== 'resolved' && ticket.status !== 'closed')) {
         throw new Error('Ticket not found or not resolved');
       }
 
@@ -160,8 +159,8 @@ class KBSearchService {
         status: 'draft', // Стаття створюється як чернетка
         metadata: {
           source: 'ticket',
-          sourceTicket: ticketId
-        }
+          sourceTicket: ticketId,
+        },
       };
 
       return articleData;
@@ -178,8 +177,10 @@ class KBSearchService {
    */
   async getPopularArticles(limit = 10) {
     try {
-      return await KnowledgeBase.findPopular(limit)
-        .populate('author', 'email position');
+      return await KnowledgeBase.find({ status: 'published', isActive: true })
+        .sort({ views: -1, helpfulCount: -1 })
+        .limit(limit)
+        .populate('createdBy', 'email firstName lastName');
     } catch (error) {
       logger.error('Error getting popular articles:', error);
       return [];
@@ -193,8 +194,10 @@ class KBSearchService {
    */
   async getRecentArticles(limit = 10) {
     try {
-      return await KnowledgeBase.findRecent(limit)
-        .populate('author', 'email position');
+      return await KnowledgeBase.find({ status: 'published', isActive: true })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate('createdBy', 'email firstName lastName');
     } catch (error) {
       logger.error('Error getting recent articles:', error);
       return [];
@@ -203,4 +206,3 @@ class KBSearchService {
 }
 
 module.exports = new KBSearchService();
-

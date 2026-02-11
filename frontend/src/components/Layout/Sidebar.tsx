@@ -63,6 +63,43 @@ const navGroups: NavGroup[] = [
     items: [{ nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true }],
   },
   {
+    titleKey: 'sidebar.groups.ai',
+    adminOnly: true,
+    items: [
+      { nameKey: 'sidebar.aiSettings', href: '/settings/ai', icon: Sparkles, adminOnly: true },
+      {
+        nameKey: 'sidebar.knowledgeBase',
+        href: '/knowledge-base',
+        icon: FileText,
+        adminOnly: true,
+      },
+      { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Brain, adminOnly: true },
+      {
+        nameKey: 'sidebar.conversations',
+        href: '/conversations',
+        icon: MessageCircle,
+        adminOnly: true,
+      },
+      {
+        nameKey: 'sidebar.telegramSettings',
+        href: '/settings/telegram',
+        icon: Bot,
+        adminOnly: true,
+      },
+      { nameKey: 'sidebar.ratingMedia', href: '/settings/bot', icon: Image, adminOnly: true },
+    ],
+  },
+  {
+    titleKey: 'sidebar.groups.reference',
+    adminOnly: true,
+    items: [
+      { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
+      { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
+      { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },
+      { nameKey: 'sidebar.equipment', href: '/equipment', icon: Monitor, adminOnly: true },
+    ],
+  },
+  {
     titleKey: 'sidebar.groups.system',
     adminOnly: true,
     items: [
@@ -72,21 +109,6 @@ const navGroups: NavGroup[] = [
         icon: Server,
         adminOnly: true,
       },
-      { nameKey: 'sidebar.aiSettings', href: '/settings/ai', icon: Sparkles, adminOnly: true },
-      {
-        nameKey: 'sidebar.conversations',
-        href: '/conversations',
-        icon: MessageCircle,
-        adminOnly: true,
-      },
-      { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Brain, adminOnly: true },
-      {
-        nameKey: 'sidebar.telegramSettings',
-        href: '/settings/telegram',
-        icon: Bot,
-        adminOnly: true,
-      },
-      { nameKey: 'sidebar.ratingMedia', href: '/settings/bot', icon: Image, adminOnly: true },
       {
         nameKey: 'sidebar.activeDirectorySettings',
         href: '/settings/active-directory',
@@ -100,10 +122,6 @@ const navGroups: NavGroup[] = [
         adminOnly: true,
       },
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },
-      { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
-      { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
-      { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },
-      { nameKey: 'sidebar.equipment', href: '/equipment', icon: Monitor, adminOnly: true },
     ],
   },
   {
