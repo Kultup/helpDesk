@@ -495,6 +495,18 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
       `🚀 Оновлення тікету ${req.params.id}: попередній статус="${previousStatus}", новий статус="${value.status || 'не змінено'}"`
     );
 
+    // При повторному відкритті тікета (resolved/closed → open/in_progress) скидаємо прапорець запиту на оцінку
+    const wasClosed = previousStatus === 'resolved' || previousStatus === 'closed';
+    const isReopening =
+      wasClosed && value.status && value.status !== 'resolved' && value.status !== 'closed';
+    if (isReopening && ticket.qualityRating) {
+      ticket.qualityRating.ratingRequested = false;
+      ticket.qualityRating.requestedAt = undefined;
+      logger.info(
+        `📋 Тікет відкрито повторно — скинуто ratingRequested для можливості нової оцінки при закритті`
+      );
+    }
+
     // Оновлення тикету (виключаємо status та priority, якщо користувач не адмін)
     const updateData = { ...value };
     if (!isAdminRole(req.user.role)) {
