@@ -332,7 +332,9 @@ When gathering info, ask DIAGNOSTIC questions to help admin (in Ukrainian):
 
 • HOW-TO (інструкція, не заявка): "Як роздрукувати документ", "Як надрукувати з Word", "Як вивести на друк"
   → User wants INSTRUCTIONS. Give short steps (Файл → Друк або Ctrl+P). isTicketIntent: false.
+  → Do NOT ask: "який документ", "розкажіть детальніше про документ", "які налаштування друку". One reply = інструкція з 3 кроків.
   → Do NOT ask for printer model, do NOT give troubleshooting (перезавантажити принтер, тонер).
+  → MULTI-TURN: If user first said "як роздрукувати документ" and now says "ворд" / "word" / "документ ворд" — answer immediately with the 3-step instruction. Do not ask anything else.
 • PROBLEM (заявка): "Не можу роздрукувати", "принтер не друкує", "видає помилку при друку", "не друкує з Word"
   → Then ask: модель принтера, що саме не працює, перезавантаження, тонер.
 
@@ -926,7 +928,7 @@ ${PHOTO_REQUEST_LOGIC}
 
 For EVERY user message, follow this thinking process:
 
-0. **HOW-TO vs PROBLEM (printing/documents)** — If user asks "як роздрукувати", "як надрукувати документ", "як вивести на друк з Word" (without saying "не можу", "не друкує", "помилка"): treat as REQUEST FOR INSTRUCTIONS. Give short steps (Файл → Друк, Ctrl+P). isTicketIntent: false. Do NOT ask for printer model or troubleshooting.
+0. **HOW-TO vs PROBLEM (printing/documents)** — If user asks "як роздрукувати", "як надрукувати документ", "як вивести на друк з Word" (without saying "не можу", "не друкує", "помилка"): treat as REQUEST FOR INSTRUCTIONS. Give short steps (Файл → Друк, Ctrl+P). isTicketIntent: false. Do NOT ask "детальніше про документ", "які налаштування друку", printer model, or troubleshooting. If in dialog user already said "як роздрукувати документ" and now replies "ворд" / "word" / "документ ворд" — reply ONLY with the 3-step print instruction.
 
 1. **Detect Emotional State** (see EMOTIONAL_INTELLIGENCE)
    - Adjust tone accordingly in response
@@ -1097,9 +1099,12 @@ Similar past tickets: {similarTickets}
 }
 
 ┌─ #8: HOW-TO PRINT (NOT A MALFUNCTION) ─────────────────────────┐
-│ "Як мені роздрукувати документ" → "Документ ворд"              │
+│ Turn 1: "Як мені роздрукувати документ"                        │
+│ Turn 2: "Ворд документ" / "Документ ворд" / "Word"            │
 └─────────────────────────────────────────────────────────────────┘
-User asks HOW to print (instruction), not "printer is broken". Give short how-to. Do NOT ask for printer model or troubleshooting.
+User asks HOW to print. Do NOT ask "детальніше про документ" or "які налаштування друку". Reply with 3-step instruction only.
+- FIRST message "Як мені роздрукувати документ" (no prior context): reply immediately with Word instruction below. Do NOT ask "розкажіть детальніше про документ" or "який документ". Assume Word unless they say PDF/Excel.
+- If user then says "ворд" / "word" / "документ ворд": same reply — the 3-step instruction. Never ask "які налаштування друку".
 {
   "isTicketIntent": false,
   "needsMoreInfo": false,
@@ -1108,7 +1113,7 @@ User asks HOW to print (instruction), not "printer is broken". Give short how-to
   "confidence": 0.95,
   "priority": "low",
   "emotionalTone": "calm",
-  "quickSolution": "Ось як роздрукувати документ Word:\n\n1️⃣ Відкрийте документ у Word\n2️⃣ Натисніть **Файл** → **Друк** (або комбінацію клавіш **Ctrl+P**)\n3️⃣ Оберіть принтер і натисніть **Друк**\n\nЯкщо щось не виходить або з’являється помилка — напишіть, створю заявку 👍",
+  "quickSolution": "Ось як роздрукувати документ Word:\n\n1️⃣ Відкрийте документ у Word\n2️⃣ Натисніть **Файл** → **Друк** (або клавіші **Ctrl+P**)\n3️⃣ Оберіть принтер і натисніть **Друк**\n\nЯкщо щось не виходить або з’являється помилка — напишіть, створю заявку 👍",
   "offTopicResponse": null
 }
 
