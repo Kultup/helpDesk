@@ -8,8 +8,10 @@ const {
   TICKET_SUMMARY,
   PHOTO_ANALYSIS,
   COMPUTER_ACCESS_ANALYSIS,
+  STATISTICS_ANALYSIS,
   fillPrompt,
   MAX_TOKENS,
+  TEMPERATURES,
   INTENT_ANALYSIS_TEMPERATURE,
 } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
@@ -869,6 +871,63 @@ async function generateConversationalResponse(
   return response.trim().slice(0, 300);
 }
 
+/**
+ * Генерація аналізу статистики.
+ * @param {Object} statsData - дані статистики для аналізу
+ * @param {string} dateRange - діапазон дат у форматі рядка
+ * @returns {Promise<string|null>} - текст аналізу
+ */
+async function generateStatisticsAnalysis(statsData, dateRange = 'не вказано') {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled) {
+    return null;
+  }
+
+  const systemPrompt = fillPrompt(STATISTICS_ANALYSIS, {
+    statsData: JSON.stringify(statsData, null, 2),
+    dateRange,
+  });
+
+  const userMessage = `Проаналізуй ці дані та дай професійний висновок українською мовою.`;
+  const temperature = TEMPERATURES?.STATISTICS_ANALYSIS || 0.3;
+
+  const response = await retryHelper.retryAIRequest(
+    () =>
+      callChatCompletion(
+        settings,
+        systemPrompt,
+        userMessage,
+        MAX_TOKENS.STATISTICS_ANALYSIS || 1500,
+        false,
+        temperature
+      ),
+    'generateStatisticsAnalysis'
+  );
+
+  if (!response) {
+    return null;
+  }
+
+  try {
+    // Очищуємо відповідь від можливих markdown-тегів ```json ... ```
+    const cleanResponse = String(response)
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
+    return JSON.parse(cleanResponse);
+  } catch (error) {
+    logger.error('Помилка парсингу JSON в generateStatisticsAnalysis:', error);
+    // Якщо не вдалося спарсити як JSON, повертаємо як текст у полі summary
+    return {
+      summary: String(response).trim(),
+      keyInsights: [],
+      trends: { positive: [], negative: [], neutral: [] },
+      recommendations: [],
+      metrics: { performance: '', efficiency: '', quality: '' },
+    };
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
@@ -883,4 +942,5 @@ module.exports = {
   getTokenUsage,
   resetTokenUsage,
   transcribeVoiceToText,
+  generateStatisticsAnalysis,
 };

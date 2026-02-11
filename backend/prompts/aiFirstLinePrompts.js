@@ -950,7 +950,6 @@ For EVERY user message, follow this thinking process:
 8. **Response must be in Ukrainian** (see COMMUNICATION_STYLE)
 
 CRITICAL: All quickSolution and offTopicResponse text MUST be in Ukrainian.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📚 CONTEXT PROVIDED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1401,6 +1400,43 @@ Emotional tone: {emotionalTone}
 // EXPORTS
 // ============================================================================
 
+const STATISTICS_ANALYSIS = `You are a senior helpdesk analyst. Analyze the provided ticket statistics and provide a professional, actionable summary in JSON format.
+
+Your response MUST be a valid JSON object with the following structure:
+{
+  "summary": "General overview of the situation (Ukrainian)",
+  "keyInsights": ["Array of 3-5 key insights (Ukrainian)"],
+  "trends": {
+    "positive": ["Positive trends (Ukrainian)"],
+    "negative": ["Negative trends (Ukrainian)"],
+    "neutral": ["Neutral observations (Ukrainian)"]
+  },
+  "recommendations": [
+    {
+      "title": "Recommendation title (Ukrainian)",
+      "description": "Detailed recommendation description (Ukrainian)",
+      "priority": "high|medium|low",
+      "expectedImpact": "Expected result (Ukrainian)"
+    }
+  ],
+  "metrics": {
+    "performance": "Summary of resolution speed (Ukrainian)",
+    "efficiency": "Summary of workload handling (Ukrainian)",
+    "quality": "Summary of resolution quality (Ukrainian)"
+  }
+}
+
+RULES:
+- Respond ONLY with the JSON object.
+- All text content must be in Ukrainian.
+- Use professional terminology.
+- Be specific and data-driven based on the provided numbers.
+
+📥 DATA FOR ANALYSIS
+Statistics Data: {statsData}
+Date Range: {dateRange}
+`;
+
 function fillPrompt(template, vars = {}) {
   let out = template;
 
@@ -1454,18 +1490,20 @@ module.exports = {
   PHOTO_ANALYSIS,
   COMPUTER_ACCESS_ANALYSIS,
   CONVERSATIONAL_TRANSITION,
+  STATISTICS_ANALYSIS,
 
   // Utility
   fillPrompt,
 
   // Configuration
   MAX_TOKENS: {
-    INTENT_ANALYSIS: 800, // Increased for more complex logic
+    INTENT_ANALYSIS: 800,
     NEXT_QUESTION: 120,
-    TICKET_SUMMARY: 900, // Increased for detailed tickets
+    TICKET_SUMMARY: 900,
     PHOTO_ANALYSIS: 500,
     COMPUTER_ACCESS_ANALYSIS: 150,
     CONVERSATIONAL_TRANSITION: 100,
+    STATISTICS_ANALYSIS: 1500, // More tokens for complex analysis
   },
 
   TEMPERATURES: {
@@ -1474,6 +1512,7 @@ module.exports = {
     TICKET_SUMMARY: 0.4,
     PHOTO_ANALYSIS: 0.6,
     CONVERSATIONAL_TRANSITION: 0.8,
+    STATISTICS_ANALYSIS: 0.3, // Analytical requires lower temperature
   },
 
   // Compatibility

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  Ticket, 
-  Clock, 
-  CheckCircle, 
+import {
+  Ticket,
+  Clock,
+  CheckCircle,
   AlertTriangle,
   XCircle,
   TrendingUp,
@@ -20,7 +20,14 @@ import {
   Sparkles,
   Plus,
   StickyNote,
-  Monitor
+  Monitor,
+  Target,
+  Lightbulb,
+  AlertCircle,
+  TrendingDown,
+  Minus,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 
 // Utils
@@ -66,52 +73,54 @@ interface StatCardProps {
 // COMPONENTS
 // ============================================================================
 
-const StatCard: React.FC<StatCardProps> = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color, 
-  trend, 
-  onClick 
-}) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, trend, onClick }) => {
   const isPositiveTrend = trend !== undefined && trend >= 0;
   const trendColor = isPositiveTrend ? 'text-emerald-600' : 'text-rose-600';
   const trendIconColor = isPositiveTrend ? 'text-emerald-500' : 'text-rose-500';
   const trendSign = trend !== undefined ? (trend >= 0 ? '+' : '') : '';
 
   return (
-    <Card 
+    <Card
       className={`group relative overflow-hidden bg-white border border-gray-200 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] ${
         onClick ? 'cursor-pointer' : ''
-      }`} 
+      }`}
       onClick={onClick}
     >
       {/* Декоративний градієнтний фон */}
       <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-br from-gray-50/50 to-transparent opacity-50" />
-      
+
       <CardContent className="relative p-5 sm:p-6 flex flex-col items-center text-center">
         {/* Іконка вгорі по центру */}
         <div className="mb-4 relative">
-          <div className={`p-3 sm:p-4 rounded-xl ${color} shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+          <div
+            className={`p-3 sm:p-4 rounded-xl ${color} shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}
+          >
             <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
           </div>
         </div>
-        
+
         {/* Заголовок під іконкою */}
         <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-3 sm:mb-4 tracking-wider uppercase">
           {title}
         </p>
-        
+
         {/* Велике число */}
         <p className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-4 tracking-tight leading-none">
           {value.toLocaleString()}
         </p>
-        
+
         {/* Тренд внизу */}
         {trend !== undefined && (
-          <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${trendColor} bg-emerald-50 border border-emerald-100/50 shadow-sm`}>
-            <TrendingUp className={`h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`} />
-            <span>{trendSign}{trend}%</span>
+          <div
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${trendColor} bg-emerald-50 border border-emerald-100/50 shadow-sm`}
+          >
+            <TrendingUp
+              className={`h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 ${trendIconColor} ${!isPositiveTrend ? 'rotate-180' : ''}`}
+            />
+            <span>
+              {trendSign}
+              {trend}%
+            </span>
           </div>
         )}
       </CardContent>
@@ -127,18 +136,22 @@ const Dashboard: React.FC = () => {
   // ========================================
   // HOOKS AND STATE
   // ========================================
-  
+
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
   const basePath = isAdmin ? '/admin' : '';
-  
+
   // Data hooks
   const { tickets, isLoading: ticketsLoading, refetch: refetchTickets } = useTickets();
-  const { stats: dashboardStats, loading: statsLoading, refetch: refetchStats } = useDashboardStats();
+  const {
+    stats: dashboardStats,
+    loading: statsLoading,
+    refetch: refetchStats,
+  } = useDashboardStats();
   const typedDashboardStats = dashboardStats as DashboardStats | null;
 
   // Active Directory stats for Dashboard shortcut block
@@ -146,7 +159,7 @@ const Dashboard: React.FC = () => {
   const [adComputersTotal, setAdComputersTotal] = useState<number | null>(null);
   const [adStatsLoading, setAdStatsLoading] = useState<boolean>(false);
   const [adStatsError, setAdStatsError] = useState<string | null>(null);
-  
+
   // User monthly stats
   const [userMonthlyStats, setUserMonthlyStats] = useState<{
     currentMonth: { count: number; name: string };
@@ -154,7 +167,11 @@ const Dashboard: React.FC = () => {
     growth: number;
   } | null>(null);
   const [userStatsLoading, setUserStatsLoading] = useState<boolean>(false);
-  
+
+  // AI Analysis state
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+
   // Create Ticket Modal state
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
 
@@ -165,7 +182,10 @@ const Dashboard: React.FC = () => {
       // Дозволяємо завантаження статистики Active Directory для всіх користувачів
       const response = await apiService.getADStatistics();
       if (response?.success && response.data) {
-        const data = response.data as { users?: { total?: number }; computers?: { total?: number } };
+        const data = response.data as {
+          users?: { total?: number };
+          computers?: { total?: number };
+        };
         const usersTotal = data.users?.total ?? null;
         const computersTotal = data.computers?.total ?? null;
         setAdUsersTotal(usersTotal);
@@ -196,7 +216,7 @@ const Dashboard: React.FC = () => {
         setUserMonthlyStats({
           currentMonth: response.data.currentMonth,
           totalUsers: response.data.totalUsers,
-          growth: response.data.growth
+          growth: response.data.growth,
         });
       }
     } catch (error) {
@@ -205,6 +225,21 @@ const Dashboard: React.FC = () => {
       setUserStatsLoading(false);
     }
   }, [isAdmin]);
+
+  const handleAnalyze = async () => {
+    if (isAnalyzing) return;
+    setIsAnalyzing(true);
+    try {
+      const response = await apiService.analyzeAnalytics();
+      if (response.success && response.data) {
+        setAiAnalysis(response.data);
+      }
+    } catch (error) {
+      console.error('Помилка AI аналізу:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     loadAdStats();
@@ -218,7 +253,7 @@ const Dashboard: React.FC = () => {
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Refs
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollPositionRef = useRef<number>(0);
@@ -249,7 +284,13 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       console.error(t('dashboard.errors.updateError'), error);
     }
-  }, [refetchTickets, refetchStats, loadUserMonthlyStats, saveScrollPosition, restoreScrollPosition]);
+  }, [
+    refetchTickets,
+    refetchStats,
+    loadUserMonthlyStats,
+    saveScrollPosition,
+    restoreScrollPosition,
+  ]);
 
   // Функція для обробки оновлення
   const handleRefresh = React.useCallback(async () => {
@@ -286,7 +327,7 @@ const Dashboard: React.FC = () => {
       setMessage(location.state.message);
       setMessageType(location.state.type || 'success');
       setShowMessage(true);
-      
+
       const timer = setTimeout(() => {
         setShowMessage(false);
       }, 5000);
@@ -306,38 +347,42 @@ const Dashboard: React.FC = () => {
 
   // Обробка тікетів
   const recentTickets = tickets ? tickets.slice(0, 5) : [];
-  const priorityTickets = tickets ? tickets.filter(ticket => ticket.priority === TicketPriority.HIGH).slice(0, 3) : [];
+  const priorityTickets = tickets
+    ? tickets.filter(ticket => ticket.priority === TicketPriority.HIGH).slice(0, 3)
+    : [];
 
   // Обробка статистики з перевіркою на null/undefined
-  const stats = typedDashboardStats ? {
-    total: typedDashboardStats.totalTickets,
-    open: typedDashboardStats.openTickets,
-    inProgress: typedDashboardStats.inProgressTickets,
-    resolved: typedDashboardStats.resolvedTickets,
-    closed: typedDashboardStats.closedTickets,
-    highPriority: typedDashboardStats.highPriorityTickets,
-    trends: {
-      total: typedDashboardStats.trends?.totalTickets || 0,
-      open: typedDashboardStats.trends?.openTickets || 0,
-      inProgress: typedDashboardStats.trends?.inProgressTickets || 0,
-      resolved: typedDashboardStats.trends?.resolvedTickets || 0,
-      closed: typedDashboardStats.trends?.closedTickets || 0
-    }
-  } : {
-    total: 0,
-    open: 0,
-    inProgress: 0,
-    resolved: 0,
-    closed: 0,
-    highPriority: 0,
-    trends: {
-      total: 0,
-      open: 0,
-      inProgress: 0,
-      resolved: 0,
-      closed: 0
-    }
-  };
+  const stats = typedDashboardStats
+    ? {
+        total: typedDashboardStats.totalTickets,
+        open: typedDashboardStats.openTickets,
+        inProgress: typedDashboardStats.inProgressTickets,
+        resolved: typedDashboardStats.resolvedTickets,
+        closed: typedDashboardStats.closedTickets,
+        highPriority: typedDashboardStats.highPriorityTickets,
+        trends: {
+          total: typedDashboardStats.trends?.totalTickets || 0,
+          open: typedDashboardStats.trends?.openTickets || 0,
+          inProgress: typedDashboardStats.trends?.inProgressTickets || 0,
+          resolved: typedDashboardStats.trends?.resolvedTickets || 0,
+          closed: typedDashboardStats.trends?.closedTickets || 0,
+        },
+      }
+    : {
+        total: 0,
+        open: 0,
+        inProgress: 0,
+        resolved: 0,
+        closed: 0,
+        highPriority: 0,
+        trends: {
+          total: 0,
+          open: 0,
+          inProgress: 0,
+          resolved: 0,
+          closed: 0,
+        },
+      };
 
   // Створення масиву статистики для StatCard компонентів
   const statsArray = [
@@ -347,7 +392,7 @@ const Dashboard: React.FC = () => {
       icon: Ticket,
       color: 'bg-gradient-to-br from-blue-500 to-blue-600',
       trend: stats.trends.total,
-      onClick: () => navigate(`${basePath}/tickets`)
+      onClick: () => navigate(`${basePath}/tickets`),
     },
     {
       title: t('dashboard.stats.openTickets'),
@@ -355,7 +400,7 @@ const Dashboard: React.FC = () => {
       icon: Clock,
       color: 'bg-gradient-to-br from-amber-500 to-orange-500',
       trend: stats.trends.open,
-      onClick: () => navigate(`${basePath}/tickets?status=open`)
+      onClick: () => navigate(`${basePath}/tickets?status=open`),
     },
     {
       title: t('dashboard.stats.inProgressTickets'),
@@ -363,7 +408,7 @@ const Dashboard: React.FC = () => {
       icon: Activity,
       color: 'bg-gradient-to-br from-purple-500 to-purple-600',
       trend: stats.trends.inProgress,
-      onClick: () => navigate(`${basePath}/tickets?status=in_progress`)
+      onClick: () => navigate(`${basePath}/tickets?status=in_progress`),
     },
     {
       title: t('dashboard.stats.closedTickets'),
@@ -371,16 +416,20 @@ const Dashboard: React.FC = () => {
       icon: XCircle,
       color: 'bg-gradient-to-br from-gray-500 to-gray-600',
       trend: stats.trends.closed,
-      onClick: () => navigate(`${basePath}/tickets?status=closed`)
+      onClick: () => navigate(`${basePath}/tickets?status=closed`),
     },
-    ...(isAdmin && userMonthlyStats ? [{ 
-      title: `${t('dashboard.stats.users')} (${userMonthlyStats.currentMonth.name})`,
-      value: userMonthlyStats.currentMonth.count,
-      icon: Users,
-      color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
-      trend: userMonthlyStats.growth,
-      onClick: () => navigate(`${basePath}/users`)
-    }] : [])
+    ...(isAdmin && userMonthlyStats
+      ? [
+          {
+            title: `${t('dashboard.stats.users')} (${userMonthlyStats.currentMonth.name})`,
+            value: userMonthlyStats.currentMonth.count,
+            icon: Users,
+            color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',
+            trend: userMonthlyStats.growth,
+            onClick: () => navigate(`${basePath}/users`),
+          },
+        ]
+      : []),
   ];
 
   // ========================================
@@ -461,280 +510,496 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-          {/* Key Metrics Section - Only for Admins */}
-          {isAdmin && (
-            <div className="mb-6 sm:mb-8 lg:mb-12">
-              <div className="mb-5 sm:mb-6 flex items-center">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
-                    <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                    {t('dashboard.keyMetrics')}
-                  </h2>
+        {/* Key Metrics Section - Only for Admins */}
+        {isAdmin && (
+          <div className="mb-6 sm:mb-8 lg:mb-12">
+            <div className="mb-5 sm:mb-6 flex items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
+                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
-                {statsArray.map((stat, index) => (
-                  <StatCard key={index} {...stat} />
-                ))}
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                  {t('dashboard.keyMetrics')}
+                </h2>
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
+              {statsArray.map((stat, index) => (
+                <StatCard key={index} {...stat} />
+              ))}
+            </div>
 
-          {/* Main Content Grid */}
-          <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-            {/* Top Section - Tickets */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-              {/* Left Column - Recent Tickets */}
-              <div className="lg:col-span-2">
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 lg:mb-8">
-                    <h2 className="text-lg sm:text-xl font-bold text-foreground flex items-center">
-                      <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-primary" />
-                      {t('dashboard.recentTickets')}
-                    </h2>
+            {/* AI Analysis Section */}
+            <div className="mt-8 transition-all duration-500">
+              <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 overflow-hidden">
+                <div className="p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-purple-100 p-2.5 rounded-xl shadow-sm">
+                        <Sparkles className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900">AI Аналітика та інсайти</h2>
+                        <p className="text-xs text-gray-500">
+                          Інтелектуальний аналіз ефективності підрозділу
+                        </p>
+                      </div>
+                    </div>
                     <Button
-                      onClick={() => navigate('/tickets')}
-                      variant="outline"
-                      className="text-primary border-primary/30 hover:bg-primary/10 hover:border-primary px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base"
+                      onClick={handleAnalyze}
+                      isLoading={isAnalyzing}
+                      disabled={isAnalyzing}
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg transform hover:scale-105 transition-all text-sm font-bold h-11 px-6"
                     >
-                      {t('dashboard.viewAll')}
+                      <Zap className="h-4 w-4 mr-2" />
+                      {aiAnalysis ? 'Оновити аналіз' : 'Згенерувати аналіз'}
                     </Button>
                   </div>
-                  <div className="space-y-3 sm:space-y-4">
-                    {recentTickets.length > 0 ? (
-                      recentTickets.map((ticket) => (
+
+                  {aiAnalysis ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+                      {/* Summary & Insights */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
+                          <h3 className="text-sm font-bold text-purple-800 uppercase tracking-wider mb-3 flex items-center">
+                            <Target className="h-4 w-4 mr-2" />
+                            Короткий огляд
+                          </h3>
+                          <p className="text-gray-700 leading-relaxed italic border-l-4 border-purple-300 pl-4 py-1">
+                            "{aiAnalysis.summary}"
+                          </p>
+
+                          <div className="mt-6">
+                            <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wider mb-4 flex items-center">
+                              <Lightbulb className="h-4 w-4 mr-2" />
+                              Ключові інсайти
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {aiAnalysis.keyInsights?.map((insight: string, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-start gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100"
+                                >
+                                  <div className="h-2 w-2 rounded-full bg-blue-500 mt-2 shrink-0" />
+                                  <span className="text-sm text-gray-700">{insight}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Recommendations */}
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-100 shadow-sm">
+                          <h3 className="text-sm font-bold text-emerald-800 uppercase tracking-wider mb-4 flex items-center">
+                            <Zap className="h-4 w-4 mr-2" />
+                            Рекомендовані дії
+                          </h3>
+                          <div className="space-y-4">
+                            {aiAnalysis.recommendations?.map((rec: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="group p-4 bg-white border border-gray-100 rounded-xl hover:border-emerald-200 hover:shadow-md transition-all"
+                              >
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors uppercase text-xs">
+                                    {rec.title}
+                                  </h4>
+                                  <span
+                                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                      rec.priority === 'high'
+                                        ? 'bg-rose-100 text-rose-700'
+                                        : rec.priority === 'medium'
+                                          ? 'bg-amber-100 text-amber-700'
+                                          : 'bg-blue-100 text-blue-700'
+                                    }`}
+                                  >
+                                    {rec.priority}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
+                                <div className="flex items-center text-[10px] text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded-md">
+                                  Ефект: {rec.expectedImpact}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Trends & Metrics */}
+                      <div className="space-y-6">
+                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-indigo-100 shadow-sm">
+                          <h3 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">
+                            Тренди періоду
+                          </h3>
+                          <div className="space-y-4">
+                            {/* Positive */}
+                            {aiAnalysis.trends?.positive?.map((trend: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3">
+                                <div className="p-1.5 bg-emerald-100 rounded-lg">
+                                  <TrendingUp className="h-3 w-3 text-emerald-600" />
+                                </div>
+                                <span className="text-sm text-gray-700">{trend}</span>
+                              </div>
+                            ))}
+                            {/* Negative */}
+                            {aiAnalysis.trends?.negative?.map((trend: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3">
+                                <div className="p-1.5 bg-rose-100 rounded-lg">
+                                  <TrendingDown className="h-3 w-3 text-rose-600" />
+                                </div>
+                                <span className="text-sm text-gray-700">{trend}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-200/50">
+                          <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-80">
+                            Метрики якості
+                          </h3>
+                          <div className="space-y-6">
+                            <div>
+                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
+                                Швидкість
+                              </div>
+                              <div className="text-sm font-medium">
+                                {aiAnalysis.metrics?.performance}
+                              </div>
+                            </div>
+                            <hr className="opacity-20" />
+                            <div>
+                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
+                                Ефективність
+                              </div>
+                              <div className="text-sm font-medium">
+                                {aiAnalysis.metrics?.efficiency}
+                              </div>
+                            </div>
+                            <hr className="opacity-20" />
+                            <div>
+                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
+                                Якість
+                              </div>
+                              <div className="text-sm font-medium">
+                                {aiAnalysis.metrics?.quality}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 bg-white/40 rounded-3xl border border-dashed border-purple-200">
+                      <Sparkles className="h-12 w-12 text-purple-200 mb-4" />
+                      <p className="text-gray-500 font-medium">
+                        Аналіз за поточний період ще не згенеровано
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Отримайте інсайти від штучного інтелекту одним натисканням
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+          {/* Top Section - Tickets */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {/* Left Column - Recent Tickets */}
+            <div className="lg:col-span-2">
+              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 lg:mb-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground flex items-center">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-primary" />
+                    {t('dashboard.recentTickets')}
+                  </h2>
+                  <Button
+                    onClick={() => navigate('/tickets')}
+                    variant="outline"
+                    className="text-primary border-primary/30 hover:bg-primary/10 hover:border-primary px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base"
+                  >
+                    {t('dashboard.viewAll')}
+                  </Button>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  {recentTickets.length > 0 ? (
+                    recentTickets.map(ticket => (
+                      <div
+                        key={ticket._id}
+                        className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
+                        onClick={() => navigate(`/tickets/${ticket._id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
+                          <h3 className="font-bold text-foreground text-base sm:text-lg group-hover:text-primary transition-colors duration-300 flex-1 min-w-0 line-clamp-2">
+                            {ticket.title}
+                          </h3>
+                          <span
+                            className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 ${
+                              ticket.priority === 'high'
+                                ? 'bg-gradient-to-r from-error/20 to-error/30 text-error border border-error/30'
+                                : ticket.priority === 'medium'
+                                  ? 'bg-gradient-to-r from-warning/20 to-warning/30 text-warning border border-warning/30'
+                                  : 'bg-gradient-to-r from-success/20 to-success/30 text-success border border-success/30'
+                            }`}
+                          >
+                            {ticket.priority === 'high'
+                              ? t('dashboard.priorities.high')
+                              : ticket.priority === 'medium'
+                                ? t('dashboard.priorities.medium')
+                                : t('dashboard.priorities.low')}
+                          </span>
+                        </div>
+                        <p className="text-text-secondary mb-3 sm:mb-4 line-clamp-2 text-sm">
+                          {ticket.description}
+                        </p>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 text-xs sm:text-sm">
+                          <span className="text-text-secondary font-medium">
+                            {t('dashboard.created')}: {formatDateWithLocale(ticket.createdAt)}
+                          </span>
+                          <span
+                            className={`px-2 sm:px-3 py-1 rounded-full font-bold text-xs ${
+                              ticket.status === 'open'
+                                ? 'bg-gradient-to-r from-primary/20 to-primary/30 text-primary'
+                                : ticket.status === 'in_progress'
+                                  ? 'bg-gradient-to-r from-accent/20 to-accent/30 text-accent'
+                                  : ticket.status === 'resolved'
+                                    ? 'bg-gradient-to-r from-success/20 to-success/30 text-success'
+                                    : 'bg-gradient-to-r from-text-secondary/20 to-text-secondary/30 text-text-secondary'
+                            }`}
+                          >
+                            {ticket.status === 'open'
+                              ? t('dashboard.statuses.open')
+                              : ticket.status === 'in_progress'
+                                ? t('dashboard.statuses.inProgress')
+                                : ticket.status === 'resolved'
+                                  ? t('dashboard.statuses.resolved')
+                                  : t('dashboard.statuses.closed')}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-16">
+                      <FileText className="h-16 w-16 text-text-secondary/50 mx-auto mb-4" />
+                      <p className="text-text-secondary text-lg font-medium">
+                        {t('dashboard.noRecentTickets')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Quick Actions & Priority Tickets */}
+            <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+              {/* Quick Actions */}
+              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                  <Zap className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-accent" />
+                  {t('dashboard.quickActions')}
+                </h2>
+                <div className="space-y-3 sm:space-y-4">
+                  <Button
+                    onClick={() => setIsCreateTicketModalOpen(true)}
+                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
+                    style={{
+                      background:
+                        'linear-gradient(to right, var(--color-primary), var(--color-accent))',
+                      color: 'white',
+                    }}
+                  >
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
+                    {t('dashboard.createNewTicket')}
+                  </Button>
+
+                  {isAdmin && (
+                    <Button
+                      onClick={() => navigate(`${basePath}/analytics`)}
+                      variant="outline"
+                      className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
+                      style={{
+                        borderColor: 'var(--color-border)',
+                        color: 'var(--color-text)',
+                        backgroundColor: 'var(--color-surface)',
+                      }}
+                    >
+                      <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      {t('dashboard.analytics')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Priority Tickets - Compact - Only for Admins */}
+              {isAdmin && (
+                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
+                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
+                    {t('dashboard.priorityTickets')}
+                  </h2>
+                  <div className="space-y-2 sm:space-y-3">
+                    {priorityTickets.length > 0 ? (
+                      priorityTickets.slice(0, 3).map(ticket => (
                         <div
                           key={ticket._id}
-                          className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
+                          className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
                           onClick={() => navigate(`/tickets/${ticket._id}`)}
                         >
-                          <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
-                            <h3 className="font-bold text-foreground text-base sm:text-lg group-hover:text-primary transition-colors duration-300 flex-1 min-w-0 line-clamp-2">
-                              {ticket.title}
-                            </h3>
-                            <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold flex-shrink-0 ${
-                              ticket.priority === 'high' ? 'bg-gradient-to-r from-error/20 to-error/30 text-error border border-error/30' :
-                              ticket.priority === 'medium' ? 'bg-gradient-to-r from-warning/20 to-warning/30 text-warning border border-warning/30' :
-                              'bg-gradient-to-r from-success/20 to-success/30 text-success border border-success/30'
-                            }`}>
-                              {ticket.priority === 'high' ? t('dashboard.priorities.high') :
-                               ticket.priority === 'medium' ? t('dashboard.priorities.medium') : t('dashboard.priorities.low')}
+                          <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
+                            {ticket.title}
+                          </h3>
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 text-xs">
+                            <span className="text-error font-bold flex items-center">
+                              <Zap className="h-3 w-3 mr-1" />
+                              {t('dashboard.priorities.high')}
                             </span>
-                          </div>
-                          <p className="text-text-secondary mb-3 sm:mb-4 line-clamp-2 text-sm">{ticket.description}</p>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 text-xs sm:text-sm">
                             <span className="text-text-secondary font-medium">
-                                {t('dashboard.created')}: {formatDateWithLocale(ticket.createdAt)}
-                              </span>
-                            <span className={`px-2 sm:px-3 py-1 rounded-full font-bold text-xs ${
-                              ticket.status === 'open' ? 'bg-gradient-to-r from-primary/20 to-primary/30 text-primary' :
-                              ticket.status === 'in_progress' ? 'bg-gradient-to-r from-accent/20 to-accent/30 text-accent' :
-                              ticket.status === 'resolved' ? 'bg-gradient-to-r from-success/20 to-success/30 text-success' :
-                              'bg-gradient-to-r from-text-secondary/20 to-text-secondary/30 text-text-secondary'
-                            }`}>
-                              {ticket.status === 'open' ? t('dashboard.statuses.open') :
-                               ticket.status === 'in_progress' ? t('dashboard.statuses.inProgress') :
-                               ticket.status === 'resolved' ? t('dashboard.statuses.resolved') : t('dashboard.statuses.closed')}
+                              {formatDateWithLocale(ticket.createdAt)}
                             </span>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-16">
-                        <FileText className="h-16 w-16 text-text-secondary/50 mx-auto mb-4" />
-                        <p className="text-text-secondary text-lg font-medium">{t('dashboard.noRecentTickets')}</p>
+                      <div className="text-center py-6 sm:py-8">
+                        <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
+                        <p className="text-text-secondary text-xs sm:text-sm font-medium">
+                          {t('dashboard.noPriorityTickets')}
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Right Column - Quick Actions & Priority Tickets */}
-              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                {/* Quick Actions */}
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
-                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-accent" />
-                    {t('dashboard.quickActions')}
-                  </h2>
-                  <div className="space-y-3 sm:space-y-4">
-                    <Button
-                      onClick={() => setIsCreateTicketModalOpen(true)}
-                      className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
-                      style={{
-                        background: 'linear-gradient(to right, var(--color-primary), var(--color-accent))',
-                        color: 'white'
-                      }}
-                    >
-                      <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
-                        {t('dashboard.createNewTicket')}
-                    </Button>
-
-                    {isAdmin && (
-                      <Button
-                        onClick={() => navigate(`${basePath}/analytics`)}
-                        variant="outline"
-                        className="w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 text-sm sm:text-base"
-                        style={{
-                          borderColor: 'var(--color-border)',
-                          color: 'var(--color-text)',
-                          backgroundColor: 'var(--color-surface)'
-                        }}
-                      >
-                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                        {t('dashboard.analytics')}
-                      </Button>
-                    )}
-                  </div>
+          {/* Analytics Section - Full Width - Only for Admins */}
+          {isAdmin && (
+            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
+                {t('dashboard.analyticsAndReports')}
+              </h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
+                  <WeeklyTicketsChart />
                 </div>
-
-                {/* Priority Tickets - Compact - Only for Admins */}
-                {isAdmin && (
-                  <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                    <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
-                        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
-                        {t('dashboard.priorityTickets')}
-                      </h2>
-                    <div className="space-y-2 sm:space-y-3">
-                      {priorityTickets.length > 0 ? (
-                        priorityTickets.slice(0, 3).map((ticket) => (
-                          <div
-                            key={ticket._id}
-                            className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
-                            onClick={() => navigate(`/tickets/${ticket._id}`)}
-                          >
-                            <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
-                              {ticket.title}
-                            </h3>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 text-xs">
-                              <span className="text-error font-bold flex items-center">
-                                <Zap className="h-3 w-3 mr-1" />
-                                {t('dashboard.priorities.high')}
-                              </span>
-                              <span className="text-text-secondary font-medium">
-                                {formatDateWithLocale(ticket.createdAt)}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-6 sm:py-8">
-                          <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
-                          <p className="text-text-secondary text-xs sm:text-sm font-medium">{t('dashboard.noPriorityTickets')}</p>
-                        </div>
-                      )}
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
+                  <WorkloadByDayChart />
+                </div>
+                {/* Analytics & Reports Shortcut Block replaced with AD counters */}
+                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
+                      <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
+                      {t('dashboard.analyticsAndReports')}
+                    </h3>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        onClick={() => loadAdStats()}
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                      >
+                        <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => navigate('/admin/analytics')}
+                        variant="primary"
+                        size="sm"
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
+                      >
+                        Відкрити
+                      </Button>
                     </div>
                   </div>
-                )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div
+                      className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
+                      onClick={() => navigate('/admin/active-directory?view=users')}
+                    >
+                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                          {t('activeDirectory.statistics.totalUsers')}
+                        </p>
+                        {adStatsLoading ? (
+                          <span className="text-xs sm:text-sm text-text-secondary">
+                            Завантаження...
+                          </span>
+                        ) : adStatsError ? (
+                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
+                        ) : (
+                          <p className="text-xl sm:text-2xl font-black text-foreground">
+                            {(adUsersTotal ?? 0).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
+                      onClick={() => navigate('/admin/active-directory?view=computers')}
+                    >
+                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
+                        <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                          {t('activeDirectory.statistics.totalComputers')}
+                        </p>
+                        {adStatsLoading ? (
+                          <span className="text-xs sm:text-sm text-text-secondary">
+                            Завантаження...
+                          </span>
+                        ) : adStatsError ? (
+                          <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
+                        ) : (
+                          <p className="text-xl sm:text-2xl font-black text-foreground">
+                            {(adComputersTotal ?? 0).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Analytics Section - Full Width - Only for Admins */}
-            {isAdmin && (
-              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
-                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
-                  {t('dashboard.analyticsAndReports')}
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
-                    <WeeklyTicketsChart />
-                  </div>
-                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
-                    <WorkloadByDayChart />
-                  </div>
-                  {/* Analytics & Reports Shortcut Block replaced with AD counters */}
-                  <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-                      <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
-                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
-                        {t('dashboard.analyticsAndReports')}
-                      </h3>
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <Button onClick={() => loadAdStats()} variant="ghost" size="sm" className="flex-1 sm:flex-none">
-                          <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                        <Button onClick={() => navigate('/admin/analytics')} variant="primary" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm">
-                          Відкрити
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                           onClick={() => navigate('/admin/active-directory?view=users')}>
-                        <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
-                          <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                            {t('activeDirectory.statistics.totalUsers')}
-                          </p>
-                          {adStatsLoading ? (
-                            <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
-                          ) : adStatsError ? (
-                            <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
-                          ) : (
-                            <p className="text-xl sm:text-2xl font-black text-foreground">
-                              {(adUsersTotal ?? 0).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
-                           onClick={() => navigate('/admin/active-directory?view=computers')}>
-                        <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
-                          <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                            {t('activeDirectory.statistics.totalComputers')}
-                          </p>
-                          {adStatsLoading ? (
-                            <span className="text-xs sm:text-sm text-text-secondary">Завантаження...</span>
-                          ) : adStatsError ? (
-                            <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
-                          ) : (
-                            <p className="text-xl sm:text-2xl font-black text-foreground">
-                              {(adComputersTotal ?? 0).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+          {/* Bottom Section - Admin Tools */}
+          {isAdmin && (
+            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+                <StickyNote className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-warning" />
+                {t('dashboard.adminTools')}
+              </h2>
+              <div className="space-y-4 sm:space-y-6">
+                <div className="p-4 sm:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                  <AdminNotes />
                 </div>
               </div>
-            )}
-
-            {/* Bottom Section - Admin Tools */}
-            {isAdmin && (
-              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
-                  <StickyNote className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-warning" />
-                  {t('dashboard.adminTools')}
-                </h2>
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="p-4 sm:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
-                    <AdminNotes />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        
-        {/* Modal для створення тікету */}
-        <CreateTicketModal
-          isOpen={isCreateTicketModalOpen}
-          onClose={() => setIsCreateTicketModalOpen(false)}
-          onSuccess={() => {
-            setIsCreateTicketModalOpen(false);
-            refetchTickets(); // Оновлюємо список тікетів
-            refetchStats(); // Оновлюємо статистику
-          }}
-        />
+      </div>
+
+      {/* Modal для створення тікету */}
+      <CreateTicketModal
+        isOpen={isCreateTicketModalOpen}
+        onClose={() => setIsCreateTicketModalOpen(false)}
+        onSuccess={() => {
+          setIsCreateTicketModalOpen(false);
+          refetchTickets(); // Оновлюємо список тікетів
+          refetchStats(); // Оновлюємо статистику
+        }}
+      />
     </div>
   );
 };

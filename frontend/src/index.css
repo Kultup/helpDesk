@@ -6,12 +6,12 @@
 
 /* CSS змінні для світлої теми */
 :root {
-  --color-background: #ECF0F1;
-  --color-surface: #ECF0F1;
-  --color-text: #34495E;
-  --color-text-secondary: #7F8C8D;
-  --color-border: #E5E7EB;
-  --color-primary: #2C3E50;
+  --color-background: #ecf0f1;
+  --color-surface: #ecf0f1;
+  --color-text: #34495e;
+  --color-text-secondary: #7f8c8d;
+  --color-border: #e5e7eb;
+  --color-primary: #2c3e50;
   --color-primary-50: #f0f9ff;
   --color-primary-100: #e0f2fe;
   --color-primary-200: #bae6fd;
@@ -22,7 +22,7 @@
   --color-primary-800: #0c1220;
   --color-primary-900: #020617;
   --color-primary-hover: #1e293b;
-  --color-accent: #E74C3C;
+  --color-accent: #e74c3c;
   --color-accent-50: #fef2f2;
   --color-accent-100: #fee2e2;
   --color-accent-200: #fecaca;
@@ -33,10 +33,10 @@
   --color-accent-800: #991b1b;
   --color-accent-900: #7f1d1d;
   --color-accent-hover: #dc2626;
-  --color-success: #27AE60;
-  --color-warning: #F39C12;
-  --color-error: #E74C3C;
-  --color-info: #3498DB;
+  --color-success: #27ae60;
+  --color-warning: #f39c12;
+  --color-error: #e74c3c;
+  --color-info: #3498db;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -52,9 +52,11 @@
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
   }
-  
+
   * {
     border-color: var(--color-border);
   }
@@ -66,171 +68,187 @@
     color: white;
     @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
   }
-  
+
   .btn-primary:hover {
     background-color: var(--color-primary-hover);
   }
-  
+
   .btn-secondary {
     background-color: var(--color-surface);
     color: var(--color-text);
     border: 1px solid var(--color-border);
     @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
   }
-  
+
   .btn-secondary:hover {
     background-color: var(--color-border);
   }
-  
+
   .btn-accent {
     background-color: var(--color-accent);
     color: white;
     @apply font-medium py-2 px-4 rounded-lg transition-all duration-200;
   }
-  
+
   .btn-accent:hover {
     background-color: var(--color-accent-hover);
   }
-  
+
   .card {
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
     @apply rounded-lg p-6 transition-all duration-200;
   }
-  
+
   .input-field {
     background-color: var(--color-surface);
     color: var(--color-text);
     border: 1px solid var(--color-border);
     @apply w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200;
   }
-  
+
   .input-field:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
   }
-  
+
   .status-badge {
     @apply px-3 py-1 rounded-full text-sm font-medium;
   }
-  
+
   .status-open {
     background-color: rgba(248, 113, 113, 0.1);
     color: var(--color-error);
   }
-  
+
   .status-progress {
     background-color: rgba(251, 191, 36, 0.1);
     color: var(--color-warning);
   }
-  
+
   .status-resolved {
     background-color: rgba(74, 222, 128, 0.1);
     color: var(--color-success);
   }
-  
+
   .status-closed {
     background-color: rgba(161, 161, 170, 0.1);
     color: var(--color-text-secondary);
   }
+}
+
+/* Анімації для сповіщень */
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
-  
-  /* Анімації для сповіщень */
-  .animate-slide-in {
-    animation: slideIn 0.3s ease-out;
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
-  
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+}
+
+.animate-slide-out {
+  animation: slideOut 0.3s ease-in;
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
   }
-  
-  .animate-slide-out {
-    animation: slideOut 0.3s ease-in;
+  to {
+    transform: translateX(100%);
+    opacity: 0;
   }
-  
-  @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-resolved {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-closed {
+  @apply bg-gray-100 text-gray-800;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Адаптивні утиліти для мобільних */
+@media (max-width: 640px) {
+  /* Зменшення розмірів шрифтів на мобільних */
+  .text-2xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
   }
 
-  .animate-slide-in-right {
-    animation: slideInRight 0.3s ease-out;
+  .text-xl {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
   }
 
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(100%);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+  /* Адаптивні відступи */
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
-  
-  
-  .status-resolved {
-    @apply bg-green-100 text-green-800;
-  }
-  
-  .status-closed {
-    @apply bg-gray-100 text-gray-800;
+}
+
+/* Запобігання горизонтальному скролу */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Адаптивні таблиці */
+@media (max-width: 768px) {
+  table {
+    font-size: 0.875rem;
   }
 
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  th,
+  td {
+    padding: 0.5rem 0.25rem;
   }
-  
-  /* Адаптивні утиліти для мобільних */
-  @media (max-width: 640px) {
-    /* Зменшення розмірів шрифтів на мобільних */
-    .text-2xl {
-      font-size: 1.25rem;
-      line-height: 1.75rem;
-    }
-    
-    .text-xl {
-      font-size: 1.125rem;
-      line-height: 1.75rem;
-    }
-    
-    /* Адаптивні відступи */
-    .container {
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
-    }
-  }
-  
-  /* Запобігання горизонтальному скролу */
-  html, body {
-    overflow-x: hidden;
-    max-width: 100vw;
-  }
-  
-  /* Адаптивні таблиці */
-  @media (max-width: 768px) {
-    table {
-      font-size: 0.875rem;
-    }
-    
-    th, td {
-      padding: 0.5rem 0.25rem;
-    }
-  }
+}
