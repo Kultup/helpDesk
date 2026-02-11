@@ -698,7 +698,7 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
 
         // Перевіряємо, чи не було вже відправлено запит на оцінку
         if (!ticket.qualityRating.ratingRequested) {
-          await telegramService.sendQualityRatingRequest(ticket);
+          await telegramService.ticketService.sendQualityRatingRequest(ticket);
 
           // Позначаємо, що запит на оцінку відправлено
           ticket.qualityRating.ratingRequested = true;
