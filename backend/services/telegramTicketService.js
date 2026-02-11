@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const Comment = require('../models/Comment');
+const BotSettings = require('../models/BotSettings');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -411,7 +412,11 @@ class TelegramTicketService {
           logger.info('✅ Запит на оцінку відправлено через FCM користувачу (web)');
         } catch (error) {
           logger.warn('⚠️ Не вдалося відправити FCM запит на оцінку:', error);
-          if (user.telegramId) {
+        }
+
+        // Відправляємо в Telegram якщо користувач має telegramId (завжди, а не лише при помилці FCM)
+        if (user.telegramId) {
+          try {
             const message =
               `📊 *Оцініть якість вирішення*\n` +
               `📋 ${title}\n` +
@@ -435,7 +440,9 @@ class TelegramTicketService {
               reply_markup: { inline_keyboard: keyboard },
               parse_mode: 'Markdown',
             });
-            logger.info('✅ Запит на оцінку відправлено в Telegram користувачу (web fallback)');
+            logger.info('✅ Запит на оцінку відправлено в Telegram користувачу (web)');
+          } catch (tgError) {
+            logger.warn('⚠️ Не вдалося відправити Telegram запит на оцінку:', tgError);
           }
         }
       }
@@ -457,13 +464,48 @@ class TelegramTicketService {
         return;
       }
 
+      const ratingNum = Math.max(1, Math.min(5, parseInt(rating, 10) || 0));
       ticket.qualityRating.hasRating = true;
-      ticket.qualityRating.rating = Math.max(1, Math.min(5, parseInt(rating, 10) || 0));
+      ticket.qualityRating.rating = ratingNum;
       ticket.qualityRating.ratedAt = new Date();
       ticket.qualityRating.ratedBy = user._id;
       await ticket.save();
 
-      await this.sendMessage(chatId, `✅ *Дякуємо за оцінку!*`);
+      // AI-емоція: кожен раз нова фраза
+      let emotionText = '✅ Дякуємо за оцінку!';
+      try {
+        emotionText = await aiFirstLineService.generateRatingEmotionResponse(ratingNum);
+      } catch (aiErr) {
+        logger.warn('AI emotion для оцінки недоступно:', aiErr?.message);
+      }
+      await this.sendMessage(chatId, emotionText, { parse_mode: 'Markdown' });
+
+      // GIF або стікер під оцінку (якщо налаштовано в BotSettings.ratingMedia)
+      if (this.bot) {
+        try {
+          const botSettings = await BotSettings.findOne({ key: 'default' }).lean();
+          const media = botSettings?.ratingMedia?.[String(ratingNum)];
+          if (media) {
+            const gifs = Array.isArray(media.gifs) ? media.gifs.filter(Boolean) : [];
+            const stickers = Array.isArray(media.stickers) ? media.stickers.filter(Boolean) : [];
+            const hasGif = gifs.length > 0;
+            const hasSticker = stickers.length > 0;
+            const sendGif = hasGif && (!hasSticker || Math.random() < 0.5);
+
+            if (sendGif) {
+              const gifUrl = gifs[Math.floor(Math.random() * gifs.length)].trim();
+              await this.bot.sendAnimation(chatId, gifUrl);
+              logger.info(`Відправлено GIF для оцінки ${ratingNum}`);
+            } else if (hasSticker) {
+              const stickerId = stickers[Math.floor(Math.random() * stickers.length)].trim();
+              await this.bot.sendSticker(chatId, stickerId);
+              logger.info(`Відправлено стікер для оцінки ${ratingNum}`);
+            }
+          }
+        } catch (mediaErr) {
+          logger.warn('Помилка відправки GIF/стикера для оцінки:', mediaErr?.message);
+        }
+      }
     } catch (error) {
       logger.error('Помилка обробки оцінки якості:', error);
       await this.sendMessage(chatId, `❌ *Помилка збереження оцінки*`);

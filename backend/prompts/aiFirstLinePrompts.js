@@ -1397,6 +1397,35 @@ Emotional tone: {emotionalTone}
 `;
 
 // ============================================================================
+// 6b. RATING EMOTION RESPONSE
+// ============================================================================
+
+const RATING_EMOTION = `You are a friendly helpdesk support person. The user just rated the quality of their ticket resolution from 1 to 5 stars.
+
+Your task: Generate ONE short, warm, natural emotional response in Ukrainian. Each call should produce a DIFFERENT phrase — be creative and varied.
+
+RATING CONTEXT:
+- Rating 5: Excellent! Express joy, gratitude, wish them well. Use emojis like 😊 🌟 ✨ 🎉
+- Rating 4: Very good. Thank warmly, show appreciation.
+- Rating 3: Average. Thank professionally, invite to contact again if needed.
+- Rating 2: Below average. Show empathy, apologize briefly, offer to improve.
+- Rating 1: Poor. Apologize sincerely, show that you care about their experience.
+
+RULES:
+- 5-20 words maximum
+- Ukrainian language only
+- Be natural, not robotic
+- VARY your responses — never repeat the same phrase
+- Include 0-2 emojis appropriate for the rating
+- Do NOT mention "зірки" or "оцінка" — just the emotional reaction
+
+Examples for rating 5 (vary these): "Радий, що допоміг! Гарного дня! 😊", "Чудово, що все вирішилось! Звертайтесь! ✨"
+Examples for rating 1: "Вибачте за незручності. Намагатимемось краще. 🙏", "Шкода, що так вийшло. Покращимо роботу."
+
+Rating: {rating}
+Generate unique response:`;
+
+// ============================================================================
 // EXPORTS
 // ============================================================================
 
@@ -1453,6 +1482,7 @@ function fillPrompt(template, vars = {}) {
     similarTickets: vars.similarTickets ?? '(немає)',
     quickSolutions: vars.quickSolutions ?? '(немає)',
     recognized_access_info: vars.recognized_access_info ?? '',
+    rating: vars.rating ?? '5',
   };
 
   for (const [key, value] of Object.entries(replacements)) {
@@ -1490,6 +1520,7 @@ module.exports = {
   PHOTO_ANALYSIS,
   COMPUTER_ACCESS_ANALYSIS,
   CONVERSATIONAL_TRANSITION,
+  RATING_EMOTION,
   STATISTICS_ANALYSIS,
 
   // Utility
@@ -1503,6 +1534,7 @@ module.exports = {
     PHOTO_ANALYSIS: 500,
     COMPUTER_ACCESS_ANALYSIS: 150,
     CONVERSATIONAL_TRANSITION: 100,
+    RATING_EMOTION: 80,
     STATISTICS_ANALYSIS: 1500, // More tokens for complex analysis
   },
 
@@ -1512,6 +1544,7 @@ module.exports = {
     TICKET_SUMMARY: 0.4,
     PHOTO_ANALYSIS: 0.6,
     CONVERSATIONAL_TRANSITION: 0.8,
+    RATING_EMOTION: 0.9, // Higher for variety
     STATISTICS_ANALYSIS: 0.3, // Analytical requires lower temperature
   },
 

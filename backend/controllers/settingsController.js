@@ -21,7 +21,7 @@ exports.getTelegramSettings = async (req, res) => {
         key: 'default',
         botToken: process.env.TELEGRAM_BOT_TOKEN || '',
         chatId: process.env.TELEGRAM_CHAT_ID || '',
-        isEnabled: !!process.env.TELEGRAM_BOT_TOKEN
+        isEnabled: !!process.env.TELEGRAM_BOT_TOKEN,
       });
       await config.save();
     }
@@ -30,19 +30,19 @@ exports.getTelegramSettings = async (req, res) => {
     const safeConfig = {
       ...config.toObject(),
       botToken: config.botToken ? `${config.botToken.substring(0, 10)}...` : '',
-      hasToken: !!config.botToken
+      hasToken: !!config.botToken,
     };
 
     res.json({
       success: true,
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Помилка отримання налаштувань Telegram:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання налаштувань Telegram',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -70,7 +70,8 @@ exports.updateTelegramSettings = async (req, res) => {
       if (!tokenPattern.test(cleanedToken)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний формат токена. Токен має бути у форматі: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz'
+          message:
+            'Невірний формат токена. Токен має бути у форматі: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz',
         });
       }
 
@@ -117,20 +118,20 @@ exports.updateTelegramSettings = async (req, res) => {
     const safeConfig = {
       ...config.toObject(),
       botToken: config.botToken ? `${config.botToken.substring(0, 10)}...` : '',
-      hasToken: !!config.botToken
+      hasToken: !!config.botToken,
     };
 
     res.json({
       success: true,
       message: 'Налаштування Telegram успішно оновлено',
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань Telegram:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань Telegram',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -145,7 +146,7 @@ exports.setupWebhook = async (req, res) => {
     if (!baseUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Потрібно вказати baseUrl'
+        message: 'Потрібно вказати baseUrl',
       });
     }
 
@@ -164,7 +165,7 @@ exports.setupWebhook = async (req, res) => {
     if (!config.botToken || config.botToken.trim() === '') {
       return res.status(400).json({
         success: false,
-        message: 'Спочатку встановіть Bot Token'
+        message: 'Спочатку встановіть Bot Token',
       });
     }
 
@@ -200,7 +201,9 @@ exports.setupWebhook = async (req, res) => {
       logger.info(`📡 Webhook URL: ${webhookUrl}`);
 
       // Перевіряємо поточний webhook
-      const infoResponse = await axios.get(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+      const infoResponse = await axios.get(
+        `https://api.telegram.org/bot${botToken}/getWebhookInfo`
+      );
       let currentWebhook = null;
       if (infoResponse.data.ok && infoResponse.data.result.url) {
         currentWebhook = infoResponse.data.result.url;
@@ -209,7 +212,7 @@ exports.setupWebhook = async (req, res) => {
 
       // Встановлюємо webhook
       const response = await axios.post(`https://api.telegram.org/bot${botToken}/setWebhook`, {
-        url: webhookUrl
+        url: webhookUrl,
       });
 
       if (response.data.ok) {
@@ -229,15 +232,15 @@ exports.setupWebhook = async (req, res) => {
           data: {
             webhookUrl,
             currentWebhook,
-            webhookInfo
-          }
+            webhookInfo,
+          },
         });
       } else {
         logger.error('❌ Помилка налаштування webhook:', response.data);
         res.status(400).json({
           success: false,
           message: response.data.description || 'Помилка налаштування webhook',
-          error: response.data
+          error: response.data,
         });
       }
     } catch (error) {
@@ -248,8 +251,12 @@ exports.setupWebhook = async (req, res) => {
       if (error.response) {
         errorMessage = error.response.data?.description || error.message;
         if (error.response.data?.description) {
-          if (error.response.data.description.includes('IP address') && error.response.data.description.includes('reserved')) {
-            errorMessage = 'Telegram не приймає приватні IP адреси. Використайте публічний домен з HTTPS.';
+          if (
+            error.response.data.description.includes('IP address') &&
+            error.response.data.description.includes('reserved')
+          ) {
+            errorMessage =
+              'Telegram не приймає приватні IP адреси. Використайте публічний домен з HTTPS.';
           }
         }
       }
@@ -258,7 +265,7 @@ exports.setupWebhook = async (req, res) => {
         success: false,
         message: errorMessage,
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       });
     }
   } catch (error) {
@@ -268,7 +275,7 @@ exports.setupWebhook = async (req, res) => {
       success: false,
       message: 'Помилка налаштування webhook',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Внутрішня помилка сервера',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };
@@ -293,25 +300,27 @@ exports.getWebhookInfo = async (req, res) => {
     if (!config.botToken || config.botToken.trim() === '') {
       return res.status(400).json({
         success: false,
-        message: 'Bot Token не встановлено'
+        message: 'Bot Token не встановлено',
       });
     }
 
     const botToken = config.botToken.trim();
 
     try {
-      const infoResponse = await axios.get(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+      const infoResponse = await axios.get(
+        `https://api.telegram.org/bot${botToken}/getWebhookInfo`
+      );
 
       if (infoResponse.data.ok) {
         res.json({
           success: true,
-          data: infoResponse.data.result
+          data: infoResponse.data.result,
         });
       } else {
         res.status(400).json({
           success: false,
           message: 'Помилка отримання інформації про webhook',
-          error: infoResponse.data
+          error: infoResponse.data,
         });
       }
     } catch (error) {
@@ -321,7 +330,7 @@ exports.getWebhookInfo = async (req, res) => {
         success: false,
         message: 'Помилка отримання інформації про webhook',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Внутрішня помилка сервера',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       });
     }
   } catch (error) {
@@ -331,7 +340,7 @@ exports.getWebhookInfo = async (req, res) => {
       success: false,
       message: 'Помилка отримання інформації про webhook',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Внутрішня помилка сервера',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };
@@ -357,7 +366,7 @@ exports.getActiveDirectorySettings = async (req, res) => {
         timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
         connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
         retryInterval: parseInt(process.env.AD_RETRY_INTERVAL) || 120000,
-        maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+        maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3,
       });
       await config.save();
     }
@@ -366,19 +375,19 @@ exports.getActiveDirectorySettings = async (req, res) => {
     const safeConfig = {
       ...config.toObject(),
       adminPassword: config.adminPassword ? '***' : '',
-      hasPassword: !!config.adminPassword
+      hasPassword: !!config.adminPassword,
     };
 
     res.json({
       success: true,
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Помилка отримання налаштувань Active Directory:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання налаштувань Active Directory',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -399,7 +408,7 @@ exports.updateActiveDirectorySettings = async (req, res) => {
       timeout,
       connectTimeout,
       retryInterval,
-      maxRetries
+      maxRetries,
     } = req.body;
 
     let config = await ActiveDirectoryConfig.findOne({ key: 'default' });
@@ -482,20 +491,20 @@ exports.updateActiveDirectorySettings = async (req, res) => {
     const safeConfig = {
       ...config.toObject(),
       adminPassword: '***',
-      hasPassword: !!config.adminPassword
+      hasPassword: !!config.adminPassword,
     };
 
     res.json({
       success: true,
       message: 'Налаштування Active Directory успішно оновлено',
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань Active Directory:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань Active Directory',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -516,14 +525,14 @@ exports.getBotSettings = async (req, res) => {
 
     res.json({
       success: true,
-      data: safeSettings
+      data: safeSettings,
     });
   } catch (error) {
     logger.error('Помилка отримання налаштувань бота:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання налаштувань бота',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -540,7 +549,8 @@ exports.updateBotSettings = async (req, res) => {
       categoryButtonRowSize,
       priorityTexts,
       statusTexts,
-      statusEmojis
+      statusEmojis,
+      ratingMedia,
     } = req.body;
 
     let settings = await BotSettings.findOne({ key: 'default' });
@@ -578,19 +588,23 @@ exports.updateBotSettings = async (req, res) => {
       settings.statusEmojis = statusEmojis;
     }
 
+    if (ratingMedia !== undefined) {
+      settings.ratingMedia = ratingMedia;
+    }
+
     await settings.save();
 
     res.json({
       success: true,
       message: 'Налаштування бота успішно оновлено',
-      data: settings.toObject()
+      data: settings.toObject(),
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань бота:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань бота',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -610,7 +624,7 @@ exports.getAiSettings = async (req, res) => {
         geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
         openaiApiKey: process.env.OPENAI_API_KEY || '',
         geminiApiKey: process.env.GEMINI_API_KEY || '',
-        enabled: false
+        enabled: false,
       });
       await settings.save();
     }
@@ -621,21 +635,21 @@ exports.getAiSettings = async (req, res) => {
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
       hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
       openaiApiKey: undefined,
-      geminiApiKey: undefined
+      geminiApiKey: undefined,
     };
     delete safe.openaiApiKey;
     delete safe.geminiApiKey;
 
     res.json({
       success: true,
-      data: safe
+      data: safe,
     });
   } catch (error) {
     logger.error('Помилка отримання налаштувань AI:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка отримання налаштувань AI',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -645,7 +659,17 @@ exports.getAiSettings = async (req, res) => {
  */
 exports.updateAiSettings = async (req, res) => {
   try {
-    const { provider, openaiApiKey, geminiApiKey, openaiModel, geminiModel, enabled, monthlyTokenLimit, topUpAmount, remainingBalance } = req.body;
+    const {
+      provider,
+      openaiApiKey,
+      geminiApiKey,
+      openaiModel,
+      geminiModel,
+      enabled,
+      monthlyTokenLimit,
+      topUpAmount,
+      remainingBalance,
+    } = req.body;
 
     let settings = await AISettings.findOne({ key: 'default' });
 
@@ -657,16 +681,24 @@ exports.updateAiSettings = async (req, res) => {
       if (!['openai', 'gemini'].includes(provider)) {
         return res.status(400).json({
           success: false,
-          message: 'Провайдер має бути openai або gemini'
+          message: 'Провайдер має бути openai або gemini',
         });
       }
       settings.provider = provider;
     }
 
-    if (typeof openaiApiKey === 'string' && openaiApiKey.trim() !== '' && !openaiApiKey.startsWith('••')) {
+    if (
+      typeof openaiApiKey === 'string' &&
+      openaiApiKey.trim() !== '' &&
+      !openaiApiKey.startsWith('••')
+    ) {
       settings.openaiApiKey = openaiApiKey.trim();
     }
-    if (typeof geminiApiKey === 'string' && geminiApiKey.trim() !== '' && !geminiApiKey.startsWith('••')) {
+    if (
+      typeof geminiApiKey === 'string' &&
+      geminiApiKey.trim() !== '' &&
+      !geminiApiKey.startsWith('••')
+    ) {
       settings.geminiApiKey = geminiApiKey.trim();
     }
 
@@ -701,7 +733,7 @@ exports.updateAiSettings = async (req, res) => {
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
       hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
       openaiApiKey: undefined,
-      geminiApiKey: undefined
+      geminiApiKey: undefined,
     };
     delete safe.openaiApiKey;
     delete safe.geminiApiKey;
@@ -709,14 +741,14 @@ exports.updateAiSettings = async (req, res) => {
     res.json({
       success: true,
       message: 'Налаштування AI успішно збережено',
-      data: safe
+      data: safe,
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань AI:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка оновлення налаштувань AI',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -738,7 +770,10 @@ exports.getOpenAIBalance = async (req, res) => {
     let totalAvailable = null;
     let pendingUsageCents = null;
     try {
-      const grantsRes = await axios.get('https://api.openai.com/dashboard/billing/credit_grants', { headers, timeout: 10000 });
+      const grantsRes = await axios.get('https://api.openai.com/dashboard/billing/credit_grants', {
+        headers,
+        timeout: 10000,
+      });
       const data = grantsRes.data;
       if (data && typeof data === 'object') {
         totalGranted = data.total_granted;
@@ -751,13 +786,21 @@ exports.getOpenAIBalance = async (req, res) => {
       logger.warn('OpenAI credit_grants (unofficial) failed', { status, message: msg });
       return res.status(502).json({
         success: false,
-        message: 'Не вдалося отримати залишок (ендпоінт OpenAI не підтримується або ключ без доступу). Можна вводити залишок вручну.',
-        detail: msg
+        message:
+          'Не вдалося отримати залишок (ендпоінт OpenAI не підтримується або ключ без доступу). Можна вводити залишок вручну.',
+        detail: msg,
       });
     }
     try {
-      const pendingRes = await axios.get('https://api.openai.com/dashboard/billing/pending_usage', { headers, timeout: 8000 });
-      if (pendingRes.data != null && typeof pendingRes.data === 'object' && typeof pendingRes.data.pending_usage === 'number') {
+      const pendingRes = await axios.get('https://api.openai.com/dashboard/billing/pending_usage', {
+        headers,
+        timeout: 8000,
+      });
+      if (
+        pendingRes.data !== null &&
+        typeof pendingRes.data === 'object' &&
+        typeof pendingRes.data.pending_usage === 'number'
+      ) {
         pendingUsageCents = pendingRes.data.pending_usage;
       }
     } catch (_) {
@@ -770,15 +813,15 @@ exports.getOpenAIBalance = async (req, res) => {
         total_used: totalUsed,
         total_available: totalAvailable,
         pending_usage_cents: pendingUsageCents,
-        note: 'Неофіційні ендпоінти OpenAI; можуть змінитися.'
-      }
+        note: 'Неофіційні ендпоінти OpenAI; можуть змінитися.',
+      },
     });
   } catch (error) {
     logger.error('Помилка отримання залишку OpenAI', error);
     return res.status(500).json({
       success: false,
       message: 'Помилка отримання залишку',
-      error: error.message
+      error: error.message,
     });
   }
 };

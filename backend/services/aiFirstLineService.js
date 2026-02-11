@@ -9,6 +9,7 @@ const {
   PHOTO_ANALYSIS,
   COMPUTER_ACCESS_ANALYSIS,
   STATISTICS_ANALYSIS,
+  RATING_EMOTION,
   fillPrompt,
   MAX_TOKENS,
   TEMPERATURES,
@@ -872,6 +873,62 @@ async function generateConversationalResponse(
 }
 
 /**
+ * Генерація емоційної відповіді на оцінку якості тікета (1-5).
+ * Кожен раз різна фраза.
+ * @param {number} rating - оцінка 1-5
+ * @returns {Promise<string>}
+ */
+async function generateRatingEmotionResponse(rating) {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled) {
+    const fallbacks = {
+      5: 'Дякуємо за оцінку! Радий, що допоміг! 😊',
+      4: 'Дякуємо! Гарного дня!',
+      3: 'Дякуємо за зворотний звʼязок.',
+      2: 'Вибачте за незручності. Покращимо роботу.',
+      1: 'Вибачте. Дякуємо за чесність. 🙏',
+    };
+    return fallbacks[rating] || fallbacks[5];
+  }
+
+  const apiKey = settings.provider === 'gemini' ? settings.geminiApiKey : settings.openaiApiKey;
+  if (!apiKey || !apiKey.trim()) {
+    return 'Дякуємо за оцінку!';
+  }
+
+  const systemPrompt = fillPrompt(RATING_EMOTION, {
+    rating: String(Math.max(1, Math.min(5, rating))),
+  });
+  const userMessage = `Згенеруй унікальну емоційну відповідь для оцінки ${rating}.`;
+
+  const response = await retryHelper.retryAIRequest(
+    () =>
+      callChatCompletion(
+        settings,
+        systemPrompt,
+        userMessage,
+        MAX_TOKENS.RATING_EMOTION || 80,
+        false,
+        TEMPERATURES.RATING_EMOTION || 0.9
+      ),
+    'generateRatingEmotionResponse'
+  );
+
+  if (!response || typeof response !== 'string') {
+    const fallbacks = {
+      5: 'Дякуємо! Радий допомогти! 😊',
+      4: 'Дякуємо!',
+      3: 'Дякуємо.',
+      2: 'Вибачте.',
+      1: 'Вибачте за незручності. 🙏',
+    };
+    return fallbacks[rating] || 'Дякуємо за оцінку!';
+  }
+
+  return response.trim().slice(0, 200);
+}
+
+/**
  * Генерація аналізу статистики.
  * @param {Object} statsData - дані статистики для аналізу
  * @param {string} dateRange - діапазон дат у форматі рядка
@@ -934,6 +991,7 @@ module.exports = {
   generateNextQuestion,
   getTicketSummary,
   generateConversationalResponse,
+  generateRatingEmotionResponse,
   analyzePhoto,
   analyzeComputerAccessPhoto,
   getSimilarResolvedTickets,
