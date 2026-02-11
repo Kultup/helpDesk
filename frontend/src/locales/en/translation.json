@@ -116,6 +116,7 @@
     "analytics": "Analytics",
     "activeDirectory": "Active Directory",
     "telegramSettings": "Telegram Settings",
+    "ratingMedia": "Rating media",
     "botSettings": "Bot Settings",
     "aiSettings": "AI Settings",
     "conversations": "Conversation history",
@@ -327,6 +328,24 @@
       "serverUrlDescription": "Enter your server URL (e.g., https://your-domain.com). Webhook will be configured at {url}/api/telegram/webhook",
       "setupWebhook": "Setup Webhook",
       "settingUp": "Setting up..."
+    },
+    "bot": {
+      "title": "Ticket rating media",
+      "description": "Set GIF or sticker for each rating after closing a ticket. If empty, default GIFs from code are used.",
+      "loadError": "Failed to load settings",
+      "saveError": "Failed to save",
+      "saved": "Rating media settings saved",
+      "gifUrls": "GIF URLs (one or more)",
+      "gifHint": "e.g. https://media.giphy.com/media/XXXXX/giphy.gif",
+      "stickerIds": "Telegram sticker file_id",
+      "stickerHint": "Forward a sticker to the bot — get file_id from logs or getUpdates",
+      "addLink": "Add link",
+      "addSticker": "Add sticker",
+      "emotionSorry": "Rating 1 — Sorry",
+      "emotionSad": "Rating 2 — Sad",
+      "emotionOk": "Rating 3 — Ok",
+      "emotionThumbsUp": "Rating 4 — Thumbs up",
+      "emotionThankYou": "Rating 5 — Thank you"
     },
     "activeDirectory": {
       "title": "Active Directory Settings",

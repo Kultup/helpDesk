@@ -3,6 +3,7 @@ const Ticket = require('../models/Ticket');
 const Comment = require('../models/Comment');
 const BotSettings = require('../models/BotSettings');
 const logger = require('../utils/logger');
+
 const fs = require('fs');
 const path = require('path');
 const { formatFileSize } = require('../utils/helpers');
@@ -480,27 +481,26 @@ class TelegramTicketService {
       }
       await this.sendMessage(chatId, emotionText, { parse_mode: 'Markdown' });
 
-      // GIF або стікер під оцінку (якщо налаштовано в BotSettings.ratingMedia)
+      // GIF або стікер під оцінку (BotSettings.ratingMedia або дефолтні GIF)
       if (this.bot) {
         try {
           const botSettings = await BotSettings.findOne({ key: 'default' }).lean();
           const media = botSettings?.ratingMedia?.[String(ratingNum)];
-          if (media) {
-            const gifs = Array.isArray(media.gifs) ? media.gifs.filter(Boolean) : [];
-            const stickers = Array.isArray(media.stickers) ? media.stickers.filter(Boolean) : [];
-            const hasGif = gifs.length > 0;
-            const hasSticker = stickers.length > 0;
-            const sendGif = hasGif && (!hasSticker || Math.random() < 0.5);
+          const gifs = Array.isArray(media?.gifs) ? media.gifs.filter(Boolean) : [];
+          const stickers = Array.isArray(media?.stickers) ? media.stickers.filter(Boolean) : [];
+          const useGifs = gifs;
+          const hasGif = useGifs.length > 0;
+          const hasSticker = stickers.length > 0;
+          const sendGif = hasGif && (!hasSticker || Math.random() < 0.5);
 
-            if (sendGif) {
-              const gifUrl = gifs[Math.floor(Math.random() * gifs.length)].trim();
-              await this.bot.sendAnimation(chatId, gifUrl);
-              logger.info(`Відправлено GIF для оцінки ${ratingNum}`);
-            } else if (hasSticker) {
-              const stickerId = stickers[Math.floor(Math.random() * stickers.length)].trim();
-              await this.bot.sendSticker(chatId, stickerId);
-              logger.info(`Відправлено стікер для оцінки ${ratingNum}`);
-            }
+          if (sendGif) {
+            const gifUrl = useGifs[Math.floor(Math.random() * useGifs.length)].trim();
+            await this.bot.sendAnimation(chatId, gifUrl);
+            logger.info(`Відправлено GIF для оцінки ${ratingNum}`);
+          } else if (hasSticker) {
+            const stickerId = stickers[Math.floor(Math.random() * stickers.length)].trim();
+            await this.bot.sendSticker(chatId, stickerId);
+            logger.info(`Відправлено стікер для оцінки ${ratingNum}`);
           }
         } catch (mediaErr) {
           logger.warn('Помилка відправки GIF/стикера для оцінки:', mediaErr?.message);

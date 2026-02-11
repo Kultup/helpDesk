@@ -28,6 +28,7 @@ import QuickNotifications from './pages/QuickNotifications';
 import Logs from './pages/Logs';
 import TelegramSettings from './pages/TelegramSettings';
 import AISettings from './pages/AISettings';
+import BotSettings from './pages/BotSettings';
 import ActiveDirectorySettings from './pages/ActiveDirectorySettings';
 import ZabbixSettings from './pages/ZabbixSettings';
 import TelegramTest from './pages/TelegramTest';
@@ -39,11 +40,10 @@ import Equipment from './pages/Equipment';
 import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
 
-
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -51,11 +51,16 @@ const SmartRedirect: React.FC = () => {
       </div>
     );
   }
-  
+
   if (isAuthenticated && user) {
-    return <Navigate to={isAdminRole(user.role as UserRole) ? '/admin/dashboard' : '/dashboard'} replace />;
+    return (
+      <Navigate
+        to={isAdminRole(user.role as UserRole) ? '/admin/dashboard' : '/dashboard'}
+        replace
+      />
+    );
   }
-  
+
   return <Navigate to="/login" replace />;
 };
 
@@ -92,146 +97,217 @@ const App: React.FC = () => {
           <Router>
             <RoleBasedRedirect />
             <Routes>
-          {/* Публічні маршрути */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/telegram-test" element={<TelegramTest />} />
-          <Route path="/photo/:filename" element={<PhotoViewer />} />
-          
-          {/* Кореневий маршрут */}
-          <Route path="/" element={<SmartRedirect />} />
-          
-          {/* Захищені маршрути з Layout */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            {/* Користувацькі маршрути */}
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tickets" element={<Tickets />} />
-            <Route path="tickets/create" element={<CreateTicket />} />
-            <Route path="tickets/:id" element={<TicketDetails />} />
-            <Route path="settings" element={<Settings />} />
+              {/* Публічні маршрути */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/telegram-test" element={<TelegramTest />} />
+              <Route path="/photo/:filename" element={<PhotoViewer />} />
 
-            
-            {/* Адміністративні маршрути */}
-            <Route path="admin/dashboard" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/tickets" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Tickets />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/tickets/create" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <CreateTicket />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/tickets/:id" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <TicketDetails />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/users" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Users />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/pending-registrations" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <PendingRegistrations />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/cities" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Cities />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/positions" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Positions />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/position-requests" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <PositionRequests />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/institutions" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Institutions />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/equipment" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Equipment />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/quick-notifications" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <QuickNotifications />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/analytics" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Analytics />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/active-directory" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <ActiveDirectoryPage />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/logs" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Logs />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/settings/telegram" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <TelegramSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/settings/bot" element={<Navigate to="/admin/settings/ai" replace />} />
-            <Route path="admin/settings/ai" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AISettings />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/conversations" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <Conversations />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/ai-knowledge" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <AIKnowledge />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/settings/active-directory" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <ActiveDirectorySettings />
-              </ProtectedRoute>
-            } />
-            <Route path="admin/settings/zabbix" element={
-              <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                <ZabbixSettings />
-              </ProtectedRoute>
-            } />
-          </Route>
-          
-          {/* Публічні роути (без авторизації) */}
-          
-          
-          {/* 404 сторінка */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-      </PendingRegistrationsProvider>
-    </AuthProvider>
+              {/* Кореневий маршрут */}
+              <Route path="/" element={<SmartRedirect />} />
+
+              {/* Захищені маршрути з Layout */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                {/* Користувацькі маршрути */}
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="tickets" element={<Tickets />} />
+                <Route path="tickets/create" element={<CreateTicket />} />
+                <Route path="tickets/:id" element={<TicketDetails />} />
+                <Route path="settings" element={<Settings />} />
+
+                {/* Адміністративні маршрути */}
+                <Route
+                  path="admin/dashboard"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/tickets"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Tickets />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/tickets/create"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <CreateTicket />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/tickets/:id"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <TicketDetails />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/users"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Users />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/pending-registrations"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <PendingRegistrations />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/cities"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Cities />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/positions"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Positions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/position-requests"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <PositionRequests />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/institutions"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Institutions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/equipment"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Equipment />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/quick-notifications"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <QuickNotifications />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/analytics"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Analytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/active-directory"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <ActiveDirectoryPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/logs"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Logs />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/settings/telegram"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <TelegramSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/settings/bot"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <BotSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/settings/ai"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <AISettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/conversations"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Conversations />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/ai-knowledge"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <AIKnowledge />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/settings/active-directory"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <ActiveDirectorySettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/settings/zabbix"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <ZabbixSettings />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+
+              {/* Публічні роути (без авторизації) */}
+
+              {/* 404 сторінка */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </PendingRegistrationsProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 };

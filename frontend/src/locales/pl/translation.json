@@ -116,6 +116,7 @@
     "analytics": "Analityka",
     "activeDirectory": "Active Directory",
     "telegramSettings": "Ustawienia Telegram",
+    "ratingMedia": "Media ocen",
     "botSettings": "Ustawienia bota",
     "aiSettings": "Ustawienia AI",
     "conversations": "Historia rozmów",
@@ -346,6 +347,24 @@
       "serverUrlDescription": "Wprowadź URL serwera (np. https://twoja-domena.com). Webhook będzie skonfigurowany na {url}/api/telegram/webhook",
       "setupWebhook": "Skonfiguruj Webhook",
       "settingUp": "Konfigurowanie..."
+    },
+    "bot": {
+      "title": "Media ocen zgłoszeń",
+      "description": "Ustaw GIF lub naklejki dla każdej oceny po zamknięciu zgłoszenia. Jeśli puste, używane są domyślne GIF z kodu.",
+      "loadError": "Błąd wczytywania ustawień",
+      "saveError": "Błąd zapisu",
+      "saved": "Ustawienia mediów ocen zapisane",
+      "gifUrls": "Linki do GIF (jeden lub więcej)",
+      "gifHint": "np. https://media.giphy.com/media/XXXXX/giphy.gif",
+      "stickerIds": "ID naklejek Telegram (file_id)",
+      "stickerHint": "Przekaż naklejkę do bota — file_id z logów lub getUpdates",
+      "addLink": "Dodaj link",
+      "addSticker": "Dodaj naklejkę",
+      "emotionSorry": "Ocena 1 — Przepraszam",
+      "emotionSad": "Ocena 2 — Smutno",
+      "emotionOk": "Ocena 3 — Ok",
+      "emotionThumbsUp": "Ocena 4 — Dobrze",
+      "emotionThankYou": "Ocena 5 — Dziękuję"
     },
     "activeDirectory": {
       "title": "Ustawienia Active Directory",

@@ -22,7 +22,8 @@ import {
   Monitor,
   Sparkles,
   MessageCircle,
-  Brain
+  Brain,
+  Image,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, isAdminRole } from '../../types';
@@ -54,41 +55,70 @@ const navGroups: NavGroup[] = [
     items: [
       { nameKey: 'sidebar.dashboard', href: '/dashboard', icon: Home },
       { nameKey: 'sidebar.tickets', href: '/tickets', icon: Ticket },
-    ]
+    ],
   },
   {
     titleKey: 'sidebar.groups.analytics',
     adminOnly: true,
-    items: [
-      { nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
-    ]
+    items: [{ nameKey: 'sidebar.analytics', href: '/analytics', icon: BarChart3, adminOnly: true }],
   },
   {
     titleKey: 'sidebar.groups.system',
     adminOnly: true,
     items: [
-      { nameKey: 'sidebar.activeDirectory', href: '/active-directory', icon: Server, adminOnly: true },
+      {
+        nameKey: 'sidebar.activeDirectory',
+        href: '/active-directory',
+        icon: Server,
+        adminOnly: true,
+      },
       { nameKey: 'sidebar.aiSettings', href: '/settings/ai', icon: Sparkles, adminOnly: true },
-      { nameKey: 'sidebar.conversations', href: '/conversations', icon: MessageCircle, adminOnly: true },
+      {
+        nameKey: 'sidebar.conversations',
+        href: '/conversations',
+        icon: MessageCircle,
+        adminOnly: true,
+      },
       { nameKey: 'sidebar.aiKnowledge', href: '/ai-knowledge', icon: Brain, adminOnly: true },
-      { nameKey: 'sidebar.telegramSettings', href: '/settings/telegram', icon: Bot, adminOnly: true },
-      { nameKey: 'sidebar.activeDirectorySettings', href: '/settings/active-directory', icon: Settings, adminOnly: true },
-      { nameKey: 'sidebar.zabbixSettings', href: '/settings/zabbix', icon: Activity, adminOnly: true },
+      {
+        nameKey: 'sidebar.telegramSettings',
+        href: '/settings/telegram',
+        icon: Bot,
+        adminOnly: true,
+      },
+      { nameKey: 'sidebar.ratingMedia', href: '/settings/bot', icon: Image, adminOnly: true },
+      {
+        nameKey: 'sidebar.activeDirectorySettings',
+        href: '/settings/active-directory',
+        icon: Settings,
+        adminOnly: true,
+      },
+      {
+        nameKey: 'sidebar.zabbixSettings',
+        href: '/settings/zabbix',
+        icon: Activity,
+        adminOnly: true,
+      },
       { nameKey: 'sidebar.logs', href: '/logs', icon: FileSearch, adminOnly: true },
       { nameKey: 'sidebar.cities', href: '/cities', icon: MapPin, adminOnly: true },
       { nameKey: 'sidebar.positions', href: '/positions', icon: Briefcase, adminOnly: true },
       { nameKey: 'sidebar.institutions', href: '/institutions', icon: Building2, adminOnly: true },
       { nameKey: 'sidebar.equipment', href: '/equipment', icon: Monitor, adminOnly: true },
-    ]
+    ],
   },
   {
     titleKey: 'sidebar.groups.users',
     adminOnly: true,
     items: [
       { nameKey: 'sidebar.users', href: '/users', icon: Users, adminOnly: true },
-      { nameKey: 'sidebar.quickNotifications', href: '/quick-notifications', icon: AlertTriangle, adminOnly: true },
-    ]
-  }
+      {
+        nameKey: 'sidebar.quickNotifications',
+        href: '/quick-notifications',
+        icon: AlertTriangle,
+        adminOnly: true,
+      },
+    ],
+  },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
@@ -97,12 +127,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
   const isAdmin = user?.role ? isAdminRole(user.role) : false;
   const basePath = isAdmin ? '/admin' : '';
 
-  const filteredNavGroups = navGroups.filter(group => 
-    !group.adminOnly || isAdmin
-  ).map(group => ({
-    ...group,
-    items: group.items.filter(item => !item.adminOnly || isAdmin)
-  }));
+  const filteredNavGroups = navGroups
+    .filter(group => !group.adminOnly || isAdmin)
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.adminOnly || isAdmin),
+    }));
 
   return (
     <>
@@ -121,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
             </div>
             <span className="ml-2 text-lg font-bold text-foreground">{t('sidebar.appName')}</span>
           </div>
-          
+
           {isMobile && (
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-5 w-5" />
@@ -140,10 +170,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
                     {t(group.titleKey)}
                   </h3>
                 </div>
-                
+
                 {/* Group items */}
                 <ul className="space-y-1">
-                  {group.items.map((item) => (
+                  {group.items.map(item => (
                     <li key={item.nameKey}>
                       <NavLink
                         to={`${basePath}${item.href}`}
@@ -163,7 +193,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isMobile }) => {
                     </li>
                   ))}
                 </ul>
-                
+
                 {/* Divider between groups (except for the last group) */}
                 {groupIndex < filteredNavGroups.length - 1 && (
                   <div className="mt-4 border-t border-gray-200"></div>

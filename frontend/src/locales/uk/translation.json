@@ -117,6 +117,7 @@
     "analytics": "Аналітика",
     "activeDirectory": "Active Directory",
     "telegramSettings": "Налаштування Telegram",
+    "ratingMedia": "Медіа оцінок",
     "botSettings": "Налаштування бота",
     "aiSettings": "Налаштування AI (Groq/OpenAI)",
     "conversations": "Історія спілкувань",
@@ -375,6 +376,24 @@
       "serverUrlDescription": "Введіть URL вашого сервера (наприклад, https://krainamriy.fun). Webhook буде налаштовано на {url}/api/telegram/webhook",
       "setupWebhook": "Налаштувати Webhook",
       "settingUp": "Налаштування..."
+    },
+    "bot": {
+      "title": "Медіа оцінок тікетів",
+      "description": "Налаштуйте GIF або стікери для кожної оцінки після закриття тікета. Якщо тут нічого не вказано, використовуються стандартні GIF з коду.",
+      "loadError": "Помилка завантаження налаштувань",
+      "saveError": "Помилка збереження",
+      "saved": "Налаштування медіа оцінок збережено",
+      "gifUrls": "Посилання на GIF (одне на рядок або кілька)",
+      "gifHint": "Наприклад: https://media.giphy.com/media/XXXXX/giphy.gif",
+      "stickerIds": "ID стікерів Telegram (file_id)",
+      "stickerHint": "Перешліть стікер боту — у логах або через getUpdates можна взяти file_id",
+      "addLink": "Додати посилання",
+      "addSticker": "Додати стікер",
+      "emotionSorry": "Оцінка 1 — Вибачте",
+      "emotionSad": "Оцінка 2 — Сумно",
+      "emotionOk": "Оцінка 3 — Нормально",
+      "emotionThumbsUp": "Оцінка 4 — Добре",
+      "emotionThankYou": "Оцінка 5 — Дякуємо"
     },
     "activeDirectory": {
       "title": "Налаштування Active Directory",
