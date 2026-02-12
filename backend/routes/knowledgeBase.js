@@ -337,8 +337,39 @@ router.put('/articles/:id', auth, adminAuth, async (req, res) => {
       });
     }
 
+    const oldPaths = new Set(
+      (article.attachments || [])
+        .map(a => a && (a.filePath || a.filepath))
+        .filter(Boolean)
+        .map(fp => path.basename(fp))
+    );
+
     Object.assign(article, req.body);
+    if (Object.prototype.hasOwnProperty.call(req.body, 'attachments')) {
+      article.attachments = Array.isArray(req.body.attachments) ? req.body.attachments : [];
+    }
     article.lastUpdatedBy = req.user._id;
+
+    const newPaths = new Set(
+      (article.attachments || [])
+        .map(a => a && (a.filePath || a.filepath))
+        .filter(Boolean)
+        .map(fp => path.basename(fp))
+    );
+    for (const name of oldPaths) {
+      if (!newPaths.has(name)) {
+        const fullPath = path.join(kbUploadsPath, name);
+        try {
+          await fs.unlink(fullPath);
+          logger.info('KB: видалено файл вкладення', { file: name });
+        } catch (err) {
+          if (err.code !== 'ENOENT') {
+            logger.warn('KB: не вдалося видалити файл вкладення', { fullPath, err: err.message });
+          }
+        }
+      }
+    }
+
     await article.save();
 
     res.json({

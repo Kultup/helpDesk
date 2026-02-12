@@ -211,7 +211,7 @@ const KnowledgeBase: React.FC = () => {
               .filter(Boolean)
           : undefined,
         status: form.status,
-        attachments: form.attachments.length ? form.attachments : undefined,
+        attachments: form.attachments,
       };
       if (editingId) {
         await apiService.updateKnowledgeBaseArticle(editingId, payload);
