@@ -50,6 +50,32 @@ function resolveKbAttachmentPath(filename) {
   return null;
 }
 
+/** Чи текст відповіді вказує, що потрібне лише втручання адміна (немає самодопомоги). Тоді кнопку "Допомогло" не показуємо. */
+function quickSolutionRequiresAdminOnly(text) {
+  if (!text || typeof text !== 'string') {
+    return false;
+  }
+  const lower = text.toLowerCase();
+  const adminPhrases = [
+    'задача для адміністратора',
+    'задача для адміна',
+    'це задача для адміна',
+    'створю заявку',
+    'створю тікет',
+    'адмін проведе',
+    'адмін встановить',
+    'адмін підключиться',
+    'адмін візьме',
+    'потрібне втручання адміна',
+    'для адміністратора',
+    'для адміна',
+    'адміністратор встановить',
+    'я створю заявку',
+    'я створю тікет',
+  ];
+  return adminPhrases.some(phrase => lower.includes(phrase));
+}
+
 class TelegramAIService {
   constructor(telegramService) {
     this.telegramService = telegramService;
@@ -516,6 +542,16 @@ class TelegramAIService {
 
     if (!session.dialog_history) {
       session.dialog_history = [];
+    }
+
+    // Крок після "Ні, створити тікет": користувач надіслав опис помилки або фото — переходимо до підтвердження заявки
+    if (session.step === 'awaiting_error_details_after_not_helped') {
+      session.dialog_history.push({ role: 'user', content: text });
+      botConversationService
+        .appendMessage(chatId, user, 'user', text, null, String(text).slice(0, 200))
+        .catch(() => {});
+      await this._showTicketConfirmationFromDialog(chatId, session, user);
+      return;
     }
 
     // Phase 1: Forced Detail Gathering for short initial messages — але спочатку перевіряємо KB
@@ -1272,11 +1308,17 @@ class TelegramAIService {
       session.dialog_history.push({ role: 'assistant', content: quickSolutionText });
       session.step = 'awaiting_tip_feedback';
 
-      const keyboard = [
-        [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
-        [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-        [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-      ];
+      const requiresAdminOnly = quickSolutionRequiresAdminOnly(quickSolutionText);
+      const keyboard = requiresAdminOnly
+        ? [
+            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+          ]
+        : [
+            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
+            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+          ];
 
       await this.telegramService.sendMessage(chatId, quickSolutionText, {
         parse_mode: 'Markdown',
@@ -1288,39 +1330,8 @@ class TelegramAIService {
     }
 
     if (!result.needsMoreInfo && (result.confidence || 0) >= CONFIDENCE_THRESHOLD) {
-      await this.telegramService.sendTyping(chatId);
-      const summary = await aiFirstLineService.getTicketSummary(
-        session.dialog_history,
-        session.userContext,
-        session.cachedPriority,
-        session.cachedCategory
-      );
-      if (summary) {
-        session.step = 'confirm_ticket';
-        session.ticketDraft = {
-          createdBy: user._id,
-          title: summary.title,
-          description: summary.description,
-          priority: summary.priority,
-          subcategory: summary.category,
-          type: 'problem',
-        };
-        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
-        await this.telegramService.sendMessage(chatId, msg, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
-          },
-          parse_mode: 'Markdown',
-        });
+      const shown = await this._showTicketConfirmationFromDialog(chatId, session, user);
+      if (shown) {
         return;
       }
     }
@@ -1423,6 +1434,41 @@ class TelegramAIService {
     const photo = photos[photos.length - 1];
     const fileId = photo.file_id;
 
+    // Після "Ні, створити тікет" користувач надіслав фото помилки — додаємо аналіз до діалогу і переходимо до підтвердження заявки
+    if (session.step === 'awaiting_error_details_after_not_helped') {
+      let localPathErr = null;
+      try {
+        const file = await this.telegramService.bot.getFile(fileId);
+        if (file && file.file_path) {
+          const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
+          localPathErr = await this.telegramService.downloadTelegramFileByFileId(fileId, ext);
+          const analysisTextErr = await aiFirstLineService.analyzePhoto(
+            localPathErr,
+            problemDescription,
+            session.userContext
+          );
+          if (analysisTextErr && analysisTextErr.trim()) {
+            session.dialog_history.push({ role: 'assistant', content: analysisTextErr });
+            botConversationService
+              .appendMessage(chatId, user, 'assistant', analysisTextErr)
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        logger.error('AI: помилка analyzePhoto після tip_not_helped', err);
+      } finally {
+        try {
+          if (localPathErr && fs.existsSync(localPathErr)) {
+            fs.unlinkSync(localPathErr);
+          }
+        } catch (_) {
+          /* ignore cleanup error */
+        }
+      }
+      await this._showTicketConfirmationFromDialog(chatId, session, user);
+      return;
+    }
+
     if (session.awaitingComputerAccessPhoto && user && user._id) {
       session.awaitingComputerAccessPhoto = false;
       const result = await this.telegramService._saveComputerAccessPhotoFromTelegram(
@@ -1507,14 +1553,21 @@ class TelegramAIService {
       const normalizedPhotoText = TelegramUtils.normalizeQuickSolutionSteps(analysisText.trim());
       session.dialog_history.push({ role: 'assistant', content: analysisText });
       botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => {});
-      await this.telegramService.sendMessage(chatId, normalizedPhotoText, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
+      const requiresAdminOnly = quickSolutionRequiresAdminOnly(analysisText);
+      const photoKeyboard = requiresAdminOnly
+        ? [
+            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+          ]
+        : [
             [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
             [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
             [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ],
+          ];
+      await this.telegramService.sendMessage(chatId, normalizedPhotoText, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: photoKeyboard,
         },
       });
     } else {
@@ -1525,16 +1578,77 @@ class TelegramAIService {
         session.userContext,
         session.cachedEmotionalTone
       );
-      await this.telegramService.sendMessage(chatId, filler, {
-        reply_markup: {
-          inline_keyboard: [
+      const requiresAdminOnlyFiller = quickSolutionRequiresAdminOnly(filler);
+      const fillerKeyboard = requiresAdminOnlyFiller
+        ? [
+            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
+            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+          ]
+        : [
             [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
             [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
             [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ],
+          ];
+      await this.telegramService.sendMessage(chatId, filler, {
+        reply_markup: {
+          inline_keyboard: fillerKeyboard,
         },
       });
     }
+  }
+
+  /**
+   * Формує підсумок заявки з діалогу і показує екран підтвердження (Так, створити тікет / Щось змінити / Скасувати).
+   * @returns {Promise<boolean>} true якщо підсумок отримано і повідомлення надіслано
+   */
+  async _showTicketConfirmationFromDialog(chatId, session, user) {
+    await this.telegramService.sendTyping(chatId);
+    const summary = await aiFirstLineService.getTicketSummary(
+      session.dialog_history,
+      session.userContext,
+      session.cachedPriority,
+      session.cachedCategory
+    );
+    if (!summary) {
+      return false;
+    }
+    session.step = 'confirm_ticket';
+    session.ticketDraft = {
+      createdBy: user._id,
+      title: summary.title,
+      description: summary.description,
+      priority: summary.priority,
+      subcategory: summary.category,
+      type: 'problem',
+    };
+    const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+    await this.telegramService.sendMessage(chatId, msg, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
+          [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
+          [
+            {
+              text: this.telegramService.getCancelButtonText(),
+              callback_data: 'cancel_ticket',
+            },
+          ],
+        ],
+      },
+      parse_mode: 'Markdown',
+    });
+    return true;
+  }
+
+  /**
+   * Після натискання "Пропустити (створити заявку без додатків)" — перейти до підтвердження заявки без нового опису/фото.
+   */
+  async proceedToTicketConfirmationAfterNotHelped(chatId, user) {
+    const session = this.telegramService.userSessions.get(chatId);
+    if (!session || session.step !== 'awaiting_error_details_after_not_helped') {
+      return;
+    }
+    await this._showTicketConfirmationFromDialog(chatId, session, user);
   }
 
   async handleVoice(msg) {

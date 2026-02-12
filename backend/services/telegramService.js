@@ -1231,8 +1231,35 @@ class TelegramService {
         } else if (data === 'tip_not_helped') {
           const session = this.userSessions.get(chatId);
           if (session && session.step === 'awaiting_tip_feedback') {
-            // let handleMessageInAiMode handle the transition so it can check for photo requirements
-            await this.aiService.handleMessageInAiMode(chatId, 'Не допомогло', session, user);
+            session.dialog_history = session.dialog_history || [];
+            session.dialog_history.push({ role: 'user', content: 'Не допомогло' });
+            botConversationService
+              .appendMessage(chatId, user, 'user', 'Не допомогло', null, 'Не допомогло')
+              .catch(() => {});
+            session.step = 'awaiting_error_details_after_not_helped';
+            await this.sendMessage(
+              chatId,
+              'Опишіть, будь ласка, що саме не спрацювало, або надішліть фото/скріншот помилки — тоді створимо заявку.',
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      {
+                        text: '⏭️ Пропустити (створити заявку без додатків)',
+                        callback_data: 'skip_error_details_after_not_helped',
+                      },
+                    ],
+                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+                  ],
+                },
+              }
+            );
+          }
+          await this.answerCallbackQuery(callbackQuery.id);
+        } else if (data === 'skip_error_details_after_not_helped') {
+          const session = this.userSessions.get(chatId);
+          if (session && session.step === 'awaiting_error_details_after_not_helped') {
+            await this.aiService.proceedToTicketConfirmationAfterNotHelped(chatId, user);
           }
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data.startsWith('kb_article_')) {
