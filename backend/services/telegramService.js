@@ -481,6 +481,35 @@ class TelegramService {
             );
           }
           break;
+        case '/skip':
+          // Пропустити короткий відгук після оцінки тікета (бот сам пропонує /skip у повідомленні)
+          {
+            const session = this.userSessions.get(chatId);
+            const feedbackUser = await User.findOne({ telegramChatId: String(chatId) });
+            if (session?.awaitingTicketFeedbackId && feedbackUser) {
+              const handled = await this.ticketService.handleTicketFeedbackMessage(
+                chatId,
+                msg.text.trim(),
+                feedbackUser
+              );
+              if (handled) {
+                break;
+              }
+            }
+            if (session?.awaitingTicketFeedbackId) {
+              delete session.awaitingTicketFeedbackId;
+              this.userSessions.set(chatId, session);
+              await this.sendMessage(chatId, 'Ок, без відгуку.');
+              break;
+            }
+          }
+          await this.sendMessage(
+            chatId,
+            `❓ *Невідома команда*\n\n` +
+              `Команда не розпізнана системою.\n\n` +
+              `💡 Використайте /start для перегляду доступних опцій.`
+          );
+          break;
         default:
           if (!user) {
             await this.sendMessage(
