@@ -7,6 +7,26 @@ const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
 const TelegramUtils = require('./telegramUtils');
 
+/** MIME type for KB attachment to avoid node-telegram-bot-api DeprecationWarning when sending files */
+function getContentTypeForKbFile(filename, kind) {
+  const ext = (path.extname(filename || '') || '').toLowerCase();
+  if (kind === 'image') {
+    const map = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    return map[ext] || 'image/jpeg';
+  }
+  if (kind === 'video') {
+    const map = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
+    return map[ext] || 'video/mp4';
+  }
+  return 'application/octet-stream';
+}
+
 class TelegramAIService {
   constructor(telegramService) {
     this.telegramService = telegramService;
@@ -795,10 +815,21 @@ class TelegramAIService {
               continue;
             }
             const type = String(att.type || '').toLowerCase();
-            if (type === 'image') {
-              await this.telegramService.bot.sendPhoto(chatId, fullPath);
-            } else if (type === 'video') {
-              await this.telegramService.bot.sendVideo(chatId, fullPath);
+            const stream = fs.createReadStream(fullPath);
+            const fileOptions = {
+              filename: name,
+              contentType: getContentTypeForKbFile(name, type),
+            };
+            try {
+              if (type === 'image') {
+                await this.telegramService.bot.sendPhoto(chatId, stream, {}, fileOptions);
+              } else if (type === 'video') {
+                await this.telegramService.bot.sendVideo(chatId, stream, {}, fileOptions);
+              }
+            } finally {
+              if (stream.destroy) {
+                stream.destroy();
+              }
             }
           } catch (err) {
             logger.warn('KB: не вдалося відправити вкладений файл', { fullPath, err: err.message });
