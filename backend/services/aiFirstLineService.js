@@ -5,6 +5,7 @@ const AISettings = require('../models/AISettings');
 const Ticket = require('../models/Ticket');
 const {
   INTENT_ANALYSIS,
+  SIMILAR_TICKETS_RELEVANCE_CHECK,
   NEXT_QUESTION,
   TICKET_SUMMARY,
   PHOTO_ANALYSIS,
@@ -162,6 +163,14 @@ async function getSimilarResolvedTickets(limit = 5, query = '') {
         { resolutionSummary: { $exists: true, $nin: [null, ''] } },
         { aiDialogHistory: { $exists: true, $not: { $size: 0 } } },
       ],
+      $and: [
+        {
+          $or: [
+            { 'qualityRating.hasRating': { $ne: true } },
+            { 'qualityRating.rating': { $gte: 4 } },
+          ],
+        },
+      ],
     })
       .sort({ resolvedAt: -1, closedAt: -1, updatedAt: -1 })
       .limit(limitNum)
@@ -171,6 +180,57 @@ async function getSimilarResolvedTickets(limit = 5, query = '') {
   } catch (err) {
     logger.error('AI: getSimilarResolvedTickets', err);
     return '(немає)';
+  }
+}
+
+const EMPTY_TICKETS_PLACEHOLDER = '(немає)';
+
+/**
+ * Self-correction (Етап 2): перевірка релевантності контексту минулих тікетів до запиту користувача.
+ * Якщо AI відповідає «Ні» — контекст не підставляємо в INTENT_ANALYSIS.
+ * @param {Object} settings - AISettings
+ * @param {string} userMessage - останнє повідомлення користувача
+ * @param {string} similarTicketsText - текст блоку similarTickets
+ * @returns {Promise<{ relevant: boolean, reason?: string }>}
+ */
+async function checkSimilarTicketsRelevance(settings, userMessage, similarTicketsText) {
+  if (
+    !similarTicketsText ||
+    similarTicketsText === EMPTY_TICKETS_PLACEHOLDER ||
+    String(similarTicketsText).trim().length < 50
+  ) {
+    return { relevant: true };
+  }
+  const maxTokens = MAX_TOKENS.SIMILAR_TICKETS_RELEVANCE_CHECK || 80;
+  const systemPrompt = fillPrompt(SIMILAR_TICKETS_RELEVANCE_CHECK, {
+    userMessage: userMessage || '(порожньо)',
+    similarTickets: similarTicketsText,
+  });
+  const userPrompt = 'Answer with YES or NO and optional short reason.';
+  try {
+    const response = await callChatCompletion(
+      settings,
+      systemPrompt,
+      userPrompt,
+      maxTokens,
+      false,
+      0.2
+    );
+    if (!response || typeof response !== 'string') {
+      return { relevant: true };
+    }
+    const upper = response.trim().toUpperCase();
+    const isNo =
+      upper.startsWith('NO') ||
+      upper.startsWith('НІ') ||
+      upper.includes(' NO ') ||
+      upper.includes(' НІ ');
+    const reasonMatch = response.match(/\b(?:NO|Ні)\s*[:\s]*(.+)/i);
+    const reason = reasonMatch ? reasonMatch[1].trim().slice(0, 200) : undefined;
+    return { relevant: !isNo, reason: isNo ? reason : undefined };
+  } catch (err) {
+    logger.warn('AI: checkSimilarTicketsRelevance failed, keeping context', err);
+    return { relevant: true };
   }
 }
 
@@ -376,12 +436,19 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       ? String(dialogHistory[dialogHistory.length - 1].content || '').trim()
       : '';
   const similarTickets = await getSimilarResolvedTickets(5, lastUserMsg);
+  const relevance = await checkSimilarTicketsRelevance(settings, lastUserMsg, similarTickets);
+  const similarTicketsForPrompt = relevance.relevant ? similarTickets : EMPTY_TICKETS_PLACEHOLDER;
+  if (!relevance.relevant) {
+    logger.info('AI: similar tickets context rejected (self-correction)', {
+      reason: relevance.reason || 'no reason',
+    });
+  }
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     quickSolutions: quickSolutionsText,
     webSearchContext: webSearchContext ? String(webSearchContext).trim() : '',
-    similarTickets,
+    similarTickets: similarTicketsForPrompt,
   });
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
@@ -552,12 +619,21 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
     dialogHistory.length > 0 && dialogHistory[dialogHistory.length - 1]?.role === 'user'
       ? String(dialogHistory[dialogHistory.length - 1].content || '').trim()
       : '';
+  const similarTicketsSummary = await getSimilarResolvedTickets(3, lastUserMsg);
+  const relevanceSummary = await checkSimilarTicketsRelevance(
+    settings,
+    lastUserMsg,
+    similarTicketsSummary
+  );
+  const similarTicketsForSummary = relevanceSummary.relevant
+    ? similarTicketsSummary
+    : EMPTY_TICKETS_PLACEHOLDER;
   const systemPrompt = fillPrompt(TICKET_SUMMARY, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     priority: priorityHint || 'medium',
     category: categoryHint || 'Other',
-    similarTickets: await getSimilarResolvedTickets(3, lastUserMsg),
+    similarTickets: similarTicketsForSummary,
   });
 
   const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;

@@ -42,6 +42,88 @@ jest.mock('../../../services/metricsCollector', () => ({
   recordValidationFailure: jest.fn(),
 }));
 
+const mockTicketEmbeddingService = {
+  findSimilarTickets: jest.fn(),
+};
+jest.mock('../../../services/ticketEmbeddingService', () => mockTicketEmbeddingService);
+
+describe('aiFirstLineService.getSimilarResolvedTickets (Етап 1, 2б)', () => {
+  function chainMock(resolvedValue) {
+    return {
+      sort: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(resolvedValue),
+      }),
+    };
+  }
+
+  it('повертає "(немає)" коли немає тікетів (fallback без query)', async () => {
+    jest.resetModules();
+    const Ticket = require('../../../models/Ticket');
+    Ticket.find.mockReturnValue(chainMock([]));
+    mockTicketEmbeddingService.findSimilarTickets.mockResolvedValue([]);
+    const svc = require('../../../services/aiFirstLineService');
+    const result = await svc.getSimilarResolvedTickets(5, '');
+    expect(result).toBe('(немає)');
+    expect(Ticket.find).toHaveBeenCalled();
+  });
+
+  it('при наявному query викликає findSimilarTickets і форматує контекст', async () => {
+    jest.resetModules();
+    const tickets = [
+      { title: 'T1', description: 'D1', resolutionSummary: 'R1', subcategory: 'S1' },
+    ];
+    mockTicketEmbeddingService.findSimilarTickets.mockResolvedValue([
+      { ticket: tickets[0], score: 0.9 },
+    ]);
+    const svc = require('../../../services/aiFirstLineService');
+    const result = await svc.getSimilarResolvedTickets(5, 'принтер не працює');
+    expect(mockTicketEmbeddingService.findSimilarTickets).toHaveBeenCalledWith(
+      'принтер не працює',
+      {
+        topK: 5,
+      }
+    );
+    expect(result).toContain('T1');
+    expect(result).toContain('R1');
+    expect(result).not.toBe('(немає)');
+  });
+
+  it('при порожньому результаті findSimilarTickets йде у fallback за датою', async () => {
+    jest.resetModules();
+    const Ticket = require('../../../models/Ticket');
+    mockTicketEmbeddingService.findSimilarTickets.mockResolvedValue([]);
+    Ticket.find.mockReturnValue(
+      chainMock([
+        {
+          title: 'Fallback',
+          description: 'D',
+          resolutionSummary: 'R',
+          subcategory: 'S',
+        },
+      ])
+    );
+    const svc = require('../../../services/aiFirstLineService');
+    const result = await svc.getSimilarResolvedTickets(3, 'принтер');
+    expect(result).toContain('Fallback');
+    expect(result).toContain('R');
+    expect(Ticket.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: { $in: ['resolved', 'closed'] },
+        $and: [
+          {
+            $or: [
+              { 'qualityRating.hasRating': { $ne: true } },
+              { 'qualityRating.rating': { $gte: 4 } },
+            ],
+          },
+        ],
+      })
+    );
+  });
+});
+
 describe('aiFirstLineService.analyzeIntent — requestType (A.1, A.2)', () => {
   const emptyContext = {};
   const dialogWithUserMessage = text => [{ role: 'user', content: text }];

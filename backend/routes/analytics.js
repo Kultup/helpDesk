@@ -39,6 +39,16 @@ router.post(
   analyticsController.analyzeStatistics
 );
 
+// @route   GET /api/analytics/quality-ratings
+// @desc    Звіт якості за оцінками (Етап 2б): середня оцінка, по категоріях, тікети 1–2
+// @access  Private
+router.get(
+  '/quality-ratings',
+  authenticateToken,
+  requirePermission('view_analytics'),
+  analyticsController.getQualityRatingsReport
+);
+
 // @route   GET /api/analytics/overview
 // @desc    Загальна статистика системи
 // @access  Private

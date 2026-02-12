@@ -917,6 +917,19 @@ Ukrainian response example:
 `;
 
 // ============================================================================
+// 0️⃣ SELF-CORRECTION: релевантність контексту тікетів (Етап 2)
+// ============================================================================
+
+/** Один виклик: чи релевантні приклади минулих тікетів до поточного запиту користувача. Відповідь: YES/NO та опційно причина. */
+const SIMILAR_TICKETS_RELEVANCE_CHECK = `You are a strict reviewer. Given:
+1) The user's current message: "{userMessage}"
+2) A block of past resolved tickets (title, description, solution): {similarTickets}
+
+Question: Are these past ticket examples RELEVANT to the user's current request (same topic, same type of problem)?
+Answer in one line. Start with YES or NO. If NO, add a short reason in Ukrainian after a space (e.g. "NO тікети про інше").
+Examples: "YES" or "NO минулі тікети про принтер, а користувач питає про пароль"`;
+
+// ============================================================================
 // 1️⃣ INTENT ANALYSIS - INTEGRATED
 // ============================================================================
 
@@ -1765,6 +1778,7 @@ function fillPrompt(template, vars = {}) {
     webSearchContext: vars.webSearchContext?.trim() || '(немає)',
     problemDescription: vars.problemDescription ?? '',
     similarTickets: vars.similarTickets ?? '(немає)',
+    userMessage: vars.userMessage ?? '',
     quickSolutions: vars.quickSolutions ?? '(немає)',
     recognized_access_info: vars.recognized_access_info ?? '',
     rating: vars.rating ?? '5',
@@ -1798,6 +1812,9 @@ module.exports = {
   MULTI_INTENT_DETECTION,
   PHOTO_REQUEST_LOGIC,
 
+  // Self-correction (Stage 2)
+  SIMILAR_TICKETS_RELEVANCE_CHECK,
+
   // Main prompts
   INTENT_ANALYSIS,
   NEXT_QUESTION,
@@ -1813,6 +1830,7 @@ module.exports = {
 
   // Configuration
   MAX_TOKENS: {
+    SIMILAR_TICKETS_RELEVANCE_CHECK: 80,
     INTENT_ANALYSIS: 800,
     NEXT_QUESTION: 120,
     TICKET_SUMMARY: 900,

@@ -472,6 +472,11 @@ class TelegramTicketService {
       ticket.qualityRating.ratedBy = user._id;
       await ticket.save();
 
+      // Опційний текстовий відгук: наступне повідомлення користувача збережемо в qualityRating.feedback
+      const session = this.userSessions.get(chatId) || {};
+      session.awaitingTicketFeedbackId = ticketId.toString();
+      this.userSessions.set(chatId, session);
+
       // AI-емоція: кожен раз нова фраза
       let emotionText = '✅ Дякуємо за оцінку!';
       try {
@@ -480,6 +485,11 @@ class TelegramTicketService {
         logger.warn('AI emotion для оцінки недоступно:', aiErr?.message);
       }
       await this.sendMessage(chatId, emotionText, { parse_mode: 'Markdown' });
+      await this.sendMessage(
+        chatId,
+        '💬 Можете написати короткий відгук текстом (або /skip — пропустити).',
+        { parse_mode: 'Markdown' }
+      );
 
       // GIF або стікер під оцінку (BotSettings.ratingMedia або дефолтні GIF)
       if (this.bot) {
@@ -509,6 +519,43 @@ class TelegramTicketService {
     } catch (error) {
       logger.error('Помилка обробки оцінки якості:', error);
       await this.sendMessage(chatId, `❌ *Помилка збереження оцінки*`);
+    }
+  }
+
+  /**
+   * Обробити текст як опційний відгук після оцінки тікета (Етап 2б).
+   * Якщо в сесії є awaitingTicketFeedbackId — зберегти текст у ticket.qualityRating.feedback.
+   * @returns {Promise<boolean>} true якщо повідомлення оброблено як відгук
+   */
+  async handleTicketFeedbackMessage(chatId, text, user) {
+    const session = this.userSessions.get(chatId);
+    const ticketId = session?.awaitingTicketFeedbackId;
+    if (!ticketId || !text || typeof text !== 'string') {
+      return false;
+    }
+    const trimmed = String(text).trim();
+    if (/^\/skip$/i.test(trimmed)) {
+      delete session.awaitingTicketFeedbackId;
+      this.userSessions.set(chatId, session);
+      await this.sendMessage(chatId, 'Ок, без відгуку.');
+      return true;
+    }
+    try {
+      const ticket = await Ticket.findById(ticketId);
+      if (!ticket || String(ticket.createdBy) !== String(user._id)) {
+        delete session.awaitingTicketFeedbackId;
+        this.userSessions.set(chatId, session);
+        return false;
+      }
+      ticket.qualityRating.feedback = trimmed.slice(0, 500);
+      await ticket.save();
+      delete session.awaitingTicketFeedbackId;
+      this.userSessions.set(chatId, session);
+      await this.sendMessage(chatId, '✅ Дякуємо, відгук збережено.');
+      return true;
+    } catch (err) {
+      logger.error('Помилка збереження відгуку тікета:', err);
+      return false;
     }
   }
 

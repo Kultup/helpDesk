@@ -1540,9 +1540,17 @@ class TelegramService {
         return;
       }
 
-      // Перевіряємо, чи це відгук
+      // Перевіряємо, чи це відгук після оцінки тікета (Етап 2б) або інший відгук
       const user = await User.findOne({ telegramChatId: chatId });
       if (user) {
+        const ticketFeedbackHandled = await this.ticketService.handleTicketFeedbackMessage(
+          chatId,
+          text,
+          user
+        );
+        if (ticketFeedbackHandled) {
+          return;
+        }
         const feedbackHandled = await this.handleFeedbackMessage(chatId, text, user);
         if (feedbackHandled) {
           return; // Повідомлення оброблено як відгук
@@ -1638,9 +1646,17 @@ class TelegramService {
       return;
     }
 
-    // Спочатку перевіряємо, чи це відгук
+    // Спочатку перевіряємо, чи це відгук після оцінки тікета (Етап 2б) або інший відгук
     const user = await User.findOne({ telegramChatId: chatId });
     if (user) {
+      const ticketFeedbackHandled = await this.ticketService.handleTicketFeedbackMessage(
+        chatId,
+        text,
+        user
+      );
+      if (ticketFeedbackHandled) {
+        return;
+      }
       const feedbackHandled = await this.handleFeedbackMessage(chatId, text, user);
       if (feedbackHandled) {
         return; // Повідомлення оброблено як відгук

@@ -886,6 +886,106 @@ exports.exportMonthlyReport = async (req, res) => {
     });
   }
 };
+/**
+ * Звіт «Якість за оцінками» (Етап 2б): середня оцінка, розподіл по оцінках, по категоріях, тікети з оцінкою 1–2.
+ * GET /api/analytics/quality-ratings?startDate=...&endDate=...
+ */
+exports.getQualityRatingsReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const filter = { 'qualityRating.hasRating': true };
+    if (startDate || endDate) {
+      filter['qualityRating.ratedAt'] = {};
+      if (startDate) {
+        filter['qualityRating.ratedAt'].$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter['qualityRating.ratedAt'].$lte = new Date(endDate);
+      }
+    }
+
+    const [aggregateRating, byRating, byCategory, lowRatedTickets] = await Promise.all([
+      Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: null,
+            averageRating: { $avg: '$qualityRating.rating' },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Ticket.aggregate([
+        { $match: filter },
+        { $group: { _id: '$qualityRating.rating', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ]),
+      Ticket.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$category',
+            averageRating: { $avg: '$qualityRating.rating' },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { averageRating: 1, count: -1 } },
+      ]),
+      Ticket.find({
+        ...filter,
+        'qualityRating.rating': { $in: [1, 2] },
+      })
+        .sort({ 'qualityRating.ratedAt': -1 })
+        .limit(100)
+        .select(
+          'ticketNumber title status qualityRating.rating qualityRating.feedback qualityRating.ratedAt category subcategory createdAt'
+        )
+        .lean(),
+    ]);
+
+    const countByRating = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    byRating.forEach(r => {
+      if (r._id >= 1 && r._id <= 5) {
+        countByRating[r._id] = r.count;
+      }
+    });
+
+    const summary = aggregateRating[0] || { averageRating: 0, count: 0 };
+    res.json({
+      success: true,
+      data: {
+        averageRating: Math.round(summary.averageRating * 100) / 100,
+        countRated: summary.count,
+        countByRating,
+        byCategory: byCategory.map(c => ({
+          category: c._id || 'Other',
+          averageRating: Math.round(c.averageRating * 100) / 100,
+          count: c.count,
+        })),
+        lowRatedTickets: lowRatedTickets.map(t => ({
+          id: t._id,
+          ticketNumber: t.ticketNumber,
+          title: t.title,
+          status: t.status,
+          category: t.category,
+          subcategory: t.subcategory,
+          rating: t.qualityRating?.rating,
+          feedback: t.qualityRating?.feedback,
+          ratedAt: t.qualityRating?.ratedAt,
+          createdAt: t.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    logger.error('Помилка звіту quality-ratings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка сервера при отриманні звіту якості',
+      error: error.message,
+    });
+  }
+};
+
 // AI Аналіз статистики
 exports.analyzeStatistics = async (req, res) => {
   try {

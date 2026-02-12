@@ -8,6 +8,28 @@ const kbEmbeddingService = require('./kbEmbeddingService');
 
 const MAX_TEXT_LENGTH = 8000;
 
+/** Мінімальна оцінка для включення тікета в контекст AI (Етап 2б). Тікети без оцінки вважаються нейтральними (включаються). */
+const MIN_RATING_FOR_CONTEXT = 4;
+
+/** Ваги за оцінкою для сортування (Етап 2б): кращі тікети піднімаються вище. */
+const RATING_WEIGHT = {
+  5: 1.2,
+  4: 1.0,
+  3: 0.8,
+  2: 0.5,
+  1: 0.5,
+};
+function getRatingWeight(ticket) {
+  if (
+    !ticket?.qualityRating?.hasRating ||
+    ticket.qualityRating.rating === null ||
+    ticket.qualityRating.rating === undefined
+  ) {
+    return 1.0;
+  }
+  return RATING_WEIGHT[ticket.qualityRating.rating] ?? 1.0;
+}
+
 /**
  * Текст тікета для індексації: title + description + resolutionSummary (обрізаний).
  * @param {{ title?: string, description?: string, resolutionSummary?: string }} ticket
@@ -122,7 +144,7 @@ async function findSimilarTickets(query, options = {}) {
     isDeleted: { $ne: true },
     embedding: { $exists: true, $ne: null },
   })
-    .select('+embedding title description resolutionSummary subcategory')
+    .select('+embedding title description resolutionSummary subcategory qualityRating')
     .lean();
 
   const withScores = tickets
@@ -131,11 +153,20 @@ async function findSimilarTickets(query, options = {}) {
       if (!vec || vec.length !== embedding.length) {
         return null;
       }
-      const score = cosineSimilarity(embedding, vec);
+      const rawScore = cosineSimilarity(embedding, vec);
       const { embedding: _, ...rest } = doc;
+      const weight = getRatingWeight(rest);
+      const score = rawScore * weight;
       return { ticket: rest, score };
     })
     .filter(Boolean)
+    .filter(
+      item =>
+        !item.ticket.qualityRating?.hasRating ||
+        (item.ticket.qualityRating?.rating !== null &&
+          item.ticket.qualityRating?.rating !== undefined &&
+          item.ticket.qualityRating.rating >= MIN_RATING_FOR_CONTEXT)
+    )
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 
