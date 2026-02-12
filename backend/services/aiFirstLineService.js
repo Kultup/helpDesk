@@ -6,6 +6,7 @@ const Ticket = require('../models/Ticket');
 const {
   INTENT_ANALYSIS,
   SIMILAR_TICKETS_RELEVANCE_CHECK,
+  KB_ARTICLE_RELEVANCE_CHECK,
   NEXT_QUESTION,
   TICKET_SUMMARY,
   PHOTO_ANALYSIS,
@@ -19,6 +20,7 @@ const {
 } = require('../prompts/aiFirstLinePrompts');
 const logger = require('../utils/logger');
 const aiResponseValidator = require('../utils/aiResponseValidator');
+const kbRelevanceGuard = require('../utils/kbRelevanceGuard');
 const metricsCollector = require('./metricsCollector');
 const retryHelper = require('../utils/retryHelper');
 
@@ -185,6 +187,59 @@ async function getSimilarResolvedTickets(limit = 5, query = '') {
 
 const EMPTY_TICKETS_PLACEHOLDER = '(немає)';
 
+/** Максимум додаткових пошуків за один запит (Етап 3 — Agentic RAG). */
+const MAX_AGENTIC_ITERATIONS = 2;
+
+/**
+ * Додатковий контекст для агентського циклу (Етап 3): пошук по KB або тікетах.
+ * @param {'kb'|'tickets'} source
+ * @param {string} query
+ * @returns {Promise<string>}
+ */
+async function fetchExtraContextForAgentic(source, query) {
+  const q = String(query || '').trim();
+  if (!q) {
+    return '';
+  }
+  try {
+    if (source === 'tickets') {
+      const ticketEmbeddingService = require('./ticketEmbeddingService');
+      const similar = await ticketEmbeddingService.findSimilarTickets(q, { topK: 10 });
+      if (similar && similar.length > 0) {
+        const tickets = similar.map(s => s.ticket);
+        return formatTicketsForContext(tickets);
+      }
+      return '';
+    }
+    if (source === 'kb') {
+      const kbEmbeddingService = require('./kbEmbeddingService');
+      const results = await kbEmbeddingService.findSimilarArticles(q, { topK: 5 });
+      if (results && results.length > 0) {
+        return results
+          .map(r => {
+            const a = r.article || r;
+            const title = a.title || 'Стаття';
+            const content = (a.content || '').slice(0, 600).trim();
+            return `[KB] ${title}\n${content}`;
+          })
+          .join('\n\n---\n\n');
+      }
+      const kbSearchService = require('./kbSearchService');
+      const article = await kbSearchService.findBestMatchForBotTextOnly(q);
+      if (article) {
+        const plain = article.toObject ? article.toObject() : article;
+        const content = (plain.content || '').slice(0, 600).trim();
+        return `[KB] ${plain.title || 'Стаття'}\n${content}`;
+      }
+      return '';
+    }
+  } catch (err) {
+    logger.warn('AI: fetchExtraContextForAgentic failed', { source, err: err.message });
+    return '';
+  }
+  return '';
+}
+
 /**
  * Self-correction (Етап 2): перевірка релевантності контексту минулих тікетів до запиту користувача.
  * Якщо AI відповідає «Ні» — контекст не підставляємо в INTENT_ANALYSIS.
@@ -231,6 +286,80 @@ async function checkSimilarTicketsRelevance(settings, userMessage, similarTicket
   } catch (err) {
     logger.warn('AI: checkSimilarTicketsRelevance failed, keeping context', err);
     return { relevant: true };
+  }
+}
+
+/**
+ * Перевірка релевантності статті KB до запиту через AI. При відсутності API або помилці — fallback на правило (kbRelevanceGuard).
+ * @param {Object|null} settings - AISettings
+ * @param {string} userQuery - повідомлення користувача
+ * @param {string} articleTitle - заголовок статті
+ * @param {string} [articleContentSnippet] - початок контенту статті
+ * @returns {Promise<boolean>} true = релевантно, false = ні
+ */
+async function checkKbArticleRelevanceWithAI(
+  settings,
+  userQuery,
+  articleTitle,
+  articleContentSnippet = ''
+) {
+  const snippet = String(articleContentSnippet || '')
+    .slice(0, 400)
+    .trim();
+  const fallback = () =>
+    kbRelevanceGuard.isKbArticleRelevantToQuery(userQuery, articleTitle, articleContentSnippet);
+
+  if (!settings) {
+    return fallback();
+  }
+  const apiKey =
+    settings.provider === 'openai'
+      ? settings.openaiApiKey
+      : settings.provider === 'gemini'
+        ? settings.geminiApiKey
+        : '';
+  if (!apiKey || !String(apiKey).trim()) {
+    return fallback();
+  }
+
+  const maxTokens = MAX_TOKENS.KB_ARTICLE_RELEVANCE_CHECK || 60;
+  const systemPrompt = fillPrompt(KB_ARTICLE_RELEVANCE_CHECK, {
+    userQuery: String(userQuery || '').trim(),
+    articleTitle: String(articleTitle || '').trim(),
+    articleSnippet: snippet || '(немає фрагменту)',
+  });
+  const userPrompt = 'Answer with YES or NO.';
+
+  try {
+    const response = await callChatCompletion(
+      settings,
+      systemPrompt,
+      userPrompt,
+      maxTokens,
+      false,
+      0.2
+    );
+    if (!response || typeof response !== 'string') {
+      logger.warn('AI: KB relevance check empty response, using rule-based fallback');
+      return fallback();
+    }
+    const upper = response.trim().toUpperCase();
+    const isNo =
+      upper.startsWith('NO') ||
+      upper.startsWith('НІ') ||
+      upper.includes(' NO ') ||
+      upper.includes(' НІ ');
+    const relevant = !isNo;
+    logger.info('KB relevance: AI ->', relevant ? 'relevant' : 'not relevant', {
+      queryPreview: String(userQuery).slice(0, 50),
+      articleTitle: String(articleTitle).slice(0, 50),
+    });
+    return relevant;
+  } catch (err) {
+    logger.warn('AI: checkKbArticleRelevanceWithAI failed, using rule-based fallback', {
+      message: err.message,
+    });
+    return fallback();
   }
 }
 
@@ -308,65 +437,104 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       };
 
       try {
+        const kbSettings = await getAISettings();
         const thresholds = kbEmbeddingService.getScoreThresholds();
         const semanticResults = await kbEmbeddingService.findSimilarArticles(query, { topK: 5 });
         if (semanticResults.length > 0) {
           const best = semanticResults[0];
           if (best.score >= thresholds.high) {
             const plain = best.article;
-            logger.info(
-              `📚 KB semantic (high): "${plain.title}" for query: ${query.substring(0, 80)} (score: ${best.score.toFixed(3)})`
+            const relevant = await checkKbArticleRelevanceWithAI(
+              kbSettings,
+              query,
+              plain.title,
+              plain.content
             );
-            return {
-              ...baseReturn,
-              kbArticle: {
-                id: plain._id?.toString(),
-                title: plain.title,
-                content: plain.content || '',
-                attachments: Array.isArray(plain.attachments)
-                  ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                  : [],
-              },
-            };
+            if (relevant) {
+              logger.info(
+                `📚 KB semantic (high): "${plain.title}" for query: ${query.substring(0, 80)} (score: ${best.score.toFixed(3)})`
+              );
+              return {
+                ...baseReturn,
+                kbArticle: {
+                  id: plain._id?.toString(),
+                  title: plain.title,
+                  content: plain.content || '',
+                  attachments: Array.isArray(plain.attachments)
+                    ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
+                    : [],
+                },
+              };
+            }
+            // Тема не збігається — шукаємо наступний релевантний результат у топі
+            for (let i = 1; i < semanticResults.length; i++) {
+              const next = semanticResults[i];
+              if (next.score < thresholds.medium) {
+                break;
+              }
+              const nextPlain = next.article;
+              if (
+                await checkKbArticleRelevanceWithAI(
+                  kbSettings,
+                  query,
+                  nextPlain.title,
+                  nextPlain.content
+                )
+              ) {
+                logger.info(
+                  `📚 KB semantic (high, fallback): "${nextPlain.title}" for query: ${query.substring(0, 80)} (score: ${next.score.toFixed(3)})`
+                );
+                return {
+                  ...baseReturn,
+                  kbArticle: {
+                    id: nextPlain._id?.toString(),
+                    title: nextPlain.title,
+                    content: nextPlain.content || '',
+                    attachments: Array.isArray(nextPlain.attachments)
+                      ? nextPlain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
+                      : [],
+                  },
+                };
+              }
+            }
           }
           if (best.score >= thresholds.medium) {
-            const candidates = semanticResults.slice(0, 3).map(r => ({
-              id: r.article._id?.toString(),
-              title: r.article.title || 'Стаття',
-            }));
-            logger.info(
-              `📚 KB semantic (medium): ${candidates.length} кандидатів for query: ${query.substring(0, 60)} (best score: ${best.score.toFixed(3)})`
-            );
-            return {
-              ...baseReturn,
-              kbArticleCandidates: candidates,
-            };
+            const relevantCandidates = [];
+            for (const r of semanticResults.slice(0, 5)) {
+              const isRelevant = await checkKbArticleRelevanceWithAI(
+                kbSettings,
+                query,
+                r.article.title,
+                r.article.content
+              );
+              if (isRelevant) {
+                relevantCandidates.push({
+                  id: r.article._id?.toString(),
+                  title: r.article.title || 'Стаття',
+                });
+                if (relevantCandidates.length >= 3) {
+                  break;
+                }
+              }
+            }
+            if (relevantCandidates.length > 0) {
+              logger.info(
+                `📚 KB semantic (medium): ${relevantCandidates.length} релевантних кандидатів for query: ${query.substring(0, 60)} (best score: ${best.score.toFixed(3)})`
+              );
+              return {
+                ...baseReturn,
+                kbArticleCandidates: relevantCandidates,
+              };
+            }
           }
         }
         const article = await kbSearchService.findBestMatchForBotTextOnly(query);
         if (article) {
           const plain = article.toObject ? article.toObject() : article;
-          logger.info(
-            `📚 KB fallback (text): "${plain.title}" for query: ${query.substring(0, 80)}`
-          );
-          return {
-            ...baseReturn,
-            kbArticle: {
-              id: plain._id?.toString(),
-              title: plain.title,
-              content: plain.content || '',
-              attachments: Array.isArray(plain.attachments)
-                ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                : [],
-            },
-          };
-        }
-      } catch (err) {
-        logger.warn('KB search in analyzeIntent failed', err);
-        try {
-          const article = await kbSearchService.findBestMatchForBot(query);
-          if (article) {
-            const plain = article.toObject ? article.toObject() : article;
+          if (await checkKbArticleRelevanceWithAI(kbSettings, query, plain.title, plain.content)) {
+            logger.info(
+              `📚 KB fallback (text): "${plain.title}" for query: ${query.substring(0, 80)}`
+            );
             return {
               ...baseReturn,
               kbArticle: {
@@ -378,6 +546,35 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
                   : [],
               },
             };
+          }
+        }
+      } catch (err) {
+        logger.warn('KB search in analyzeIntent failed', err);
+        try {
+          const kbSettingsCatch = await getAISettings();
+          const article = await kbSearchService.findBestMatchForBot(query);
+          if (article) {
+            const plain = article.toObject ? article.toObject() : article;
+            if (
+              await checkKbArticleRelevanceWithAI(
+                kbSettingsCatch,
+                query,
+                plain.title,
+                plain.content
+              )
+            ) {
+              return {
+                ...baseReturn,
+                kbArticle: {
+                  id: plain._id?.toString(),
+                  title: plain.title,
+                  content: plain.content || '',
+                  attachments: Array.isArray(plain.attachments)
+                    ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
+                    : [],
+                },
+              };
+            }
           }
         } catch (_) {
           // fallback findBestMatchForBot failed, continue to Fast-Track/LLM
@@ -443,34 +640,94 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       reason: relevance.reason || 'no reason',
     });
   }
-  const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
-    userContext: formatUserContext(userContext),
-    dialogHistory: formatDialogHistory(dialogHistory),
-    quickSolutions: quickSolutionsText,
-    webSearchContext: webSearchContext ? String(webSearchContext).trim() : '',
-    similarTickets: similarTicketsForPrompt,
-  });
 
   const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}`;
-
   const temperature =
     typeof INTENT_ANALYSIS_TEMPERATURE === 'number' ? INTENT_ANALYSIS_TEMPERATURE : 0.55;
 
-  // Виклик AI з retry механізмом
-  const response = await retryHelper.retryAIRequest(
-    () =>
-      callChatCompletion(
-        settings,
-        systemPrompt,
-        userMessage,
-        MAX_TOKENS.INTENT_ANALYSIS,
-        true,
-        temperature
-      ),
-    'analyzeIntent'
-  );
+  let extraContextBlock = '';
+  let parsed = null;
 
-  if (!response) {
+  for (let iter = 0; iter < MAX_AGENTIC_ITERATIONS; iter++) {
+    const agenticSecondPass = iter > 0 ? 'true' : 'false';
+    const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
+      userContext: formatUserContext(userContext),
+      dialogHistory: formatDialogHistory(dialogHistory),
+      quickSolutions: quickSolutionsText,
+      webSearchContext: webSearchContext ? String(webSearchContext).trim() : '',
+      similarTickets: similarTicketsForPrompt,
+      extraContextBlock: extraContextBlock
+        ? `\nAdditional context (requested):\n${extraContextBlock}`
+        : '',
+      agenticSecondPass,
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          userMessage,
+          MAX_TOKENS.INTENT_ANALYSIS,
+          true,
+          temperature
+        ),
+      'analyzeIntent'
+    );
+
+    if (!response) {
+      return {
+        requestType: 'question',
+        requestTypeConfidence: 0,
+        isTicketIntent: false,
+        needsMoreInfo: false,
+        missingInfo: [],
+        confidence: 0,
+        offTopicResponse: null,
+      };
+    }
+
+    const responseStr = String(response).trim();
+    logger.info(
+      `🤖 AI RAW RESPONSE (${responseStr.length} chars): ${responseStr.substring(0, 600)}`
+    );
+
+    parsed = parseJsonFromResponse(responseStr);
+    if (!parsed || typeof parsed !== 'object') {
+      logger.error(
+        `❌ AI: не вдалося розпарсити результат analyzeIntent. Відповідь (${responseStr.length}): ${responseStr.substring(0, 800)}`
+      );
+      return {
+        requestType: 'appeal',
+        requestTypeConfidence: 0.5,
+        isTicketIntent: true,
+        needsMoreInfo: true,
+        missingInfo: [],
+        confidence: 0.5,
+        offTopicResponse: null,
+      };
+    }
+
+    const needMore = !!parsed.needMoreContext;
+    const source =
+      parsed.moreContextSource === 'kb' || parsed.moreContextSource === 'tickets'
+        ? parsed.moreContextSource
+        : null;
+
+    if (iter < MAX_AGENTIC_ITERATIONS - 1 && needMore && source) {
+      extraContextBlock = await fetchExtraContextForAgentic(source, lastUserMsg);
+      if (!extraContextBlock || extraContextBlock.length < 20) {
+        logger.info('AI: agentic requested more context but none found', { source });
+        break;
+      }
+      logger.info('AI: agentic second pass', { source, extraLength: extraContextBlock.length });
+      continue;
+    }
+
+    break;
+  }
+
+  if (!parsed) {
     return {
       requestType: 'question',
       requestTypeConfidence: 0,
@@ -482,33 +739,13 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     };
   }
 
-  const responseStr = String(response).trim();
-  logger.info(`🤖 AI RAW RESPONSE (${responseStr.length} chars): ${responseStr.substring(0, 600)}`);
-
-  const parsed = parseJsonFromResponse(responseStr);
-  if (!parsed || typeof parsed !== 'object') {
-    logger.error(
-      `❌ AI: не вдалося розпарсити результат analyzeIntent. Відповідь (${responseStr.length}): ${responseStr.substring(0, 800)}`
-    );
-    return {
-      requestType: 'appeal',
-      requestTypeConfidence: 0.5,
-      isTicketIntent: true,
-      needsMoreInfo: true,
-      missingInfo: [],
-      confidence: 0.5,
-      offTopicResponse: null,
-    };
-  }
   const offTopicResponse =
     parsed.offTopicResponse !== null && String(parsed.offTopicResponse).trim() !== ''
       ? String(parsed.offTopicResponse).trim()
       : null;
 
-  // Записати AI відповідь
   metricsCollector.recordAIResponse(parsed);
 
-  // Валідація quickSolution якщо є
   let validatedQuickSolution = parsed.quickSolution || null;
   if (validatedQuickSolution) {
     const validation = aiResponseValidator.validate(validatedQuickSolution, 'quickSolution');
@@ -518,7 +755,6 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
         reason: validation.reason,
         original: validatedQuickSolution.substring(0, 100),
       });
-      // Використовуємо fallback
       validatedQuickSolution = null;
     }
   }

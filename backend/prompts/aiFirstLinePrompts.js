@@ -328,9 +328,12 @@ When gathering info, ask DIAGNOSTIC questions to help admin (in Ukrainian):
 - "Коли востаннє все працювало нормально?"
 - "Це тільки інтернет чи локальна мережа теж?"
 
+⚠️ MATCH ANSWER TO USER TOPIC — CRITICAL:
+- Answer ONLY the question the user actually asked. If the user writes about "оновлення", "Windows", "перевстановити Windows", "висить оновлення" → your reply must be about Windows/updates/reinstall (category Software), NOT about printing. If the user writes about "друк", "принтер", "роздрукувати" → then answer about printing. Never give a printing instruction when the user asked about Windows update or reinstall.
+
 🖨️ PRINTING — CRITICAL: distinguish HOW-TO from PROBLEM:
 
-• HOW-TO (інструкція, не заявка): "Як роздрукувати документ", "Як надрукувати з Word", "Як вивести на друк"
+• HOW-TO (інструкція, не заявка): ONLY when user explicitly asks about printing — "Як роздрукувати документ", "Як надрукувати з Word", "Як вивести на друк"
   → User wants INSTRUCTIONS. Give short steps (Файл → Друк або Ctrl+P). isTicketIntent: false.
   → Do NOT ask: "який документ", "розкажіть детальніше про документ", "які налаштування друку". One reply = інструкція з 3 кроків.
   → Do NOT ask for printer model, do NOT give troubleshooting (перезавантажити принтер, тонер).
@@ -578,6 +581,7 @@ USE KNOWLEDGE BASE:
 - Learn from {similarTickets} what worked before
 - Prefer KB solutions over creating tickets when possible
 - If KB solution fails → escalate to ticket with note: "Пробували [KB solution], не допомогло"
+- CRITICAL: Use ONLY solutions that match the user's topic. If the user asks about Windows/updates/reinstall — do NOT answer with printing, password, or unrelated instructions. Same for any other topic: match the answer to what the user actually asked.
 `;
 
 // ============================================================================
@@ -930,6 +934,20 @@ Answer in one line. Start with YES or NO. If NO, add a short reason in Ukrainian
 Examples: "YES" or "NO минулі тікети про принтер, а користувач питає про пароль"`;
 
 // ============================================================================
+// 0b. SELF-CORRECTION: релевантність статті KB до запиту користувача
+// ============================================================================
+
+/** Один виклик: чи відповідає стаття з бази знань питанню користувача. Відповідь: YES або NO, опційно коротка причина. */
+const KB_ARTICLE_RELEVANCE_CHECK = `You are a strict reviewer. Given:
+1) The user's question or request: "{userQuery}"
+2) A knowledge base article — Title: "{articleTitle}"
+3) Article content snippet: "{articleSnippet}"
+
+Question: Does this article ANSWER or directly address the user's question (same topic, same type of problem)?
+Answer in one line. Start with YES or NO. If NO, add a short reason (e.g. "NO стаття про друк, користувач питає про оновлення Windows").
+Examples: "YES" or "NO стаття не про те саме"`;
+
+// ============================================================================
 // 1️⃣ INTENT ANALYSIS - INTEGRATED
 // ============================================================================
 
@@ -960,7 +978,8 @@ ${ANSWERS_WITHOUT_TICKET}
 For EVERY user message, follow this thinking process:
 
 0. **ANSWERS WITHOUT TICKET** — If the question can be fully answered with a short instruction or factual reply and does NOT require admin action (no access change, no repair, no installation, no dispatch): set isTicketIntent: false. Put the answer in quickSolution (if steps/list) or offTopicResponse (if short paragraph). Keep answers concise (1–3 sentences or short step list). Examples: how to print, where to change password, support schedule, greetings, status questions, "I don't need anything". Do NOT ask for more details and do NOT create a ticket.
-   **HOW-TO vs PROBLEM (printing)** — "як роздрукувати документ" / "ворд" → quickSolution with 3-step print instruction. Do NOT ask for document details or print settings.
+   **MATCH TOPIC:** Reply must match the user's topic. "Оновлення висить", "просить перевстановити Windows" → category Software, suggest ticket or short Windows/update guidance; do NOT give printing instructions. "Як роздрукувати документ" / "ворд" → quickSolution with 3-step print instruction only.
+   **HOW-TO vs PROBLEM (printing)** — Apply print instruction ONLY when user explicitly asked about printing/druk. Do NOT ask for document details or print settings.
 
 1. **Detect Emotional State** (see EMOTIONAL_INTELLIGENCE)
    - Adjust tone accordingly in response
@@ -1003,6 +1022,14 @@ Dialog history: {dialogHistory}
 Knowledge base: {quickSolutions}
 Web search results: {webSearchContext}
 Similar past tickets: {similarTickets}
+{extraContextBlock}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 AGENTIC RAG (Етап 3) — запит додаткового контексту
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you CAN answer with confidence using the context above, set needMoreContext: false and moreContextSource: "none".
+If the provided context (Knowledge base, Similar tickets) is INSUFFICIENT or NOT RELEVANT to the user's question and one more search might help, set needMoreContext: true and moreContextSource: "kb" (more KB articles) or "tickets" (more similar past tickets). Do NOT request more if you already have a good answer. When {agenticSecondPass} is "true", you are in the second pass after extra context was added — do NOT set needMoreContext true.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📌 REQUEST TYPE (classify first)
@@ -1030,7 +1057,9 @@ Use requestTypeConfidence 0.0–1.0. Optional requestTypeReason: one short phras
   "priority": "low|medium|high|urgent",
   "emotionalTone": "calm|frustrated|urgent|anxious|defeated",
   "quickSolution": string | null,  // MUST be in Ukrainian if not null
-  "offTopicResponse": string | null  // MUST be in Ukrainian if not null
+  "offTopicResponse": string | null,  // MUST be in Ukrainian if not null
+  "needMoreContext": boolean,  // true only if context is insufficient and one more search may help
+  "moreContextSource": "kb" | "tickets" | "none"  // which source to search (ignore if needMoreContext false)
 }
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1147,6 +1176,27 @@ Use requestTypeConfidence 0.0–1.0. Optional requestTypeReason: one short phras
   "emotionalTone": "calm",
   "quickSolution": "Бачу що у вас роутер MikroTik — це професійне обладнання.\n\n⚠️ Важливо: Звичайне перезавантаження тут НЕ допоможе (на відміну від домашніх роутерів).\n\nСтворюю заявку для адміна — йому треба підключитися через RouterOS для діагностики.\n\nТим часом перевірте чи:\n• Горять індикатори на роутері\n• Кабель від провайдера щільно вставлений",
   "offTopicResponse": null
+}
+
+┌─ #7b: WINDOWS UPDATE / REINSTALL (NOT PRINTING) ────────────────┐
+│ "Турбує бухгалтерія. У нас висить оновлення, просить          │
+│  повторно перевстановити Windows. Що робити?"                  │
+└─────────────────────────────────────────────────────────────────┘
+User asks about Windows UPDATE or REINSTALL. Answer about Windows/updates. Do NOT give printing instructions.
+{
+  "requestType": "appeal",
+  "requestTypeConfidence": 0.9,
+  "isTicketIntent": true,
+  "needsMoreInfo": false,
+  "category": "Software",
+  "missingInfo": [],
+  "confidence": 0.9,
+  "priority": "medium",
+  "emotionalTone": "calm",
+  "quickSolution": "Доброго дня. Бачу, що питання стосується оновлення Windows або перевстановлення — це не те, що можна вирішити інструкцією з друку. Створю заявку для адміна: він підключиться та допоможе з оновленням або перевстановленням Windows у бухгалтерії Ужгород. Очікуйте, з вами зв'яжуться.",
+  "offTopicResponse": null,
+  "needMoreContext": false,
+  "moreContextSource": "none"
 }
 
 ┌─ #8: HOW-TO PRINT (NOT A MALFUNCTION) ─────────────────────────┐
@@ -1779,9 +1829,14 @@ function fillPrompt(template, vars = {}) {
     problemDescription: vars.problemDescription ?? '',
     similarTickets: vars.similarTickets ?? '(немає)',
     userMessage: vars.userMessage ?? '',
+    extraContextBlock: vars.extraContextBlock ?? '',
+    agenticSecondPass: vars.agenticSecondPass ?? 'false',
     quickSolutions: vars.quickSolutions ?? '(немає)',
     recognized_access_info: vars.recognized_access_info ?? '',
     rating: vars.rating ?? '5',
+    userQuery: vars.userQuery ?? '',
+    articleTitle: vars.articleTitle ?? '',
+    articleSnippet: vars.articleSnippet ?? '',
   };
 
   for (const [key, value] of Object.entries(replacements)) {
@@ -1814,6 +1869,7 @@ module.exports = {
 
   // Self-correction (Stage 2)
   SIMILAR_TICKETS_RELEVANCE_CHECK,
+  KB_ARTICLE_RELEVANCE_CHECK,
 
   // Main prompts
   INTENT_ANALYSIS,
@@ -1831,6 +1887,7 @@ module.exports = {
   // Configuration
   MAX_TOKENS: {
     SIMILAR_TICKETS_RELEVANCE_CHECK: 80,
+    KB_ARTICLE_RELEVANCE_CHECK: 60,
     INTENT_ANALYSIS: 800,
     NEXT_QUESTION: 120,
     TICKET_SUMMARY: 900,
