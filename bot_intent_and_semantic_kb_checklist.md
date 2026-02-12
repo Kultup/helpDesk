@@ -70,16 +70,18 @@
 
 ### C.1 Блок KNOWLEDGE BASE SEARCH
 
-- [ ] У aiFirstLineService.js у блоці KNOWLEDGE BASE SEARCH викликати семантичний пошук
-- [ ] Враховувати результат класифікації: для `question` — пріоритет семантичному пошуку; для `appeal` — опційно підказки з KB
-- [ ] При високому score — повертати одну найрелевантнішу статтю (як зараз з `kbArticle`)
-- [ ] При середньому score — повертати список кандидатів для повідомлення "Можливо, ви мали на увазі: …" з кнопками/посиланнями
-- [ ] При низькому score — не вважати знахідкою; fallback на $text + regex, далі LLM або запрошення заявки
-- [ ] Зберегти fallback на поточний $text + regex при помилці embeddings або порожній векторній базі
+- [x] У aiFirstLineService.js у блоці KNOWLEDGE BASE SEARCH викликати семантичний пошук (findSimilarArticles)
+- [x] Для `question` — пріоритет семантичному пошуку; для `appeal` — підказки з KB у \_sendKbHintForAppeal
+- [x] При високому score (>= 0.78) — повертати одну статтю (`kbArticle`)
+- [x] При середньому score (>= 0.5) — повертати `kbArticleCandidates` (до 3); бот показує "Можливо, ви мали на увазі:" з кнопками
+- [x] При низькому score — fallback на findBestMatchForBotTextOnly ($text + regex + слова), далі LLM/Fast-Track
+- [x] При помилці embeddings у try/catch викликається findBestMatchForBot (повний fallback)
 
 ### C.2 Telegram-бот
 
-- [ ] У handleMessageInAiMode для типу `appeal` опційно запускати семантичний пошук і показувати 1–2 статті як підказки ("Можливо, вам допоможе: …")
+- [x] У \_sendKbHintForAppeal для типу appeal: findSimilarArticles(topK: 2), score >= medium — показати 1–2 статті як підказки; інакше findBestMatchForBotTextOnly для однієї підказки
+- [x] Обробка kbArticleCandidates: повідомлення "Можливо, ви мали на увазі…" + inline-кнопки (callback*data: kb_article*:id)
+- [x] handleKbArticleCallback(chatId, articleId, user) — за callback відправляє статтю в чат (текст + вкладення + кнопки)
 
 ---
 

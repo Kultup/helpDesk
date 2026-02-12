@@ -194,7 +194,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     .map(s => `- ${s.problemType}: ${s.keywords.join(', ')}`)
     .join('\n');
 
-  // --- KNOWLEDGE BASE SEARCH (перед Fast-Track: стаття з БД має пріоритет над загальним швидким рішенням) ---
+  // --- KNOWLEDGE BASE SEARCH (Частина C: семантичний пошук + пороги high/medium, fallback на $text) ---
   if (dialogHistory.length > 0) {
     const lastMsg = dialogHistory[dialogHistory.length - 1];
     if (
@@ -203,43 +203,99 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       lastMsg.content &&
       String(lastMsg.content).trim().length > 0
     ) {
+      const query = String(lastMsg.content).trim();
+      const kbSearchService = require('./kbSearchService');
+      const kbEmbeddingService = require('./kbEmbeddingService');
+      const baseReturn = {
+        requestType: 'question',
+        requestTypeConfidence: 1.0,
+        isTicketIntent: false,
+        needsMoreInfo: false,
+        category: null,
+        missingInfo: [],
+        confidence: 1.0,
+        priority: 'low',
+        emotionalTone: 'calm',
+        quickSolution: null,
+        autoTicket: false,
+        offTopicResponse: null,
+      };
+
       try {
-        const kbSearchService = require('./kbSearchService');
-        const query = String(lastMsg.content).trim();
-        const article = await kbSearchService.findBestMatchForBot(query);
+        const thresholds = kbEmbeddingService.getScoreThresholds();
+        const semanticResults = await kbEmbeddingService.findSimilarArticles(query, { topK: 5 });
+        if (semanticResults.length > 0) {
+          const best = semanticResults[0];
+          if (best.score >= thresholds.high) {
+            const plain = best.article;
+            logger.info(
+              `📚 KB semantic (high): "${plain.title}" for query: ${query.substring(0, 80)} (score: ${best.score.toFixed(3)})`
+            );
+            return {
+              ...baseReturn,
+              kbArticle: {
+                id: plain._id?.toString(),
+                title: plain.title,
+                content: plain.content || '',
+                attachments: Array.isArray(plain.attachments)
+                  ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
+                  : [],
+              },
+            };
+          }
+          if (best.score >= thresholds.medium) {
+            const candidates = semanticResults.slice(0, 3).map(r => ({
+              id: r.article._id?.toString(),
+              title: r.article.title || 'Стаття',
+            }));
+            logger.info(
+              `📚 KB semantic (medium): ${candidates.length} кандидатів for query: ${query.substring(0, 60)} (best score: ${best.score.toFixed(3)})`
+            );
+            return {
+              ...baseReturn,
+              kbArticleCandidates: candidates,
+            };
+          }
+        }
+        const article = await kbSearchService.findBestMatchForBotTextOnly(query);
         if (article) {
           const plain = article.toObject ? article.toObject() : article;
           logger.info(
-            `📚 KB article matched: "${plain.title}" for query: ${query.substring(0, 80)}`
+            `📚 KB fallback (text): "${plain.title}" for query: ${query.substring(0, 80)}`
           );
           return {
-            requestType: 'question',
-            requestTypeConfidence: 1.0,
-            isTicketIntent: false,
-            needsMoreInfo: false,
-            category: null,
-            missingInfo: [],
-            confidence: 1.0,
-            priority: 'low',
-            emotionalTone: 'calm',
-            quickSolution: null,
-            autoTicket: false,
-            offTopicResponse: null,
+            ...baseReturn,
             kbArticle: {
               id: plain._id?.toString(),
               title: plain.title,
               content: plain.content || '',
               attachments: Array.isArray(plain.attachments)
-                ? plain.attachments.map(a => ({
-                    type: a.type,
-                    filePath: a.filePath,
-                  }))
+                ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
                 : [],
             },
           };
         }
       } catch (err) {
         logger.warn('KB search in analyzeIntent failed', err);
+        try {
+          const article = await kbSearchService.findBestMatchForBot(query);
+          if (article) {
+            const plain = article.toObject ? article.toObject() : article;
+            return {
+              ...baseReturn,
+              kbArticle: {
+                id: plain._id?.toString(),
+                title: plain.title,
+                content: plain.content || '',
+                attachments: Array.isArray(plain.attachments)
+                  ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
+                  : [],
+              },
+            };
+          }
+        } catch (_) {
+          // fallback findBestMatchForBot failed, continue to Fast-Track/LLM
+        }
       }
     }
   }

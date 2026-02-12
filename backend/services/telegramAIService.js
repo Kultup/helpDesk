@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { kbUploadsPath, fileSearchPaths } = require('../config/paths');
+const KnowledgeBase = require('../models/KnowledgeBase');
 const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
 const TelegramUtils = require('./telegramUtils');
@@ -285,23 +286,114 @@ class TelegramAIService {
       return;
     }
     try {
-      const kbSearchService = require('./kbSearchService');
-      const hintArticle = await kbSearchService.findBestMatchForBot(q);
-      if (!hintArticle) {
+      const kbEmbeddingService = require('./kbEmbeddingService');
+      const thresholds = kbEmbeddingService.getScoreThresholds();
+      const results = await kbEmbeddingService.findSimilarArticles(q, { topK: 2 });
+      const hints = results.filter(r => r.score >= thresholds.medium).slice(0, 2);
+      if (hints.length === 0) {
+        const kbSearchService = require('./kbSearchService');
+        const hintArticle = await kbSearchService.findBestMatchForBotTextOnly(q);
+        if (!hintArticle) {
+          return;
+        }
+        const title = hintArticle.title || 'Стаття';
+        const content = (hintArticle.content && String(hintArticle.content).trim()) || '';
+        const excerpt =
+          content.length > 0
+            ? content.slice(0, 250).replace(/\n+/g, ' ').trim() + (content.length > 250 ? '…' : '')
+            : '';
+        const hintMsg = excerpt
+          ? `💡 Можливо, вам допоможе: «${title}»\n\n${excerpt}`
+          : `💡 Можливо, вам допоможе стаття з бази знань: «${title}»`;
+        await this.telegramService.sendMessage(chatId, hintMsg);
         return;
       }
-      const title = hintArticle.title || 'Стаття';
-      const content = (hintArticle.content && String(hintArticle.content).trim()) || '';
-      const excerpt =
-        content.length > 0
-          ? content.slice(0, 250).replace(/\n+/g, ' ').trim() + (content.length > 250 ? '…' : '')
-          : '';
-      const hintMsg = excerpt
-        ? `💡 Можливо, вам допоможе: «${title}»\n\n${excerpt}`
-        : `💡 Можливо, вам допоможе стаття з бази знань: «${title}»`;
-      await this.telegramService.sendMessage(chatId, hintMsg);
+      const lines = hints.map(
+        r =>
+          `• «${(r.article.title || 'Стаття').slice(0, 80)}»${r.article.content ? ' — ' + String(r.article.content).trim().slice(0, 120).replace(/\n+/g, ' ') + '…' : ''}`
+      );
+      const hintMsg = `💡 Можливо, вам допоможе:\n\n${lines.join('\n\n')}`;
+      await this.telegramService.sendMessage(chatId, hintMsg.slice(0, 1000));
     } catch (err) {
       logger.warn('KB hint for appeal failed', err);
+    }
+  }
+
+  /**
+   * Відправити статтю KB в чат за callback "Можливо, ви мали на увазі" (Частина C).
+   * @param {string|number} chatId
+   * @param {string} articleId - ID статті з БД
+   * @param {object} user - користувач (для conversation log)
+   */
+  async handleKbArticleCallback(chatId, articleId, user) {
+    if (!articleId) {
+      return;
+    }
+    try {
+      const article = await KnowledgeBase.findOne({
+        _id: articleId,
+        status: 'published',
+        isActive: true,
+      }).lean();
+      if (!article) {
+        await this.telegramService.sendMessage(chatId, 'Статтю не знайдено.');
+        return;
+      }
+      const textParts = [article.title];
+      if (article.content && String(article.content).trim()) {
+        textParts.push(String(article.content).trim());
+      }
+      const articleText = TelegramUtils.normalizeQuickSolutionSteps(textParts.join('\n\n'));
+      await this.telegramService.sendMessage(chatId, articleText, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+            [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
+          ],
+        },
+      });
+      if (user) {
+        botConversationService
+          .appendMessage(chatId, user, 'assistant', articleText)
+          .catch(() => {});
+      }
+      const attachments = Array.isArray(article.attachments) ? article.attachments : [];
+      for (const att of attachments) {
+        const fp = att && (att.filePath || att.filepath);
+        if (!fp || typeof fp !== 'string') {
+          continue;
+        }
+        const fullPath = resolveKbAttachmentPath(fp);
+        if (!fullPath) {
+          continue;
+        }
+        const name = path.basename(fp);
+        try {
+          const type = String(att.type || '').toLowerCase();
+          const stream = fs.createReadStream(fullPath);
+          const fileOptions = {
+            filename: name,
+            contentType: getContentTypeForKbFile(name, type),
+          };
+          try {
+            if (type === 'image') {
+              await this.telegramService.bot.sendPhoto(chatId, stream, {}, fileOptions);
+            } else if (type === 'video') {
+              await this.telegramService.bot.sendVideo(chatId, stream, {}, fileOptions);
+            }
+          } finally {
+            if (stream.destroy) {
+              stream.destroy();
+            }
+          }
+        } catch (err) {
+          logger.warn('KB: не вдалося відправити вкладений файл', { fullPath, err: err.message });
+        }
+      }
+    } catch (err) {
+      logger.warn('KB callback: handleKbArticleCallback failed', { articleId, err: err.message });
+      await this.telegramService.sendMessage(chatId, 'Не вдалося завантажити статтю.');
     }
   }
 
@@ -871,6 +963,29 @@ class TelegramAIService {
             logger.warn('KB: не вдалося відправити вкладений файл', { fullPath, err: err.message });
           }
         }
+        return;
+      }
+
+      // Середній score — "Можливо, ви мали на увазі:" з кнопками вибору статті
+      if (result.kbArticleCandidates && result.kbArticleCandidates.length > 0) {
+        const candidates = result.kbArticleCandidates.slice(0, 5);
+        const keyboard = candidates.map(c => [
+          {
+            text:
+              (c.title && c.title.length > 60 ? c.title.slice(0, 57) + '…' : c.title) || 'Стаття',
+            callback_data: 'kb_article_' + (c.id || ''),
+          },
+        ]);
+        keyboard.push(
+          [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
+          [{ text: 'Головне меню', callback_data: 'back_to_menu' }]
+        );
+        const hintText = 'Можливо, ви мали на увазі одну з цих статей. Оберіть:';
+        await this.telegramService.sendMessage(chatId, hintText, {
+          reply_markup: { inline_keyboard: keyboard },
+        });
+        session.dialog_history.push({ role: 'assistant', content: hintText });
+        botConversationService.appendMessage(chatId, user, 'assistant', hintText).catch(() => {});
         return;
       }
 

@@ -1235,6 +1235,10 @@ class TelegramService {
             await this.aiService.handleMessageInAiMode(chatId, 'Не допомогло', session, user);
           }
           await this.answerCallbackQuery(callbackQuery.id);
+        } else if (data.startsWith('kb_article_')) {
+          const articleId = data.replace('kb_article_', '');
+          await this.aiService.handleKbArticleCallback(chatId, articleId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'back') {
           await this.handleBackNavigation(chatId, user);
         } else if (data === 'back_to_menu') {

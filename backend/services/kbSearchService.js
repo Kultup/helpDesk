@@ -146,6 +146,63 @@ class KBSearchService {
   }
 
   /**
+   * Пошук лише за текстом ($text + regex + слова), без семантики. Для fallback після семантичного пошуку.
+   * @param {String} query
+   * @returns {Promise<Object|null>}
+   */
+  async findBestMatchForBotTextOnly(query = '') {
+    const q = String(query).trim();
+    if (!q) {
+      return null;
+    }
+    try {
+      const filters = { status: 'published', isActive: true };
+      const options = { limit: 1, page: 1, sortBy: 'relevance' };
+      const result = await this.searchArticles(q, filters, options);
+      if (result.articles && result.articles.length > 0) {
+        return result.articles[0];
+      }
+      const regex = new RegExp(escapeRegex(q), 'i');
+      let fallback = await KnowledgeBase.findOne({
+        status: 'published',
+        isActive: true,
+        $or: [{ title: regex }, { content: regex }, { tags: regex }],
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+      if (fallback) {
+        return fallback;
+      }
+      const words = getSearchWords(q);
+      if (words.length >= 2) {
+        const wordConditions = words.map(word => {
+          const variants = WORD_VARIANTS[word] || [word];
+          const variantRegexps = variants.flatMap(v => [
+            { title: new RegExp(escapeRegex(v), 'i') },
+            { content: new RegExp(escapeRegex(v), 'i') },
+            { tags: new RegExp(escapeRegex(v), 'i') },
+          ]);
+          return { $or: variantRegexps };
+        });
+        fallback = await KnowledgeBase.findOne({
+          status: 'published',
+          isActive: true,
+          $and: wordConditions,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+        if (fallback) {
+          return fallback;
+        }
+      }
+      return null;
+    } catch (err) {
+      logger.error('KB findBestMatchForBotTextOnly error', err);
+      return null;
+    }
+  }
+
+  /**
    * Пошук статей KB
    * @param {String} query - Пошуковий запит
    * @param {Object} filters - Фільтри (category, status, tags)
