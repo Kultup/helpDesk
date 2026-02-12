@@ -1,5 +1,6 @@
 const KnowledgeBase = require('../models/KnowledgeBase');
 const logger = require('../utils/logger');
+const kbEmbeddingService = require('./kbEmbeddingService');
 
 function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -72,7 +73,8 @@ function getSearchWords(query) {
 class KBSearchService {
   /**
    * Знайти одну найкращу статтю для бота за запитом користувача.
-   * 1) $text пошук; 2) fallback по повній фразі (regex); 3) fallback по словах (усі слова в title/content).
+   * 1) Семантичний пошук (embedding); якщо score >= порогу — повернути статтю;
+   * 2) $text пошук; 3) fallback по повній фразі (regex); 4) fallback по словах.
    * @param {String} query - текст повідомлення користувача
    * @returns {Promise<Object|null>} - стаття або null
    */
@@ -82,6 +84,15 @@ class KBSearchService {
       return null;
     }
     try {
+      const thresholds = kbEmbeddingService.getScoreThresholds();
+      const semanticResults = await kbEmbeddingService.findSimilarArticles(q, { topK: 1 });
+      if (semanticResults.length > 0 && semanticResults[0].score >= thresholds.high) {
+        logger.info(
+          `📚 KB semantic match: "${semanticResults[0].article.title}" for query: ${q.substring(0, 60)} (score: ${semanticResults[0].score.toFixed(3)})`
+        );
+        return semanticResults[0].article;
+      }
+
       const filters = { status: 'published', isActive: true };
       const options = { limit: 1, page: 1, sortBy: 'relevance' };
       const result = await this.searchArticles(q, filters, options);

@@ -29,40 +29,40 @@
 
 ### B.1 Підготовка стеку
 
-- [ ] Підтвердити використання OpenAI Embeddings (`text-embedding-3-small` або `ada-002`) — OpenAI вже в проєкті
-- [ ] Визначити векторне сховище: MongoDB Atlas Vector Search чи MongoDB з полем `embedding` + косинусна схожість у Node.js
+- [x] Підтвердити використання OpenAI Embeddings (`text-embedding-3-small`) — OpenAI вже в проєкті
+- [x] Визначити векторне сховище: MongoDB з полем `embedding` + косинусна схожість у Node.js (без Atlas Vector Search)
 
 ### B.2 Модель даних
 
-- [ ] У моделі KnowledgeBase (backend/models/KnowledgeBase.js) додати поле `embedding: [Number]`
-- [ ] Або створити окрему колекцію `kb_embeddings` з `articleId` + `embedding` (якщо обрано цей варіант)
+- [x] У моделі KnowledgeBase (backend/models/KnowledgeBase.js) додати поле `embedding: [Number]` (select: false)
+- [x] Окрема колекція не створювалася — вектор у тому ж документі
 
 ### B.3 Новий сервіс embeddings
 
-- [ ] Створити сервіс `backend/services/kbEmbeddingService.js` (або `kbVectorService.js`)
-- [ ] Реалізувати `getEmbedding(text)` — виклик OpenAI embeddings
-- [ ] Реалізувати `indexArticle(article)` / `reindexArticle(articleId)` — текст → вектор → збереження
-- [ ] Реалізувати `findSimilarArticles(query, options)` — вектор запиту, векторний пошук, повернути `{ article, score }[]`
+- [x] Створити сервіс `backend/services/kbEmbeddingService.js`
+- [x] Реалізувати `getEmbedding(text)` — виклик OpenAI embeddings (text-embedding-3-small)
+- [x] Реалізувати `indexArticle(article)` — текст → вектор → збереження в документі
+- [x] Реалізувати `findSimilarArticles(query, options)` — вектор запиту, косинусна схожість, повернути `{ article, score }[]`
 
 ### B.4 Індексація бази знань
 
-- [ ] Визначити текст для індексації: наприклад `title + " " + content.slice(0, 500)` або поле `searchableSummary`
-- [ ] Написати скрипт первинної індексації для існуючих опублікованих статей
-- [ ] Запустити скрипт і перевірити заповнення полів `embedding`
-- [ ] Якщо MongoDB Atlas: створити Atlas Vector Search index для поля `embedding`
+- [x] Текст для індексації: `getIndexableText(article)` — title + content + tags, обріз до 8000 символів
+- [x] Скрипт первинної індексації: `backend/scripts/indexKbEmbeddings.js`, запуск: `npm run kb:index` (у backend)
+- [x] Після запуску скрипта поля `embedding` заповнюються для опублікованих статей
+- [x] Atlas Vector Search не використовується — косинусна схожість у Node.js
 
 ### B.5 Векторний пошук
 
-- [ ] Реалізувати пошук: Atlas Vector Search або завантаження статей з `embedding` + косинусна схожість у Node.js
-- [ ] Винести пороги score у конфіг/AISettings (наприклад високий 0.8, середній 0.5)
-- [ ] У kbSearchService.js додати метод `findBestMatchForBotSemantic(query)` (або вбудувати в `findBestMatchForBot`)
-- [ ] Логіка: спочатку семантичний пошук; якщо найкращий score вище порогу — повернути статтю; інакше fallback на $text + regex
+- [x] Пошук: завантаження статей з `embedding` + косинусна схожість у Node.js (kbEmbeddingService)
+- [x] Пороги score у kbEmbeddingService: high 0.78, medium 0.5 (getScoreThresholds())
+- [x] У kbSearchService.findBestMatchForBot спочатку семантичний пошук; якщо score >= high — повернути статтю
+- [x] Інакше fallback на $text + regex + пошук за словами
 
 ### B.6 Тригери реіндексації
 
-- [ ] При створенні статті викликати індексацію (routes/knowledgeBase.js або відповідний сервіс)
-- [ ] При оновленні статті викликати реіндексацію
-- [ ] При публікації статті переконатися, що вектор оновлений
+- [x] При створенні статті (POST /articles) викликати kbEmbeddingService.indexArticle після save
+- [x] При оновленні статті (PUT /articles/:id) викликати реіндексацію після save
+- [x] При публікації статті вектор оновлюється через PUT (реіндексація при будь-якому оновленні)
 
 ---
 
@@ -111,13 +111,13 @@
 
 ## Файли для змін
 
-| Файл                                     | Дії                                                        |
-| ---------------------------------------- | ---------------------------------------------------------- |
-| `backend/prompts/aiFirstLinePrompts.js`  | INTENT_ANALYSIS: додати requestType                        |
-| `backend/services/aiFirstLineService.js` | Класифікація, виклик семантичного пошуку, пороги score     |
-| `backend/services/telegramAIService.js`  | Використання requestType, сценарії question/appeal         |
-| `backend/services/kbSearchService.js`    | findBestMatchForBotSemantic або зміна findBestMatchForBot  |
-| `backend/services/kbEmbeddingService.js` | **Новий:** getEmbedding, indexArticle, findSimilarArticles |
-| `backend/models/KnowledgeBase.js`        | Поле embedding                                             |
-| `backend/routes/knowledgeBase.js`        | Тригери індексації при створенні/оновленні                 |
-| Скрипт індексації                        | **Новий:** первинна індексація існуючих статей             |
+| Файл                                     | Дії                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `backend/prompts/aiFirstLinePrompts.js`  | INTENT_ANALYSIS: додати requestType                                               |
+| `backend/services/aiFirstLineService.js` | Класифікація, виклик семантичного пошуку, пороги score                            |
+| `backend/services/telegramAIService.js`  | Використання requestType, сценарії question/appeal                                |
+| `backend/services/kbSearchService.js`    | findBestMatchForBotSemantic або зміна findBestMatchForBot                         |
+| `backend/services/kbEmbeddingService.js` | **Створено:** getEmbedding, indexArticle, findSimilarArticles, getScoreThresholds |
+| `backend/models/KnowledgeBase.js`        | Поле embedding                                                                    |
+| `backend/routes/knowledgeBase.js`        | Тригери індексації при створенні/оновленні                                        |
+| `backend/scripts/indexKbEmbeddings.js`   | **Створено:** первинна індексація, `npm run kb:index` у backend                   |

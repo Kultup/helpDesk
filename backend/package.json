@@ -26,7 +26,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json}\"",
     "format:check": "prettier --check \"**/*.{js,json}\"",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "kb:index": "node scripts/indexKbEmbeddings.js"
   },
   "keywords": [
     "helpdesk",

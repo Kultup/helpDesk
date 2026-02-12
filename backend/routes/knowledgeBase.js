@@ -8,6 +8,7 @@ const { authenticateToken: auth } = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const KnowledgeBase = require('../models/KnowledgeBase');
 const kbSearchService = require('../services/kbSearchService');
+const kbEmbeddingService = require('../services/kbEmbeddingService');
 const aiFirstLineService = require('../services/aiFirstLineService');
 const { kbUploadsPath } = require('../config/paths');
 const logger = require('../utils/logger');
@@ -306,6 +307,10 @@ router.post('/articles', auth, adminAuth, async (req, res) => {
     const article = new KnowledgeBase(articleData);
     await article.save();
 
+    kbEmbeddingService
+      .indexArticle(article)
+      .catch(err => logger.warn('KB embedding index after create', err));
+
     res.status(201).json({
       success: true,
       message: 'Стаття KB успішно створена',
@@ -371,6 +376,10 @@ router.put('/articles/:id', auth, adminAuth, async (req, res) => {
     }
 
     await article.save();
+
+    kbEmbeddingService
+      .indexArticle(article)
+      .catch(err => logger.warn('KB embedding reindex after update', err));
 
     res.json({
       success: true,

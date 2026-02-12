@@ -82,6 +82,12 @@ const knowledgeBaseSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    /** Вектор для семантичного пошуку (OpenAI embedding). Заповнюється kbEmbeddingService. */
+    embedding: {
+      type: [Number],
+      default: undefined,
+      select: false,
+    },
   },
   {
     timestamps: true,
