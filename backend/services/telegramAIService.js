@@ -7,6 +7,7 @@ const KnowledgeBase = require('../models/KnowledgeBase');
 const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
 const TelegramUtils = require('./telegramUtils');
+const kbRelevanceGuard = require('../utils/kbRelevanceGuard');
 
 /** MIME type for KB attachment to avoid node-telegram-bot-api DeprecationWarning when sending files */
 function getContentTypeForKbFile(filename, kind) {
@@ -324,6 +325,9 @@ class TelegramAIService {
         }
         const title = hintArticle.title || 'Стаття';
         const content = (hintArticle.content && String(hintArticle.content).trim()) || '';
+        if (!kbRelevanceGuard.isKbArticleRelevantToQuery(q, title, content.slice(0, 400))) {
+          return;
+        }
         const excerpt =
           content.length > 0
             ? content.slice(0, 250).replace(/\n+/g, ' ').trim() + (content.length > 250 ? '…' : '')
@@ -334,10 +338,22 @@ class TelegramAIService {
         await this.telegramService.sendMessage(chatId, hintMsg);
         return;
       }
-      const lines = hints.map(
-        r =>
-          `• «${(r.article.title || 'Стаття').slice(0, 80)}»${r.article.content ? ' — ' + String(r.article.content).trim().slice(0, 120).replace(/\n+/g, ' ') + '…' : ''}`
+      const relevantHints = hints.filter(r =>
+        kbRelevanceGuard.isKbArticleRelevantToQuery(
+          q,
+          (r.article && r.article.title) || '',
+          (r.article && r.article.content && String(r.article.content).trim().slice(0, 400)) || ''
+        )
       );
+      if (relevantHints.length === 0) {
+        return;
+      }
+      const lines = relevantHints
+        .slice(0, 2)
+        .map(
+          r =>
+            `• «${(r.article.title || 'Стаття').slice(0, 80)}»${r.article.content ? ' — ' + String(r.article.content).trim().slice(0, 120).replace(/\n+/g, ' ') + '…' : ''}`
+        );
       const hintMsg = `💡 Можливо, вам допоможе:\n\n${lines.join('\n\n')}`;
       await this.telegramService.sendMessage(chatId, hintMsg.slice(0, 1000));
     } catch (err) {
