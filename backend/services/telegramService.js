@@ -1591,17 +1591,27 @@ class TelegramService {
       if (session) {
         // Додано: docs/AI_BOT_LOGIC.md — обробка AI-режиму (виклики 1–3)
         if (session.mode === 'ai') {
+          const AI_RESPONSE_TIMEOUT_MS = 55000;
           try {
-            await this.aiService.handleMessageInAiMode(chatId, text, session, existingUser);
+            await Promise.race([
+              this.aiService.handleMessageInAiMode(chatId, text, session, existingUser),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_RESPONSE_TIMEOUT_MS)
+              ),
+            ]);
           } catch (err) {
             logger.error('Помилка AI-режиму (сесія вже існує)', {
               chatId,
+              userId,
               err: err.message,
               stack: err.stack,
             });
+            const isTimeout = err && err.message === 'AI_TIMEOUT';
             await this.sendMessage(
               chatId,
-              'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
+              isTimeout
+                ? 'Обробка зайняла надто багато часу. Спробуйте ще раз або створіть заявку вручну.'
+                : 'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
               {
                 reply_markup: {
                   inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
@@ -1681,18 +1691,29 @@ class TelegramService {
           ticketDraft: null,
         };
         this.userSessions.set(chatId, session);
+        const AI_RESPONSE_TIMEOUT_MS = 55000;
         try {
-          await this.aiService.handleMessageInAiMode(chatId, text.trim(), session, existingUser);
+          logger.info('AI: запуск обробки повідомлення', { chatId, userId });
+          await Promise.race([
+            this.aiService.handleMessageInAiMode(chatId, text.trim(), session, existingUser),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_RESPONSE_TIMEOUT_MS)
+            ),
+          ]);
         } catch (err) {
           logger.error('Помилка AI-режиму (перше повідомлення)', {
             chatId,
+            userId,
             err: err.message,
             stack: err.stack,
           });
           this.userSessions.delete(chatId);
+          const isTimeout = err && err.message === 'AI_TIMEOUT';
           await this.sendMessage(
             chatId,
-            'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
+            isTimeout
+              ? 'Обробка зайняла надто багато часу. Спробуйте ще раз або створіть заявку вручну.'
+              : 'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
             {
               reply_markup: {
                 inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
