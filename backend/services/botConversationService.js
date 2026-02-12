@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
 async function getOrCreateConversation(telegramChatId, user, subject = '') {
   let conv = await BotConversation.findOne({
     user: user._id,
-    telegramChatId: String(telegramChatId)
+    telegramChatId: String(telegramChatId),
   }).sort({ lastMessageAt: -1 });
 
   const now = new Date();
@@ -24,7 +24,7 @@ async function getOrCreateConversation(telegramChatId, user, subject = '') {
       subject: (subject || '').slice(0, 200),
       messageCount: 0,
       startedAt: now,
-      lastMessageAt: now
+      lastMessageAt: now,
     });
     return conv;
   }
@@ -45,15 +45,24 @@ async function getOrCreateConversation(telegramChatId, user, subject = '') {
  * @param {string} [subject] - для нової розмови (перше повідомлення)
  * @returns {Promise<Object|null>} conversation або null
  */
-async function appendMessage(telegramChatId, user, role, content, telegramMessageId = null, subject = '') {
-  if (!user || !user._id) return null;
+async function appendMessage(
+  telegramChatId,
+  user,
+  role,
+  content,
+  telegramMessageId = null,
+  subject = ''
+) {
+  if (!user || !user._id) {
+    return null;
+  }
   try {
-    let conv = await getOrCreateConversation(telegramChatId, user, subject);
+    const conv = await getOrCreateConversation(telegramChatId, user, subject);
     await BotConversationMessage.create({
       conversation: conv._id,
       role,
       content: (content || '').slice(0, 8000),
-      telegramMessageId: telegramMessageId || null
+      telegramMessageId: telegramMessageId || null,
     });
     conv.messageCount = (conv.messageCount || 0) + 1;
     conv.lastMessageAt = new Date();
@@ -73,11 +82,13 @@ async function appendMessage(telegramChatId, user, role, content, telegramMessag
  * @param {Array<{role: string, content: string}>} dialogHistory - session.dialog_history
  */
 async function linkTicketAndSaveDialog(telegramChatId, user, ticketId, dialogHistory) {
-  if (!user || !user._id || !ticketId || !dialogHistory || !Array.isArray(dialogHistory)) return;
+  if (!user || !user._id || !ticketId || !dialogHistory || !Array.isArray(dialogHistory)) {
+    return;
+  }
   try {
     const conv = await BotConversation.findOne({
       user: user._id,
-      telegramChatId: String(telegramChatId)
+      telegramChatId: String(telegramChatId),
     }).sort({ lastMessageAt: -1 });
 
     if (conv) {
@@ -85,16 +96,20 @@ async function linkTicketAndSaveDialog(telegramChatId, user, ticketId, dialogHis
       await conv.save();
     }
 
-    const history = dialogHistory.map(m => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: String(m.content || '').slice(0, 5000)
-    })).filter(m => m.content.trim());
-    if (history.length === 0) return;
+    const history = dialogHistory
+      .map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: String(m.content || '').slice(0, 5000),
+      }))
+      .filter(m => m.content.trim());
+    if (history.length === 0) {
+      return;
+    }
 
     await Ticket.findByIdAndUpdate(ticketId, {
       $set: {
-        aiDialogHistory: history
-      }
+        aiDialogHistory: history,
+      },
     });
   } catch (err) {
     logger.error('botConversationService.linkTicketAndSaveDialog', { err: err.message, ticketId });
@@ -107,11 +122,15 @@ async function linkTicketAndSaveDialog(telegramChatId, user, ticketId, dialogHis
  * @param {string} summary - короткий опис рішення
  */
 async function setResolutionSummary(ticketId, summary) {
-  if (!ticketId || !summary) return;
+  if (!ticketId || !summary) {
+    return;
+  }
   try {
     await Ticket.findByIdAndUpdate(ticketId, {
-      $set: { resolutionSummary: String(summary).slice(0, 2000) }
+      $set: { resolutionSummary: String(summary).slice(0, 2000) },
     });
+    const ticketEmbeddingService = require('./ticketEmbeddingService');
+    ticketEmbeddingService.indexTicket(ticketId).catch(() => {});
   } catch (err) {
     logger.error('botConversationService.setResolutionSummary', { err: err.message });
   }
@@ -121,5 +140,5 @@ module.exports = {
   getOrCreateConversation,
   appendMessage,
   linkTicketAndSaveDialog,
-  setResolutionSummary
+  setResolutionSummary,
 };

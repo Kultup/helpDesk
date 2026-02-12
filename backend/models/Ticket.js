@@ -1,324 +1,348 @@
 const mongoose = require('mongoose');
 const mongoosePaginate = require('mongoose-paginate-v2');
 
-const ticketSchema = new mongoose.Schema({
-  ticketNumber: {
-    type: String,
-    unique: true,
-    required: false
-  },
-  title: {
-    type: String,
-    required: [true, 'Title is required'],
-    trim: true,
-    maxlength: [200, 'Title cannot exceed 200 characters']
-  },
-  description: {
-    type: String,
-    required: [true, 'Description is required'],
-    trim: true,
-    maxlength: [5000, 'Description cannot exceed 5000 characters']
-  },
-  status: {
-    type: String,
-    enum: {
-      values: ['open', 'in_progress', 'resolved', 'closed', 'cancelled'],
-      message: 'Status must be one of: open, in_progress, resolved, closed, cancelled'
+const ticketSchema = new mongoose.Schema(
+  {
+    ticketNumber: {
+      type: String,
+      unique: true,
+      required: false,
     },
-    default: 'open'
-  },
-  priority: {
-    type: String,
-    enum: {
-      values: ['low', 'medium', 'high', 'urgent'],
-      message: 'Priority must be one of: low, medium, high, urgent'
+    title: {
+      type: String,
+      required: [true, 'Title is required'],
+      trim: true,
+      maxlength: [200, 'Title cannot exceed 200 characters'],
     },
-    default: 'medium'
-  },
-  subcategory: {
-    type: String,
-    trim: true,
-    maxlength: [100, 'Subcategory cannot exceed 100 characters']
-  },
-  type: {
-    type: String,
-    enum: ['incident', 'request', 'problem', 'change'],
-    default: 'incident'
-  },
-  city: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'City',
-    required: false
-  },
-  department: {
-    type: String,
-    trim: true,
-    maxlength: [100, 'Department cannot exceed 100 characters']
-  },
-  location: {
-    building: { type: String, trim: true },
-    floor: { type: String, trim: true },
-    room: { type: String, trim: true },
-    coordinates: {
-      lat: { type: Number },
-      lng: { type: Number }
-    }
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Creator is required']
-  },
-  assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  firstResponseAt: {
-    type: Date,
-    default: null
-  },
-  resolvedAt: {
-    type: Date,
-    default: null
-  },
-  closedAt: {
-    type: Date,
-    default: null
-  },
-  dueDate: {
-    type: Date,
-    default: null
-  },
-  estimatedHours: {
-    type: Number,
-    min: [0, 'Estimated hours cannot be negative'],
-    default: null
-  },
-  actualHours: {
-    type: Number,
-    min: [0, 'Actual hours cannot be negative'],
-    default: null
-  },
-  // SLA (Service Level Agreement)
-  sla: {
-    hours: {
-      type: Number,
-      default: null, // Час на виконання в годинах (встановлюється AI)
-      min: [0, 'SLA hours cannot be negative']
-    },
-    startTime: {
-      type: Date,
-      default: null // Коли почався відлік SLA (коли тікет взяли в роботу)
-    },
-    deadline: {
-      type: Date,
-      default: null // Розрахований дедлайн виконання
+    description: {
+      type: String,
+      required: [true, 'Description is required'],
+      trim: true,
+      maxlength: [5000, 'Description cannot exceed 5000 characters'],
     },
     status: {
       type: String,
-      enum: ['not_started', 'on_time', 'at_risk', 'breached'],
-      default: 'not_started'
-      // not_started - тікет ще не взятий в роботу
-      // on_time - виконується в межах SLA (< 70% часу)
-      // at_risk - ризик порушення SLA (70-100% часу)
-      // breached - SLA порушено (> 100% часу)
+      enum: {
+        values: ['open', 'in_progress', 'resolved', 'closed', 'cancelled'],
+        message: 'Status must be one of: open, in_progress, resolved, closed, cancelled',
+      },
+      default: 'open',
     },
-    remainingHours: {
-      type: Number,
-      default: null // Скільки годин залишилось до дедлайну
-    },
-    notified: {
-      type: Boolean,
-      default: false // Чи було відправлено сповіщення про SLA користувачу
-    },
-    deadlineWarningNotified: {
-      type: Boolean,
-      default: false // Чи було відправлено попередження про наближення дедлайну (20% залишку)
-    }
-  },
-  metrics: {
-    responseTime: { type: Number, default: 0 }, // години
-    resolutionTime: { type: Number, default: 0 }, // години
-    reopenCount: { type: Number, default: 0 },
-    escalationCount: { type: Number, default: 0 }
-  },
-  tags: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tag'
-  }],
-  // Пов'язані статті KB
-  relatedArticles: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'KnowledgeBase'
-  }],
-  attachments: [{
-    filename: {
+    priority: {
       type: String,
-      required: true
+      enum: {
+        values: ['low', 'medium', 'high', 'urgent'],
+        message: 'Priority must be one of: low, medium, high, urgent',
+      },
+      default: 'medium',
     },
-    originalName: {
-      type: String,
-      required: true
-    },
-    mimetype: {
-      type: String,
-      required: true
-    },
-    size: {
-      type: Number,
-      required: true
-    },
-    path: {
-      type: String,
-      required: true
-    },
-    uploadedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    uploadedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  comments: [{
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    content: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [1000, 'Comment cannot exceed 1000 characters']
-    },
-    isInternal: {
-      type: Boolean,
-      default: false
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    },
-    editedAt: {
-      type: Date,
-      default: null
-    }
-  }],
-  watchers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  // Telegram інтеграція
-  telegramData: {
-    messageId: { type: String },
-    chatId: { type: String },
-    fromTelegram: { type: Boolean, default: false },
-    lastTelegramUpdate: { type: Date }
-  },
-
-  // Історія змін статусів
-  statusHistory: [{
-    status: { type: String, required: true },
-    changedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    changedAt: { type: Date, default: Date.now },
-    comment: { type: String, trim: true },
-    reason: { type: String, trim: true }
-  }],
-
-  // Ескалація
-  escalation: {
-    level: { type: Number, default: 0 },
-    escalatedAt: { type: Date },
-    escalatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    escalatedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    reason: { type: String, trim: true },
-    isEscalated: { type: Boolean, default: false }
-  },
-
-  // Метадані
-  metadata: {
-    source: {
-      type: String,
-      enum: ['web', 'telegram', 'telegram_ai', 'api', 'import', 'mobile'],
-      default: 'web'
-    },
-    ipAddress: { type: String },
-    userAgent: { type: String },
-    deviceInfo: { type: String },
-    browserInfo: { type: String }
-  },
-
-  /** Діалог з ботом перед створенням тікета (для навчання AI). Зберігається при створенні з Telegram AI. */
-  aiDialogHistory: [{
-    role: { type: String, enum: ['user', 'assistant'], required: true },
-    content: { type: String, required: true, trim: true }
-  }],
-
-  /** Короткий опис рішення (заповнюється при закритті; для навчання AI). */
-  resolutionSummary: {
-    type: String,
-    trim: true,
-    maxlength: [2000, 'Resolution summary cannot exceed 2000 characters'],
-    default: null
-  },
-
-  // Рейтинг якості
-  qualityRating: {
-    hasRating: { type: Boolean, default: false },
-    ratingRequested: { type: Boolean, default: false },
-    requestedAt: { type: Date },
-    rating: {
-      type: Number,
-      min: 1,
-      max: 5,
-      default: null
-    },
-    feedback: {
+    subcategory: {
       type: String,
       trim: true,
-      maxlength: [500, 'Відгук не може перевищувати 500 символів']
+      maxlength: [100, 'Subcategory cannot exceed 100 characters'],
     },
-    ratedAt: { type: Date },
-    ratedBy: {
+    type: {
+      type: String,
+      enum: ['incident', 'request', 'problem', 'change'],
+      default: 'incident',
+    },
+    city: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }
-  },
+      ref: 'City',
+      required: false,
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Department cannot exceed 100 characters'],
+    },
+    location: {
+      building: { type: String, trim: true },
+      floor: { type: String, trim: true },
+      room: { type: String, trim: true },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Creator is required'],
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    firstResponseAt: {
+      type: Date,
+      default: null,
+    },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    closedAt: {
+      type: Date,
+      default: null,
+    },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
+    estimatedHours: {
+      type: Number,
+      min: [0, 'Estimated hours cannot be negative'],
+      default: null,
+    },
+    actualHours: {
+      type: Number,
+      min: [0, 'Actual hours cannot be negative'],
+      default: null,
+    },
+    // SLA (Service Level Agreement)
+    sla: {
+      hours: {
+        type: Number,
+        default: null, // Час на виконання в годинах (встановлюється AI)
+        min: [0, 'SLA hours cannot be negative'],
+      },
+      startTime: {
+        type: Date,
+        default: null, // Коли почався відлік SLA (коли тікет взяли в роботу)
+      },
+      deadline: {
+        type: Date,
+        default: null, // Розрахований дедлайн виконання
+      },
+      status: {
+        type: String,
+        enum: ['not_started', 'on_time', 'at_risk', 'breached'],
+        default: 'not_started',
+        // not_started - тікет ще не взятий в роботу
+        // on_time - виконується в межах SLA (< 70% часу)
+        // at_risk - ризик порушення SLA (70-100% часу)
+        // breached - SLA порушено (> 100% часу)
+      },
+      remainingHours: {
+        type: Number,
+        default: null, // Скільки годин залишилось до дедлайну
+      },
+      notified: {
+        type: Boolean,
+        default: false, // Чи було відправлено сповіщення про SLA користувачу
+      },
+      deadlineWarningNotified: {
+        type: Boolean,
+        default: false, // Чи було відправлено попередження про наближення дедлайну (20% залишку)
+      },
+    },
+    metrics: {
+      responseTime: { type: Number, default: 0 }, // години
+      resolutionTime: { type: Number, default: 0 }, // години
+      reopenCount: { type: Number, default: 0 },
+      escalationCount: { type: Number, default: 0 },
+    },
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tag',
+      },
+    ],
+    // Пов'язані статті KB
+    relatedArticles: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'KnowledgeBase',
+      },
+    ],
+    attachments: [
+      {
+        filename: {
+          type: String,
+          required: true,
+        },
+        originalName: {
+          type: String,
+          required: true,
+        },
+        mimetype: {
+          type: String,
+          required: true,
+        },
+        size: {
+          type: Number,
+          required: true,
+        },
+        path: {
+          type: String,
+          required: true,
+        },
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    comments: [
+      {
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        content: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: [1000, 'Comment cannot exceed 1000 characters'],
+        },
+        isInternal: {
+          type: Boolean,
+          default: false,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+        editedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    ],
+    watchers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    // Telegram інтеграція
+    telegramData: {
+      messageId: { type: String },
+      chatId: { type: String },
+      fromTelegram: { type: Boolean, default: false },
+      lastTelegramUpdate: { type: Date },
+    },
 
-  // Видалення
+    // Історія змін статусів
+    statusHistory: [
+      {
+        status: { type: String, required: true },
+        changedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          required: true,
+        },
+        changedAt: { type: Date, default: Date.now },
+        comment: { type: String, trim: true },
+        reason: { type: String, trim: true },
+      },
+    ],
 
-  isDeleted: {
-    type: Boolean,
-    default: false
+    // Ескалація
+    escalation: {
+      level: { type: Number, default: 0 },
+      escalatedAt: { type: Date },
+      escalatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      escalatedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      reason: { type: String, trim: true },
+      isEscalated: { type: Boolean, default: false },
+    },
+
+    // Метадані
+    metadata: {
+      source: {
+        type: String,
+        enum: ['web', 'telegram', 'telegram_ai', 'api', 'import', 'mobile'],
+        default: 'web',
+      },
+      ipAddress: { type: String },
+      userAgent: { type: String },
+      deviceInfo: { type: String },
+      browserInfo: { type: String },
+    },
+
+    /** Діалог з ботом перед створенням тікета (для навчання AI). Зберігається при створенні з Telegram AI. */
+    aiDialogHistory: [
+      {
+        role: { type: String, enum: ['user', 'assistant'], required: true },
+        content: { type: String, required: true, trim: true },
+      },
+    ],
+
+    /** Короткий опис рішення (заповнюється при закритті; для навчання AI). */
+    resolutionSummary: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Resolution summary cannot exceed 2000 characters'],
+      default: null,
+    },
+
+    // Рейтинг якості
+    qualityRating: {
+      hasRating: { type: Boolean, default: false },
+      ratingRequested: { type: Boolean, default: false },
+      requestedAt: { type: Date },
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+        default: null,
+      },
+      feedback: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Відгук не може перевищувати 500 символів'],
+      },
+      ratedAt: { type: Date },
+      ratedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    },
+
+    /** Вектор для семантичного пошуку (OpenAI embedding). Заповнюється ticketEmbeddingService при закритті/вирішенні. */
+    embedding: {
+      type: [Number],
+      default: undefined,
+      select: false,
+    },
+
+    // Видалення
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
-  deletedAt: {
-    type: Date,
-    default: null
-  },
-  deletedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+);
 
 // Віртуальні поля
 ticketSchema.virtual('isOverdue').get(function () {
@@ -329,12 +353,16 @@ ticketSchema.virtual('isOverdue').get(function () {
 });
 
 ticketSchema.virtual('timeToResolution').get(function () {
-  if (!this.resolvedAt) return null;
+  if (!this.resolvedAt) {
+    return null;
+  }
   return Math.ceil((this.resolvedAt - this.createdAt) / (1000 * 60 * 60)); // години
 });
 
 ticketSchema.virtual('timeToFirstResponse').get(function () {
-  if (!this.firstResponseAt) return null;
+  if (!this.firstResponseAt) {
+    return null;
+  }
   return Math.ceil((this.firstResponseAt - this.createdAt) / (1000 * 60 * 60)); // години
 });
 
@@ -351,28 +379,28 @@ ticketSchema.virtual('commentsCount', {
   ref: 'Comment',
   localField: '_id',
   foreignField: 'ticket',
-  count: true
+  count: true,
 });
 
 ticketSchema.virtual('attachmentsCount', {
   ref: 'Attachment',
   localField: '_id',
   foreignField: 'ticket',
-  count: true
+  count: true,
 });
 
 // Віртуальні поля для нотаток
 ticketSchema.virtual('notes', {
   ref: 'Note',
   localField: '_id',
-  foreignField: 'ticket'
+  foreignField: 'ticket',
 });
 
 ticketSchema.virtual('notesCount', {
   ref: 'Note',
   localField: '_id',
   foreignField: 'ticket',
-  count: true
+  count: true,
 });
 
 // Індекси для оптимізації запитів
@@ -390,7 +418,7 @@ ticketSchema.index({ isDeleted: 1 });
 ticketSchema.index({
   title: 'text',
   description: 'text',
-  tags: 'text'
+  tags: 'text',
 });
 
 // Middleware для генерації номера тикету
@@ -403,9 +431,11 @@ ticketSchema.pre('save', async function (next) {
     while (attempts < maxAttempts) {
       try {
         // Знаходимо останній тікет за поточний рік
-        const lastTicket = await this.constructor.findOne({
-          ticketNumber: { $regex: `^TK-${year}-` }
-        }).sort({ ticketNumber: -1 });
+        const lastTicket = await this.constructor
+          .findOne({
+            ticketNumber: { $regex: `^TK-${year}-` },
+          })
+          .sort({ ticketNumber: -1 });
 
         let nextNumber = 1;
         if (lastTicket && lastTicket.ticketNumber) {
@@ -417,7 +447,7 @@ ticketSchema.pre('save', async function (next) {
 
         // Перевіряємо унікальність перед збереженням
         const existingTicket = await this.constructor.findOne({
-          ticketNumber: this.ticketNumber
+          ticketNumber: this.ticketNumber,
         });
 
         if (!existingTicket) {
@@ -434,7 +464,11 @@ ticketSchema.pre('save', async function (next) {
     }
 
     if (attempts >= maxAttempts) {
-      return next(new Error('Не вдалося згенерувати унікальний номер тікету після максимальної кількості спроб'));
+      return next(
+        new Error(
+          'Не вдалося згенерувати унікальний номер тікету після максимальної кількості спроб'
+        )
+      );
     }
   }
   next();
@@ -469,15 +503,16 @@ ticketSchema.pre('save', async function (next) {
       // Додаємо запис в історію статусів тільки якщо статус змінився та changedBy встановлено
       if (statusChanged && changedBy) {
         // Перевіряємо чи останній запис в історії не має такий самий статус
-        const lastHistory = this.statusHistory && this.statusHistory.length > 0
-          ? this.statusHistory[this.statusHistory.length - 1]
-          : null;
+        const lastHistory =
+          this.statusHistory && this.statusHistory.length > 0
+            ? this.statusHistory[this.statusHistory.length - 1]
+            : null;
 
         if (!lastHistory || lastHistory.status !== this.status) {
           this.statusHistory.push({
             status: this.status,
             changedBy: changedBy,
-            changedAt: new Date()
+            changedAt: new Date(),
           });
         }
       } else if (statusChanged && !changedBy) {
@@ -521,7 +556,7 @@ ticketSchema.statics.findByCity = function (cityId) {
 ticketSchema.statics.findByUser = function (userId) {
   return this.find({
     createdBy: userId,
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
@@ -533,14 +568,14 @@ ticketSchema.statics.findOverdue = function () {
   return this.find({
     dueDate: { $lt: new Date() },
     status: { $nin: ['closed', 'resolved', 'cancelled'] },
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
 ticketSchema.statics.findActive = function () {
   return this.find({
     status: { $nin: ['closed', 'cancelled'] },
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
@@ -557,21 +592,27 @@ ticketSchema.statics.getStatistics = function (filter = {}) {
         inProgressTickets: { $sum: { $cond: [{ $eq: ['$status', 'in_progress'] }, 1, 0] } },
         resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
         closedTickets: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } },
-        highPriorityTickets: { $sum: { $cond: [{ $in: ['$priority', ['high', 'urgent']] }, 1, 0] } },
+        highPriorityTickets: {
+          $sum: { $cond: [{ $in: ['$priority', ['high', 'urgent']] }, 1, 0] },
+        },
         overdueTickets: {
           $sum: {
-            $cond: [{
-              $and: [
-                { $lt: ['$dueDate', new Date()] },
-                { $nin: ['$status', ['closed', 'resolved', 'cancelled']] }
-              ]
-            }, 1, 0]
-          }
+            $cond: [
+              {
+                $and: [
+                  { $lt: ['$dueDate', new Date()] },
+                  { $nin: ['$status', ['closed', 'resolved', 'cancelled']] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
         },
         averageResolutionTime: { $avg: '$metrics.resolutionTime' },
-        averageResponseTime: { $avg: '$metrics.responseTime' }
-      }
-    }
+        averageResponseTime: { $avg: '$metrics.responseTime' },
+      },
+    },
   ]);
 };
 
@@ -584,31 +625,31 @@ ticketSchema.statics.getStatisticsByCity = function () {
         totalTickets: { $sum: 1 },
         openTickets: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
         resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
-        averageResolutionTime: { $avg: '$metrics.resolutionTime' }
-      }
+        averageResolutionTime: { $avg: '$metrics.resolutionTime' },
+      },
     },
     {
       $lookup: {
         from: 'cities',
         localField: '_id',
         foreignField: '_id',
-        as: 'cityInfo'
-      }
+        as: 'cityInfo',
+      },
     },
-    { $unwind: '$cityInfo' }
+    { $unwind: '$cityInfo' },
   ]);
 };
 
 // Методи екземпляра
 ticketSchema.methods.changeStatus = function (newStatus, changedBy, comment = '') {
-  const oldStatus = this.status;
+  const _oldStatus = this.status;
   this.status = newStatus;
 
   this.statusHistory.push({
     status: newStatus,
     changedBy,
     changedAt: new Date(),
-    comment
+    comment,
   });
 
   return this.save();
@@ -644,8 +685,6 @@ ticketSchema.methods.setDueDate = function (dueDate) {
   return this.save();
 };
 
-
-
 ticketSchema.methods.softDelete = function (deletedBy) {
   this.isDeleted = true;
   this.deletedAt = new Date();
@@ -665,7 +704,7 @@ ticketSchema.methods.addComment = function (authorId, content, isInternal = fals
     author: authorId,
     content,
     isInternal,
-    createdAt: new Date()
+    createdAt: new Date(),
   });
   return this.save();
 };
@@ -684,7 +723,7 @@ ticketSchema.methods.removeWatcher = function (userId) {
 };
 
 // Middleware для логування змін
-ticketSchema.pre('save', async function (next) {
+ticketSchema.pre('save', function (next) {
   if (this.isNew) {
     // Для нових тікетів логуємо створення
     this._isNewTicket = true;
@@ -696,7 +735,9 @@ ticketSchema.pre('save', async function (next) {
   const changes = [];
 
   for (const field of modifiedFields) {
-    if (field === 'updatedAt' || field === '__v') continue;
+    if (field === 'updatedAt' || field === '__v') {
+      continue;
+    }
 
     const oldValue = this._original ? this._original[field] : null;
     const newValue = this[field];
@@ -706,7 +747,7 @@ ticketSchema.pre('save', async function (next) {
         field,
         oldValue,
         newValue,
-        action: this._getActionForField(field, oldValue, newValue)
+        action: this._getActionForField(field, oldValue, newValue),
       });
     }
   }
@@ -715,7 +756,7 @@ ticketSchema.pre('save', async function (next) {
   next();
 });
 
-ticketSchema.post('save', async function (doc) {
+ticketSchema.post('save', async function (_doc) {
   try {
     const TicketHistory = require('./TicketHistory');
     const user = this._currentUser || { _id: this.createdBy };
@@ -727,8 +768,8 @@ ticketSchema.post('save', async function (doc) {
         metadata: {
           ticketNumber: this.ticketNumber,
           priority: this.priority,
-          status: this.status
-        }
+          status: this.status,
+        },
       });
     } else if (this._pendingChanges && this._pendingChanges.length > 0) {
       // Логуємо зміни
@@ -737,7 +778,7 @@ ticketSchema.post('save', async function (doc) {
           field: change.field,
           oldValue: change.oldValue,
           newValue: change.newValue,
-          description: this._getChangeDescription(change)
+          description: this._getChangeDescription(change),
         });
       }
     }
@@ -785,7 +826,7 @@ ticketSchema.methods.updateSLAStatus = function () {
 };
 
 // Методи для визначення типу дії та опису
-ticketSchema.methods._getActionForField = function (field, oldValue, newValue) {
+ticketSchema.methods._getActionForField = function (field, _oldValue, _newValue) {
   switch (field) {
     case 'status':
       return 'status_changed';
@@ -809,30 +850,30 @@ ticketSchema.methods._getChangeDescription = function (change) {
 
   // Мапінг статусів для зрозумілих назв
   const statusMap = {
-    'open': 'Відкритий',
-    'in_progress': 'У роботі',
-    'resolved': 'Вирішено',
-    'closed': 'Закрито'
+    open: 'Відкритий',
+    in_progress: 'У роботі',
+    resolved: 'Вирішено',
+    closed: 'Закрито',
   };
 
   // Мапінг пріоритетів
   const priorityMap = {
-    'low': 'Низький',
-    'medium': 'Середній',
-    'high': 'Високий'
+    low: 'Низький',
+    medium: 'Середній',
+    high: 'Високий',
   };
 
   switch (action) {
-    case 'status_changed':
+    case 'status_changed': {
       const oldStatus = statusMap[oldValue] || oldValue || 'Не вказано';
       const newStatus = statusMap[newValue] || newValue || 'Не вказано';
       return `Статус змінено: ${oldStatus} → ${newStatus}`;
-
-    case 'priority_changed':
+    }
+    case 'priority_changed': {
       const oldPriority = priorityMap[oldValue] || oldValue || 'Не вказано';
       const newPriority = priorityMap[newValue] || newValue || 'Не вказано';
       return `Пріоритет змінено: ${oldPriority} → ${newPriority}`;
-
+    }
     case 'title_changed':
       return `Заголовок оновлено`;
 
@@ -851,7 +892,7 @@ ticketSchema.methods._getChangeDescription = function (change) {
     case 'comment_added':
       return `Додано коментар`;
 
-    default:
+    default: {
       // Спеціальна обробка для технічних полів
       if (field === 'comments' && Array.isArray(newValue)) {
         const count = newValue.length;
@@ -866,15 +907,16 @@ ticketSchema.methods._getChangeDescription = function (change) {
 
       // Для інших полів - простий опис
       const fieldLabels = {
-        'assignedTo': 'Призначення',
-        'city': 'Місто',
-        'category': 'Категорія',
-        'tags': 'Теги',
-        'watchers': 'Спостерігачі'
+        assignedTo: 'Призначення',
+        city: 'Місто',
+        category: 'Категорія',
+        tags: 'Теги',
+        watchers: 'Спостерігачі',
       };
 
       const fieldLabel = fieldLabels[field] || field;
       return `${fieldLabel} оновлено`;
+    }
   }
 };
 

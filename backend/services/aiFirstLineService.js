@@ -118,9 +118,43 @@ function formatUserContext(userContext) {
   return parts.length ? parts.join(', ') : '(немає)';
 }
 
-/** Подібні закриті тікети для навчання AI (контекст). */
-async function getSimilarResolvedTickets(limit = 5) {
+/**
+ * Форматувати список тікетів в один текст для контексту AI.
+ * @param {Array<{ title?: string, description?: string, resolutionSummary?: string, subcategory?: string }>} tickets
+ * @returns {string}
+ */
+function formatTicketsForContext(tickets) {
+  if (!tickets || tickets.length === 0) {
+    return '(немає)';
+  }
+  return tickets
+    .map(t => {
+      const res = t.resolutionSummary || '(рішення не описано)';
+      return `[${t.subcategory || '—'}] ${t.title}\nОпис: ${(t.description || '').slice(0, 150)}…\nРішення: ${res.slice(0, 300)}`;
+    })
+    .join('\n\n---\n\n');
+}
+
+/** Подібні закриті тікети для контексту AI. Якщо передано query — семантичний пошук; інакше fallback на останні за датою. */
+async function getSimilarResolvedTickets(limit = 5, query = '') {
+  const limitNum = Math.min(Math.max(Number(limit) || 5, 1), 20);
   try {
+    const q = String(query || '').trim();
+    if (q) {
+      try {
+        const ticketEmbeddingService = require('./ticketEmbeddingService');
+        const similar = await ticketEmbeddingService.findSimilarTickets(q, { topK: limitNum });
+        if (similar && similar.length > 0) {
+          const tickets = similar.map(s => s.ticket);
+          logger.info(
+            `AI: контекст тікетів — семантичний пошук, знайдено ${tickets.length} (best score: ${similar[0].score.toFixed(3)})`
+          );
+          return formatTicketsForContext(tickets);
+        }
+      } catch (err) {
+        logger.warn('AI: getSimilarResolvedTickets semantic failed, fallback to date', err);
+      }
+    }
     const tickets = await Ticket.find({
       status: { $in: ['resolved', 'closed'] },
       isDeleted: { $ne: true },
@@ -130,18 +164,10 @@ async function getSimilarResolvedTickets(limit = 5) {
       ],
     })
       .sort({ resolvedAt: -1, closedAt: -1, updatedAt: -1 })
-      .limit(limit)
+      .limit(limitNum)
       .select('title description resolutionSummary subcategory')
       .lean();
-    if (!tickets || tickets.length === 0) {
-      return '(немає)';
-    }
-    return tickets
-      .map(t => {
-        const res = t.resolutionSummary || '(рішення не описано)';
-        return `[${t.subcategory || '—'}] ${t.title}\nОпис: ${(t.description || '').slice(0, 150)}…\nРішення: ${res.slice(0, 300)}`;
-      })
-      .join('\n\n---\n\n');
+    return formatTicketsForContext(tickets);
   } catch (err) {
     logger.error('AI: getSimilarResolvedTickets', err);
     return '(немає)';
@@ -345,7 +371,11 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
   }
   // --- END FAST-TRACK ---
 
-  const similarTickets = await getSimilarResolvedTickets(5);
+  const lastUserMsg =
+    dialogHistory.length > 0 && dialogHistory[dialogHistory.length - 1]?.role === 'user'
+      ? String(dialogHistory[dialogHistory.length - 1].content || '').trim()
+      : '';
+  const similarTickets = await getSimilarResolvedTickets(5, lastUserMsg);
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
@@ -518,12 +548,16 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
     return null;
   }
 
+  const lastUserMsg =
+    dialogHistory.length > 0 && dialogHistory[dialogHistory.length - 1]?.role === 'user'
+      ? String(dialogHistory[dialogHistory.length - 1].content || '').trim()
+      : '';
   const systemPrompt = fillPrompt(TICKET_SUMMARY, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     priority: priorityHint || 'medium',
     category: categoryHint || 'Other',
-    similarTickets: await getSimilarResolvedTickets(3), // Add context awareness
+    similarTickets: await getSimilarResolvedTickets(3, lastUserMsg),
   });
 
   const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;

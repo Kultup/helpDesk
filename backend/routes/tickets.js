@@ -524,6 +524,16 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
     Object.assign(ticket, updateData);
     await ticket.save();
 
+    if (
+      (ticket.status === 'resolved' || ticket.status === 'closed') &&
+      (ticket.resolutionSummary || (ticket.aiDialogHistory && ticket.aiDialogHistory.length > 0))
+    ) {
+      const ticketEmbeddingService = require('../services/ticketEmbeddingService');
+      ticketEmbeddingService
+        .indexTicket(ticket)
+        .catch(err => logger.warn('Ticket embedding index after save', err));
+    }
+
     // Перевірка зміни статусу та відправка сповіщень
     if (value.status && value.status !== previousStatus) {
       logger.info(
