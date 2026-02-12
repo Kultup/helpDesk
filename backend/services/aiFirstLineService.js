@@ -194,52 +194,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     .map(s => `- ${s.problemType}: ${s.keywords.join(', ')}`)
     .join('\n');
 
-  // --- FAST-TRACK CHECK ---
-  // Якщо це чіткий запит з quickSolutions, повертаємо результат одразу без LLM
-  if (dialogHistory.length > 0) {
-    const lastMsg = dialogHistory[dialogHistory.length - 1];
-    if (lastMsg && lastMsg.role === 'user') {
-      const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content);
-      if (fastTrack && fastTrack.hasQuickFix) {
-        if (fastTrack.informationalOnly) {
-          logger.info(`⚡ AI Fast-Track (informational): ${fastTrack.problemType}`);
-          return {
-            requestType: 'question',
-            requestTypeConfidence: 1.0,
-            isTicketIntent: false,
-            needsMoreInfo: false,
-            category: null,
-            missingInfo: [],
-            confidence: 1.0,
-            priority: 'low',
-            emotionalTone: 'calm',
-            quickSolution: null,
-            autoTicket: false,
-            offTopicResponse: fastTrack.solution || null,
-          };
-        }
-        logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
-        return {
-          requestType: fastTrack.autoTicket ? 'appeal' : 'question',
-          requestTypeConfidence: 1.0,
-          isTicketIntent: true,
-          needsMoreInfo: fastTrack.needsMoreInfo || false,
-          category: fastTrack.category || 'Other',
-          missingInfo: fastTrack.missingInfo || [],
-          confidence: 1.0,
-          priority: 'medium',
-          emotionalTone: 'calm',
-          quickSolution: fastTrack.solution,
-          autoTicket: fastTrack.autoTicket || false,
-          offTopicResponse: null,
-        };
-      }
-    }
-  }
-  // --- END FAST-TRACK ---
-
-  // --- KNOWLEDGE BASE SEARCH ---
-  // Якщо користувач питає "як зробити...", шукаємо статтю в базі знань і повертаємо її без створення заявки
+  // --- KNOWLEDGE BASE SEARCH (перед Fast-Track: стаття з БД має пріоритет над загальним швидким рішенням) ---
   if (dialogHistory.length > 0) {
     const lastMsg = dialogHistory[dialogHistory.length - 1];
     if (
@@ -289,6 +244,50 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     }
   }
   // --- END KNOWLEDGE BASE SEARCH ---
+
+  // --- FAST-TRACK CHECK ---
+  // Якщо це чіткий запит з quickSolutions, повертаємо результат одразу без LLM (лише якщо немає статті в KB)
+  if (dialogHistory.length > 0) {
+    const lastMsg = dialogHistory[dialogHistory.length - 1];
+    if (lastMsg && lastMsg.role === 'user') {
+      const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content);
+      if (fastTrack && fastTrack.hasQuickFix) {
+        if (fastTrack.informationalOnly) {
+          logger.info(`⚡ AI Fast-Track (informational): ${fastTrack.problemType}`);
+          return {
+            requestType: 'question',
+            requestTypeConfidence: 1.0,
+            isTicketIntent: false,
+            needsMoreInfo: false,
+            category: null,
+            missingInfo: [],
+            confidence: 1.0,
+            priority: 'low',
+            emotionalTone: 'calm',
+            quickSolution: null,
+            autoTicket: false,
+            offTopicResponse: fastTrack.solution || null,
+          };
+        }
+        logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
+        return {
+          requestType: fastTrack.autoTicket ? 'appeal' : 'question',
+          requestTypeConfidence: 1.0,
+          isTicketIntent: true,
+          needsMoreInfo: fastTrack.needsMoreInfo || false,
+          category: fastTrack.category || 'Other',
+          missingInfo: fastTrack.missingInfo || [],
+          confidence: 1.0,
+          priority: 'medium',
+          emotionalTone: 'calm',
+          quickSolution: fastTrack.solution,
+          autoTicket: fastTrack.autoTicket || false,
+          offTopicResponse: null,
+        };
+      }
+    }
+  }
+  // --- END FAST-TRACK ---
 
   const similarTickets = await getSimilarResolvedTickets(5);
   const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
