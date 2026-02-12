@@ -5,10 +5,73 @@ function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Слова, які не використовуємо для пошуку за ключовими словами (українська). */
+const STOP_WORDS = new Set([
+  'не',
+  'як',
+  'що',
+  'для',
+  'в',
+  'на',
+  'з',
+  'до',
+  'по',
+  'у',
+  'та',
+  'і',
+  'але',
+  'це',
+  'то',
+  'від',
+  'за',
+  'про',
+  'без',
+  'при',
+  'мені',
+  'мне',
+  'його',
+  'її',
+  'їх',
+  'моє',
+  'можу',
+  'може',
+]);
+
+/** Поширені помилки/варіанти написання → канонічна форма для збігу зі статтями KB. */
+const WORD_NORMALIZE = {
+  плф: 'пдф',
+  pdf: 'пдф',
+  віндовс: 'windows',
+  виндовс: 'windows',
+  віндів: 'windows',
+};
+
+/** Варіанти написання одного поняття (перше — з запиту, інші — з статей KB). */
+const WORD_VARIANTS = {
+  відкрити: ['відкрити', 'відрити'],
+  открыти: ['відкрити', 'відрити'],
+};
+
+/**
+ * Витягнути значимі слова з запиту (довжина >= 2, не стоп-слова), з нормалізацією помилок.
+ * @param {string} query
+ * @returns {string[]}
+ */
+function getSearchWords(query) {
+  const raw = String(query)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !STOP_WORDS.has(w));
+  const normalized = raw.map(w => WORD_NORMALIZE[w] || w);
+  return [...new Set(normalized)];
+}
+
 class KBSearchService {
   /**
    * Знайти одну найкращу статтю для бота за запитом користувача.
-   * Спочатку $text пошук; якщо нічого не знайдено — fallback по regex у title/content/tags (краще для української).
+   * 1) $text пошук; 2) fallback по повній фразі (regex); 3) fallback по словах (усі слова в title/content).
    * @param {String} query - текст повідомлення користувача
    * @returns {Promise<Object|null>} - стаття або null
    */
@@ -25,7 +88,7 @@ class KBSearchService {
         return result.articles[0];
       }
       const regex = new RegExp(escapeRegex(q), 'i');
-      const fallback = await KnowledgeBase.findOne({
+      let fallback = await KnowledgeBase.findOne({
         status: 'published',
         isActive: true,
         $or: [{ title: regex }, { content: regex }, { tags: regex }],
@@ -36,8 +99,34 @@ class KBSearchService {
         logger.info(
           `📚 KB fallback match (regex): "${fallback.title}" for query: ${q.substring(0, 60)}`
         );
+        return fallback;
       }
-      return fallback;
+      const words = getSearchWords(q);
+      if (words.length >= 2) {
+        const wordConditions = words.map(word => {
+          const variants = WORD_VARIANTS[word] || [word];
+          const variantRegexps = variants.flatMap(v => [
+            { title: new RegExp(escapeRegex(v), 'i') },
+            { content: new RegExp(escapeRegex(v), 'i') },
+            { tags: new RegExp(escapeRegex(v), 'i') },
+          ]);
+          return { $or: variantRegexps };
+        });
+        fallback = await KnowledgeBase.findOne({
+          status: 'published',
+          isActive: true,
+          $and: wordConditions,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+        if (fallback) {
+          logger.info(
+            `📚 KB fallback match (words): "${fallback.title}" for query: ${q.substring(0, 60)}`
+          );
+          return fallback;
+        }
+      }
+      return null;
     } catch (err) {
       logger.error('KB findBestMatchForBot error', err);
       return null;

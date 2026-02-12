@@ -512,24 +512,43 @@ const KnowledgeBase: React.FC = () => {
                   {uploading ? t('knowledgeBase.uploading') : t('knowledgeBase.addMedia')}
                 </Button>
                 {form.attachments.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {form.attachments.map((att, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
-                        {att.type === 'image' ? (
-                          <Image className="h-4 w-4" />
-                        ) : (
-                          <Video className="h-4 w-4" />
-                        )}
-                        <span>{att.originalName || att.filePath}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeAttachment(idx)}
-                          className="text-red-600 hover:underline"
+                  <ul className="mt-2 space-y-3">
+                    {form.attachments.map((att, idx) => {
+                      const fileUrl = att.url || `/api/files/${att.filePath}`;
+                      return (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-3 p-2 rounded border border-gray-200 bg-gray-50"
                         >
-                          {t('common.delete')}
-                        </button>
-                      </li>
-                    ))}
+                          {att.type === 'image' ? (
+                            <img
+                              src={fileUrl}
+                              alt=""
+                              className="h-16 w-16 object-cover rounded flex-shrink-0"
+                              onError={e => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="h-16 w-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <Video className="h-8 w-8 text-gray-500" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gray-700 block truncate">
+                              {att.originalName || att.filePath}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(idx)}
+                              className="text-red-600 hover:underline text-sm mt-0.5"
+                            >
+                              {t('common.delete')}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

@@ -12,6 +12,29 @@ const aiFirstLineService = require('../services/aiFirstLineService');
 const { kbUploadsPath } = require('../config/paths');
 const logger = require('../utils/logger');
 
+/** Базовий URL API для посилань на файли (фронт використовує для прев'ю вкладень). */
+function getFilesBaseUrl(req) {
+  const base = process.env.BACKEND_URL || process.env.API_URL;
+  if (base) {
+    return base.replace(/\/$/, '');
+  }
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+/** Додати url до кожного вкладення статті для відображення прев'ю на фронті. */
+function withAttachmentUrls(article, req) {
+  if (!article || !article.attachments || !Array.isArray(article.attachments)) {
+    return article;
+  }
+  const base = getFilesBaseUrl(req);
+  const out = { ...(article.toObject ? article.toObject() : article) };
+  out.attachments = out.attachments.map(a => ({
+    ...a,
+    url: a.url || `${base}/api/files/${a.filePath || ''}`.replace(/\/+/g, '/'),
+  }));
+  return out;
+}
+
 function fetchDuckDuckGoSnippet(query) {
   return new Promise(resolve => {
     const q = encodeURIComponent(String(query).trim().substring(0, 200));
@@ -108,10 +131,11 @@ router.get('/articles', auth, async (req, res) => {
     };
 
     const result = await kbSearchService.searchArticles(q, filters, options);
+    const articlesWithUrls = (result.articles || []).map(a => withAttachmentUrls(a, req));
 
     res.json({
       success: true,
-      data: result.articles,
+      data: articlesWithUrls,
       pagination: result.pagination,
     });
   } catch (error) {
@@ -149,11 +173,12 @@ router.get('/articles/:id', auth, async (req, res) => {
 
     // Знаходимо пов'язані статті
     const relatedArticles = await kbSearchService.findRelatedArticles(req.params.id, 5);
+    const articleWithUrls = withAttachmentUrls(article, req);
 
     res.json({
       success: true,
       data: {
-        ...article.toObject(),
+        ...articleWithUrls,
         relatedArticles,
       },
     });
