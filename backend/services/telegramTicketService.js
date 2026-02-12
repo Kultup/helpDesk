@@ -622,13 +622,11 @@ class TelegramTicketService {
           `\n📸 *Крок 3/4:* Бажаєте додати фото до заявки?`,
         {
           reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '📷 Додати фото', callback_data: 'attach_photo' },
-                { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
-              ],
-              [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '📷 Додати фото', callback_data: 'attach_photo' },
+              { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+              { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
           parse_mode: 'Markdown',
         }
@@ -750,11 +748,11 @@ class TelegramTicketService {
                 `💡 Все правильно?`;
               await this.sendMessage(chatId, summaryMessage, {
                 reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-                    [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
-                    [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }],
-                  ],
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+                    { text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' },
+                    { text: '❌ Скасувати', callback_data: 'cancel_ticket' },
+                  ]),
                 },
               });
               break;
@@ -787,11 +785,11 @@ class TelegramTicketService {
             `💡 Все правильно?`;
           await this.sendMessage(chatId, summaryMessage, {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-                [{ text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' }],
-                [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+                { text: '✏️ Щось не так, виправити', callback_data: 'edit_ticket_info' },
+                { text: '❌ Скасувати', callback_data: 'cancel_ticket' },
+              ]),
             },
           });
           break;
@@ -820,14 +818,12 @@ class TelegramTicketService {
             `📎 *Крок 3/4:* Бажаєте додати фото або файли до заявки?`,
             {
               reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '📷 Додати фото', callback_data: 'attach_photo' },
-                    { text: '📎 Додати файл', callback_data: 'attach_document' },
-                  ],
-                  [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                  [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                  { text: '📎 Додати файл', callback_data: 'attach_document' },
+                  { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                  { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                ]),
               },
             }
           );
@@ -979,13 +975,11 @@ class TelegramTicketService {
           'Хочете додати ще фото?',
         {
           reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '📷 Додати ще фото', callback_data: 'add_more_photos' },
-                { text: '✅ Завершити', callback_data: 'finish_ticket' },
-              ],
-              [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '📷 Додати ще фото', callback_data: 'add_more_photos' },
+              { text: '✅ Завершити', callback_data: 'finish_ticket' },
+              { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );
@@ -1123,13 +1117,11 @@ class TelegramTicketService {
           'Хочете додати ще файли?',
         {
           reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '📎 Додати ще файл', callback_data: 'add_more_photos' },
-                { text: '✅ Завершити', callback_data: 'finish_ticket' },
-              ],
-              [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '📎 Додати ще файл', callback_data: 'add_more_photos' },
+              { text: '✅ Завершити', callback_data: 'finish_ticket' },
+              { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );

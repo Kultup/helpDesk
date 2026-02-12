@@ -240,6 +240,21 @@ class TelegramUtils {
     return '❌ Скасувати';
   }
 
+  /**
+   * Формує inline_keyboard з максимум двома кнопками в ряді.
+   * @param {Array<Object|Array<Object>>} buttons - плоский масив кнопок або масив рядків (буде зведено через flat)
+   * @param {number} [perRow=2]
+   * @returns {Array<Array<Object>>} inline_keyboard для reply_markup
+   */
+  static inlineKeyboardTwoPerRow(buttons, perRow = 2) {
+    const flat = Array.isArray(buttons) ? buttons.flat() : [];
+    const out = [];
+    for (let i = 0; i < flat.length; i += perRow) {
+      out.push(flat.slice(i, i + perRow));
+    }
+    return out;
+  }
+
   // ═══════════════════════════════════════
   //  FILE OPERATIONS
   // ═══════════════════════════════════════

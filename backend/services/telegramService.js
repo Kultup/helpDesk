@@ -318,10 +318,14 @@ class TelegramService {
         chatType,
       });
 
-      // Перевірка, чи користувач вже зареєстрований
-      // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
+      // Перевірка, чи користувач вже зареєстрований (telegramId або telegramChatId — у приватному чаті часто збігаються)
       const existingUser = await User.findOne({
-        $or: [{ telegramId: String(userId) }, { telegramId: userId }],
+        $or: [
+          { telegramId: String(userId) },
+          { telegramId: userId },
+          { telegramChatId: String(chatId) },
+          { telegramChatId: chatId },
+        ],
       })
         .populate('position', 'title')
         .populate('city', 'name');
@@ -1144,10 +1148,10 @@ class TelegramService {
                   'Не вдалося сформувати заявку. Спробуйте «Заповнити по-старому» або опишіть ще раз.',
                   {
                     reply_markup: {
-                      inline_keyboard: [
-                        [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-                        [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-                      ],
+                      inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                        { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+                        { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                      ]),
                     },
                   }
                 );
@@ -1271,15 +1275,13 @@ class TelegramService {
               'Опишіть, будь ласка, що саме не спрацювало, або надішліть фото/скріншот помилки — тоді створимо заявку.',
               {
                 reply_markup: {
-                  inline_keyboard: [
-                    [
-                      {
-                        text: '⏭️ Пропустити (створити заявку без додатків)',
-                        callback_data: 'skip_error_details_after_not_helped',
-                      },
-                    ],
-                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-                  ],
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    {
+                      text: '⏭️ Пропустити (створити заявку без додатків)',
+                      callback_data: 'skip_error_details_after_not_helped',
+                    },
+                    { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                  ]),
                 },
               }
             );
@@ -1348,11 +1350,11 @@ class TelegramService {
               `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
               {
                 reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-                    [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                    [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-                  ],
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                    { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                    { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                  ]),
                 },
               }
             );
@@ -1380,10 +1382,10 @@ class TelegramService {
               `✅ *Добре, створюю тікет з наявною інформацією.*\n\n` + `📸 Бажаєте додати фото?`,
               {
                 reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '📷 Додати фото', callback_data: 'attach_photo' }],
-                    [{ text: '⏭️ Пропустити', callback_data: 'skip_photo' }],
-                  ],
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                    { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                  ]),
                 },
               }
             );
@@ -1403,10 +1405,10 @@ class TelegramService {
                 `_(Якщо нічого — напишіть «Нічого» або «Залишити як є»)_`,
               {
                 reply_markup: {
-                  inline_keyboard: [
-                    [{ text: '⏭️ Нічого не змінювати', callback_data: 'edit_nothing_change' }],
-                    [{ text: '❌ Скасувати', callback_data: 'cancel_info_gathering' }],
-                  ],
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    { text: '⏭️ Нічого не змінювати', callback_data: 'edit_nothing_change' },
+                    { text: '❌ Скасувати', callback_data: 'cancel_info_gathering' },
+                  ]),
                 },
                 parse_mode: 'Markdown',
               }
@@ -1428,11 +1430,11 @@ class TelegramService {
             const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
             await this.sendMessage(chatId, msg, {
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-                  [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-                  [{ text: this.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+                  { text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' },
+                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                ]),
               },
               parse_mode: 'Markdown',
             });
@@ -1571,10 +1573,14 @@ class TelegramService {
     const userId = msg.from.id;
     const session = this.userSessions.get(chatId);
 
-    // Перевіряємо, чи користувач вже зареєстрований
-    // Конвертуємо userId в рядок, оскільки telegramId зберігається як String
+    // Перевіряємо, чи користувач вже зареєстрований (telegramId або telegramChatId)
     const existingUser = await User.findOne({
-      $or: [{ telegramId: String(userId) }, { telegramId: userId }],
+      $or: [
+        { telegramId: String(userId) },
+        { telegramId: userId },
+        { telegramChatId: String(chatId) },
+        { telegramChatId: chatId },
+      ],
     })
       .populate('position', 'name')
       .populate('city', 'name');
@@ -1585,7 +1591,27 @@ class TelegramService {
       if (session) {
         // Додано: docs/AI_BOT_LOGIC.md — обробка AI-режиму (виклики 1–3)
         if (session.mode === 'ai') {
-          await this.aiService.handleMessageInAiMode(chatId, text, session, existingUser);
+          try {
+            await this.aiService.handleMessageInAiMode(chatId, text, session, existingUser);
+          } catch (err) {
+            logger.error('Помилка AI-режиму (сесія вже існує)', {
+              chatId,
+              err: err.message,
+              stack: err.stack,
+            });
+            await this.sendMessage(
+              chatId,
+              'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
+              {
+                reply_markup: {
+                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                    { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                    { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+                  ]),
+                },
+              }
+            );
+          }
           return;
         }
         if (session.mode === 'choosing') {
@@ -1655,7 +1681,28 @@ class TelegramService {
           ticketDraft: null,
         };
         this.userSessions.set(chatId, session);
-        await this.aiService.handleMessageInAiMode(chatId, text.trim(), session, existingUser);
+        try {
+          await this.aiService.handleMessageInAiMode(chatId, text.trim(), session, existingUser);
+        } catch (err) {
+          logger.error('Помилка AI-режиму (перше повідомлення)', {
+            chatId,
+            err: err.message,
+            stack: err.stack,
+          });
+          this.userSessions.delete(chatId);
+          await this.sendMessage(
+            chatId,
+            'Виникла помилка під час обробки. Спробуйте ще раз або створіть заявку вручну.',
+            {
+              reply_markup: {
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                  { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+                ]),
+              },
+            }
+          );
+        }
         return;
       }
 
@@ -1666,10 +1713,10 @@ class TelegramService {
           `🤖 AI зараз недоступний. Спробуйте пізніше або використайте стандартну процедуру подачі звернення.`,
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );

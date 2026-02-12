@@ -373,10 +373,10 @@ class TelegramAIService {
       await this.telegramService.sendMessage(chatId, articleText, {
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-            [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-          ],
+          inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+            { text: 'Створити тікет', callback_data: 'create_ticket' },
+            { text: 'Головне меню', callback_data: 'back_to_menu' },
+          ]),
         },
       });
       if (user) {
@@ -424,6 +424,34 @@ class TelegramAIService {
   }
 
   async handleMessageInAiMode(chatId, text, session, user) {
+    try {
+      await this._handleMessageInAiModeImpl(chatId, text, session, user);
+    } catch (err) {
+      logger.error('handleMessageInAiMode: помилка', {
+        chatId,
+        err: err.message,
+        stack: err.stack,
+      });
+      try {
+        await this.telegramService.sendMessage(
+          chatId,
+          'Щось пішло не так під час обробки. Спробуйте ще раз або створіть заявку вручну.',
+          {
+            reply_markup: {
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+              ]),
+            },
+          }
+        );
+      } catch (e) {
+        logger.error('Не вдалося відправити fallback повідомлення', e);
+      }
+    }
+  }
+
+  async _handleMessageInAiModeImpl(chatId, text, session, user) {
     const CONFIDENCE_THRESHOLD = 0.6;
     const MAX_AI_QUESTIONS = 4;
     const MAX_AI_ATTEMPTS = 2;
@@ -448,16 +476,11 @@ class TelegramAIService {
         const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+              { text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
           parse_mode: 'Markdown',
         });
@@ -504,16 +527,11 @@ class TelegramAIService {
         const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+              { text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
           parse_mode: 'Markdown',
         });
@@ -524,16 +542,11 @@ class TelegramAIService {
         'Не вдалося оновити заявку за цим текстом. Спробуйте ще раз або натисніть «Так, створити тікет» з попереднього кроку.',
         {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-              [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+              { text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );
@@ -670,10 +683,10 @@ class TelegramAIService {
           session.dialog_history.push({ role: 'assistant', content: photoQuestion });
           await this.telegramService.sendMessage(chatId, `${filler}\n\n${photoQuestion}`, {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: '⏭️ Пропустити (без фото)', callback_data: 'skip_computer_access_photo' }],
-                [{ text: '❌ Скасувати', callback_data: 'cancel_ticket' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: '⏭️ Пропустити (без фото)', callback_data: 'skip_computer_access_photo' },
+                { text: '❌ Скасувати', callback_data: 'cancel_ticket' },
+              ]),
             },
           });
           return;
@@ -704,24 +717,25 @@ class TelegramAIService {
             question +
             '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
         }
-        const keyboardAfterTip = [
-          [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-          [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+        const buttonsAfterTip = [
+          { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+          { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
         ];
         if (session.awaitingComputerAccessPhoto) {
-          keyboardAfterTip.unshift([
-            {
-              text: '⏭️ Пропустити (без фото доступу)',
-              callback_data: 'skip_computer_access_photo',
-            },
-          ]);
+          buttonsAfterTip.unshift({
+            text: '⏭️ Пропустити (без фото доступу)',
+            callback_data: 'skip_computer_access_photo',
+          });
         } else if (session.awaitingErrorPhoto) {
-          keyboardAfterTip.unshift([
-            { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
-          ]);
+          buttonsAfterTip.unshift({
+            text: '⏭️ Пропустити (без фото помилки)',
+            callback_data: 'skip_error_photo',
+          });
         }
         await this.telegramService.sendMessage(chatId, question, {
-          reply_markup: { inline_keyboard: keyboardAfterTip },
+          reply_markup: {
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(buttonsAfterTip),
+          },
         });
         return;
       }
@@ -751,10 +765,10 @@ class TelegramAIService {
           `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -772,10 +786,10 @@ class TelegramAIService {
           {
             parse_mode: 'Markdown',
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -785,10 +799,10 @@ class TelegramAIService {
           'Зараз не вдалося отримати курс. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.',
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -808,10 +822,10 @@ class TelegramAIService {
           'Не знаю ваше місто. Вкажіть місто в профілі — тоді зможу показати погоду для вас.\n\nЯкщо є технічна проблема — опишіть її, допоможу з тікетом.',
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -824,10 +838,10 @@ class TelegramAIService {
           `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -844,10 +858,10 @@ class TelegramAIService {
           {
             parse_mode: 'Markdown',
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -861,10 +875,10 @@ class TelegramAIService {
           `Зараз не вдалося отримати погоду для ${userCity}. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.`,
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -892,15 +906,10 @@ class TelegramAIService {
         'Зараз не можу обробити. Спробуйте ще раз або натисніть «Заповнити по-старому».',
         {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );
@@ -950,10 +959,10 @@ class TelegramAIService {
         await this.telegramService.sendMessage(chatId, articleText, {
           parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Створити тікет', callback_data: 'create_ticket' },
+              { text: 'Головне меню', callback_data: 'back_to_menu' },
+            ]),
           },
         });
         session.dialog_history.push({ role: 'assistant', content: articleText });
@@ -1032,10 +1041,10 @@ class TelegramAIService {
         await this.telegramService.sendMessage(chatId, normalized, {
           parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Створити тікет', callback_data: 'create_ticket' },
+              { text: 'Головне меню', callback_data: 'back_to_menu' },
+            ]),
           },
         });
         session.dialog_history.push({ role: 'assistant', content: normalized });
@@ -1048,10 +1057,10 @@ class TelegramAIService {
         const msg = offTopic.slice(0, 500);
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-              [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Створити тікет', callback_data: 'create_ticket' },
+              { text: 'Головне меню', callback_data: 'back_to_menu' },
+            ]),
           },
         });
         session.dialog_history.push({ role: 'assistant', content: msg });
@@ -1080,10 +1089,10 @@ class TelegramAIService {
             `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
             {
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                  [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: 'Створити тікет', callback_data: 'create_ticket' },
+                  { text: 'Головне меню', callback_data: 'back_to_menu' },
+                ]),
               },
             }
           );
@@ -1101,10 +1110,10 @@ class TelegramAIService {
             {
               parse_mode: 'Markdown',
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                  [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: 'Створити тікет', callback_data: 'create_ticket' },
+                  { text: 'Головне меню', callback_data: 'back_to_menu' },
+                ]),
               },
             }
           );
@@ -1115,10 +1124,10 @@ class TelegramAIService {
               : 'Зараз не вдалося отримати курс. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.';
           await this.telegramService.sendMessage(chatId, msg, {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           });
         }
@@ -1133,10 +1142,10 @@ class TelegramAIService {
             'Не знаю ваше місто. Вкажіть місто в профілі — тоді зможу показати погоду для вас.\n\nЯкщо є технічна проблема — опишіть її, допоможу з тікетом.',
             {
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                  [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: 'Створити тікет', callback_data: 'create_ticket' },
+                  { text: 'Головне меню', callback_data: 'back_to_menu' },
+                ]),
               },
             }
           );
@@ -1149,10 +1158,10 @@ class TelegramAIService {
             `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
             {
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                  [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: 'Створити тікет', callback_data: 'create_ticket' },
+                  { text: 'Головне меню', callback_data: 'back_to_menu' },
+                ]),
               },
             }
           );
@@ -1169,10 +1178,10 @@ class TelegramAIService {
             {
               parse_mode: 'Markdown',
               reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                  [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-                ],
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: 'Створити тікет', callback_data: 'create_ticket' },
+                  { text: 'Головне меню', callback_data: 'back_to_menu' },
+                ]),
               },
             }
           );
@@ -1183,10 +1192,10 @@ class TelegramAIService {
               : `Зараз не вдалося отримати погоду для ${userCity}. Спробуй пізніше або напиши, якщо є технічна проблема — допоможу з тікетом.`;
           await this.telegramService.sendMessage(chatId, msg, {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           });
         }
@@ -1200,10 +1209,10 @@ class TelegramAIService {
           `Запити інформації з інтернету (курс, погода) для вас недоступні.\n\nЯкщо є технічна проблема — опишіть її, і я допоможу оформити заявку.`,
           {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-                [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-              ],
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: 'Створити тікет', callback_data: 'create_ticket' },
+                { text: 'Головне меню', callback_data: 'back_to_menu' },
+              ]),
             },
           }
         );
@@ -1222,10 +1231,10 @@ class TelegramAIService {
             );
       await this.telegramService.sendMessage(chatId, msg, {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
-            [{ text: 'Головне меню', callback_data: 'back_to_menu' }],
-          ],
+          inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+            { text: 'Створити тікет', callback_data: 'create_ticket' },
+            { text: 'Головне меню', callback_data: 'back_to_menu' },
+          ]),
         },
       });
       this.telegramService.userSessions.delete(chatId);
@@ -1275,28 +1284,27 @@ class TelegramAIService {
         session.step = 'gathering_information';
         session.dialog_history.push({ role: 'assistant', content: messageToSend });
 
-        const keyboard = [];
-        // Якщо ми очікуємо фото, додаємо кнопку пропуску
+        const gatherButtons = [];
         if (session.awaitingComputerAccessPhoto) {
-          keyboard.push([
-            {
-              text: '⏭️ Пропустити (без фото доступу)',
-              callback_data: 'skip_computer_access_photo',
-            },
-          ]);
+          gatherButtons.push({
+            text: '⏭️ Пропустити (без фото доступу)',
+            callback_data: 'skip_computer_access_photo',
+          });
         } else if (session.awaitingErrorPhoto) {
-          keyboard.push([
-            { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
-          ]);
+          gatherButtons.push({
+            text: '⏭️ Пропустити (без фото помилки)',
+            callback_data: 'skip_error_photo',
+          });
         }
-        keyboard.push([
-          { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
-        ]);
+        gatherButtons.push({
+          text: this.telegramService.getCancelButtonText(),
+          callback_data: 'cancel_ticket',
+        });
 
         await this.telegramService.sendMessage(chatId, messageToSend, {
           parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: keyboard,
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(gatherButtons),
           },
         });
         if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
@@ -1309,16 +1317,18 @@ class TelegramAIService {
       session.step = 'awaiting_tip_feedback';
 
       const requiresAdminOnly = quickSolutionRequiresAdminOnly(quickSolutionText);
-      const keyboard = requiresAdminOnly
-        ? [
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ]
-        : [
-            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ];
+      const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+        requiresAdminOnly
+          ? [
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+          : [
+              { text: '✅ Допомогло', callback_data: 'tip_helped' },
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+      );
 
       await this.telegramService.sendMessage(chatId, quickSolutionText, {
         parse_mode: 'Markdown',
@@ -1349,11 +1359,11 @@ class TelegramAIService {
           `Оберіть дію:`,
         {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Продовжити зі мною', callback_data: 'ai_continue' }],
-              [{ text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' }],
-              [{ text: 'Скасувати заявку', callback_data: 'cancel_ticket' }],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Продовжити зі мною', callback_data: 'ai_continue' },
+              { text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' },
+              { text: 'Скасувати заявку', callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );
@@ -1388,21 +1398,23 @@ class TelegramAIService {
         question +
         '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот) — це допоможе швидше вирішити проблему.';
     }
-    const keyboard = [
-      [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-      [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
+    const baseButtons = [
+      { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+      { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
     ];
     if (session.awaitingComputerAccessPhoto) {
-      keyboard.unshift([
-        { text: '⏭️ Пропустити (без фото доступу)', callback_data: 'skip_computer_access_photo' },
-      ]);
+      baseButtons.unshift({
+        text: '⏭️ Пропустити (без фото доступу)',
+        callback_data: 'skip_computer_access_photo',
+      });
     } else if (session.awaitingErrorPhoto) {
-      keyboard.unshift([
-        { text: '⏭️ Пропустити (без фото помилки)', callback_data: 'skip_error_photo' },
-      ]);
+      baseButtons.unshift({
+        text: '⏭️ Пропустити (без фото помилки)',
+        callback_data: 'skip_error_photo',
+      });
     }
     await this.telegramService.sendMessage(chatId, question, {
-      reply_markup: { inline_keyboard: keyboard },
+      reply_markup: { inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(baseButtons) },
     });
     if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
       await this._sendKbHintForAppeal(chatId, text);
@@ -1554,16 +1566,18 @@ class TelegramAIService {
       session.dialog_history.push({ role: 'assistant', content: analysisText });
       botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => {});
       const requiresAdminOnly = quickSolutionRequiresAdminOnly(analysisText);
-      const photoKeyboard = requiresAdminOnly
-        ? [
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ]
-        : [
-            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ];
+      const photoKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+        requiresAdminOnly
+          ? [
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+          : [
+              { text: '✅ Допомогло', callback_data: 'tip_helped' },
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+      );
       await this.telegramService.sendMessage(chatId, normalizedPhotoText, {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -1579,16 +1593,18 @@ class TelegramAIService {
         session.cachedEmotionalTone
       );
       const requiresAdminOnlyFiller = quickSolutionRequiresAdminOnly(filler);
-      const fillerKeyboard = requiresAdminOnlyFiller
-        ? [
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ]
-        : [
-            [{ text: '✅ Допомогло', callback_data: 'tip_helped' }],
-            [{ text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' }],
-            [{ text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' }],
-          ];
+      const fillerKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+        requiresAdminOnlyFiller
+          ? [
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+          : [
+              { text: '✅ Допомогло', callback_data: 'tip_helped' },
+              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+      );
       await this.telegramService.sendMessage(chatId, filler, {
         reply_markup: {
           inline_keyboard: fillerKeyboard,
@@ -1624,16 +1640,11 @@ class TelegramAIService {
     const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
     await this.telegramService.sendMessage(chatId, msg, {
       reply_markup: {
-        inline_keyboard: [
-          [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
-          [{ text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' }],
-          [
-            {
-              text: this.telegramService.getCancelButtonText(),
-              callback_data: 'cancel_ticket',
-            },
-          ],
-        ],
+        inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+          { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
+          { text: '✏️ Щось змінити', callback_data: 'edit_ticket_info' },
+          { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+        ]),
       },
       parse_mode: 'Markdown',
     });
@@ -1861,15 +1872,10 @@ class TelegramAIService {
         'Не вдалося автоматично сформувати заявку. Будь ласка, спробуйте «Заповнити по-старому» або опишіть проблему ще раз.',
         {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' }],
-              [
-                {
-                  text: this.telegramService.getCancelButtonText(),
-                  callback_data: 'cancel_ticket',
-                },
-              ],
-            ],
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         }
       );
