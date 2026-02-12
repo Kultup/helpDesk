@@ -426,26 +426,36 @@ class TelegramAIService {
       session.dialog_history = [];
     }
 
-    // Phase 1: Forced Detail Gathering for short initial messages
+    // Phase 1: Forced Detail Gathering for short initial messages — але спочатку перевіряємо KB
     const textLen = (text || '').trim().length;
     if (session.dialog_history.length === 0 && textLen < 40 && !session.detailsRequested) {
-      session.dialog_history.push({ role: 'user', content: text });
-      botConversationService
-        .appendMessage(chatId, user, 'user', text, null, text.slice(0, 200))
-        .catch(() => {});
+      let kbMatch = false;
+      try {
+        const kbSearchService = require('./kbSearchService');
+        kbMatch = !!(await kbSearchService.findBestMatchForBot((text || '').trim()));
+      } catch (_) {
+        // ігноруємо помилку пошуку
+      }
+      if (!kbMatch) {
+        session.dialog_history.push({ role: 'user', content: text });
+        botConversationService
+          .appendMessage(chatId, user, 'user', text, null, text.slice(0, 200))
+          .catch(() => {});
 
-      const filler = await aiFirstLineService.generateConversationalResponse(
-        session.dialog_history,
-        'request_details',
-        session.userContext,
-        session.cachedEmotionalTone
-      );
-      session.dialog_history.push({ role: 'assistant', content: filler });
-      botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
+        const filler = await aiFirstLineService.generateConversationalResponse(
+          session.dialog_history,
+          'request_details',
+          session.userContext,
+          session.cachedEmotionalTone
+        );
+        session.dialog_history.push({ role: 'assistant', content: filler });
+        botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
 
-      session.detailsRequested = true;
-      await this.telegramService.sendMessage(chatId, filler);
-      return;
+        session.detailsRequested = true;
+        await this.telegramService.sendMessage(chatId, filler);
+        return;
+      }
+      // Є стаття в KB — не питаємо деталі, йдемо далі до analyzeIntent і відправимо статтю
     }
 
     if (session.detailsRequested) {

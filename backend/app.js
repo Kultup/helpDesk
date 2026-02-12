@@ -13,6 +13,15 @@ process.emitWarning = function (warning, type) {
   if (typeof warning === 'string' && warning.includes('util._extend')) {
     return; // Ігноруємо це попередження
   }
+  // node-telegram-bot-api: content-type при відправці файлів (ми вже передаємо fileOptions.contentType)
+  if (
+    type === 'DeprecationWarning' &&
+    typeof warning === 'string' &&
+    (warning.includes('content-type of files you send') ||
+      warning.includes('application/octet-stream'))
+  ) {
+    return;
+  }
   return originalEmitWarning.apply(process, arguments);
 };
 
@@ -25,6 +34,15 @@ process.on('warning', warning => {
     warning.message.includes('util._extend')
   ) {
     return; // Не показуємо це попередження
+  }
+  // node-telegram-bot-api: content-type при відправці файлів (ми передаємо fileOptions.contentType)
+  if (
+    warning.name === 'DeprecationWarning' &&
+    warning.message &&
+    (warning.message.includes('content-type of files you send') ||
+      warning.message.includes('application/octet-stream'))
+  ) {
+    return;
   }
   // Показуємо інші попередження
   if (process.env.NODE_ENV === 'development') {

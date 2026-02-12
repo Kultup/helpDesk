@@ -1,3 +1,7 @@
+// Умикаємо нову поведінку відправки файлів (contentType/fileOptions), щоб прибрати DeprecationWarning
+if (!process.env.NTBA_FIX_350) {
+  process.env.NTBA_FIX_350 = '1';
+}
 const TelegramBot = require('node-telegram-bot-api');
 const https = require('https');
 const User = require('../models/User');
