@@ -18,6 +18,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=unit",
+    "test:unit:ai": "jest tests/unit/services/aiFirstLineService.test.js tests/unit/services/telegramAIService.test.js --forceExit",
     "test:integration": "jest --testPathPattern=integration",
     "test:skip:integration": "jest --testPathIgnorePatterns=integration",
     "test:skip:unit": "jest --testPathIgnorePatterns=unit",
