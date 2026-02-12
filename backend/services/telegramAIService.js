@@ -2,7 +2,7 @@ const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { kbUploadsPath } = require('../config/paths');
+const { kbUploadsPath, fileSearchPaths } = require('../config/paths');
 const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
 const TelegramUtils = require('./telegramUtils');
@@ -25,6 +25,28 @@ function getContentTypeForKbFile(filename, kind) {
     return map[ext] || 'video/mp4';
   }
   return 'application/octet-stream';
+}
+
+/** Resolve full path for KB attachment: спочатку uploads/kb, потім пошук по fileSearchPaths (як у routes/files.js). */
+function resolveKbAttachmentPath(filename) {
+  if (!filename || typeof filename !== 'string') {
+    return null;
+  }
+  const name = path.basename(filename);
+  if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) {
+    return null;
+  }
+  const primary = path.join(kbUploadsPath, name);
+  if (fs.existsSync(primary) && fs.statSync(primary).isFile()) {
+    return primary;
+  }
+  for (const dir of fileSearchPaths) {
+    const candidate = path.join(dir, name);
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 class TelegramAIService {
@@ -807,13 +829,17 @@ class TelegramAIService {
           if (!fp || typeof fp !== 'string') {
             continue;
           }
+          const fullPath = resolveKbAttachmentPath(fp);
+          if (!fullPath) {
+            logger.warn('KB: файл не знайдено', {
+              filePath: fp,
+              filename: path.basename(fp),
+              kbUploadsPath,
+            });
+            continue;
+          }
           const name = path.basename(fp);
-          const fullPath = path.join(kbUploadsPath, name);
           try {
-            if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
-              logger.warn('KB: файл не знайдено', { fullPath, filename: name });
-              continue;
-            }
             const type = String(att.type || '').toLowerCase();
             const stream = fs.createReadStream(fullPath);
             const fileOptions = {
