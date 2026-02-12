@@ -1,15 +1,13 @@
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
-
-// Створюємо папку для логів якщо її немає
-const logsDir = path.join(__dirname, '../logs');
+const { logsPath } = require('../config/paths');
 
 const ensureLogsDir = async () => {
   try {
-    await fs.access(logsDir);
+    await fs.access(logsPath);
   } catch {
-    await fs.mkdir(logsDir, { recursive: true });
+    await fs.mkdir(logsPath, { recursive: true });
   }
 };
 
@@ -24,11 +22,11 @@ const getLocalDateString = () => {
 };
 
 // Функція для логування дій користувачів
-const logAction = (action) => {
-  return async (req, res, next) => {
+const logAction = action => {
+  return (req, res, next) => {
     const originalSend = res.send;
-    
-    res.send = async function(data) {
+
+    res.send = async function (data) {
       // Логуємо тільки успішні дії
       if (res.statusCode < 400 && req.user) {
         const logEntry = {
@@ -42,27 +40,27 @@ const logAction = (action) => {
           method: req.method,
           url: req.originalUrl,
           statusCode: res.statusCode,
-          responseTime: Date.now() - req.startTime
+          responseTime: Date.now() - req.startTime,
         };
 
         logger.info(`📝 Action: ${action} by ${req.user.email} (${req.user.role})`);
 
         try {
           await ensureLogsDir();
-          const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
+          const auditFile = path.join(logsPath, `audit-${getLocalDateString()}.log`);
           await fs.appendFile(auditFile, JSON.stringify(logEntry) + '\n');
         } catch (error) {
           logger.error('Помилка запису audit log:', error);
         }
       }
-      
+
       originalSend.call(this, data);
     };
-    
+
     next();
   };
 };
 
 module.exports = {
-  logAction
+  logAction,
 };

@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Joi = require('joi');
+const { uploadsPath } = require('../config/paths');
 const { body, param, validationResult } = require('express-validator');
 const Ticket = require('../models/Ticket');
 const City = require('../models/City');
@@ -21,14 +22,11 @@ const { rateLimits } = require('../middleware');
 const telegramService = require('../services/telegramServiceInstance');
 const ticketWebSocketService = require('../services/ticketWebSocketService');
 
-// Налаштування multer для завантаження файлів
+// Налаштування multer для завантаження файлів (шлях з config/paths, папки створюються при старті в app.js)
+const ticketsUploadPath = path.join(uploadsPath, 'tickets');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../uploads/tickets');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+    cb(null, ticketsUploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);

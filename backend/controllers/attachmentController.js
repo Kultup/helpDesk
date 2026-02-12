@@ -8,35 +8,39 @@ const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { uploadsPath } = require('../config/paths');
 
-// Налаштування multer для завантаження файлів
+// Вкладення до тікетів/коментарів зберігаються в uploads/attachments (config/paths)
+const attachmentsDir = path.join(uploadsPath, 'attachments');
+
+// Налаштування multer для завантаження файлів (папка створюється при старті в app.js)
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
+  destination: (req, file, cb) => {
+    cb(null, attachmentsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-  }
+  },
 });
 
 const fileFilter = (req, file, cb) => {
   // Дозволені типи файлів
   const allowedTypes = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'application/pdf', 'application/msword', 
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/plain', 'text/csv',
-    'application/zip', 'application/x-rar-compressed'
+    'text/plain',
+    'text/csv',
+    'application/zip',
+    'application/x-rar-compressed',
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
@@ -51,8 +55,8 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
-    files: 5 // максимум 5 файлів за раз
-  }
+    files: 5, // максимум 5 файлів за раз
+  },
 });
 
 // Middleware для завантаження файлів
@@ -64,7 +68,7 @@ exports.uploadAttachments = async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Файли не надано'
+        message: 'Файли не надано',
       });
     }
 
@@ -75,7 +79,7 @@ exports.uploadAttachments = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(ticketId)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний ID тикету'
+          message: 'Невірний ID тикету',
         });
       }
 
@@ -83,18 +87,19 @@ exports.uploadAttachments = async (req, res) => {
       if (!ticket) {
         return res.status(404).json({
           success: false,
-          message: 'Тикет не знайдено'
+          message: 'Тикет не знайдено',
         });
       }
 
-      const canUpload = ticket.createdBy.equals(req.user._id) || 
-                       ticket.assignedTo?.equals(req.user._id) || 
-                       req.user.role === 'admin';
+      const canUpload =
+        ticket.createdBy.equals(req.user._id) ||
+        ticket.assignedTo?.equals(req.user._id) ||
+        req.user.role === 'admin';
 
       if (!canUpload) {
         return res.status(403).json({
           success: false,
-          message: 'Немає прав для завантаження файлів до цього тикету'
+          message: 'Немає прав для завантаження файлів до цього тикету',
         });
       }
     }
@@ -103,7 +108,7 @@ exports.uploadAttachments = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(commentId)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний ID коментаря'
+          message: 'Невірний ID коментаря',
         });
       }
 
@@ -111,14 +116,14 @@ exports.uploadAttachments = async (req, res) => {
       if (!comment) {
         return res.status(404).json({
           success: false,
-          message: 'Коментар не знайдено'
+          message: 'Коментар не знайдено',
         });
       }
 
       if (!comment.author.equals(req.user._id) && req.user.role !== 'admin') {
         return res.status(403).json({
           success: false,
-          message: 'Немає прав для завантаження файлів до цього коментаря'
+          message: 'Немає прав для завантаження файлів до цього коментаря',
         });
       }
     }
@@ -135,12 +140,16 @@ exports.uploadAttachments = async (req, res) => {
       if (existingFile) {
         // Видалити завантажений файл, оскільки він дублікат
         await fs.unlink(file.path);
-        
+
         // Додати посилання на існуючий файл
-        if (ticketId) existingFile.ticket = ticketId;
-        if (commentId) existingFile.comment = commentId;
+        if (ticketId) {
+          existingFile.ticket = ticketId;
+        }
+        if (commentId) {
+          existingFile.comment = commentId;
+        }
         await existingFile.save();
-        
+
         attachments.push(existingFile);
         continue;
       }
@@ -156,7 +165,7 @@ exports.uploadAttachments = async (req, res) => {
         ticket: ticketId || null,
         comment: commentId || null,
         uploadedBy: req.user._id,
-        category
+        category,
       });
 
       await attachment.save();
@@ -167,17 +176,17 @@ exports.uploadAttachments = async (req, res) => {
     await Attachment.populate(attachments, [
       { path: 'uploadedBy', select: 'firstName lastName email' },
       { path: 'ticket', select: 'title' },
-      { path: 'comment', select: 'content' }
+      { path: 'comment', select: 'content' },
     ]);
 
     res.status(201).json({
       success: true,
       message: `Успішно завантажено ${attachments.length} файл(ів)`,
-      data: attachments
+      data: attachments,
     });
   } catch (error) {
     logger.error('Error uploading attachments:', error);
-    
+
     // Видалити завантажені файли у разі помилки
     if (req.files) {
       for (const file of req.files) {
@@ -192,7 +201,7 @@ exports.uploadAttachments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка при завантаженні файлів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -209,44 +218,48 @@ exports.getAttachments = async (req, res) => {
       category,
       mimeType,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
     } = req.query;
 
     // Побудова фільтрів
     const filters = { isDeleted: false };
-    
+
     if (ticketId) {
       if (!mongoose.Types.ObjectId.isValid(ticketId)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний ID тикету'
+          message: 'Невірний ID тикету',
         });
       }
       filters.ticket = ticketId;
     }
-    
+
     if (commentId) {
       if (!mongoose.Types.ObjectId.isValid(commentId)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний ID коментаря'
+          message: 'Невірний ID коментаря',
         });
       }
       filters.comment = commentId;
     }
-    
+
     if (userId) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({
           success: false,
-          message: 'Невірний ID користувача'
+          message: 'Невірний ID користувача',
         });
       }
       filters.uploadedBy = userId;
     }
-    
-    if (category) filters.category = category;
-    if (mimeType) filters.mimeType = new RegExp(mimeType, 'i');
+
+    if (category) {
+      filters.category = category;
+    }
+    if (mimeType) {
+      filters.mimeType = new RegExp(mimeType, 'i');
+    }
 
     const options = {
       page: parseInt(page),
@@ -255,8 +268,8 @@ exports.getAttachments = async (req, res) => {
       populate: [
         { path: 'uploadedBy', select: 'firstName lastName email' },
         { path: 'ticket', select: 'title status' },
-        { path: 'comment', select: 'content' }
-      ]
+        { path: 'comment', select: 'content' },
+      ],
     };
 
     const attachments = await Attachment.paginate(filters, options);
@@ -269,15 +282,15 @@ exports.getAttachments = async (req, res) => {
         totalPages: attachments.totalPages,
         totalItems: attachments.totalDocs,
         hasNext: attachments.hasNextPage,
-        hasPrev: attachments.hasPrevPage
-      }
+        hasPrev: attachments.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching attachments:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні вкладень',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -290,7 +303,7 @@ exports.getAttachmentById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID вкладення'
+        message: 'Невірний ID вкладення',
       });
     }
 
@@ -302,7 +315,7 @@ exports.getAttachmentById = async (req, res) => {
     if (!attachment || attachment.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Вкладення не знайдено'
+        message: 'Вкладення не знайдено',
       });
     }
 
@@ -311,14 +324,14 @@ exports.getAttachmentById = async (req, res) => {
 
     res.json({
       success: true,
-      data: attachment
+      data: attachment,
     });
   } catch (error) {
     logger.error('Error fetching attachment:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні вкладення',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -331,7 +344,7 @@ exports.downloadAttachment = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID вкладення'
+        message: 'Невірний ID вкладення',
       });
     }
 
@@ -340,7 +353,7 @@ exports.downloadAttachment = async (req, res) => {
     if (!attachment || attachment.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Файл не знайдено'
+        message: 'Файл не знайдено',
       });
     }
 
@@ -350,7 +363,7 @@ exports.downloadAttachment = async (req, res) => {
     } catch (error) {
       return res.status(404).json({
         success: false,
-        message: 'Файл не існує на сервері'
+        message: 'Файл не існує на сервері',
       });
     }
 
@@ -368,7 +381,7 @@ exports.downloadAttachment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка при завантаженні файлу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -381,7 +394,7 @@ exports.deleteAttachment = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID вкладення'
+        message: 'Невірний ID вкладення',
       });
     }
 
@@ -390,7 +403,7 @@ exports.deleteAttachment = async (req, res) => {
     if (!attachment || attachment.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Вкладення не знайдено'
+        message: 'Вкладення не знайдено',
       });
     }
 
@@ -399,7 +412,7 @@ exports.deleteAttachment = async (req, res) => {
     if (!canDelete) {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для видалення цього вкладення'
+        message: 'Немає прав для видалення цього вкладення',
       });
     }
 
@@ -408,14 +421,14 @@ exports.deleteAttachment = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Вкладення успішно видалено'
+      message: 'Вкладення успішно видалено',
     });
   } catch (error) {
     logger.error('Error deleting attachment:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні вкладення',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -428,7 +441,7 @@ exports.restoreAttachment = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID вкладення'
+        message: 'Невірний ID вкладення',
       });
     }
 
@@ -436,7 +449,7 @@ exports.restoreAttachment = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для відновлення вкладень'
+        message: 'Немає прав для відновлення вкладень',
       });
     }
 
@@ -445,14 +458,14 @@ exports.restoreAttachment = async (req, res) => {
     if (!attachment) {
       return res.status(404).json({
         success: false,
-        message: 'Вкладення не знайдено'
+        message: 'Вкладення не знайдено',
       });
     }
 
     if (!attachment.isDeleted) {
       return res.status(400).json({
         success: false,
-        message: 'Вкладення не видалено'
+        message: 'Вкладення не видалено',
       });
     }
 
@@ -462,14 +475,14 @@ exports.restoreAttachment = async (req, res) => {
     res.json({
       success: true,
       message: 'Вкладення успішно відновлено',
-      data: attachment
+      data: attachment,
     });
   } catch (error) {
     logger.error('Error restoring attachment:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при відновленні вкладення',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -479,19 +492,19 @@ exports.updateAttachment = async (req, res) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID вкладення'
+        message: 'Невірний ID вкладення',
       });
     }
 
@@ -500,7 +513,7 @@ exports.updateAttachment = async (req, res) => {
     if (!attachment || attachment.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Вкладення не знайдено'
+        message: 'Вкладення не знайдено',
       });
     }
 
@@ -509,16 +522,24 @@ exports.updateAttachment = async (req, res) => {
     if (!canUpdate) {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для оновлення цього вкладення'
+        message: 'Немає прав для оновлення цього вкладення',
       });
     }
 
     const { category, tags, description, expiresAt } = req.body;
 
-    if (category) attachment.category = category;
-    if (tags) attachment.tags = tags;
-    if (description) attachment.metadata.description = description;
-    if (expiresAt) await attachment.setExpirationDate(new Date(expiresAt));
+    if (category) {
+      attachment.category = category;
+    }
+    if (tags) {
+      attachment.tags = tags;
+    }
+    if (description) {
+      attachment.metadata.description = description;
+    }
+    if (expiresAt) {
+      await attachment.setExpirationDate(new Date(expiresAt));
+    }
 
     await attachment.save();
 
@@ -526,20 +547,20 @@ exports.updateAttachment = async (req, res) => {
     await attachment.populate([
       { path: 'uploadedBy', select: 'firstName lastName email' },
       { path: 'ticket', select: 'title status' },
-      { path: 'comment', select: 'content' }
+      { path: 'comment', select: 'content' },
     ]);
 
     res.json({
       success: true,
       message: 'Вкладення успішно оновлено',
-      data: attachment
+      data: attachment,
     });
   } catch (error) {
     logger.error('Error updating attachment:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні вкладення',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -551,7 +572,7 @@ exports.getAttachmentStatistics = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду статистики вкладень'
+        message: 'Немає прав для перегляду статистики вкладень',
       });
     }
 
@@ -559,23 +580,23 @@ exports.getAttachmentStatistics = async (req, res) => {
 
     // Побудова фільтрів
     const filters = { isDeleted: false };
-    
+
     if (startDate || endDate) {
       filters.createdAt = {};
-      if (startDate) filters.createdAt.$gte = new Date(startDate);
-      if (endDate) filters.createdAt.$lte = new Date(endDate);
+      if (startDate) {
+        filters.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filters.createdAt.$lte = new Date(endDate);
+      }
     }
-    
-    if (userId) filters.uploadedBy = userId;
+
+    if (userId) {
+      filters.uploadedBy = userId;
+    }
 
     // Використання статичних методів з моделі
-    const [
-      generalStats,
-      categoryStats,
-      typeStats,
-      userStats,
-      duplicates
-    ] = await Promise.all([
+    const [generalStats, categoryStats, typeStats, userStats, duplicates] = await Promise.all([
       Attachment.getStatistics(filters),
       Attachment.findByCategory(),
       Attachment.aggregate([
@@ -584,10 +605,10 @@ exports.getAttachmentStatistics = async (req, res) => {
           $group: {
             _id: '$fileType',
             count: { $sum: 1 },
-            totalSize: { $sum: '$size' }
-          }
+            totalSize: { $sum: '$size' },
+          },
         },
-        { $sort: { count: -1 } }
+        { $sort: { count: -1 } },
       ]),
       Attachment.aggregate([
         { $match: filters },
@@ -596,8 +617,8 @@ exports.getAttachmentStatistics = async (req, res) => {
             from: 'users',
             localField: 'uploadedBy',
             foreignField: '_id',
-            as: 'userInfo'
-          }
+            as: 'userInfo',
+          },
         },
         { $unwind: '$userInfo' },
         {
@@ -605,13 +626,13 @@ exports.getAttachmentStatistics = async (req, res) => {
             _id: '$uploadedBy',
             userName: { $first: { $concat: ['$userInfo.firstName', ' ', '$userInfo.lastName'] } },
             fileCount: { $sum: 1 },
-            totalSize: { $sum: '$size' }
-          }
+            totalSize: { $sum: '$size' },
+          },
         },
         { $sort: { fileCount: -1 } },
-        { $limit: 10 }
+        { $limit: 10 },
       ]),
-      Attachment.findDuplicates()
+      Attachment.findDuplicates(),
     ]);
 
     res.json({
@@ -625,17 +646,17 @@ exports.getAttachmentStatistics = async (req, res) => {
         filters: {
           startDate,
           endDate,
-          userId
+          userId,
         },
-        generatedAt: new Date()
-      }
+        generatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error fetching attachment statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики вкладень',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -647,7 +668,7 @@ exports.cleanupExpiredFiles = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для очищення файлів'
+        message: 'Немає прав для очищення файлів',
       });
     }
 
@@ -672,15 +693,15 @@ exports.cleanupExpiredFiles = async (req, res) => {
       data: {
         totalExpired: expiredFiles.length,
         deleted: deletedCount,
-        failed: expiredFiles.length - deletedCount
-      }
+        failed: expiredFiles.length - deletedCount,
+      },
     });
   } catch (error) {
     logger.error('Error cleaning up expired files:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при очищенні застарілих файлів',
-      error: error.message
+      error: error.message,
     });
   }
 };

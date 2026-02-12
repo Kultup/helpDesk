@@ -1,17 +1,16 @@
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
+const { logsPath } = require('../config/paths');
 
-// Створюємо директорію для логів якщо вона не існує
-const logDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
+if (!fs.existsSync(logsPath)) {
+  fs.mkdirSync(logsPath, { recursive: true });
 }
 
 // Кастомний формат для логів
 const customFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
+    format: 'YYYY-MM-DD HH:mm:ss',
   }),
   winston.format.errors({ stack: true }),
   winston.format.printf(({ level, message, timestamp, stack }) => {
@@ -27,29 +26,26 @@ const transports = [
   // Консольний вивід
   new winston.transports.Console({
     level: process.env.LOG_LEVEL || 'info',
-    format: winston.format.combine(
-      winston.format.colorize(),
-      customFormat
-    )
+    format: winston.format.combine(winston.format.colorize(), customFormat),
   }),
-  
+
   // Файл для всіх логів
   new winston.transports.File({
-    filename: path.join(logDir, 'app.log'),
+    filename: path.join(logsPath, 'app.log'),
     level: 'info',
     format: customFormat,
     maxsize: 5242880, // 5MB
-    maxFiles: 5
+    maxFiles: 5,
   }),
-  
+
   // Окремий файл для помилок
   new winston.transports.File({
-    filename: path.join(logDir, 'error.log'),
+    filename: path.join(logsPath, 'error.log'),
     level: 'error',
     format: customFormat,
     maxsize: 5242880, // 5MB
-    maxFiles: 5
-  })
+    maxFiles: 5,
+  }),
 ];
 
 // Створюємо логер
@@ -57,7 +53,7 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: customFormat,
   transports,
-  exitOnError: false
+  exitOnError: false,
 });
 
 // Додаємо метод для логування HTTP запитів

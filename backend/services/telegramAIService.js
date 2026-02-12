@@ -2,6 +2,7 @@ const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const { kbUploadsPath } = require('../config/paths');
 const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
 const TelegramUtils = require('./telegramUtils');
@@ -745,36 +746,18 @@ class TelegramAIService {
           .catch(() => {});
 
         const attachments = Array.isArray(article.attachments) ? article.attachments : [];
-        const filename = att => {
-          const fp = att && (att.filePath || att.filepath);
-          return fp && typeof fp === 'string' ? path.basename(fp) : null;
-        };
-        const possibleKbDirs = [
-          path.join(__dirname, '..', 'uploads', 'kb'),
-          path.join(process.cwd(), 'uploads', 'kb'),
-          path.join(process.cwd(), 'backend', 'uploads', 'kb'),
-        ].map(p => path.resolve(p));
         for (const att of attachments) {
-          const name = filename(att);
-          if (!name) {
+          const fp = att && (att.filePath || att.filepath);
+          if (!fp || typeof fp !== 'string') {
             continue;
           }
-          let fullPath = null;
-          for (const dir of possibleKbDirs) {
-            const candidate = path.join(dir, name);
-            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-              fullPath = candidate;
-              break;
-            }
-          }
-          if (!fullPath) {
-            logger.warn('KB: файл не знайдено для відправки', {
-              filename: name,
-              triedDirs: possibleKbDirs,
-            });
-            continue;
-          }
+          const name = path.basename(fp);
+          const fullPath = path.join(kbUploadsPath, name);
           try {
+            if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+              logger.warn('KB: файл не знайдено', { fullPath, filename: name });
+              continue;
+            }
             const type = String(att.type || '').toLowerCase();
             if (type === 'image') {
               await this.telegramService.bot.sendPhoto(chatId, fullPath);
@@ -782,10 +765,7 @@ class TelegramAIService {
               await this.telegramService.bot.sendVideo(chatId, fullPath);
             }
           } catch (err) {
-            logger.warn('KB: не вдалося відправити вкладений файл', {
-              fullPath,
-              err: err.message,
-            });
+            logger.warn('KB: не вдалося відправити вкладений файл', { fullPath, err: err.message });
           }
         }
         return;

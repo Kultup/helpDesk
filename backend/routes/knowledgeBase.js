@@ -9,6 +9,7 @@ const adminAuth = require('../middleware/adminAuth');
 const KnowledgeBase = require('../models/KnowledgeBase');
 const kbSearchService = require('../services/kbSearchService');
 const aiFirstLineService = require('../services/aiFirstLineService');
+const { kbUploadsPath } = require('../config/paths');
 const logger = require('../utils/logger');
 
 function fetchDuckDuckGoSnippet(query) {
@@ -45,13 +46,12 @@ function fetchDuckDuckGoSnippet(query) {
   });
 }
 
-// Налаштування multer для завантаження файлів KB
+// Налаштування multer для завантаження файлів KB (шлях з config/paths.js)
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../uploads/kb');
     try {
-      await fs.mkdir(uploadPath, { recursive: true });
-      cb(null, uploadPath);
+      await fs.mkdir(kbUploadsPath, { recursive: true });
+      cb(null, kbUploadsPath);
     } catch (error) {
       cb(error);
     }
@@ -555,7 +555,7 @@ router.post('/articles/generate-from-ticket/:ticketId', auth, adminAuth, async (
  * @desc    Згенерувати FAQ статті на основі аналізу заявок
  * @access  Private (Admin)
  */
-router.post('/generate-faq', auth, adminAuth, async (req, res) => {
+router.post('/generate-faq', auth, adminAuth, (req, res) => {
   try {
     return res.status(503).json({
       success: false,
@@ -576,7 +576,7 @@ router.post('/generate-faq', auth, adminAuth, async (req, res) => {
  * @desc    Завантажити файли для статті KB
  * @access  Private (Admin)
  */
-router.post('/upload', auth, adminAuth, upload.array('files', 10), async (req, res) => {
+router.post('/upload', auth, adminAuth, upload.array('files', 10), (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

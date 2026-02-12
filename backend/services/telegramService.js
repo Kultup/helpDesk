@@ -6,6 +6,7 @@ const PendingRegistration = require('../models/PendingRegistration');
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
+const { uploadsPath } = require('../config/paths');
 
 const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
@@ -1732,7 +1733,7 @@ class TelegramService {
       logger.error('Помилка завантаження фото доступу до ПК', { chatId, err: err.message });
       return { success: false };
     }
-    const computerAccessDir = path.resolve(__dirname, '../uploads/computer-access');
+    const computerAccessDir = path.join(uploadsPath, 'computer-access');
     if (!fs.existsSync(computerAccessDir)) {
       fs.mkdirSync(computerAccessDir, { recursive: true });
     }
@@ -1907,8 +1908,8 @@ class TelegramService {
       const token = process.env.TELEGRAM_BOT_TOKEN;
       const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
 
-      // Створюємо папку для фото якщо не існує
-      const uploadsDir = path.join(__dirname, '../uploads/telegram-files');
+      // Папка створюється при старті в app.js; перевірка на випадок ручного видалення
+      const uploadsDir = path.join(uploadsPath, 'telegram-files');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }

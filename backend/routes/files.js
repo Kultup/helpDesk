@@ -3,6 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs').promises;
 const logger = require('../utils/logger');
+const { fileSearchPaths } = require('../config/paths');
 
 // Маршрут для доступу до файлів
 router.get('/:filename', async (req, res) => {
@@ -18,17 +19,8 @@ router.get('/:filename', async (req, res) => {
       });
     }
 
-    // Шукаємо файл в різних папках
-    const possiblePaths = [
-      path.join(__dirname, '../uploads/tickets', filename),
-      path.join(__dirname, '../uploads/telegram-files', filename),
-      path.join(__dirname, '../uploads/telegram-photos', filename),
-      path.join(__dirname, '../uploads/attachments', filename),
-      path.join(__dirname, '../uploads/avatars', filename),
-      path.join(__dirname, '../uploads/computer-access', filename), // Фото доступу до ПК (профіль користувача)
-      path.join(__dirname, '../uploads/kb', filename),
-      path.join(__dirname, '../uploads', filename),
-    ];
+    // Шукаємо файл у каталогах з config/paths (порядок: підпапки, потім корінь uploads)
+    const possiblePaths = fileSearchPaths.map(dir => path.join(dir, filename));
 
     let filePath = null;
     let fileStats = null;

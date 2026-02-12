@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const logger = require('../utils/logger');
+const { uploadsPath } = require('../config/paths');
 
 /**
  * Утиліти для TelegramService
@@ -257,8 +258,7 @@ class TelegramUtils {
         return;
       }
 
-      // Створюємо папку для фото якщо не існує
-      const uploadsDir = path.resolve(__dirname, '../uploads/telegram-files');
+      const uploadsDir = path.join(uploadsPath, 'telegram-files');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -329,7 +329,7 @@ class TelegramUtils {
     return new Promise((resolve, reject) => {
       const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
 
-      const uploadsDir = path.resolve(__dirname, '../uploads/telegram-files');
+      const uploadsDir = path.join(uploadsPath, 'telegram-files');
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }

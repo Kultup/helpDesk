@@ -75,31 +75,19 @@ app.set('trust proxy', 1); // Довіряємо першому проксі
 // Вимикаємо ETag для динамічних відповідей, щоб уникнути 304 та показувати актуальні дані
 app.set('etag', false);
 
-// --- Ініціалізація структури папок для завантажень ---
-const uploadsPath = path.resolve(__dirname, 'uploads');
-const subdirs = [
-  'tickets',
-  'telegram-files',
-  'telegram-photos',
-  'attachments',
-  'avatars',
-  'computer-access',
-  'kb',
-];
+// --- Ініціалізація всіх папок при старті (uploads, data, logs) ---
+const { uploadsPath, uploadDirPaths, dataPath, logsPath } = require('./config/paths');
+const fsSync = require('fs');
 
 try {
-  if (!require('fs').existsSync(uploadsPath)) {
-    require('fs').mkdirSync(uploadsPath, { recursive: true });
-  }
-  subdirs.forEach(subdir => {
-    const subdirPath = path.join(uploadsPath, subdir);
-    if (!require('fs').existsSync(subdirPath)) {
-      require('fs').mkdirSync(subdirPath, { recursive: true });
+  [...uploadDirPaths, dataPath, logsPath].forEach(dirPath => {
+    if (!fsSync.existsSync(dirPath)) {
+      fsSync.mkdirSync(dirPath, { recursive: true });
     }
   });
-  logger.info(`📁 Структура папок для завантажень ініціалізована: ${uploadsPath}`);
+  logger.info(`📁 Папки ініціалізовані: uploads (${uploadDirPaths.length} каталогів), data, logs`);
 } catch (err) {
-  logger.error('Помилка створення папок для завантажень:', err);
+  logger.error('Помилка створення папок при старті:', err);
 }
 // -----------------------------------------------------
 
@@ -315,11 +303,10 @@ mongoose
         }`
       );
 
-      // Логуємо старт сервера у щоденний audit лог
+      // Логуємо старт сервера у щоденний audit лог (шлях з config/paths)
       try {
         require('./middleware/logging');
         const fs = require('fs').promises;
-        const logsDir = path.join(__dirname, 'logs');
 
         // Функція для отримання локальної дати
         const getLocalDateString = () => {
@@ -330,8 +317,7 @@ mongoose
           return `${year}-${month}-${day}`;
         };
 
-        await fs.mkdir(logsDir, { recursive: true });
-        const auditFile = path.join(logsDir, `audit-${getLocalDateString()}.log`);
+        const auditFile = path.join(logsPath, `audit-${getLocalDateString()}.log`);
         const startupLog = {
           timestamp: new Date().toISOString(),
           action: 'SERVER_START',

@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const { dataPath } = require('../config/paths');
 const AISettings = require('../models/AISettings');
 const Ticket = require('../models/Ticket');
 const {
@@ -27,7 +28,7 @@ const CACHE_TTL_MS = 60 * 1000; // 1 хв
 /** Накопичувач використання токенів OpenAI (з моменту перезапуску). */
 let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, requestCount: 0 };
 
-const TOKEN_USAGE_FILE = path.join(__dirname, '..', 'data', 'token_usage.json');
+const TOKEN_USAGE_FILE = path.join(dataPath, 'token_usage.json');
 
 function getCurrentMonth() {
   return new Date().toISOString().slice(0, 7);

@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 const os = require('os');
 const fs = require('fs').promises;
-const path = require('path');
 const { exec } = require('child_process');
+const { uploadsPath } = require('../config/paths');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
@@ -21,37 +21,37 @@ class HealthCheckService {
         if (state !== 1) {
           throw new Error(`Database not connected. State: ${state}`);
         }
-        
+
         // Test database operation
         await mongoose.connection.db.admin().ping();
-        
+
         return {
           status: 'healthy',
           details: {
             state: state,
             host: mongoose.connection.host,
             port: mongoose.connection.port,
-            name: mongoose.connection.name
-          }
+            name: mongoose.connection.name,
+          },
         };
       } catch (error) {
         return {
           status: 'unhealthy',
-          error: error.message
+          error: error.message,
         };
       }
     });
 
     // Memory health check
-    this.checks.set('memory', async () => {
+    this.checks.set('memory', () => {
       const usage = process.memoryUsage();
       const totalMem = os.totalmem();
       const freeMem = os.freemem();
       const usedMem = totalMem - freeMem;
       const memoryUsagePercent = (usedMem / totalMem) * 100;
 
-      const status = memoryUsagePercent > 90 ? 'unhealthy' : 
-                    memoryUsagePercent > 80 ? 'warning' : 'healthy';
+      const status =
+        memoryUsagePercent > 90 ? 'unhealthy' : memoryUsagePercent > 80 ? 'warning' : 'healthy';
 
       return {
         status,
@@ -61,17 +61,14 @@ class HealthCheckService {
           heapUsed: Math.round(usage.heapUsed / 1024 / 1024),
           external: Math.round(usage.external / 1024 / 1024),
           systemMemoryUsage: Math.round(memoryUsagePercent),
-          unit: 'MB'
-        }
+          unit: 'MB',
+        },
       };
     });
 
     // Disk space health check
     this.checks.set('disk', async () => {
       try {
-        const stats = await fs.stat(process.cwd());
-        const uploadsPath = path.join(process.cwd(), 'uploads');
-        
         let uploadsSize = 0;
         try {
           const uploadStats = await fs.stat(uploadsPath);
@@ -84,29 +81,29 @@ class HealthCheckService {
           status: 'healthy',
           details: {
             uploadsSize: Math.round(uploadsSize / 1024 / 1024),
-            unit: 'MB'
-          }
+            unit: 'MB',
+          },
         };
       } catch (error) {
         return {
           status: 'unhealthy',
-          error: error.message
+          error: error.message,
         };
       }
     });
 
     // CPU health check
-    this.checks.set('cpu', async () => {
+    this.checks.set('cpu', () => {
       const cpus = os.cpus();
       const loadAvg = os.loadavg();
       const cpuCount = cpus.length;
-      
+
       // Calculate CPU usage percentage (simplified)
       const load1min = loadAvg[0];
       const cpuUsagePercent = (load1min / cpuCount) * 100;
-      
-      const status = cpuUsagePercent > 90 ? 'unhealthy' : 
-                    cpuUsagePercent > 80 ? 'warning' : 'healthy';
+
+      const status =
+        cpuUsagePercent > 90 ? 'unhealthy' : cpuUsagePercent > 80 ? 'warning' : 'healthy';
 
       return {
         status,
@@ -115,24 +112,24 @@ class HealthCheckService {
           loadAverage: {
             '1min': Math.round(loadAvg[0] * 100) / 100,
             '5min': Math.round(loadAvg[1] * 100) / 100,
-            '15min': Math.round(loadAvg[2] * 100) / 100
+            '15min': Math.round(loadAvg[2] * 100) / 100,
           },
-          usage: Math.round(cpuUsagePercent)
-        }
+          usage: Math.round(cpuUsagePercent),
+        },
       };
     });
 
     // Uptime check
-    this.checks.set('uptime', async () => {
+    this.checks.set('uptime', () => {
       const uptime = Date.now() - this.startTime;
       const uptimeSeconds = Math.floor(uptime / 1000);
-      
+
       return {
         status: 'healthy',
         details: {
           uptime: uptimeSeconds,
-          formatted: this.formatUptime(uptimeSeconds)
-        }
+          formatted: this.formatUptime(uptimeSeconds),
+        },
       };
     });
 
@@ -141,7 +138,7 @@ class HealthCheckService {
       try {
         const certPaths = [
           '/etc/letsencrypt/live/helpdesk.krainamriy.fun/fullchain.pem',
-          '/etc/nginx/ssl/fullchain.pem'
+          '/etc/nginx/ssl/fullchain.pem',
         ];
 
         let certPath = null;
@@ -159,15 +156,15 @@ class HealthCheckService {
           return {
             status: 'warning',
             details: {
-              message: 'SSL certificate not found'
-            }
+              message: 'SSL certificate not found',
+            },
           };
         }
 
         // Get certificate expiry date
         const { stdout } = await execPromise(`openssl x509 -in ${certPath} -noout -enddate`);
         const expiryMatch = stdout.match(/notAfter=(.+)/);
-        
+
         if (!expiryMatch) {
           throw new Error('Could not parse certificate expiry date');
         }
@@ -191,16 +188,16 @@ class HealthCheckService {
             expiryDate: expiryDate.toISOString(),
             daysUntilExpiry,
             validFrom: now.toISOString(),
-            certPath
-          }
+            certPath,
+          },
         };
       } catch (error) {
         return {
           status: 'warning',
           details: {
             message: 'Could not check SSL certificate',
-            error: error.message
-          }
+            error: error.message,
+          },
         };
       }
     });
@@ -226,7 +223,7 @@ class HealthCheckService {
     } catch (error) {
       return {
         status: 'unhealthy',
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -235,7 +232,7 @@ class HealthCheckService {
     const results = {};
     let overallStatus = 'healthy';
 
-    for (const [name, check] of this.checks) {
+    for (const [name] of this.checks) {
       try {
         const result = await this.runCheck(name);
         results[name] = result;
@@ -248,7 +245,7 @@ class HealthCheckService {
       } catch (error) {
         results[name] = {
           status: 'unhealthy',
-          error: error.message
+          error: error.message,
         };
         overallStatus = 'unhealthy';
       }
@@ -257,7 +254,7 @@ class HealthCheckService {
     return {
       status: overallStatus,
       timestamp: new Date().toISOString(),
-      checks: results
+      checks: results,
     };
   }
 
@@ -266,16 +263,16 @@ class HealthCheckService {
     return async (req, res) => {
       try {
         const healthStatus = await this.runAllChecks();
-        
-        const statusCode = healthStatus.status === 'healthy' ? 200 :
-                          healthStatus.status === 'warning' ? 200 : 503;
+
+        const statusCode =
+          healthStatus.status === 'healthy' ? 200 : healthStatus.status === 'warning' ? 200 : 503;
 
         res.status(statusCode).json(healthStatus);
       } catch (error) {
         res.status(503).json({
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          error: error.message
+          error: error.message,
         });
       }
     };
@@ -286,7 +283,7 @@ class HealthCheckService {
     return async (req, res) => {
       try {
         const dbCheck = await this.runCheck('database');
-        
+
         if (dbCheck.status === 'healthy') {
           res.status(200).json({ status: 'ready' });
         } else {
@@ -312,5 +309,5 @@ module.exports = {
   healthCheckService,
   healthCheck: healthCheckService.middleware(),
   readinessProbe: healthCheckService.readinessProbe(),
-  livenessProbe: healthCheckService.livenessProbe()
+  livenessProbe: healthCheckService.livenessProbe(),
 };
