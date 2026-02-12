@@ -232,6 +232,37 @@ class TelegramAIService {
     });
   }
 
+  /**
+   * A.3: для звернення (appeal) опційно надіслати одну підказку з бази знань.
+   * @param {string|number} chatId
+   * @param {string} query - текст запиту користувача
+   */
+  async _sendKbHintForAppeal(chatId, query) {
+    const q = (query || '').trim();
+    if (!q) {
+      return;
+    }
+    try {
+      const kbSearchService = require('./kbSearchService');
+      const hintArticle = await kbSearchService.findBestMatchForBot(q);
+      if (!hintArticle) {
+        return;
+      }
+      const title = hintArticle.title || 'Стаття';
+      const content = (hintArticle.content && String(hintArticle.content).trim()) || '';
+      const excerpt =
+        content.length > 0
+          ? content.slice(0, 250).replace(/\n+/g, ' ').trim() + (content.length > 250 ? '…' : '')
+          : '';
+      const hintMsg = excerpt
+        ? `💡 Можливо, вам допоможе: «${title}»\n\n${excerpt}`
+        : `💡 Можливо, вам допоможе стаття з бази знань: «${title}»`;
+      await this.telegramService.sendMessage(chatId, hintMsg);
+    } catch (err) {
+      logger.warn('KB hint for appeal failed', err);
+    }
+  }
+
   async handleMessageInAiMode(chatId, text, session, user) {
     const CONFIDENCE_THRESHOLD = 0.6;
     const MAX_AI_QUESTIONS = 4;
@@ -426,6 +457,8 @@ class TelegramAIService {
           );
         } catch (err) {
           resultAfterTip = {
+            requestType: 'appeal',
+            requestTypeConfidence: 0.7,
             isTicketIntent: true,
             needsMoreInfo: true,
             missingInfo: ['деталі проблеми'],
@@ -711,7 +744,7 @@ class TelegramAIService {
       session.ai_attempts = (session.ai_attempts || 0) + 1;
     }
 
-    // Cache AI insights for later use in ticket summary
+    // Cache AI insights for later use in ticket summary and flow (question vs appeal)
     if (result.priority) {
       session.cachedPriority = result.priority;
     }
@@ -720,6 +753,9 @@ class TelegramAIService {
     }
     if (result.emotionalTone) {
       session.cachedEmotionalTone = result.emotionalTone;
+    }
+    if (result.requestType === 'question' || result.requestType === 'appeal') {
+      session.cachedRequestType = result.requestType;
     }
 
     if (!result.isTicketIntent) {
@@ -1045,6 +1081,9 @@ class TelegramAIService {
             inline_keyboard: keyboard,
           },
         });
+        if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
+          await this._sendKbHintForAppeal(chatId, text);
+        }
         return;
       }
 
@@ -1172,6 +1211,9 @@ class TelegramAIService {
     await this.telegramService.sendMessage(chatId, question, {
       reply_markup: { inline_keyboard: keyboard },
     });
+    if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
+      await this._sendKbHintForAppeal(chatId, text);
+    }
   }
 
   async handlePhotoInAiMode(chatId, photos, caption, session, user) {

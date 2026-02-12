@@ -153,12 +153,19 @@ async function getSimilarResolvedTickets(limit = 5) {
  * @param {Array} dialogHistory
  * @param {Object} userContext
  * @param {string} [webSearchContext] - опційний фрагмент з пошуку в інтернеті (troubleshooting) для формування quickSolution
- * @returns {Promise<{ isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number, priority?: string, emotionalTone?: string, quickSolution?: string }>}
+ * @returns {Promise<{ requestType: 'question'|'appeal', requestTypeConfidence: number, requestTypeReason?: string|null, isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number, priority?: string, emotionalTone?: string, quickSolution?: string, kbArticle?: object }>}
  */
 async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
-    return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
+    return {
+      requestType: 'question',
+      requestTypeConfidence: 0,
+      isTicketIntent: false,
+      needsMoreInfo: false,
+      missingInfo: [],
+      confidence: 0,
+    };
   }
 
   let apiKey;
@@ -170,7 +177,14 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
 
   if (!apiKey || !apiKey.trim()) {
     logger.warn('AI: відсутній API-ключ для провайдера', settings.provider);
-    return { isTicketIntent: false, needsMoreInfo: false, missingInfo: [], confidence: 0 };
+    return {
+      requestType: 'question',
+      requestTypeConfidence: 0,
+      isTicketIntent: false,
+      needsMoreInfo: false,
+      missingInfo: [],
+      confidence: 0,
+    };
   }
 
   // Отримуємо список доступних швидких рішень
@@ -190,6 +204,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
         if (fastTrack.informationalOnly) {
           logger.info(`⚡ AI Fast-Track (informational): ${fastTrack.problemType}`);
           return {
+            requestType: 'question',
+            requestTypeConfidence: 1.0,
             isTicketIntent: false,
             needsMoreInfo: false,
             category: null,
@@ -204,6 +220,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
         }
         logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
         return {
+          requestType: fastTrack.autoTicket ? 'appeal' : 'question',
+          requestTypeConfidence: 1.0,
           isTicketIntent: true,
           needsMoreInfo: fastTrack.needsMoreInfo || false,
           category: fastTrack.category || 'Other',
@@ -240,6 +258,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
             `📚 KB article matched: "${plain.title}" for query: ${query.substring(0, 80)}`
           );
           return {
+            requestType: 'question',
+            requestTypeConfidence: 1.0,
             isTicketIntent: false,
             needsMoreInfo: false,
             category: null,
@@ -300,6 +320,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
 
   if (!response) {
     return {
+      requestType: 'question',
+      requestTypeConfidence: 0,
       isTicketIntent: false,
       needsMoreInfo: false,
       missingInfo: [],
@@ -317,6 +339,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       `❌ AI: не вдалося розпарсити результат analyzeIntent. Відповідь (${responseStr.length}): ${responseStr.substring(0, 800)}`
     );
     return {
+      requestType: 'appeal',
+      requestTypeConfidence: 0.5,
       isTicketIntent: true,
       needsMoreInfo: true,
       missingInfo: [],
@@ -347,7 +371,19 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     }
   }
 
+  const requestType =
+    parsed.requestType === 'appeal' || parsed.requestType === 'question'
+      ? parsed.requestType
+      : 'question';
+  const requestTypeConfidence =
+    typeof parsed.requestTypeConfidence === 'number'
+      ? Math.max(0, Math.min(1, parsed.requestTypeConfidence))
+      : 0.7;
+
   return {
+    requestType,
+    requestTypeConfidence,
+    requestTypeReason: parsed.requestTypeReason || null,
     isTicketIntent: !!parsed.isTicketIntent,
     needsMoreInfo: !!parsed.needsMoreInfo,
     category: parsed.category || null,

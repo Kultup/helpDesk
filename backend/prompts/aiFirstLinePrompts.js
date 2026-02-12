@@ -992,10 +992,23 @@ Web search results: {webSearchContext}
 Similar past tickets: {similarTickets}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 REQUEST TYPE (classify first)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Set requestType for every message:
+- **question**: user is asking for information, how-to, or a short answer (e.g. "як змінити пароль", "де розклад підтримки"). Priority is to answer from knowledge base or give a brief reply.
+- **appeal**: user wants to submit a request or get something done (access, repair, installation, "не працює", "зламалось"). Priority is to gather details and create a ticket.
+
+Use requestTypeConfidence 0.0–1.0. Optional requestTypeReason: one short phrase in Ukrainian explaining why (e.g. "користувач просить створити доступ").
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📤 OUTPUT FORMAT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {
+  "requestType": "question" | "appeal",
+  "requestTypeConfidence": 0.0–1.0,
+  "requestTypeReason": string | null,
   "isTicketIntent": boolean,
   "needsMoreInfo": boolean,
   "category": "Hardware|Software|Network|Access|Email|Phone|Printing|Performance|Security|Data|Other" | null,
@@ -1016,6 +1029,9 @@ Similar past tickets: {similarTickets}
 │ {similarTickets}: 2 printer issues in past 7 days             │
 └─────────────────────────────────────────────────────────────────┘
 {
+  "requestType": "appeal",
+  "requestTypeConfidence": 0.95,
+  "requestTypeReason": "користувач повідомляє про поломку, потрібна заявка",
   "isTicketIntent": true,
   "needsMoreInfo": false,
   "category": "Printing",
@@ -1046,6 +1062,9 @@ Similar past tickets: {similarTickets}
 │ "Принтер HP показує помилку 52A"                              │
 └─────────────────────────────────────────────────────────────────┘
 {
+  "requestType": "question",
+  "requestTypeConfidence": 0.9,
+  "requestTypeReason": "питання про конкретну помилку, можна дати інструкцію",
   "isTicketIntent": true,
   "needsMoreInfo": false,
   "category": "Printing",
