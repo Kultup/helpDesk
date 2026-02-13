@@ -101,11 +101,31 @@ class TelegramService {
     }
   }
 
-  /** Скинути всі активні сесії (для адміна / перезапуску). Повідомлення в чати не відправляються. */
+  /** Скинути всі активні сесії (для адміна). Користувачам у Telegram відправляється повідомлення. */
   clearAllSessions() {
-    const count = this.userSessions.size;
+    const chatIds = [...this.userSessions.keys()];
+    const count = chatIds.length;
     this.userSessions.clear();
-    logger.info('Всі активні сесії скинуто', { count });
+    const msg =
+      '⏱ Сесію завершено (скинуто адміністратором). Напишіть знову, якщо потрібна допомога.';
+    const replyMarkup = {
+      inline_keyboard: [
+        [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
+        [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+      ],
+    };
+    for (const chatId of chatIds) {
+      this.sendMessage(chatId, msg, { reply_markup: replyMarkup }).catch(err =>
+        logger.warn('clearAllSessions: не вдалося відправити повідомлення', {
+          chatId,
+          err: err.message,
+        })
+      );
+    }
+    logger.info('Всі активні сесії скинуто', {
+      count,
+      chatIds: chatIds.length ? chatIds.slice(0, 5) : [],
+    });
     return count;
   }
 
