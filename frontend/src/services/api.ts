@@ -1656,6 +1656,10 @@ class ApiService {
     return this.get('/settings/telegram/webhook');
   }
 
+  async getTelegramSessionsCount(): Promise<ApiResponse<{ count: number }>> {
+    return this.get('/telegram/sessions-count');
+  }
+
   async clearTelegramSessions(): Promise<ApiResponse<{ clearedCount: number }>> {
     return this.post('/telegram/clear-sessions');
   }

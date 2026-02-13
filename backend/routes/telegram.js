@@ -348,6 +348,30 @@ router.get('/status', authenticateToken, async (req, res) => {
 });
 
 /**
+ * @route   GET /api/telegram/sessions-count
+ * @desc    Кількість активних сесій бота. Тільки адмін.
+ * @access  Private (admin)
+ */
+router.get('/sessions-count', authenticateToken, (req, res) => {
+  try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Недостатньо прав доступу',
+      });
+    }
+    const count = telegramService.userSessions.size;
+    res.json({ success: true, count });
+  } catch (error) {
+    logger.error('Помилка отримання кількості сесій:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Внутрішня помилка сервера',
+    });
+  }
+});
+
+/**
  * @route   POST /api/telegram/clear-sessions
  * @desc    Скинути всі активні сесії бота (AI/тікети). Тільки адмін.
  * @access  Private (admin)

@@ -38,10 +38,28 @@ const TelegramSettings: React.FC = () => {
   const [isLoadingWebhookInfo, setIsLoadingWebhookInfo] = useState(false);
   const [webhookInfo, setWebhookInfo] = useState<any>(null);
   const [isClearingSessions, setIsClearingSessions] = useState(false);
+  const [sessionsCount, setSessionsCount] = useState<number | null>(null);
 
   useEffect(() => {
     loadSettings();
     loadWebhookInfo();
+  }, []);
+
+  const loadSessionsCount = async () => {
+    try {
+      const res = await apiService.getTelegramSessionsCount();
+      if (res.success && typeof (res.data as { count?: number })?.count === 'number') {
+        setSessionsCount((res.data as { count: number }).count);
+      }
+    } catch {
+      setSessionsCount(null);
+    }
+  };
+
+  useEffect(() => {
+    loadSessionsCount();
+    const interval = setInterval(loadSessionsCount, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadSettings = async () => {
@@ -222,6 +240,7 @@ const TelegramSettings: React.FC = () => {
             count: data.clearedCount ?? 0,
           }),
         });
+        loadSessionsCount();
       } else {
         setMessage({
           type: 'error',
@@ -379,7 +398,23 @@ const TelegramSettings: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold">{t('settings.telegram.sessions', 'Сесії бота')}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              {t('settings.telegram.sessions', 'Сесії бота')}
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span
+                className="inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse"
+                title={t('settings.telegram.liveUpdate', 'Оновлення онлайн')}
+              />
+              <span>
+                {t('settings.telegram.activeSessions', 'Активних сесій')}:{' '}
+                <strong className="text-gray-900">
+                  {sessionsCount !== null ? sessionsCount : '—'}
+                </strong>
+              </span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
