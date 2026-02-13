@@ -1577,11 +1577,54 @@ class TelegramAIService {
       }
     }
     if (analysisText && analysisText.trim()) {
+      const rawText = analysisText.trim();
+      const createTicketDirectly = /\[Дія:\s*створити заявку\]/i.test(rawText);
+      const hintOnly = /\[Дія:\s*підказка\]/i.test(rawText);
+      const displayText = rawText
+        .replace(/\s*\[Дія:\s*створити заявку\]\s*/gi, '')
+        .replace(/\s*\[Дія:\s*підказка\]\s*/gi, '')
+        .trim();
+      session.dialog_history.push({ role: 'assistant', content: rawText });
+      botConversationService.appendMessage(chatId, user, 'assistant', rawText).catch(() => {});
+
+      if (createTicketDirectly) {
+        const shown = await this._showTicketConfirmationFromDialog(chatId, session, user);
+        if (!shown) {
+          const fallback = TelegramUtils.normalizeQuickSolutionSteps(displayText);
+          await this.telegramService.sendMessage(chatId, fallback, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                  { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+                ],
+              ],
+            },
+          });
+        }
+        return;
+      }
+      if (hintOnly) {
+        session.step = 'awaiting_tip_feedback';
+        const normalizedHint = TelegramUtils.normalizeQuickSolutionSteps(displayText);
+        await this.telegramService.sendMessage(chatId, normalizedHint, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+              ],
+            ],
+          },
+        });
+        return;
+      }
+
       session.step = 'awaiting_tip_feedback';
-      const normalizedPhotoText = TelegramUtils.normalizeQuickSolutionSteps(analysisText.trim());
-      session.dialog_history.push({ role: 'assistant', content: analysisText });
-      botConversationService.appendMessage(chatId, user, 'assistant', analysisText).catch(() => {});
-      const requiresAdminOnly = quickSolutionRequiresAdminOnly(analysisText);
+      const normalizedPhotoText = TelegramUtils.normalizeQuickSolutionSteps(displayText || rawText);
+      const requiresAdminOnly = quickSolutionRequiresAdminOnly(displayText || rawText);
       const photoKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
         requiresAdminOnly
           ? [
