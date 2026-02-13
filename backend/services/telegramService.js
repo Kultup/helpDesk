@@ -579,26 +579,6 @@ class TelegramService {
           }
           break;
         case '/skip':
-          // Пропустити короткий відгук після оцінки тікета (бот сам пропонує /skip у повідомленні)
-          {
-            const session = this.userSessions.get(chatId);
-            const feedbackUser = await User.findOne({ telegramChatId: String(chatId) });
-            if (session?.awaitingTicketFeedbackId && feedbackUser) {
-              const handled = await this.ticketService.handleTicketFeedbackMessage(
-                chatId,
-                msg.text.trim(),
-                feedbackUser
-              );
-              if (handled) {
-                break;
-              }
-            }
-            if (session?.awaitingTicketFeedbackId) {
-              this.userSessions.delete(chatId);
-              await this.sendMessage(chatId, 'Ок, без відгуку.');
-              break;
-            }
-          }
           await this.sendMessage(
             chatId,
             `❓ *Невідома команда*\n\n` +
@@ -1731,20 +1711,11 @@ class TelegramService {
         return;
       }
 
-      // Перевіряємо, чи це відгук після оцінки тікета (Етап 2б) або інший відгук
       const user = await User.findOne({ telegramChatId: chatId });
       if (user) {
-        const ticketFeedbackHandled = await this.ticketService.handleTicketFeedbackMessage(
-          chatId,
-          text,
-          user
-        );
-        if (ticketFeedbackHandled) {
-          return;
-        }
         const feedbackHandled = await this.handleFeedbackMessage(chatId, text, user);
         if (feedbackHandled) {
-          return; // Повідомлення оброблено як відгук
+          return;
         }
       }
 
@@ -1870,20 +1841,11 @@ class TelegramService {
       return;
     }
 
-    // Спочатку перевіряємо, чи це відгук після оцінки тікета (Етап 2б) або інший відгук
     const user = await User.findOne({ telegramChatId: chatId });
     if (user) {
-      const ticketFeedbackHandled = await this.ticketService.handleTicketFeedbackMessage(
-        chatId,
-        text,
-        user
-      );
-      if (ticketFeedbackHandled) {
-        return;
-      }
       const feedbackHandled = await this.handleFeedbackMessage(chatId, text, user);
       if (feedbackHandled) {
-        return; // Повідомлення оброблено як відгук
+        return;
       }
     }
 

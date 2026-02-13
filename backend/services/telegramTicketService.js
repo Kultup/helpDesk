@@ -472,11 +472,6 @@ class TelegramTicketService {
       ticket.qualityRating.ratedBy = user._id;
       await ticket.save();
 
-      // Опційний текстовий відгук: наступне повідомлення користувача збережемо в qualityRating.feedback
-      const session = this.userSessions.get(chatId) || {};
-      session.awaitingTicketFeedbackId = ticketId.toString();
-      this.userSessions.set(chatId, session);
-
       // AI-емоція: кожен раз нова фраза
       let emotionText = '✅ Дякуємо за оцінку!';
       try {
@@ -485,11 +480,6 @@ class TelegramTicketService {
         logger.warn('AI emotion для оцінки недоступно:', aiErr?.message);
       }
       await this.sendMessage(chatId, emotionText, { parse_mode: 'Markdown' });
-      await this.sendMessage(
-        chatId,
-        '💬 Можете написати короткий відгук текстом (або /skip — пропустити).',
-        { parse_mode: 'Markdown' }
-      );
 
       // GIF або стікер під оцінку (BotSettings.ratingMedia або дефолтні GIF)
       if (this.bot) {
