@@ -501,8 +501,7 @@ class TelegramService {
               }
             }
             if (session?.awaitingTicketFeedbackId) {
-              delete session.awaitingTicketFeedbackId;
-              this.userSessions.set(chatId, session);
+              this.userSessions.delete(chatId);
               await this.sendMessage(chatId, 'Ок, без відгуку.');
               break;
             }

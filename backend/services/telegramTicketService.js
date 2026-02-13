@@ -535,22 +535,19 @@ class TelegramTicketService {
     }
     const trimmed = String(text).trim();
     if (/^\/skip$/i.test(trimmed)) {
-      delete session.awaitingTicketFeedbackId;
-      this.userSessions.set(chatId, session);
+      this.userSessions.delete(chatId);
       await this.sendMessage(chatId, 'Ок, без відгуку.');
       return true;
     }
     try {
       const ticket = await Ticket.findById(ticketId);
       if (!ticket || String(ticket.createdBy) !== String(user._id)) {
-        delete session.awaitingTicketFeedbackId;
-        this.userSessions.set(chatId, session);
+        this.userSessions.delete(chatId);
         return false;
       }
       ticket.qualityRating.feedback = trimmed.slice(0, 500);
       await ticket.save();
-      delete session.awaitingTicketFeedbackId;
-      this.userSessions.set(chatId, session);
+      this.userSessions.delete(chatId);
       await this.sendMessage(chatId, '✅ Дякуємо, відгук збережено.');
       return true;
     } catch (err) {
