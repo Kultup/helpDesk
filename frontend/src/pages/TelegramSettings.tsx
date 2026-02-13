@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Save, Eye, EyeOff, CheckCircle, XCircle, Link, RefreshCw, Info } from 'lucide-react';
+import {
+  Bot,
+  Save,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  XCircle,
+  Link,
+  RefreshCw,
+  Info,
+  Trash2,
+} from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
@@ -26,6 +37,7 @@ const TelegramSettings: React.FC = () => {
   const [isSettingWebhook, setIsSettingWebhook] = useState(false);
   const [isLoadingWebhookInfo, setIsLoadingWebhookInfo] = useState(false);
   const [webhookInfo, setWebhookInfo] = useState<any>(null);
+  const [isClearingSessions, setIsClearingSessions] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -43,7 +55,7 @@ const TelegramSettings: React.FC = () => {
       console.error('Помилка завантаження налаштувань Telegram:', error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Помилка завантаження налаштувань'
+        text: error.response?.data?.message || 'Помилка завантаження налаштувань',
       });
     } finally {
       setIsLoading(false);
@@ -61,26 +73,26 @@ const TelegramSettings: React.FC = () => {
         botToken: showToken ? settings.botToken : undefined,
         chatId: settings.chatId,
         webhookUrl: settings.webhookUrl,
-        isEnabled: settings.isEnabled
+        isEnabled: settings.isEnabled,
       });
 
       if (response.success) {
         setMessage({
           type: 'success',
-          text: 'Налаштування Telegram успішно збережено'
+          text: 'Налаштування Telegram успішно збережено',
         });
         await loadSettings();
       } else {
         setMessage({
           type: 'error',
-          text: response.message || 'Помилка збереження налаштувань'
+          text: response.message || 'Помилка збереження налаштувань',
         });
       }
     } catch (error: any) {
       console.error('Помилка збереження налаштувань Telegram:', error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Помилка збереження налаштувань'
+        text: error.response?.data?.message || 'Помилка збереження налаштувань',
       });
     } finally {
       setIsSaving(false);
@@ -103,10 +115,13 @@ const TelegramSettings: React.FC = () => {
     } catch (error: any) {
       console.error('Помилка завантаження інформації про webhook:', error);
       // Якщо токен не встановлено, не показуємо помилку
-      if (error.response?.data?.message && !error.response.data.message.includes('Bot Token не встановлено')) {
+      if (
+        error.response?.data?.message &&
+        !error.response.data.message.includes('Bot Token не встановлено')
+      ) {
         setMessage({
           type: 'error',
-          text: error.response.data.message || 'Помилка завантаження інформації про webhook'
+          text: error.response.data.message || 'Помилка завантаження інформації про webhook',
         });
       }
       setWebhookInfo(null);
@@ -119,7 +134,7 @@ const TelegramSettings: React.FC = () => {
     if (!webhookBaseUrl.trim()) {
       setMessage({
         type: 'error',
-        text: 'Введіть URL сервера'
+        text: 'Введіть URL сервера',
       });
       return;
     }
@@ -133,13 +148,13 @@ const TelegramSettings: React.FC = () => {
       if (response.success) {
         setMessage({
           type: 'success',
-          text: 'Webhook успішно налаштовано!'
+          text: 'Webhook успішно налаштовано!',
         });
         if (settings) {
           const data = response.data as { webhookUrl?: string };
           setSettings({
             ...settings,
-            webhookUrl: data.webhookUrl || settings.webhookUrl
+            webhookUrl: data.webhookUrl || settings.webhookUrl,
           });
         }
         await loadWebhookInfo();
@@ -147,27 +162,28 @@ const TelegramSettings: React.FC = () => {
       } else {
         setMessage({
           type: 'error',
-          text: response.message || 'Помилка налаштування webhook'
+          text: response.message || 'Помилка налаштування webhook',
         });
       }
     } catch (error: any) {
       console.error('Помилка налаштування webhook:', error);
       console.error('Деталі помилки:', error.response?.data);
-      
+
       let errorMessage = 'Помилка налаштування webhook';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
-        errorMessage = typeof error.response.data.error === 'string' 
-          ? error.response.data.error 
-          : 'Помилка налаштування webhook';
+        errorMessage =
+          typeof error.response.data.error === 'string'
+            ? error.response.data.error
+            : 'Помилка налаштування webhook';
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setMessage({
         type: 'error',
-        text: errorMessage
+        text: errorMessage,
       });
     } finally {
       setIsSettingWebhook(false);
@@ -178,8 +194,51 @@ const TelegramSettings: React.FC = () => {
     if (settings) {
       setSettings({
         ...settings,
-        [field]: value
+        [field]: value,
       });
+    }
+  };
+
+  const handleClearSessions = async () => {
+    if (
+      !window.confirm(
+        t(
+          'settings.telegram.clearSessionsConfirm',
+          'Скинути всі активні сесії бота (AI/тікети)? Користувачам доведеться почати діалог знову.'
+        )
+      )
+    ) {
+      return;
+    }
+    try {
+      setIsClearingSessions(true);
+      setMessage(null);
+      const response = await apiService.clearTelegramSessions();
+      if (response.success && response.data) {
+        const data = response.data as { clearedCount?: number };
+        setMessage({
+          type: 'success',
+          text: t('settings.telegram.clearSessionsSuccess', 'Скинуто активних сесій: {{count}}', {
+            count: data.clearedCount ?? 0,
+          }),
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text:
+            (response as any).message ||
+            t('settings.telegram.clearSessionsError', 'Помилка скидання сесій'),
+        });
+      }
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text:
+          error.response?.data?.message ||
+          t('settings.telegram.clearSessionsError', 'Помилка скидання сесій'),
+      });
+    } finally {
+      setIsClearingSessions(false);
     }
   };
 
@@ -203,11 +262,13 @@ const TelegramSettings: React.FC = () => {
       </div>
 
       {message && (
-        <div className={`p-4 rounded-md flex items-center space-x-2 ${
-          message.type === 'success'
-            ? 'bg-green-50 text-green-800 border border-green-200'
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
+        <div
+          className={`p-4 rounded-md flex items-center space-x-2 ${
+            message.type === 'success'
+              ? 'bg-green-50 text-green-800 border border-green-200'
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}
+        >
           {message.type === 'success' ? (
             <CheckCircle className="h-5 w-5" />
           ) : (
@@ -232,7 +293,7 @@ const TelegramSettings: React.FC = () => {
               <Input
                 type={showToken ? 'text' : 'password'}
                 value={settings?.botToken || ''}
-                onChange={(e) => handleChange('botToken', e.target.value)}
+                onChange={e => handleChange('botToken', e.target.value)}
                 placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
                 className="pr-10"
               />
@@ -245,7 +306,10 @@ const TelegramSettings: React.FC = () => {
               </button>
             </div>
             <p className="mt-1 text-sm text-gray-500">
-              {t('settings.telegram.botTokenDescription', 'Отримайте токен від @BotFather в Telegram')}
+              {t(
+                'settings.telegram.botTokenDescription',
+                'Отримайте токен від @BotFather в Telegram'
+              )}
             </p>
           </div>
 
@@ -256,11 +320,14 @@ const TelegramSettings: React.FC = () => {
             <Input
               type="text"
               value={settings?.chatId || ''}
-              onChange={(e) => handleChange('chatId', e.target.value)}
+              onChange={e => handleChange('chatId', e.target.value)}
               placeholder="-1001234567890"
             />
             <p className="mt-1 text-sm text-gray-500">
-              {t('settings.telegram.chatIdDescription', 'ID чату для відправки сповіщень (опціонально)')}
+              {t(
+                'settings.telegram.chatIdDescription',
+                'ID чату для відправки сповіщень (опціонально)'
+              )}
             </p>
           </div>
 
@@ -271,11 +338,14 @@ const TelegramSettings: React.FC = () => {
             <Input
               type="text"
               value={settings?.webhookUrl || ''}
-              onChange={(e) => handleChange('webhookUrl', e.target.value)}
+              onChange={e => handleChange('webhookUrl', e.target.value)}
               placeholder="https://your-domain.com/api/telegram/webhook"
             />
             <p className="mt-1 text-sm text-gray-500">
-              {t('settings.telegram.webhookUrlDescription', 'URL для webhook (налаштовується автоматично при використанні ngrok)')}
+              {t(
+                'settings.telegram.webhookUrlDescription',
+                'URL для webhook (налаштовується автоматично при використанні ngrok)'
+              )}
             </p>
           </div>
 
@@ -284,7 +354,7 @@ const TelegramSettings: React.FC = () => {
               type="checkbox"
               id="isEnabled"
               checked={settings?.isEnabled || false}
-              onChange={(e) => handleChange('isEnabled', e.target.checked)}
+              onChange={e => handleChange('isEnabled', e.target.checked)}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="isEnabled" className="text-sm font-medium text-gray-700">
@@ -299,9 +369,38 @@ const TelegramSettings: React.FC = () => {
               className="flex items-center space-x-2"
             >
               <Save className="h-4 w-4" />
-              <span>{isSaving ? t('common.saving', 'Збереження...') : t('common.save', 'Зберегти')}</span>
+              <span>
+                {isSaving ? t('common.saving', 'Збереження...') : t('common.save', 'Зберегти')}
+              </span>
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">{t('settings.telegram.sessions', 'Сесії бота')}</h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {t(
+              'settings.telegram.sessionsDescription',
+              'Скинути всі активні сесії (AI-діалоги, створення тікетів). Користувачам доведеться почати з головного меню.'
+            )}
+          </p>
+          <Button
+            variant="outline"
+            onClick={handleClearSessions}
+            disabled={isClearingSessions}
+            className="flex items-center space-x-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>
+              {isClearingSessions
+                ? t('common.loading', 'Завантаження...')
+                : t('settings.telegram.clearSessions', 'Скинути всі сесії')}
+            </span>
+          </Button>
         </CardContent>
       </Card>
 
@@ -337,12 +436,14 @@ const TelegramSettings: React.FC = () => {
                   </p>
                   {webhookInfo.pending_update_count > 0 && (
                     <p className="text-xs text-blue-700">
-                      ⚠️ {t('settings.telegram.pendingUpdates', 'Необроблених оновлень')}: {webhookInfo.pending_update_count}
+                      ⚠️ {t('settings.telegram.pendingUpdates', 'Необроблених оновлень')}:{' '}
+                      {webhookInfo.pending_update_count}
                     </p>
                   )}
                   {webhookInfo.last_error_date && (
                     <p className="text-xs text-red-700 mt-1">
-                      ❌ {t('settings.telegram.lastError', 'Остання помилка')}: {new Date(webhookInfo.last_error_date * 1000).toLocaleString()}
+                      ❌ {t('settings.telegram.lastError', 'Остання помилка')}:{' '}
+                      {new Date(webhookInfo.last_error_date * 1000).toLocaleString()}
                       {webhookInfo.last_error_message && ` - ${webhookInfo.last_error_message}`}
                     </p>
                   )}
@@ -359,7 +460,7 @@ const TelegramSettings: React.FC = () => {
               <Input
                 type="text"
                 value={webhookBaseUrl}
-                onChange={(e) => setWebhookBaseUrl(e.target.value)}
+                onChange={e => setWebhookBaseUrl(e.target.value)}
                 placeholder="https://your-domain.com"
                 className="flex-1"
               />
@@ -370,14 +471,17 @@ const TelegramSettings: React.FC = () => {
               >
                 <Link className="h-4 w-4" />
                 <span>
-                  {isSettingWebhook 
-                    ? t('settings.telegram.settingUp', 'Налаштування...') 
+                  {isSettingWebhook
+                    ? t('settings.telegram.settingUp', 'Налаштування...')
                     : t('settings.telegram.setupWebhook', 'Налаштувати Webhook')}
                 </span>
               </Button>
             </div>
             <p className="mt-1 text-sm text-gray-500">
-              {t('settings.telegram.serverUrlDescription', 'Введіть лише базовий URL сервера (наприклад, https://krainamriy.fun). Не додавайте /api або /api/telegram/webhook — система сама сформує коректний шлях.')}
+              {t(
+                'settings.telegram.serverUrlDescription',
+                'Введіть лише базовий URL сервера (наприклад, https://krainamriy.fun). Не додавайте /api або /api/telegram/webhook — система сама сформує коректний шлях.'
+              )}
             </p>
           </div>
         </CardContent>
@@ -387,4 +491,3 @@ const TelegramSettings: React.FC = () => {
 };
 
 export default TelegramSettings;
-
