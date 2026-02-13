@@ -539,15 +539,15 @@ class TelegramTicketService {
       await this.sendMessage(chatId, 'Ок, без відгуку.');
       return true;
     }
+    // Видаляємо сесію одразу, щоб повторне повідомлення (нова заявка) не потрапило в старий флоу
+    this.userSessions.delete(chatId);
     try {
       const ticket = await Ticket.findById(ticketId);
       if (!ticket || String(ticket.createdBy) !== String(user._id)) {
-        this.userSessions.delete(chatId);
         return false;
       }
       ticket.qualityRating.feedback = trimmed.slice(0, 500);
       await ticket.save();
-      this.userSessions.delete(chatId);
       await this.sendMessage(chatId, '✅ Дякуємо, відгук збережено.');
       return true;
     } catch (err) {
@@ -673,6 +673,7 @@ class TelegramTicketService {
         userContext,
         ticketData: { createdBy: user._id, photos: [], documents: [] },
         ticketDraft: null,
+        lastActivityAt: Date.now(),
       };
       this.userSessions.set(chatId, session);
       await this.sendMessage(
@@ -703,6 +704,7 @@ class TelegramTicketService {
         photos: [],
         documents: [],
       },
+      lastActivityAt: Date.now(),
     };
     this.userSessions.set(chatId, session);
     await this.sendMessage(

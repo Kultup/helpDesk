@@ -11,13 +11,17 @@ interface PendingRegistrationsContextType {
   refetch: () => void;
 }
 
-const PendingRegistrationsContext = createContext<PendingRegistrationsContextType | undefined>(undefined);
+const PendingRegistrationsContext = createContext<PendingRegistrationsContextType | undefined>(
+  undefined
+);
 
 interface PendingRegistrationsProviderProps {
   children: ReactNode;
 }
 
-export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProviderProps> = ({ children }) => {
+export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProviderProps> = ({
+  children,
+}) => {
   const { t } = useTranslation();
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -50,30 +54,36 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
 
       // Підключення до WebSocket для отримання оновлень кількості реєстрацій
       let socket: any = null;
-      
+
       const connectWebSocket = async () => {
         try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
           const { io } = await import('socket.io-client');
-          const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || '') as string;
+          const rawUrl = (process.env.REACT_APP_SOCKET_URL ||
+            process.env.REACT_APP_API_URL ||
+            '') as string;
           const socketUrl = rawUrl.replace(/\/api\/?$/, '');
-          socket = io(socketUrl);
-          
+          socket = io(socketUrl, { auth: { token } });
+
           socket.on('connect', () => {
             console.log('Connected to WebSocket for registration count updates');
             socket.emit('join-admin-room');
           });
 
-          socket.on('registration-count-update', (data: { data?: { count: number }, count?: number }) => {
-            console.log('Received registration count update:', data);
-            // Обробляємо обидва формати: { data: { count } } та { count }
-            const count = data.data?.count ?? data.count ?? 0;
-            setCount(count);
-          });
+          socket.on(
+            'registration-count-update',
+            (data: { data?: { count: number }; count?: number }) => {
+              console.log('Received registration count update:', data);
+              // Обробляємо обидва формати: { data: { count } } та { count }
+              const count = data.data?.count ?? data.count ?? 0;
+              setCount(count);
+            }
+          );
 
           socket.on('disconnect', () => {
             console.log('Disconnected from WebSocket');
           });
-
         } catch (error) {
           console.error('Error connecting to WebSocket:', error);
         }
@@ -105,7 +115,7 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
     count,
     loading,
     error,
-    refetch
+    refetch,
   };
 
   return (
@@ -118,7 +128,9 @@ export const PendingRegistrationsProvider: React.FC<PendingRegistrationsProvider
 export const usePendingRegistrationsContext = (): PendingRegistrationsContextType => {
   const context = useContext(PendingRegistrationsContext);
   if (context === undefined) {
-    throw new Error('usePendingRegistrationsContext must be used within a PendingRegistrationsProvider');
+    throw new Error(
+      'usePendingRegistrationsContext must be used within a PendingRegistrationsProvider'
+    );
   }
   return context;
 };

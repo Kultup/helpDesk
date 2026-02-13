@@ -51,6 +51,64 @@ class TelegramService {
     return '6070910226';
   }
 
+  /** Час неактивності (мс), після якого сесію завершують з повідомленням у чат */
+  static get SESSION_IDLE_TIMEOUT_MS() {
+    return 5 * 60 * 1000; // 5 хвилин
+  }
+
+  /** Інтервал перевірки неактивних сесій (мс) */
+  static get SESSION_IDLE_CHECK_INTERVAL_MS() {
+    return 60 * 1000; // 1 хвилина
+  }
+
+  /**
+   * Перевіряє сесії на неактивність; якщо сесія без активності 5 хв — завершує її і відправляє повідомлення в чат.
+   */
+  _checkSessionIdleTimeout() {
+    if (!this.bot) {
+      return;
+    }
+    const now = Date.now();
+    const timeout = TelegramService.SESSION_IDLE_TIMEOUT_MS;
+    const toDelete = [];
+    for (const [chatId, session] of this.userSessions.entries()) {
+      const last = session.lastActivityAt;
+      if (!last) {
+        continue;
+      }
+      if (now - last >= timeout) {
+        toDelete.push([chatId, session]);
+      }
+    }
+    for (const [chatId, _session] of toDelete) {
+      this.userSessions.delete(chatId);
+      const msg =
+        '⏱ Сесію завершено через неактивність (5 хв). Напишіть знову, якщо потрібна допомога.';
+      this.sendMessage(chatId, msg, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
+            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+          ],
+        },
+      }).catch(err =>
+        logger.warn('Session idle: не вдалося відправити повідомлення', {
+          chatId,
+          err: err.message,
+        })
+      );
+      logger.info('Сесію завершено через неактивність', { chatId });
+    }
+  }
+
+  /** Скинути всі активні сесії (для адміна / перезапуску). Повідомлення в чати не відправляються. */
+  clearAllSessions() {
+    const count = this.userSessions.size;
+    this.userSessions.clear();
+    logger.info('Всі активні сесії скинуто', { count });
+    return count;
+  }
+
   async initialize() {
     // Перевіряємо, чи бот вже ініціалізований
     if (this.isInitialized && this.bot) {
@@ -143,6 +201,14 @@ class TelegramService {
         }
         this.isInitialized = true;
         this._initializing = false;
+        if (this._sessionIdleCheckInterval) {
+          clearInterval(this._sessionIdleCheckInterval);
+        }
+        this._sessionIdleCheckInterval = setInterval(
+          () => this._checkSessionIdleTimeout(),
+          TelegramService.SESSION_IDLE_CHECK_INTERVAL_MS
+        );
+        logger.info('Таймер неактивних сесій (5 хв) увімкнено');
       } catch (botError) {
         // Якщо не вдалося створити бота (наприклад, невалідний токен)
         logger.warn('⚠️ Не вдалося ініціалізувати Telegram бота:', botError.message);
@@ -317,6 +383,13 @@ class TelegramService {
         hasContact: !!msg.contact,
         chatType,
       });
+
+      // Оновлюємо час останньої активності сесії (для таймауту неактивності 5 хв)
+      const sessionForTouch = this.userSessions.get(chatId);
+      if (sessionForTouch) {
+        sessionForTouch.lastActivityAt = Date.now();
+        this.userSessions.set(chatId, sessionForTouch);
+      }
 
       // Перевірка, чи користувач вже зареєстрований (telegramId або telegramChatId — у приватному чаті часто збігаються)
       const existingUser = await User.findOne({
@@ -1049,6 +1122,12 @@ class TelegramService {
     try {
       logger.info('Обробка callback query:', { userId, data, chatId, messageId, chatType });
 
+      const callbackSession = this.userSessions.get(chatId);
+      if (callbackSession) {
+        callbackSession.lastActivityAt = Date.now();
+        this.userSessions.set(chatId, callbackSession);
+      }
+
       // Спочатку перевіряємо, чи користувач вже зареєстрований
       // Конвертуємо userId в рядок для пошуку
       const user = await User.findOne({
@@ -1079,6 +1158,7 @@ class TelegramService {
           this.userSessions.set(chatId, {
             step: 'awaiting_computer_access_photo',
             userForAccessPhoto: user,
+            lastActivityAt: Date.now(),
           });
           await this.sendMessage(
             chatId,
@@ -1688,6 +1768,7 @@ class TelegramService {
           userContext,
           ticketData: { createdBy: existingUser._id, photos: [], documents: [] },
           ticketDraft: null,
+          lastActivityAt: Date.now(),
         };
         this.userSessions.set(chatId, session);
         const AI_RESPONSE_TIMEOUT_MS = 55000;

@@ -15,7 +15,7 @@ router.get('/webhook', (req, res) => {
     url: req.url,
     headers: req.headers,
     ip: req.ip,
-    forwarded: req.get('x-forwarded-for')
+    forwarded: req.get('x-forwarded-for'),
   });
   res.status(200).json({
     success: true,
@@ -26,8 +26,8 @@ router.get('/webhook', (req, res) => {
     server: {
       uptime: process.uptime(),
       nodeVersion: process.version,
-      env: process.env.NODE_ENV
-    }
+      env: process.env.NODE_ENV,
+    },
   });
 });
 
@@ -36,79 +36,83 @@ router.get('/webhook', (req, res) => {
  * @desc    Webhook для отримання повідомлень від Telegram
  * @access  Public
  */
-router.post('/webhook', (req, res, next) => {
-  // Логуємо всі запити до webhook
-  logger.info('📥 Webhook запит отримано', {
-    method: req.method,
-    url: req.url,
-    headers: {
-      'user-agent': req.get('user-agent'),
-      'content-type': req.get('content-type'),
-      'x-forwarded-for': req.get('x-forwarded-for'),
-      'x-real-ip': req.get('x-real-ip')
-    },
-    body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'empty'
-  });
-  next();
-}, (req, res) => {
-  // Відповідаємо одразу, щоб Telegram отримав швидку відповідь
-  // Це запобігає таймаутам та 503 помилкам
-  // Використовуємо try-catch для гарантії відповіді
-  try {
-    res.status(200).json({ success: true, received: true });
-    
-    // Обробка webhook від Telegram (асинхронно, після відповіді)
-    setImmediate(async () => {
-      try {
-        const update = req.body;
-        
-        if (!update) {
-          logger.warn('⚠️ Webhook отримано без body');
-          return;
-        }
-        
-        logger.info('📥 Отримано webhook від Telegram', { update_id: update.update_id });
-        
-        if (update.message) {
-          // Логування отриманого повідомлення
-          logger.telegram('Отримано повідомлення від Telegram', {
-            chatId: update.message.chat.id,
-            messageId: update.message.message_id,
-            text: update.message.text?.substring(0, 100)
-          });
-
-          // Передаємо повідомлення до telegramService для обробки
-          // Не чекаємо завершення, щоб Telegram отримав швидку відповідь
-          telegramService.handleMessage(update.message).catch(err => {
-            logger.error('Помилка обробки повідомлення:', err);
-          });
-        }
-
-        if (update.callback_query) {
-          // Логування callback query
-          logger.telegram('Отримано callback query від Telegram', {
-            chatId: update.callback_query.message?.chat?.id,
-            data: update.callback_query.data
-          });
-
-          // Передаємо callback query до telegramService для обробки
-          telegramService.handleCallbackQuery(update.callback_query).catch(err => {
-            logger.error('Помилка обробки callback query:', err);
-          });
-        }
-      } catch (error) {
-        logger.error('Помилка обробки Telegram webhook:', error);
-      }
+router.post(
+  '/webhook',
+  (req, res, next) => {
+    // Логуємо всі запити до webhook
+    logger.info('📥 Webhook запит отримано', {
+      method: req.method,
+      url: req.url,
+      headers: {
+        'user-agent': req.get('user-agent'),
+        'content-type': req.get('content-type'),
+        'x-forwarded-for': req.get('x-forwarded-for'),
+        'x-real-ip': req.get('x-real-ip'),
+      },
+      body: req.body ? JSON.stringify(req.body).substring(0, 200) : 'empty',
     });
-  } catch (error) {
-    // Якщо навіть відповідь не вдалося відправити, логуємо помилку
-    logger.error('Критична помилка при відправці відповіді webhook:', error);
-    // Спробуємо відправити відповідь ще раз
-    if (!res.headersSent) {
-      res.status(200).json({ success: true, error: 'Internal error logged' });
+    next();
+  },
+  (req, res) => {
+    // Відповідаємо одразу, щоб Telegram отримав швидку відповідь
+    // Це запобігає таймаутам та 503 помилкам
+    // Використовуємо try-catch для гарантії відповіді
+    try {
+      res.status(200).json({ success: true, received: true });
+
+      // Обробка webhook від Telegram (асинхронно, після відповіді)
+      setImmediate(() => {
+        try {
+          const update = req.body;
+
+          if (!update) {
+            logger.warn('⚠️ Webhook отримано без body');
+            return;
+          }
+
+          logger.info('📥 Отримано webhook від Telegram', { update_id: update.update_id });
+
+          if (update.message) {
+            // Логування отриманого повідомлення
+            logger.telegram('Отримано повідомлення від Telegram', {
+              chatId: update.message.chat.id,
+              messageId: update.message.message_id,
+              text: update.message.text?.substring(0, 100),
+            });
+
+            // Передаємо повідомлення до telegramService для обробки
+            // Не чекаємо завершення, щоб Telegram отримав швидку відповідь
+            telegramService.handleMessage(update.message).catch(err => {
+              logger.error('Помилка обробки повідомлення:', err);
+            });
+          }
+
+          if (update.callback_query) {
+            // Логування callback query
+            logger.telegram('Отримано callback query від Telegram', {
+              chatId: update.callback_query.message?.chat?.id,
+              data: update.callback_query.data,
+            });
+
+            // Передаємо callback query до telegramService для обробки
+            telegramService.handleCallbackQuery(update.callback_query).catch(err => {
+              logger.error('Помилка обробки callback query:', err);
+            });
+          }
+        } catch (error) {
+          logger.error('Помилка обробки Telegram webhook:', error);
+        }
+      });
+    } catch (error) {
+      // Якщо навіть відповідь не вдалося відправити, логуємо помилку
+      logger.error('Критична помилка при відправці відповіді webhook:', error);
+      // Спробуємо відправити відповідь ще раз
+      if (!res.headersSent) {
+        res.status(200).json({ success: true, error: 'Internal error logged' });
+      }
     }
   }
-});
+);
 
 /**
  * @route   POST /api/telegram/link
@@ -124,7 +128,7 @@ router.post('/link', authenticateToken, async (req, res) => {
     if (!telegramId || !verificationCode) {
       return res.status(400).json({
         success: false,
-        message: 'Telegram ID та код верифікації є обов\'язковими'
+        message: "Telegram ID та код верифікації є обов'язковими",
       });
     }
 
@@ -133,7 +137,7 @@ router.post('/link', authenticateToken, async (req, res) => {
     if (existingUser && existingUser._id.toString() !== userId) {
       return res.status(400).json({
         success: false,
-        message: 'Цей Telegram акаунт вже прив\'язаний до іншого користувача'
+        message: "Цей Telegram акаунт вже прив'язаний до іншого користувача",
       });
     }
 
@@ -141,34 +145,31 @@ router.post('/link', authenticateToken, async (req, res) => {
     // Наприклад, зберігати тимчасові коди в Redis або базі даних
 
     // Оновлення користувача
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { telegramId },
-      { new: true }
-    ).populate('position city');
+    const user = await User.findByIdAndUpdate(userId, { telegramId }, { new: true }).populate(
+      'position city'
+    );
 
     logger.auth(`Прив'язано Telegram акаунт`, {
       userId,
-      telegramId
+      telegramId,
     });
 
     res.json({
       success: true,
-      message: 'Telegram акаунт успішно прив\'язано',
+      message: "Telegram акаунт успішно прив'язано",
       user: {
         id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        telegramId: user.telegramId
-      }
+        telegramId: user.telegramId,
+      },
     });
-
   } catch (error) {
-    logger.error('Помилка прив\'язки Telegram акаунту:', error);
+    logger.error("Помилка прив'язки Telegram акаунту:", error);
     res.status(500).json({
       success: false,
-      message: 'Внутрішня помилка сервера'
+      message: 'Внутрішня помилка сервера',
     });
   }
 });
@@ -182,16 +183,12 @@ router.delete('/unlink', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $unset: { telegramId: 1 } },
-      { new: true }
-    );
+    const user = await User.findByIdAndUpdate(userId, { $unset: { telegramId: 1 } }, { new: true });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -199,14 +196,13 @@ router.delete('/unlink', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Telegram акаунт успішно відв\'язано'
+      message: "Telegram акаунт успішно відв'язано",
     });
-
   } catch (error) {
-    logger.error('Помилка відв\'язки Telegram акаунту:', error);
+    logger.error("Помилка відв'язки Telegram акаунту:", error);
     res.status(500).json({
       success: false,
-      message: 'Внутрішня помилка сервера'
+      message: 'Внутрішня помилка сервера',
     });
   }
 });
@@ -221,7 +217,7 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
     if (!isAdminRole(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав доступу'
+        message: 'Недостатньо прав доступу',
       });
     }
 
@@ -230,21 +226,21 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
     if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Повідомлення є обов\'язковим'
+        message: "Повідомлення є обов'язковим",
       });
     }
 
     if (!telegramService.isInitialized || !telegramService.bot) {
       return res.status(503).json({
         success: false,
-        message: 'Telegram бот не ініціалізований'
+        message: 'Telegram бот не ініціалізований',
       });
     }
 
     // Отримуємо chatId з бази даних або змінної оточення
     const TelegramConfig = require('../models/TelegramConfig');
     let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
-    
+
     if (!groupChatId) {
       try {
         const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
@@ -259,7 +255,8 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
     if (!groupChatId) {
       return res.status(400).json({
         success: false,
-        message: 'TELEGRAM_GROUP_CHAT_ID не встановлено. Перевірте налаштування в адмін панелі або встановіть змінну оточення.'
+        message:
+          'TELEGRAM_GROUP_CHAT_ID не встановлено. Перевірте налаштування в адмін панелі або встановіть змінну оточення.',
       });
     }
 
@@ -267,7 +264,7 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
       info: 'ℹ️',
       warning: '⚠️',
       error: '❌',
-      success: '✅'
+      success: '✅',
     };
 
     const formattedMessage = `${typeEmojis[type] || 'ℹ️'} *Сповіщення*\n\n${message}`;
@@ -275,12 +272,12 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
     try {
       // Відправляємо повідомлення в групу
       await telegramService.sendMessage(groupChatId, formattedMessage, { parse_mode: 'Markdown' });
-      
+
       logger.telegram('Швидке сповіщення відправлено в групу', {
         adminId: req.user.id,
         groupChatId,
         type,
-        messageLength: message.length
+        messageLength: message.length,
       });
 
       res.json({
@@ -288,23 +285,22 @@ router.post('/send-notification', authenticateToken, async (req, res) => {
         message: 'Сповіщення відправлено в групу',
         data: {
           sent: true,
-          groupChatId
-        }
+          groupChatId,
+        },
       });
     } catch (error) {
       logger.error('Помилка відправки повідомлення в групу:', error);
       res.status(500).json({
         success: false,
         message: 'Помилка відправки повідомлення в групу',
-        error: error.message
+        error: error.message,
       });
     }
-
   } catch (error) {
     logger.error('Помилка відправки швидкого сповіщення:', error);
     res.status(500).json({
       success: false,
-      message: 'Внутрішня помилка сервера'
+      message: 'Внутрішня помилка сервера',
     });
   }
 });
@@ -319,9 +315,9 @@ router.get('/status', authenticateToken, async (req, res) => {
     const status = {
       isInitialized: telegramService.isInitialized,
       hasToken: !!process.env.TELEGRAM_BOT_TOKEN,
-      connectedUsers: await User.countDocuments({ 
-        telegramId: { $exists: true, $ne: null }
-      })
+      connectedUsers: await User.countDocuments({
+        telegramId: { $exists: true, $ne: null },
+      }),
     };
 
     // Якщо бот ініціалізований, отримуємо додаткову інформацію
@@ -331,7 +327,7 @@ router.get('/status', authenticateToken, async (req, res) => {
         status.botInfo = {
           id: botInfo.id,
           username: botInfo.username,
-          firstName: botInfo.first_name
+          firstName: botInfo.first_name,
         };
       } catch (error) {
         status.botError = error.message;
@@ -340,14 +336,41 @@ router.get('/status', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      status
+      status,
     });
-
   } catch (error) {
     logger.error('Помилка перевірки статусу Telegram бота:', error);
     res.status(500).json({
       success: false,
-      message: 'Внутрішня помилка сервера'
+      message: 'Внутрішня помилка сервера',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/telegram/clear-sessions
+ * @desc    Скинути всі активні сесії бота (AI/тікети). Тільки адмін.
+ * @access  Private (admin)
+ */
+router.post('/clear-sessions', authenticateToken, (req, res) => {
+  try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Недостатньо прав доступу',
+      });
+    }
+    const count = telegramService.clearAllSessions();
+    res.json({
+      success: true,
+      message: `Скинуто активних сесій: ${count}`,
+      clearedCount: count,
+    });
+  } catch (error) {
+    logger.error('Помилка скидання сесій Telegram:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Внутрішня помилка сервера',
     });
   }
 });
@@ -357,30 +380,27 @@ router.get('/status', authenticateToken, async (req, res) => {
  * @desc    Генерація коду для прив'язки Telegram
  * @access  Private
  */
-router.post('/generate-link-code', authenticateToken, async (req, res) => {
+router.post('/generate-link-code', authenticateToken, (req, res) => {
   try {
-    const userId = req.user.id;
-    
     // Генеруємо 6-значний код
     const linkCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    
+
     // Тут можна зберегти код в Redis з TTL або в базі даних
     // Для простоти зберігаємо в пам'яті (в продакшені краще використовувати Redis)
-    
+
     // Можна відправити код через email або показати користувачу
-    
+
     res.json({
       success: true,
       linkCode,
-      message: 'Код для прив\'язки згенеровано',
-      instructions: `Відправте команду /link ${linkCode} боту в Telegram для прив'язки акаунту`
+      message: "Код для прив'язки згенеровано",
+      instructions: `Відправте команду /link ${linkCode} боту в Telegram для прив'язки акаунту`,
     });
-
   } catch (error) {
-    logger.error('Помилка генерації коду прив\'язки:', error);
+    logger.error("Помилка генерації коду прив'язки:", error);
     res.status(500).json({
       success: false,
-      message: 'Внутрішня помилка сервера'
+      message: 'Внутрішня помилка сервера',
     });
   }
 });

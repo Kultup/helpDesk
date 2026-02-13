@@ -26,15 +26,16 @@ const Cities: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const itemsPerPage = 20;
-  
-  const { cities, pagination, isLoading, error, createCity, updateCity, deleteCity, refetch } = useCities(currentPage, itemsPerPage, searchTerm);
+
+  const { cities, pagination, isLoading, error, createCity, updateCity, deleteCity, refetch } =
+    useCities(currentPage, itemsPerPage, searchTerm);
   const { confirmationState, showConfirmation, hideConfirmation } = useConfirmation();
   const [showForm, setShowForm] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
   const [formData, setFormData] = useState<CityFormData>({
     name: '',
     region: '',
-    institutions: []
+    institutions: [],
   });
   const [formLoading, setFormLoading] = useState(false);
   const [allInstitutions, setAllInstitutions] = useState<Institution[]>([]);
@@ -63,10 +64,10 @@ const Cities: React.FC = () => {
       const response = await institutionService.getAll({
         page: 1,
         limit: 100,
-        isActive: true
+        isActive: true,
       });
       setAllInstitutions(response.institutions);
-      
+
       // Якщо є ще заклади, завантажуємо наступні сторінки
       if (response.pagination && response.pagination.totalPages > 1) {
         const allInstitutions = [...response.institutions];
@@ -74,7 +75,7 @@ const Cities: React.FC = () => {
           const nextResponse = await institutionService.getAll({
             page,
             limit: 100,
-            isActive: true
+            isActive: true,
           });
           allInstitutions.push(...nextResponse.institutions);
         }
@@ -90,14 +91,18 @@ const Cities: React.FC = () => {
   // WebSocket підписки для синхронізації міст
   useEffect(() => {
     let socket: any = null;
-    
+
     const connectWebSocket = async () => {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
         const { io } = await import('socket.io-client');
-        const rawUrl = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || '') as string;
+        const rawUrl = (process.env.REACT_APP_SOCKET_URL ||
+          process.env.REACT_APP_API_URL ||
+          '') as string;
         const socketUrl = rawUrl.replace(/\/api\/?$/, '');
-        socket = io(socketUrl);
-        
+        socket = io(socketUrl, { auth: { token } });
+
         socket.on('connect', () => {
           console.log('Connected to WebSocket for cities updates');
           socket.emit('join-admin-room');
@@ -143,14 +148,14 @@ const Cities: React.FC = () => {
       const { institutions, ...cityFormData } = formData;
       const cityData = {
         ...cityFormData,
-        coordinates: { lat: 50.4501, lng: 30.5234 } // Default coordinates (Kyiv), can be updated later
+        coordinates: { lat: 50.4501, lng: 30.5234 }, // Default coordinates (Kyiv), can be updated later
       };
-      
+
       let savedCityId: string;
       if (editingCity) {
         await updateCity(editingCity._id, cityData);
         savedCityId = editingCity._id;
-        
+
         // Оновлюємо прив'язку закладів до міста
         if (formData.institutions) {
           await updateCityInstitutions(savedCityId, formData.institutions);
@@ -158,13 +163,13 @@ const Cities: React.FC = () => {
       } else {
         const newCity = await createCity(cityData);
         savedCityId = newCity._id;
-        
+
         // Оновлюємо прив'язку закладів до міста
         if (formData.institutions && formData.institutions.length > 0) {
           await updateCityInstitutions(savedCityId, formData.institutions);
         }
       }
-      
+
       setShowForm(false);
       setEditingCity(null);
       setFormData({ name: '', region: '', institutions: [] });
@@ -177,31 +182,31 @@ const Cities: React.FC = () => {
 
   const handleEdit = async (city: City) => {
     setEditingCity(city);
-    
+
     // Завантажуємо заклади, прив'язані до цього міста
     try {
       const response = await institutionService.getAll({
         page: 1,
         limit: 1000,
         city: city._id,
-        isActive: true
+        isActive: true,
       });
       const cityInstitutions = response.institutions.map(inst => inst._id);
-      
+
       setFormData({
         name: city.name,
         region: city.region,
-        institutions: cityInstitutions
+        institutions: cityInstitutions,
       });
     } catch (err) {
       console.error('Failed to fetch city institutions:', err);
       setFormData({
         name: city.name,
         region: city.region,
-        institutions: []
+        institutions: [],
       });
     }
-    
+
     setShowForm(true);
   };
 
@@ -217,20 +222,22 @@ const Cities: React.FC = () => {
           await deleteCity(cityId);
           hideConfirmation();
           // Показуємо успішне повідомлення
-          const successMessage = t('cities.deleteSuccess') || t('messages.deleteSuccess') || 'Місто успішно видалено';
+          const successMessage =
+            t('cities.deleteSuccess') || t('messages.deleteSuccess') || 'Місто успішно видалено';
           toast.success(successMessage);
         } catch (error: any) {
           console.error(t('cities.deleteError'), error);
           // Показуємо помилку користувачу
-          const errorMessage = error?.response?.data?.message || 
-                              error?.message || 
-                              t('cities.deleteError') || 
-                              t('errors.general') ||
-                              'Помилка видалення міста';
+          const errorMessage =
+            error?.response?.data?.message ||
+            error?.message ||
+            t('cities.deleteError') ||
+            t('errors.general') ||
+            'Помилка видалення міста';
           toast.error(errorMessage);
         }
       },
-      onCancel: hideConfirmation
+      onCancel: hideConfirmation,
     });
   };
 
@@ -240,37 +247,38 @@ const Cities: React.FC = () => {
       const allInstitutions: Institution[] = [];
       let currentPage = 1;
       let hasMore = true;
-      
+
       while (hasMore) {
         const response = await institutionService.getAll({
           page: currentPage,
           limit: 100,
-          isActive: true
+          isActive: true,
         });
         allInstitutions.push(...response.institutions);
-        
+
         if (response.pagination && currentPage < response.pagination.totalPages) {
           currentPage++;
         } else {
           hasMore = false;
         }
       }
-      
+
       // Оновлюємо заклади: прив'язуємо вибрані до міста, відв'язуємо інші
-      const updatePromises = allInstitutions.map(async (institution) => {
+      const updatePromises = allInstitutions.map(async institution => {
         const shouldBeLinked = institutionIds.includes(institution._id);
-        const isCurrentlyLinked = typeof institution.address?.city === 'object' 
-          ? institution.address.city._id === cityId
-          : institution.address?.city === cityId;
-        
+        const isCurrentlyLinked =
+          typeof institution.address?.city === 'object'
+            ? institution.address.city._id === cityId
+            : institution.address?.city === cityId;
+
         if (shouldBeLinked && !isCurrentlyLinked) {
           // Прив'язуємо заклад до міста
           const { city: _, ...addressWithoutCity } = institution.address || {};
           await institutionService.update(institution._id, {
             address: {
               ...addressWithoutCity,
-              city: cityId
-            }
+              city: cityId,
+            },
           } as any);
         } else if (!shouldBeLinked && isCurrentlyLinked) {
           // Відв'язуємо заклад від міста
@@ -278,16 +286,16 @@ const Cities: React.FC = () => {
           await institutionService.update(institution._id, {
             address: {
               ...addressWithoutCity,
-              city: null
-            }
+              city: null,
+            },
           } as any);
         }
       });
-      
+
       await Promise.all(updatePromises);
     } catch (error) {
       console.error('Error updating city institutions:', error);
-      toast.error('Помилка оновлення прив\'язки закладів');
+      toast.error("Помилка оновлення прив'язки закладів");
     }
   };
 
@@ -316,7 +324,7 @@ const Cities: React.FC = () => {
           </p>
         </div>
         <div className="mt-2 sm:mt-0">
-          <Button onClick={() => setShowForm(true)} size={isMobile ? "sm" : "md"}>
+          <Button onClick={() => setShowForm(true)} size={isMobile ? 'sm' : 'md'}>
             <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             {t('cities.addCity')}
           </Button>
@@ -330,7 +338,7 @@ const Cities: React.FC = () => {
             type="text"
             placeholder={t('cities.search')}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             leftIcon={<Search className="w-3 h-3 sm:w-4 sm:h-4" />}
             className="w-full sm:max-w-md"
           />
@@ -352,16 +360,16 @@ const Cities: React.FC = () => {
                   type="text"
                   placeholder={t('cities.cityName')}
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   required
                   disabled={formLoading}
                 />
-                
+
                 <Input
                   type="text"
                   placeholder={t('cities.regionArea')}
                   value={formData.region}
-                  onChange={(e) => setFormData(prev => ({ ...prev, region: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, region: e.target.value }))}
                   required
                   disabled={formLoading}
                 />
@@ -374,34 +382,45 @@ const Cities: React.FC = () => {
                       {t('cities.institutions') || 'Заклади'}
                     </label>
                     {institutionsLoading ? (
-                      <div className="text-xs sm:text-sm text-gray-500">Завантаження закладів...</div>
+                      <div className="text-xs sm:text-sm text-gray-500">
+                        Завантаження закладів...
+                      </div>
                     ) : (
                       <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
                         {allInstitutions.length === 0 ? (
-                          <div className="text-xs sm:text-sm text-gray-500">Немає доступних закладів</div>
+                          <div className="text-xs sm:text-sm text-gray-500">
+                            Немає доступних закладів
+                          </div>
                         ) : (
-                          allInstitutions.map((institution) => (
-                            <label key={institution._id} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+                          allInstitutions.map(institution => (
+                            <label
+                              key={institution._id}
+                              className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
+                            >
                               <input
                                 type="checkbox"
                                 checked={formData.institutions?.includes(institution._id) || false}
-                                onChange={(e) => {
+                                onChange={e => {
                                   const currentInstitutions = formData.institutions || [];
                                   if (e.target.checked) {
                                     setFormData({
                                       ...formData,
-                                      institutions: [...currentInstitutions, institution._id]
+                                      institutions: [...currentInstitutions, institution._id],
                                     });
                                   } else {
                                     setFormData({
                                       ...formData,
-                                      institutions: currentInstitutions.filter(id => id !== institution._id)
+                                      institutions: currentInstitutions.filter(
+                                        id => id !== institution._id
+                                      ),
                                     });
                                   }
                                 }}
                                 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                               />
-                              <span className="text-xs sm:text-sm text-gray-700">{institution.name}</span>
+                              <span className="text-xs sm:text-sm text-gray-700">
+                                {institution.name}
+                              </span>
                             </label>
                           ))
                         )}
@@ -416,7 +435,7 @@ const Cities: React.FC = () => {
                     isLoading={formLoading}
                     disabled={formLoading}
                     className="flex-1 w-full sm:w-auto"
-                    size={isMobile ? "sm" : "md"}
+                    size={isMobile ? 'sm' : 'md'}
                   >
                     {editingCity ? t('cities.update') : t('cities.create')}
                   </Button>
@@ -426,7 +445,7 @@ const Cities: React.FC = () => {
                     onClick={handleCancel}
                     disabled={formLoading}
                     className="flex-1 w-full sm:w-auto"
-                    size={isMobile ? "sm" : "md"}
+                    size={isMobile ? 'sm' : 'md'}
                   >
                     {t('cities.cancel')}
                   </Button>
@@ -453,20 +472,19 @@ const Cities: React.FC = () => {
           ) : isMobile ? (
             // Мобільний вигляд з картками
             <div className="divide-y divide-border">
-              {cities.map((city) => (
+              {cities.map(city => (
                 <div key={city._id} className="p-3 sm:p-4 hover:bg-surface/50">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1 min-w-0">
                       <MapPin className="h-5 w-5 text-text-secondary flex-shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground mb-1">
-                          {city.name}
-                        </div>
+                        <div className="text-sm font-medium text-foreground mb-1">{city.name}</div>
                         <div className="text-xs sm:text-sm text-text-secondary mb-1">
                           <span className="font-medium">{t('cities.region')}:</span> {city.region}
                         </div>
                         <div className="text-xs text-text-secondary">
-                          <span className="font-medium">{t('cities.createdDate')}:</span> {city.createdAt ? new Date(city.createdAt).toLocaleDateString() : '-'}
+                          <span className="font-medium">{t('cities.createdDate')}:</span>{' '}
+                          {city.createdAt ? new Date(city.createdAt).toLocaleDateString() : '-'}
                         </div>
                       </div>
                     </div>
@@ -513,15 +531,13 @@ const Cities: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-surface divide-y divide-border">
-                  {cities.map((city) => (
+                  {cities.map(city => (
                     <tr key={city._id} className="hover:bg-surface/50">
                       <td className="px-4 sm:px-6 py-4">
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-text-secondary mr-2 sm:mr-3" />
                           <div>
-                            <div className="text-sm font-medium text-foreground">
-                              {city.name}
-                            </div>
+                            <div className="text-sm font-medium text-foreground">{city.name}</div>
                           </div>
                         </div>
                       </td>
@@ -529,15 +545,11 @@ const Cities: React.FC = () => {
                         {city.region}
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-sm text-text-secondary">
-                         {city.createdAt ? new Date(city.createdAt).toLocaleDateString() : '-'}
-                       </td>
+                        {city.createdAt ? new Date(city.createdAt).toLocaleDateString() : '-'}
+                      </td>
                       <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(city)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(city)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
@@ -556,7 +568,7 @@ const Cities: React.FC = () => {
               </table>
             </div>
           )}
-          
+
           {/* Pagination */}
           {pagination && pagination.totalPages > 1 && (
             <Pagination
@@ -564,7 +576,7 @@ const Cities: React.FC = () => {
               totalPages={pagination.totalPages}
               totalItems={pagination.totalItems}
               itemsPerPage={itemsPerPage}
-              onPageChange={(page) => {
+              onPageChange={page => {
                 setCurrentPage(page);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
