@@ -466,7 +466,7 @@ class TelegramService {
             }
             return;
           }
-          if (session && session.mode === 'ai') {
+          if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
             await this.aiService.handlePhotoInAiMode(
               msg.chat.id,
               msg.photo,
@@ -475,6 +475,61 @@ class TelegramService {
               existingUser
             );
             return;
+          }
+          if (!session) {
+            const aiSettings = await aiFirstLineService.getAISettings();
+            const aiEnabled = aiSettings && aiSettings.enabled === true;
+            const hasApiKey =
+              aiSettings &&
+              ((aiSettings.provider === 'openai' &&
+                aiSettings.openaiApiKey &&
+                String(aiSettings.openaiApiKey).trim()) ||
+                (aiSettings.provider === 'gemini' &&
+                  aiSettings.geminiApiKey &&
+                  String(aiSettings.geminiApiKey).trim()));
+            if (aiEnabled && hasApiKey) {
+              const fullUser = await User.findById(existingUser._id)
+                .populate('position', 'title name')
+                .populate('city', 'name region')
+                .populate('institution', 'name')
+                .lean();
+              const profile = fullUser || existingUser;
+              const newSession = {
+                mode: 'ai',
+                step: 'gathering_information',
+                ai_attempts: 0,
+                ai_questions_count: 0,
+                dialog_history: [],
+                userContext: {
+                  userCity: profile.city?.name || 'Не вказано',
+                  userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
+                  userInstitution: profile.institution?.name || '',
+                  userName:
+                    [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
+                    profile.email,
+                  userEmail: profile.email,
+                  hasComputerAccessPhoto: !!(
+                    profile.computerAccessPhoto && String(profile.computerAccessPhoto).trim()
+                  ),
+                  computerAccessAnalysis:
+                    (profile.computerAccessAnalysis &&
+                      String(profile.computerAccessAnalysis).trim()) ||
+                    '',
+                },
+                ticketData: { createdBy: existingUser._id, photos: [], documents: [] },
+                ticketDraft: null,
+                lastActivityAt: Date.now(),
+              };
+              this.userSessions.set(msg.chat.id, newSession);
+              await this.aiService.handlePhotoInAiMode(
+                msg.chat.id,
+                msg.photo,
+                msg.caption || '',
+                newSession,
+                existingUser
+              );
+              return;
+            }
           }
           await this.handlePhoto(msg);
           return;
@@ -1308,6 +1363,7 @@ class TelegramService {
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'create_ticket') {
           await this.ticketService.handleCreateTicketCallback(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'statistics') {
           this.pushNavigationHistory(chatId, 'statistics');
           await this.handleStatisticsCallback(chatId, user);
@@ -1398,10 +1454,13 @@ class TelegramService {
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'skip_photo') {
           await this.ticketService.handleSkipPhotoCallback(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'add_more_photos') {
           await this.ticketService.handleAddMorePhotosCallback(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'finish_ticket') {
           await this.ticketService.handleFinishTicketCallback(chatId, user);
+          await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'confirm_create_ticket') {
           // ✅ Користувач підтвердив створення тікета
           const session = this.userSessions.get(chatId);
@@ -1910,7 +1969,7 @@ class TelegramService {
         await this.ticketService.handleTicketPhoto(chatId, msg.photo, msg.caption);
         return;
       }
-      if (session.mode === 'ai') {
+      if (session.mode === 'ai' || session.mode === 'choosing') {
         const user = await User.findOne({ telegramChatId: chatId });
         await this.aiService.handlePhotoInAiMode(chatId, msg.photo, msg.caption, session, user);
         return;

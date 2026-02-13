@@ -670,6 +670,7 @@ class TelegramTicketService {
         chatId,
         `📝 *Створення тікета*\n\n` +
           `Опишіть проблему своїми словами. Я постараюся швидко зібрати все необхідне.\n\n` +
+          `📸 Можете також надіслати фото або скріншот проблеми.\n\n` +
           `*Приклади:*\n` +
           `• Принтер не друкує\n` +
           `• Не працює телефон у закладі\n` +
@@ -819,6 +820,24 @@ class TelegramTicketService {
           break;
 
         case 'priority':
+          break;
+
+        case 'photo':
+          await this.sendMessage(
+            chatId,
+            '📸 На цьому кроці можна додати фото або файл, або натиснути «Пропустити» / «Завершити» нижче.',
+            {
+              reply_markup: {
+                inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                  { text: '📎 Додати файл', callback_data: 'attach_document' },
+                  { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                  { text: '✅ Завершити', callback_data: 'finish_ticket' },
+                  { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                ]),
+              },
+            }
+          );
           break;
       }
     } catch (error) {
@@ -1164,18 +1183,28 @@ class TelegramTicketService {
 
   async handleFinishTicketCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
-    if (session) {
-      session.ticketData.priority = session.ticketData.priority || 'medium';
-      await this.completeTicketCreation(chatId, user, session);
+    if (!session || !session.ticketData) {
+      await this.sendMessage(
+        chatId,
+        'Немає активного чернетки заявки. Почніть створення тікету з кнопки «Створити тікет».'
+      );
+      return;
     }
+    session.ticketData.priority = session.ticketData.priority || 'medium';
+    await this.completeTicketCreation(chatId, user, session);
   }
 
   async handleSkipPhotoCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
-    if (session) {
-      session.ticketData.priority = session.ticketData.priority || 'medium';
-      await this.completeTicketCreation(chatId, user, session);
+    if (!session || !session.ticketData) {
+      await this.sendMessage(
+        chatId,
+        'Немає активного чернетки заявки. Почніть створення тікету з кнопки «Створити тікет».'
+      );
+      return;
     }
+    session.ticketData.priority = session.ticketData.priority || 'medium';
+    await this.completeTicketCreation(chatId, user, session);
   }
 
   async handleAddMorePhotosCallback(chatId, _user) {

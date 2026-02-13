@@ -71,6 +71,11 @@ class AIResponseValidator {
       };
     }
 
+    // Уточнююче питання (наприклад "підкажіть, яка модель сканера?") — не вимагаємо нумерованих кроків
+    if (trimmed.includes('?')) {
+      return { valid: true };
+    }
+
     // Перевірка структури (має бути кроки)
     if (!this.requiredPatterns.steps.test(trimmed)) {
       return {
