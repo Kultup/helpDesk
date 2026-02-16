@@ -11,14 +11,14 @@ let pollingJob = null;
 function setupZabbixPolling() {
   // Спочатку перевіряємо конфігурацію
   ZabbixConfig.getActive()
-    .then(async (config) => {
+    .then(async config => {
       if (!config || !config.enabled) {
         logger.info('Zabbix polling: Integration is disabled, skipping job setup');
         return;
       }
 
       const pollInterval = config.pollInterval || 5; // хвилини
-      
+
       // Конвертуємо інтервал в cron формат
       // Наприклад, кожні 5 хвилин: '*/5 * * * *'
       const cronPattern = `*/${pollInterval} * * * *`;
@@ -30,45 +30,54 @@ function setupZabbixPolling() {
         pollingJob.stop();
       }
 
-      // Створюємо новий cron job
-      pollingJob = cron.schedule(cronPattern, async () => {
-        try {
-          // Перевіряємо чи інтеграція все ще увімкнена
-          let activeConfig = await ZabbixConfig.getActive();
-          if (!activeConfig || !activeConfig.enabled) {
-            logger.info('Zabbix integration is disabled, skipping polling');
-            return;
-          }
-
-          // Отримуємо конфігурацію з токеном (processNewAlerts сам завантажить, але для логування)
-          if (activeConfig._id) {
-            activeConfig = await ZabbixConfig.findById(activeConfig._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || activeConfig;
-          }
-
-          // Обробляємо нові алерти
-          const result = await zabbixAlertService.processNewAlerts();
-
-          if (result.success) {
-            // Оновлюємо статус вирішених алертів
+      // Створюємо новий cron job. setImmediate щоб не блокувати event loop (уникаємо "missed execution")
+      pollingJob = cron.schedule(
+        cronPattern,
+        () => {
+          setImmediate(async () => {
             try {
-              await zabbixAlertService.updateResolvedAlerts();
-            } catch (resolveError) {
-              logger.error('Error updating resolved alerts:', resolveError);
+              // Перевіряємо чи інтеграція все ще увімкнена
+              let activeConfig = await ZabbixConfig.getActive();
+              if (!activeConfig || !activeConfig.enabled) {
+                logger.info('Zabbix integration is disabled, skipping polling');
+                return;
+              }
+
+              // Отримуємо конфігурацію з токеном (processNewAlerts сам завантажить, але для логування)
+              if (activeConfig._id) {
+                activeConfig =
+                  (await ZabbixConfig.findById(activeConfig._id).select(
+                    '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+                  )) || activeConfig;
+              }
+
+              // Обробляємо нові алерти
+              const result = await zabbixAlertService.processNewAlerts();
+
+              if (result.success) {
+                // Оновлюємо статус вирішених алертів
+                try {
+                  await zabbixAlertService.updateResolvedAlerts();
+                } catch (resolveError) {
+                  logger.error('Error updating resolved alerts:', resolveError);
+                }
+              } else {
+                logger.error('❌ Zabbix polling failed:', result.error);
+              }
+            } catch (error) {
+              logger.error('❌ Error in Zabbix polling:', error);
             }
-          } else {
-            logger.error('❌ Zabbix polling failed:', result.error);
-          }
-        } catch (error) {
-          logger.error('❌ Error in Zabbix polling:', error);
+          });
+        },
+        {
+          scheduled: true,
+          timezone: 'Europe/Kiev',
         }
-      }, {
-        scheduled: true,
-        timezone: 'Europe/Kiev'
-      });
+      );
 
       logger.info(`✅ Zabbix polling job scheduled (every ${pollInterval} minutes)`);
     })
-    .catch((error) => {
+    .catch(error => {
       logger.error('Error setting up Zabbix polling job:', error);
     });
 }
@@ -78,7 +87,7 @@ function setupZabbixPolling() {
  */
 async function updatePollingJob() {
   logger.info('Updating Zabbix polling job...');
-  
+
   // Зупиняємо поточний job
   if (pollingJob) {
     pollingJob.stop();
@@ -112,13 +121,16 @@ async function pollNow() {
     if (!config || !config.enabled) {
       return {
         success: false,
-        error: 'Zabbix integration is disabled'
+        error: 'Zabbix integration is disabled',
       };
     }
 
     // Отримуємо конфігурацію з токеном
     if (config._id) {
-      config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
+      config =
+        (await ZabbixConfig.findById(config._id).select(
+          '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+        )) || config;
     }
 
     // Обробляємо нові алерти
@@ -138,7 +150,7 @@ async function pollNow() {
     logger.error('Error in manual Zabbix polling:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -147,6 +159,5 @@ module.exports = {
   setupZabbixPolling,
   updatePollingJob,
   stopPollingJob,
-  pollNow
+  pollNow,
 };
-

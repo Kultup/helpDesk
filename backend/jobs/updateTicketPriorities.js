@@ -6,18 +6,18 @@ const logger = require('../utils/logger');
  * Запускається кожні 2 години
  */
 async function updateTicketPriorities() {
-    try {
-        logger.info('⏰ Запуск автоматичного оновлення пріоритетів тікетів...');
+  try {
+    logger.info('⏰ Запуск автоматичного оновлення пріоритетів тікетів...');
 
-        const result = await ticketPriorityService.updateAllTicketPriorities();
+    const result = await ticketPriorityService.updateAllTicketPriorities();
 
-        logger.info(`✅ Автоматичне оновлення пріоритетів завершено:`, result);
+    logger.info(`✅ Автоматичне оновлення пріоритетів завершено:`, result);
 
-        return result;
-    } catch (error) {
-        logger.error('❌ Помилка автоматичного оновлення пріоритетів:', error);
-        throw error;
-    }
+    return result;
+  } catch (error) {
+    logger.error('❌ Помилка автоматичного оновлення пріоритетів:', error);
+    throw error;
+  }
 }
 
 /**
@@ -25,21 +25,23 @@ async function updateTicketPriorities() {
  * Запускається кожні 2 години
  */
 function setupPriorityUpdateJob() {
-    const cron = require('node-cron');
+  const cron = require('node-cron');
 
-    // Кожні 2 години
-    cron.schedule('0 */2 * * *', async () => {
-        try {
-            await updateTicketPriorities();
-        } catch (error) {
-            logger.error('❌ Помилка виконання priority update job:', error);
-        }
+  // Кожні 2 години. setImmediate щоб не блокувати event loop (уникаємо "missed execution")
+  cron.schedule('0 */2 * * *', () => {
+    setImmediate(async () => {
+      try {
+        await updateTicketPriorities();
+      } catch (error) {
+        logger.error('❌ Помилка виконання priority update job:', error);
+      }
     });
+  });
 
-    logger.info('✅ Priority update job налаштовано (кожні 2 години)');
+  logger.info('✅ Priority update job налаштовано (кожні 2 години)');
 }
 
 module.exports = {
-    updateTicketPriorities,
-    setupPriorityUpdateJob
+  updateTicketPriorities,
+  setupPriorityUpdateJob,
 };
