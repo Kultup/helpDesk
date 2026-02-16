@@ -650,8 +650,16 @@ class ZabbixAlertService {
 
       // Якщо вказано кастомний токен бота, створюємо новий екземпляр бота
       if (botToken && botToken.trim()) {
-        logger.info(`Creating new Telegram bot instance with custom token`);
-        bot = new TelegramBot(botToken.trim(), { polling: false });
+        const cleanToken = botToken.trim();
+        const tokenParts = cleanToken.split(':');
+        logger.info(`Creating new Telegram bot instance with custom token`, {
+          tokenBotId: tokenParts[0],
+          tokenLength: cleanToken.length,
+          tokenFormat:
+            tokenParts.length === 2 ? 'valid (id:hash)' : `invalid (${tokenParts.length} parts)`,
+          targetGroupId: groupId,
+        });
+        bot = new TelegramBot(cleanToken, { polling: false });
       } else if (telegramService.bot) {
         // Використовуємо глобальний бот, якщо він ініціалізований
         logger.info(`Using global Telegram bot instance`);
