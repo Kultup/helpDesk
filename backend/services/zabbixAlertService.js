@@ -634,8 +634,12 @@ class ZabbixAlertService {
    */
   async sendMessageToGroup(botToken, groupId, message) {
     try {
-      logger.info(`📤 Attempting to send message to Telegram group ${groupId}`, {
+      logger.info(`📤 Attempting to send message to Telegram group`, {
         groupId,
+        groupIdType: typeof groupId,
+        groupIdLength: groupId ? String(groupId).length : 0,
+        botTokenPrefix: botToken ? botToken.substring(0, 10) + '...' : 'null',
+        botTokenLength: botToken ? botToken.length : 0,
         hasBotToken: !!(botToken && botToken.trim()),
         telegramServiceInitialized: telegramService.isInitialized,
         hasGlobalBot: !!telegramService.bot,
@@ -662,12 +666,15 @@ class ZabbixAlertService {
         return { success: false, error: errorMsg };
       }
 
-      logger.info(`✅ Telegram bot ready, sending message to group ${groupId}`);
+      logger.info(`✅ Telegram bot ready, sending message to group`, {
+        groupId,
+        botUsername: bot.options?.username || 'unknown',
+      });
 
       // Спробуємо відправити з Markdown форматуванням
       try {
         logger.info(`📨 Sending message with Markdown formatting to group ${groupId}`);
-        const result = await bot.sendMessage(groupId, message, {
+        const result = await bot.sendMessage(String(groupId), message, {
           parse_mode: 'Markdown',
         });
 
@@ -866,8 +873,13 @@ class ZabbixAlertService {
 
         logger.info(`Sending notification to group ${group.name}`, {
           groupId: group._id,
+          telegramGroupId: group.telegram?.groupId,
+          telegramBotTokenPrefix: group.telegram?.botToken
+            ? group.telegram.botToken.substring(0, 10) + '...'
+            : 'null',
           hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
           hasBotToken: !!(group.telegram && group.telegram.botToken),
+          telegramObject: JSON.stringify(group.telegram),
         });
 
         // Перевіряємо чи вказано ID групи Telegram
