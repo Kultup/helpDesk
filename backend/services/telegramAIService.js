@@ -1336,12 +1336,12 @@ class TelegramAIService {
       const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
         requiresAdminOnly
           ? [
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
           : [
               { text: '✅ Допомогло', callback_data: 'tip_helped' },
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
       );
@@ -1628,12 +1628,12 @@ class TelegramAIService {
       const photoKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
         requiresAdminOnly
           ? [
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
           : [
               { text: '✅ Допомогло', callback_data: 'tip_helped' },
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
       );
@@ -1655,12 +1655,12 @@ class TelegramAIService {
       const fillerKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
         requiresAdminOnlyFiller
           ? [
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
           : [
               { text: '✅ Допомогло', callback_data: 'tip_helped' },
-              { text: '❌ Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]
       );
