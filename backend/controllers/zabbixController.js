@@ -16,10 +16,13 @@ exports.getConfig = async (req, res) => {
   try {
     // Отримуємо або створюємо конфігурацію
     let config = await ZabbixConfig.getOrCreateDefault();
-    
+
     // Якщо конфігурація має _id, отримуємо її з явним вибором зашифрованого токену для перевірки
     if (config._id) {
-      config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
+      config =
+        (await ZabbixConfig.findById(config._id).select(
+          '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+        )) || config;
     }
 
     // Перевіряємо наявність токену/паролю
@@ -41,24 +44,24 @@ exports.getConfig = async (req, res) => {
         totalPolls: 0,
         successfulPolls: 0,
         failedPolls: 0,
-        alertsProcessed: 0
+        alertsProcessed: 0,
       },
       createdAt: configObj.createdAt || new Date(),
       updatedAt: configObj.updatedAt || new Date(),
       hasToken: hasToken,
-      hasPassword: hasPassword
+      hasPassword: hasPassword,
     };
 
     res.json({
       success: true,
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Error getting Zabbix config:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting Zabbix configuration',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -73,7 +76,7 @@ exports.updateConfig = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -83,10 +86,16 @@ exports.updateConfig = async (req, res) => {
     logger.info(`Updating Zabbix config - Request body - url: ${url || '(empty or undefined)'}`);
     logger.info(`Updating Zabbix config - Request body - urlType: ${typeof url}`);
     logger.info(`Updating Zabbix config - Request body - urlLength: ${url?.length || 0}`);
-    logger.info(`Updating Zabbix config - Request body - hasToken: ${apiToken !== undefined && apiToken !== ''}`);
+    logger.info(
+      `Updating Zabbix config - Request body - hasToken: ${apiToken !== undefined && apiToken !== ''}`
+    );
     logger.info(`Updating Zabbix config - Request body - tokenLength: ${apiToken?.length || 0}`);
-    logger.info(`Updating Zabbix config - Request body - username: ${username !== undefined ? username : '(not provided)'}`);
-    logger.info(`Updating Zabbix config - Request body - passwordProvided: ${password !== undefined}`);
+    logger.info(
+      `Updating Zabbix config - Request body - username: ${username !== undefined ? username : '(not provided)'}`
+    );
+    logger.info(
+      `Updating Zabbix config - Request body - passwordProvided: ${password !== undefined}`
+    );
     logger.info(`Updating Zabbix config - Request body - enabled: ${enabled}`);
     logger.info(`Updating Zabbix config - Request body - pollInterval: ${pollInterval}`);
     logger.info(`Updating Zabbix config - Request body - fullBody: ${JSON.stringify(req.body)}`);
@@ -100,11 +109,11 @@ exports.updateConfig = async (req, res) => {
     if (url !== undefined) {
       const trimmedUrl = url ? url.trim() : '';
       config.url = trimmedUrl;
-      logger.info('URL set in config', { 
+      logger.info('URL set in config', {
         originalUrl: url,
         trimmedUrl: trimmedUrl,
         urlLength: trimmedUrl.length,
-        isEmpty: trimmedUrl === ''
+        isEmpty: trimmedUrl === '',
       });
     } else {
       logger.warn('URL is undefined in request body');
@@ -115,7 +124,7 @@ exports.updateConfig = async (req, res) => {
       config.encryptToken(apiToken);
       logger.info('Zabbix API token encrypted successfully', {
         hasEncrypted: !!config.apiTokenEncrypted,
-        hasIV: !!config.apiTokenIV
+        hasIV: !!config.apiTokenIV,
       });
     } else if (apiToken === '') {
       // Якщо передано порожній рядок, видаляємо токен
@@ -148,9 +157,11 @@ exports.updateConfig = async (req, res) => {
     }
 
     await config.save();
-    
+
     // Перевіряємо чи все збережено правильно
-    const savedConfig = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV');
+    const savedConfig = await ZabbixConfig.findById(config._id).select(
+      '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+    );
     logger.info('Zabbix config saved', {
       _id: savedConfig?._id?.toString(),
       hasToken: !!(savedConfig?.apiTokenEncrypted && savedConfig?.apiTokenIV),
@@ -158,19 +169,21 @@ exports.updateConfig = async (req, res) => {
       url: savedConfig?.url,
       urlLength: savedConfig?.url?.length || 0,
       enabled: savedConfig?.enabled,
-      pollInterval: savedConfig?.pollInterval
+      pollInterval: savedConfig?.pollInterval,
     });
 
     // Оновлюємо Zabbix service
     try {
       if (config.enabled) {
         // Отримуємо свіжу конфігурацію з токеном для ініціалізації
-        const configForInit = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV');
+        const configForInit = await ZabbixConfig.findById(config._id).select(
+          '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+        );
         logger.info('Initializing Zabbix service with config', {
           url: configForInit?.url,
           hasToken: !!(configForInit?.apiTokenEncrypted && configForInit?.apiTokenIV),
           hasPassword: !!(configForInit?.passwordEncrypted && configForInit?.passwordIV),
-          enabled: configForInit?.enabled
+          enabled: configForInit?.enabled,
         });
         await zabbixService.initialize(configForInit || config);
         logger.info('✅ Zabbix service reinitialized after config update');
@@ -196,20 +209,20 @@ exports.updateConfig = async (req, res) => {
       passwordEncrypted: null,
       passwordIV: null,
       hasToken: !!config.apiTokenEncrypted,
-      hasPassword: !!config.passwordEncrypted
+      hasPassword: !!config.passwordEncrypted,
     };
 
     res.json({
       success: true,
       message: 'Zabbix configuration updated successfully',
-      data: safeConfig
+      data: safeConfig,
     });
   } catch (error) {
     logger.error('Error updating Zabbix config:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating Zabbix configuration',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -221,10 +234,13 @@ exports.testConnection = async (req, res) => {
   try {
     // Отримуємо конфігурацію з явним вибором зашифрованих полів
     let config = await ZabbixConfig.getOrCreateDefault();
-    
+
     // Якщо конфігурація має _id, отримуємо її з явним вибором зашифрованого токену
     if (config._id) {
-      config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
+      config =
+        (await ZabbixConfig.findById(config._id).select(
+          '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+        )) || config;
     }
 
     // Перевіряємо наявність URL та токену/логіну
@@ -232,7 +248,7 @@ exports.testConnection = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Zabbix URL is required',
-        error: 'Please configure Zabbix URL in settings'
+        error: 'Please configure Zabbix URL in settings',
       });
     }
 
@@ -242,12 +258,13 @@ exports.testConnection = async (req, res) => {
     const hasPassword = !!(config.passwordEncrypted && config.passwordIV);
     const decryptedPassword = config.decryptPassword ? config.decryptPassword() : null;
     const hasUsername = !!(config.username && config.username.trim());
-    
+
     if ((!hasToken || !decryptedToken) && !(hasUsername && hasPassword && decryptedPassword)) {
       return res.status(400).json({
         success: false,
         message: 'Zabbix credentials are required',
-        error: 'Please configure Zabbix API token or username/password in settings and save the configuration'
+        error:
+          'Please configure Zabbix API token or username/password in settings and save the configuration',
       });
     }
 
@@ -257,7 +274,7 @@ exports.testConnection = async (req, res) => {
     if (!initialized) {
       return res.status(500).json({
         success: false,
-        message: 'Failed to initialize Zabbix service'
+        message: 'Failed to initialize Zabbix service',
       });
     }
 
@@ -269,15 +286,15 @@ exports.testConnection = async (req, res) => {
         success: true,
         message: 'Connection to Zabbix successful',
         data: {
-          version: testResult.version
-        }
+          version: testResult.version,
+        },
       });
     } else {
       res.status(500).json({
         success: false,
         message: 'Connection to Zabbix failed',
         error: testResult.error,
-        code: testResult.code
+        code: testResult.code,
       });
     }
   } catch (error) {
@@ -285,7 +302,7 @@ exports.testConnection = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error testing Zabbix connection',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -301,13 +318,16 @@ exports.pollNow = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Zabbix integration is disabled',
-        error: 'Please enable Zabbix integration in settings before polling'
+        error: 'Please enable Zabbix integration in settings before polling',
       });
     }
 
     // Отримуємо конфігурацію з токеном
     if (config._id) {
-      config = await ZabbixConfig.findById(config._id).select('+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV') || config;
+      config =
+        (await ZabbixConfig.findById(config._id).select(
+          '+apiTokenEncrypted +apiTokenIV +passwordEncrypted +passwordIV'
+        )) || config;
     }
 
     // Перевіряємо чи є URL та креденшіали
@@ -315,18 +335,23 @@ exports.pollNow = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Zabbix configuration is incomplete',
-        error: 'Please configure Zabbix URL in settings'
+        error: 'Please configure Zabbix URL in settings',
       });
     }
 
     const hasToken = !!(config.apiTokenEncrypted && config.apiTokenIV);
-    const hasCredentials = !!(config.username && config.username.trim() && config.passwordEncrypted && config.passwordIV);
+    const hasCredentials = !!(
+      config.username &&
+      config.username.trim() &&
+      config.passwordEncrypted &&
+      config.passwordIV
+    );
 
     if (!hasToken && !hasCredentials) {
       return res.status(400).json({
         success: false,
         message: 'Zabbix configuration is incomplete',
-        error: 'Please configure Zabbix API token or username/password in settings'
+        error: 'Please configure Zabbix API token or username/password in settings',
       });
     }
 
@@ -336,30 +361,31 @@ exports.pollNow = async (req, res) => {
       res.json({
         success: true,
         message: 'Zabbix polling completed',
-        data: result
+        data: result,
       });
     } else {
       // Якщо помилка через вимкнену інтеграцію або відсутні креденшіали, повертаємо 400
-      if (result.error && (
-        result.error.includes('disabled') ||
-        result.error.includes('credentials') ||
-        result.error.includes('URL') ||
-        result.error.includes('not configured')
-      )) {
+      if (
+        result.error &&
+        (result.error.includes('disabled') ||
+          result.error.includes('credentials') ||
+          result.error.includes('URL') ||
+          result.error.includes('not configured'))
+      ) {
         return res.status(400).json({
           success: false,
-          message: result.error.includes('disabled') 
+          message: result.error.includes('disabled')
             ? 'Zabbix integration is disabled'
             : 'Zabbix configuration is incomplete',
-          error: result.error
+          error: result.error,
         });
       }
-      
+
       // Інші помилки - 500
       res.status(500).json({
         success: false,
         message: 'Zabbix polling failed',
-        error: result.error || 'Unknown error occurred'
+        error: result.error || 'Unknown error occurred',
       });
     }
   } catch (error) {
@@ -367,7 +393,7 @@ exports.pollNow = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error in manual Zabbix polling',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -396,10 +422,7 @@ exports.getAlerts = async (req, res) => {
       filter.host = { $regex: req.query.host, $options: 'i' };
     }
 
-    const alerts = await ZabbixAlert.find(filter)
-      .sort({ eventTime: -1 })
-      .limit(limit)
-      .skip(skip);
+    const alerts = await ZabbixAlert.find(filter).sort({ eventTime: -1 }).limit(limit).skip(skip);
 
     const total = await ZabbixAlert.countDocuments(filter);
 
@@ -411,16 +434,16 @@ exports.getAlerts = async (req, res) => {
           page,
           limit,
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     logger.error('Error getting Zabbix alerts:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting Zabbix alerts',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -435,20 +458,20 @@ exports.getAlert = async (req, res) => {
     if (!alert) {
       return res.status(404).json({
         success: false,
-        message: 'Alert not found'
+        message: 'Alert not found',
       });
     }
 
     res.json({
       success: true,
-      data: alert
+      data: alert,
     });
   } catch (error) {
     logger.error('Error getting Zabbix alert:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting Zabbix alert',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -464,14 +487,14 @@ exports.getGroups = async (req, res) => {
 
     res.json({
       success: true,
-      data: groups
+      data: groups,
     });
   } catch (error) {
     logger.error('Error getting Zabbix alert groups:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting Zabbix alert groups',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -486,7 +509,7 @@ exports.createGroup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -500,7 +523,7 @@ exports.createGroup = async (req, res) => {
       enabled,
       priority,
       settings,
-      telegram
+      telegram,
     } = req.body;
 
     const group = new ZabbixAlertGroup({
@@ -513,7 +536,7 @@ exports.createGroup = async (req, res) => {
       enabled: enabled !== undefined ? enabled : true,
       priority: priority || 0,
       settings: settings || {},
-      telegram: telegram || {}
+      telegram: telegram || {},
     });
 
     await group.save();
@@ -522,14 +545,14 @@ exports.createGroup = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Zabbix alert group created successfully',
-      data: group
+      data: group,
     });
   } catch (error) {
     logger.error('Error creating Zabbix alert group:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating Zabbix alert group',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -544,7 +567,7 @@ exports.updateGroup = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -553,7 +576,7 @@ exports.updateGroup = async (req, res) => {
     if (!group) {
       return res.status(404).json({
         success: false,
-        message: 'Group not found'
+        message: 'Group not found',
       });
     }
 
@@ -567,19 +590,39 @@ exports.updateGroup = async (req, res) => {
       enabled,
       priority,
       settings,
-      telegram
+      telegram,
     } = req.body;
 
-    if (name !== undefined) group.name = name;
-    if (description !== undefined) group.description = description;
-    if (adminIds !== undefined) group.adminIds = adminIds;
-    if (triggerIds !== undefined) group.triggerIds = triggerIds;
-    if (hostPatterns !== undefined) group.hostPatterns = hostPatterns;
-    if (severityLevels !== undefined) group.severityLevels = severityLevels;
-    if (enabled !== undefined) group.enabled = enabled;
-    if (priority !== undefined) group.priority = priority;
-    if (settings !== undefined) group.settings = { ...group.settings, ...settings };
-    if (telegram !== undefined) group.telegram = { ...group.telegram, ...telegram };
+    if (name !== undefined) {
+      group.name = name;
+    }
+    if (description !== undefined) {
+      group.description = description;
+    }
+    if (adminIds !== undefined) {
+      group.adminIds = adminIds;
+    }
+    if (triggerIds !== undefined) {
+      group.triggerIds = triggerIds;
+    }
+    if (hostPatterns !== undefined) {
+      group.hostPatterns = hostPatterns;
+    }
+    if (severityLevels !== undefined) {
+      group.severityLevels = severityLevels;
+    }
+    if (enabled !== undefined) {
+      group.enabled = enabled;
+    }
+    if (priority !== undefined) {
+      group.priority = priority;
+    }
+    if (settings !== undefined) {
+      group.settings = { ...group.settings, ...settings };
+    }
+    if (telegram !== undefined) {
+      group.telegram = { ...group.telegram, ...telegram };
+    }
 
     await group.save();
     await group.populate('adminIds', 'firstName lastName email telegramId telegramUsername role');
@@ -587,14 +630,14 @@ exports.updateGroup = async (req, res) => {
     res.json({
       success: true,
       message: 'Zabbix alert group updated successfully',
-      data: group
+      data: group,
     });
   } catch (error) {
     logger.error('Error updating Zabbix alert group:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating Zabbix alert group',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -609,7 +652,7 @@ exports.deleteGroup = async (req, res) => {
     if (!group) {
       return res.status(404).json({
         success: false,
-        message: 'Group not found'
+        message: 'Group not found',
       });
     }
 
@@ -617,14 +660,14 @@ exports.deleteGroup = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Zabbix alert group deleted successfully'
+      message: 'Zabbix alert group deleted successfully',
     });
   } catch (error) {
     logger.error('Error deleting Zabbix alert group:', error);
     res.status(500).json({
       success: false,
       message: 'Error deleting Zabbix alert group',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -639,7 +682,7 @@ exports.testAlert = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Validation errors',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -654,7 +697,7 @@ exports.testAlert = async (req, res) => {
       if (!alert) {
         return res.status(404).json({
           success: false,
-          message: 'Alert not found'
+          message: 'Alert not found',
         });
       }
     } else {
@@ -672,8 +715,8 @@ exports.testAlert = async (req, res) => {
         message: 'This is a test alert to verify Telegram notification system',
         eventTime: new Date(),
         zabbixData: {
-          test: true
-        }
+          test: true,
+        },
       });
     }
 
@@ -683,22 +726,22 @@ exports.testAlert = async (req, res) => {
       if (!group) {
         return res.status(404).json({
           success: false,
-          message: 'Group not found'
+          message: 'Group not found',
         });
       }
       groups = [group];
     } else {
       // Отримуємо всі активні групи, які відповідають алерту
       groups = await zabbixAlertService.getAlertGroupsForAlert(alert);
-      
+
       if (groups.length === 0) {
         // Якщо немає груп, отримуємо всі активні групи для тестування
         groups = await ZabbixAlertGroup.find({ enabled: true });
-        
+
         if (groups.length === 0) {
           return res.status(400).json({
             success: false,
-            message: 'No active alert groups found. Please create at least one alert group.'
+            message: 'No active alert groups found. Please create at least one alert group.',
           });
         }
       }
@@ -707,7 +750,7 @@ exports.testAlert = async (req, res) => {
     logger.info(`Testing alert notification`, {
       alertId: alert.alertId || alert._id,
       groupsCount: groups.length,
-      groupIds: groups.map(g => g._id)
+      groupIds: groups.map(g => g._id),
     });
 
     // Відправляємо сповіщення
@@ -721,23 +764,23 @@ exports.testAlert = async (req, res) => {
           id: alert._id || alert.alertId,
           host: alert.host,
           severity: alert.severity,
-          triggerName: alert.triggerName
+          triggerName: alert.triggerName,
         },
         groups: groups.map(g => ({
           id: g._id,
           name: g.name,
           hasTelegramGroup: !!(g.telegram && g.telegram.groupId),
-          hasBotToken: !!(g.telegram && g.telegram.botToken)
+          hasBotToken: !!(g.telegram && g.telegram.botToken),
         })),
-        result
-      }
+        result,
+      },
     });
   } catch (error) {
     logger.error('Error testing alert notification:', error);
     res.status(500).json({
       success: false,
       message: 'Error testing alert notification',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -753,7 +796,7 @@ exports.checkAlert = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Host name or alertId is required',
-        error: 'Please provide either host+triggerName+eventTime or alertId'
+        error: 'Please provide either host+triggerName+eventTime or alertId',
       });
     }
 
@@ -761,40 +804,37 @@ exports.checkAlert = async (req, res) => {
 
     // Знаходимо алерт за ID або за параметрами
     if (alertId) {
-      alert = await ZabbixAlert.findOne({ 
-        $or: [
-          { _id: alertId },
-          { alertId: alertId }
-        ]
+      alert = await ZabbixAlert.findOne({
+        $or: [{ _id: alertId }, { alertId: alertId }],
       });
     } else {
       // Шукаємо за параметрами
       const query = { host: host };
-      
+
       if (triggerName) {
         query.triggerName = triggerName;
       }
-      
+
       if (eventTime) {
         // Шукаємо алерт з eventTime в межах ±5 хвилин від вказаного часу
         const searchTime = new Date(eventTime);
         const timeRange = 5 * 60 * 1000; // 5 хвилин в мілісекундах
         query.eventTime = {
           $gte: new Date(searchTime.getTime() - timeRange),
-          $lte: new Date(searchTime.getTime() + timeRange)
+          $lte: new Date(searchTime.getTime() + timeRange),
         };
       }
 
       // Спочатку шукаємо найближчий за часом
       alert = await ZabbixAlert.findOne(query).sort({ eventTime: -1 });
-      
+
       // Якщо не знайшли точно, шукаємо всі алерти для цього хоста
       if (!alert && host) {
         const allAlerts = await ZabbixAlert.find({ host: host })
           .sort({ eventTime: -1 })
           .limit(10)
           .select('alertId host triggerName eventTime status severity notificationSent');
-        
+
         return res.json({
           success: true,
           message: 'Alert not found with exact parameters, but found recent alerts for this host',
@@ -803,9 +843,9 @@ exports.checkAlert = async (req, res) => {
             foundAlerts: allAlerts,
             diagnostics: {
               searched: { host, triggerName, eventTime },
-              foundCount: allAlerts.length
-            }
-          }
+              foundCount: allAlerts.length,
+            },
+          },
         });
       }
     }
@@ -814,8 +854,9 @@ exports.checkAlert = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Alert not found in database',
-        error: 'The alert might not have been fetched from Zabbix yet, or the search parameters are incorrect',
-        searched: { host, triggerName, eventTime, alertId }
+        error:
+          'The alert might not have been fetched from Zabbix yet, or the search parameters are incorrect',
+        searched: { host, triggerName, eventTime, alertId },
       });
     }
 
@@ -837,11 +878,11 @@ exports.checkAlert = async (req, res) => {
         adminsWithTelegram: admins.map(a => ({
           email: a.email,
           telegramId: a.telegramId,
-          telegramUsername: a.telegramUsername
+          telegramUsername: a.telegramUsername,
         })),
         canSendNotification: group.canSendNotification(),
         lastNotificationAt: group.stats?.lastNotificationAt,
-        minNotificationInterval: group.settings?.minNotificationInterval
+        minNotificationInterval: group.settings?.minNotificationInterval,
       });
     }
 
@@ -849,7 +890,7 @@ exports.checkAlert = async (req, res) => {
     const telegramStatus = {
       isInitialized: telegramService.isInitialized || false,
       hasBot: !!telegramService.bot,
-      botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN
+      botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN,
     };
 
     // Визначаємо причину, чому сповіщення могло не надійти
@@ -864,27 +905,29 @@ exports.checkAlert = async (req, res) => {
       groupsFound: groups.length,
       groupsDetails: groupDetails,
       telegramStatus: telegramStatus,
-      issues: []
+      issues: [],
     };
 
     // Перевіряємо проблеми
     if (alert.notificationSent) {
       diagnostics.issues.push({
         type: 'info',
-        message: 'Notification was marked as sent. Check Telegram logs if message was not received.'
+        message:
+          'Notification was marked as sent. Check Telegram logs if message was not received.',
       });
     } else {
       diagnostics.issues.push({
         type: 'warning',
-        message: 'Notification was not sent. Possible reasons:'
+        message: 'Notification was not sent. Possible reasons:',
       });
     }
 
     if (groups.length === 0) {
       diagnostics.issues.push({
         type: 'error',
-        message: 'No matching alert groups found for this alert. Check group filters (severity, host patterns, trigger IDs).',
-        solution: 'Create or update an alert group that matches this alert\'s criteria'
+        message:
+          'No matching alert groups found for this alert. Check group filters (severity, host patterns, trigger IDs).',
+        solution: "Create or update an alert group that matches this alert's criteria",
       });
     }
 
@@ -892,7 +935,7 @@ exports.checkAlert = async (req, res) => {
       if (!group.enabled) {
         diagnostics.issues.push({
           type: 'warning',
-          message: `Group "${group.name}" is disabled`
+          message: `Group "${group.name}" is disabled`,
         });
       }
 
@@ -900,7 +943,8 @@ exports.checkAlert = async (req, res) => {
         diagnostics.issues.push({
           type: 'error',
           message: `Group "${group.name}" has no Telegram group ID and no admins with Telegram IDs`,
-          solution: 'Either add a Telegram group ID to the group, or ensure admins have Telegram IDs in their profiles'
+          solution:
+            'Either add a Telegram group ID to the group, or ensure admins have Telegram IDs in their profiles',
         });
       }
 
@@ -908,7 +952,7 @@ exports.checkAlert = async (req, res) => {
         diagnostics.issues.push({
           type: 'error',
           message: `Group "${group.name}" sends to individual admins, but Telegram service is not initialized`,
-          solution: 'Initialize Telegram service or configure a Telegram group ID for the group'
+          solution: 'Initialize Telegram service or configure a Telegram group ID for the group',
         });
       }
 
@@ -918,8 +962,8 @@ exports.checkAlert = async (req, res) => {
           message: `Group "${group.name}" cannot send notification due to min notification interval`,
           details: {
             lastNotificationAt: group.lastNotificationAt,
-            minInterval: group.minNotificationInterval
-          }
+            minInterval: group.minNotificationInterval,
+          },
         });
       }
     }
@@ -938,17 +982,17 @@ exports.checkAlert = async (req, res) => {
           resolved: alert.resolved,
           notificationSent: alert.notificationSent,
           eventTime: alert.eventTime,
-          createdAt: alert.createdAt
+          createdAt: alert.createdAt,
         },
-        diagnostics
-      }
+        diagnostics,
+      },
     });
   } catch (error) {
     logger.error('Error checking alert:', error);
     res.status(500).json({
       success: false,
       message: 'Error checking alert',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -960,22 +1004,22 @@ exports.getStatus = async (req, res) => {
   try {
     const config = await ZabbixConfig.getActive();
     const groups = await ZabbixAlertGroup.find({ enabled: true });
-    
+
     // Отримуємо статистику адміністраторів з Telegram
     let totalAdminsWithTelegram = 0;
     const groupStats = [];
-    
+
     for (const group of groups) {
       const admins = await group.getAdminsWithTelegram();
       totalAdminsWithTelegram += admins.length;
-      
+
       groupStats.push({
         id: group._id,
         name: group.name,
         adminCount: group.adminIds?.length || 0,
         adminsWithTelegramCount: admins.length,
         hasTelegramGroup: !!(group.telegram && group.telegram.groupId),
-        hasBotToken: !!(group.telegram && group.telegram.botToken)
+        hasBotToken: !!(group.telegram && group.telegram.botToken),
       });
     }
 
@@ -998,39 +1042,111 @@ exports.getStatus = async (req, res) => {
           totalPolls: 0,
           successfulPolls: 0,
           failedPolls: 0,
-          alertsProcessed: 0
-        }
+          alertsProcessed: 0,
+        },
       },
       telegram: {
         isInitialized: telegramService.isInitialized || false,
         hasBot: !!telegramService.bot,
-        botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN
+        botTokenSet: !!process.env.TELEGRAM_BOT_TOKEN,
       },
       alertGroups: {
         total: groups.length,
         active: groups.filter(g => g.enabled).length,
         totalAdminsWithTelegram,
-        groups: groupStats
+        groups: groupStats,
       },
       recentAlerts: {
         total: await ZabbixAlert.countDocuments(),
         recent: recentAlerts,
         withNotifications: await ZabbixAlert.countDocuments({ notificationSent: true }),
-        withoutNotifications: await ZabbixAlert.countDocuments({ notificationSent: false })
-      }
+        withoutNotifications: await ZabbixAlert.countDocuments({ notificationSent: false }),
+      },
     };
 
     res.json({
       success: true,
-      data: status
+      data: status,
     });
   } catch (error) {
     logger.error('Error getting Zabbix status:', error);
     res.status(500).json({
       success: false,
       message: 'Error getting status',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
+/**
+ * Отримати всі хости (пристрої) з мережі з IP-адресами
+ */
+exports.getHosts = async (req, res) => {
+  try {
+    const config = await ZabbixConfig.getActive();
+    if (!config || !config.enabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Zabbix integration is not enabled',
+      });
+    }
+
+    const { groupIds, search, monitored } = req.query;
+
+    const options = {};
+    if (groupIds) {
+      options.groupIds = Array.isArray(groupIds) ? groupIds : groupIds.split(',');
+    }
+    if (search) {
+      options.search = search;
+    }
+    if (monitored !== undefined) {
+      options.monitored = monitored !== 'false';
+    }
+
+    const result = await zabbixService.getAllHosts(options);
+
+    res.json({
+      success: true,
+      total: result.total,
+      data: result.hosts,
+    });
+  } catch (error) {
+    logger.error('Error getting Zabbix hosts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting hosts from Zabbix',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Отримати групи хостів з Zabbix
+ */
+exports.getHostGroups = async (req, res) => {
+  try {
+    const config = await ZabbixConfig.getActive();
+    if (!config || !config.enabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Zabbix integration is not enabled',
+      });
+    }
+
+    const result = await zabbixService.getHostGroups();
+
+    res.json({
+      success: true,
+      total: result.total,
+      data: result.groups,
+    });
+  } catch (error) {
+    logger.error('Error getting Zabbix host groups:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting host groups from Zabbix',
+      error: error.message,
+    });
+  }
+};

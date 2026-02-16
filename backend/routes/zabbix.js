@@ -27,7 +27,10 @@ router.put(
     body('username').optional().isString().withMessage('Username must be a string'),
     body('password').optional().isString().withMessage('Password must be a string'),
     body('enabled').optional().isBoolean().withMessage('Enabled must be a boolean'),
-    body('pollInterval').optional().isInt({ min: 1, max: 60 }).withMessage('Poll interval must be between 1 and 60 minutes')
+    body('pollInterval')
+      .optional()
+      .isInt({ min: 1, max: 60 })
+      .withMessage('Poll interval must be between 1 and 60 minutes'),
   ],
   zabbixController.updateConfig
 );
@@ -81,7 +84,7 @@ router.post(
     body('adminIds').optional().isArray().withMessage('Admin IDs must be an array'),
     body('triggerIds').optional().isArray().withMessage('Trigger IDs must be an array'),
     body('hostPatterns').optional().isArray().withMessage('Host patterns must be an array'),
-    body('severityLevels').optional().isArray().withMessage('Severity levels must be an array')
+    body('severityLevels').optional().isArray().withMessage('Severity levels must be an array'),
   ],
   zabbixController.createGroup
 );
@@ -100,7 +103,7 @@ router.put(
     body('adminIds').optional().isArray().withMessage('Admin IDs must be an array'),
     body('triggerIds').optional().isArray().withMessage('Trigger IDs must be an array'),
     body('hostPatterns').optional().isArray().withMessage('Host patterns must be an array'),
-    body('severityLevels').optional().isArray().withMessage('Severity levels must be an array')
+    body('severityLevels').optional().isArray().withMessage('Severity levels must be an array'),
   ],
   zabbixController.updateGroup
 );
@@ -123,7 +126,7 @@ router.post(
   adminAuth,
   [
     body('groupId').optional().isMongoId().withMessage('Group ID must be a valid MongoDB ID'),
-    body('alertId').optional().isMongoId().withMessage('Alert ID must be a valid MongoDB ID')
+    body('alertId').optional().isMongoId().withMessage('Alert ID must be a valid MongoDB ID'),
   ],
   zabbixController.testAlert
 );
@@ -134,6 +137,20 @@ router.post(
  * @access  Private (Admin only)
  */
 router.get('/status', authenticateToken, adminAuth, zabbixController.getStatus);
+
+/**
+ * @route   GET /api/zabbix/hosts
+ * @desc    Отримати всі пристрої мережі з IP-адресами
+ * @access  Private (Admin only)
+ */
+router.get('/hosts', authenticateToken, adminAuth, zabbixController.getHosts);
+
+/**
+ * @route   GET /api/zabbix/host-groups
+ * @desc    Отримати групи хостів з Zabbix
+ * @access  Private (Admin only)
+ */
+router.get('/host-groups', authenticateToken, adminAuth, zabbixController.getHostGroups);
 
 /**
  * @route   POST /api/zabbix/alerts/check
@@ -147,11 +164,13 @@ router.post(
   [
     body('host').optional().isString().withMessage('Host must be a string'),
     body('triggerName').optional().isString().withMessage('Trigger name must be a string'),
-    body('eventTime').optional().isISO8601().withMessage('Event time must be a valid ISO 8601 date'),
-    body('alertId').optional().isString().withMessage('Alert ID must be a string').trim()
+    body('eventTime')
+      .optional()
+      .isISO8601()
+      .withMessage('Event time must be a valid ISO 8601 date'),
+    body('alertId').optional().isString().withMessage('Alert ID must be a string').trim(),
   ],
   zabbixController.checkAlert
 );
 
 module.exports = router;
-

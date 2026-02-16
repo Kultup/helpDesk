@@ -21,6 +21,11 @@ import {
   X,
   Check,
   Send,
+  Monitor,
+  Search,
+  Wifi,
+  WifiOff,
+  Copy,
 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -99,7 +104,7 @@ const ZabbixSettings: React.FC = () => {
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'config' | 'groups' | 'alerts'>('config');
+  const [activeTab, setActiveTab] = useState<'config' | 'groups' | 'alerts' | 'hosts'>('config');
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<ZabbixAlertGroup | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -144,6 +149,55 @@ const ZabbixSettings: React.FC = () => {
     host: '',
   });
 
+  // Хости (пристрої мережі)
+  interface ZabbixHost {
+    hostId: string;
+    hostname: string;
+    displayName: string;
+    description: string;
+    status: string;
+    available: string;
+    snmpAvailable: string;
+    jmxAvailable: string;
+    ipmiAvailable: string;
+    maintenance: boolean;
+    groups: { id: string; name: string }[];
+    tags: { tag: string; value: string }[];
+    inventory: Record<string, string>;
+    interfaces: {
+      id: string;
+      ip: string;
+      dns: string;
+      port: string;
+      type: string;
+      typeId: number;
+      isMain: boolean;
+      useIp: boolean;
+      available: string;
+    }[];
+    primaryIp: string;
+    primaryDns: string;
+    primaryPort: string;
+    primaryType: string;
+  }
+
+  interface ZabbixHostGroup {
+    id: string;
+    name: string;
+    hostCount: number;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [hosts, setHosts] = useState<ZabbixHost[]>([]);
+  const [hostsLoading, setHostsLoading] = useState(false);
+  const [hostGroups, setHostGroups] = useState<ZabbixHostGroup[]>([]);
+  const [hostsSearch, setHostsSearch] = useState('');
+  const [hostsGroupFilter, setHostsGroupFilter] = useState('');
+  const [hostsStatusFilter, setHostsStatusFilter] = useState<'all' | 'available' | 'unavailable'>(
+    'all'
+  );
+  const [copiedIp, setCopiedIp] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,6 +216,16 @@ const ZabbixSettings: React.FC = () => {
     alertsFilters.resolved,
     alertsFilters.host,
   ]);
+
+  useEffect(() => {
+    if (activeTab === 'hosts') {
+      loadHosts();
+      if (hostGroups.length === 0) {
+        loadHostGroups();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const loadData = async () => {
     try {
@@ -228,6 +292,89 @@ const ZabbixSettings: React.FC = () => {
       setAlertsLoading(false);
     }
   };
+
+  const loadHosts = async () => {
+    try {
+      setHostsLoading(true);
+      const params: Record<string, string> = {};
+      if (hostsSearch) params.search = hostsSearch;
+      if (hostsGroupFilter) params.groupIds = hostsGroupFilter;
+
+      const response = (await apiService.getZabbixHosts(params)) as any;
+      if (response.success) {
+        setHosts(response.data || []);
+      }
+    } catch (error: any) {
+      console.error('Помилка завантаження хостів:', error);
+      setMessage({ type: 'error', text: 'Не вдалося завантажити пристрої з Zabbix' });
+    } finally {
+      setHostsLoading(false);
+    }
+  };
+
+  const loadHostGroups = async () => {
+    try {
+      const response = (await apiService.getZabbixHostGroups()) as any;
+      if (response.success) {
+        setHostGroups(response.data || []);
+      }
+    } catch (error: any) {
+      console.error('Помилка завантаження груп хостів:', error);
+    }
+  };
+
+  const handleCopyIp = (ip: string) => {
+    navigator.clipboard.writeText(ip);
+    setCopiedIp(ip);
+    setTimeout(() => setCopiedIp(null), 2000);
+  };
+
+  const getAvailabilityBadge = (status: string) => {
+    switch (status) {
+      case 'available':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            <Wifi className="h-3 w-3 mr-1" />
+            Online
+          </span>
+        );
+      case 'unavailable':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            <WifiOff className="h-3 w-3 mr-1" />
+            Offline
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+            Unknown
+          </span>
+        );
+    }
+  };
+
+  const getInterfaceTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      Agent: 'bg-blue-100 text-blue-800',
+      SNMP: 'bg-purple-100 text-purple-800',
+      IPMI: 'bg-orange-100 text-orange-800',
+      JMX: 'bg-yellow-100 text-yellow-800',
+    };
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[type] || 'bg-gray-100 text-gray-600'}`}
+      >
+        {type}
+      </span>
+    );
+  };
+
+  const filteredHosts = hosts.filter(host => {
+    if (hostsStatusFilter === 'available' && host.available !== 'available') return false;
+    if (hostsStatusFilter === 'unavailable' && host.available !== 'unavailable') return false;
+    return true;
+  });
 
   const handleSaveConfig = async () => {
     if (!config) return;
@@ -765,6 +912,19 @@ const ZabbixSettings: React.FC = () => {
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-4 w-4" />
               <span>Алерти</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('hosts')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'hosts'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Monitor className="h-4 w-4" />
+              <span>Пристрої мережі</span>
             </div>
           </button>
         </nav>
@@ -1433,6 +1593,265 @@ const ZabbixSettings: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'hosts' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Пристрої мережі</h2>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">
+                      {filteredHosts.length} з {hosts.length} пристроїв
+                    </span>
+                    <Button variant="outline" size="sm" onClick={loadHosts} disabled={hostsLoading}>
+                      <RefreshCw className={`h-4 w-4 mr-1 ${hostsLoading ? 'animate-spin' : ''}`} />
+                      Оновити
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Фільтри */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="md:col-span-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Пошук за назвою хоста..."
+                        value={hostsSearch}
+                        onChange={e => setHostsSearch(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') loadHosts();
+                        }}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <select
+                      value={hostsGroupFilter}
+                      onChange={e => setHostsGroupFilter(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    >
+                      <option value="">Всі групи</option>
+                      {hostGroups.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({g.hostCount})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <select
+                      value={hostsStatusFilter}
+                      onChange={e =>
+                        setHostsStatusFilter(e.target.value as 'all' | 'available' | 'unavailable')
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    >
+                      <option value="all">Всі статуси</option>
+                      <option value="available">Online</option>
+                      <option value="unavailable">Offline</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mb-4">
+                  <Button variant="outline" size="sm" onClick={loadHosts} disabled={hostsLoading}>
+                    <Search className="h-4 w-4 mr-1" />
+                    Знайти
+                  </Button>
+                </div>
+
+                {hostsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <LoadingSpinner />
+                  </div>
+                ) : filteredHosts.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    {hosts.length === 0
+                      ? 'Натисніть "Оновити" або "Знайти" для завантаження пристроїв'
+                      : 'Пристрої за обраними фільтрами не знайдені'}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Статус
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Назва
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            IP-адреса
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            DNS
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Тип
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Групи
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Інтерфейси
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredHosts.map(host => (
+                          <tr
+                            key={host.hostId}
+                            className={`hover:bg-gray-50 ${host.maintenance ? 'bg-yellow-50' : ''}`}
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex flex-col items-start space-y-1">
+                                {getAvailabilityBadge(host.available)}
+                                {host.maintenance && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Maintenance
+                                  </span>
+                                )}
+                                {host.status === 'disabled' && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    Disabled
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {host.displayName}
+                              </div>
+                              {host.hostname !== host.displayName && (
+                                <div className="text-xs text-gray-400">{host.hostname}</div>
+                              )}
+                              {host.description && (
+                                <div className="text-xs text-gray-400 mt-1 max-w-xs truncate">
+                                  {host.description}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {host.primaryIp ? (
+                                <div className="flex items-center space-x-1">
+                                  <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                                    {host.primaryIp}
+                                  </code>
+                                  <button
+                                    onClick={() => handleCopyIp(host.primaryIp)}
+                                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                    title="Копіювати IP"
+                                  >
+                                    {copiedIp === host.primaryIp ? (
+                                      <Check className="h-3.5 w-3.5 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5 text-gray-400" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-sm text-gray-600">
+                                {host.primaryDns || '—'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {host.primaryType ? getInterfaceTypeBadge(host.primaryType) : '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {host.groups.map(g => (
+                                  <span
+                                    key={g.id}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700"
+                                  >
+                                    {g.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {host.interfaces.length > 1 ? (
+                                <div className="space-y-1">
+                                  {host.interfaces.map(iface => (
+                                    <div
+                                      key={iface.id}
+                                      className="flex items-center space-x-2 text-xs"
+                                    >
+                                      {getInterfaceTypeBadge(iface.type)}
+                                      <code className="font-mono bg-gray-50 px-1 rounded">
+                                        {iface.ip || iface.dns}:{iface.port}
+                                      </code>
+                                      {iface.isMain && (
+                                        <span className="text-blue-500 text-xs font-medium">
+                                          main
+                                        </span>
+                                      )}
+                                      <button
+                                        onClick={() => handleCopyIp(iface.ip || iface.dns)}
+                                        className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                                        title="Копіювати"
+                                      >
+                                        {copiedIp === (iface.ip || iface.dns) ? (
+                                          <Check className="h-3 w-3 text-green-500" />
+                                        ) : (
+                                          <Copy className="h-3 w-3 text-gray-400" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">1 інтерфейс</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Статистика */}
+                {hosts.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900">{hosts.length}</div>
+                      <div className="text-xs text-gray-500">Всього пристроїв</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {hosts.filter(h => h.available === 'available').length}
+                      </div>
+                      <div className="text-xs text-gray-500">Online</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">
+                        {hosts.filter(h => h.available === 'unavailable').length}
+                      </div>
+                      <div className="text-xs text-gray-500">Offline</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {hosts.filter(h => h.maintenance).length}
+                      </div>
+                      <div className="text-xs text-gray-500">Maintenance</div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

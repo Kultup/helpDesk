@@ -1779,6 +1779,27 @@ class ApiService {
   }): Promise<ApiResponse<Record<string, unknown>>> {
     return this.post('/zabbix/test-alert', data);
   }
+
+  async getZabbixHosts(params?: {
+    search?: string;
+    groupIds?: string;
+    monitored?: string;
+  }): Promise<ApiResponse<Record<string, unknown>>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.get(`/zabbix/hosts${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getZabbixHostGroups(): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.get('/zabbix/host-groups');
+  }
 }
 
 // Експорт єдиного екземпляру

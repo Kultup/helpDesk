@@ -19,7 +19,9 @@ class ZabbixService {
    * @returns {String} - Нормалізований URL
    */
   normalizeUrl(url) {
-    if (!url) return null;
+    if (!url) {
+      return null;
+    }
     // Видаляємо пробіли та зайві слеші в кінці
     return url.trim().replace(/\/+$/, '');
   }
@@ -42,14 +44,14 @@ class ZabbixService {
     if (!this.username || !this.password) {
       return {
         success: false,
-        error: 'Username or password is not configured'
+        error: 'Username or password is not configured',
       };
     }
 
     if (!force && this.sessionToken) {
       return {
         success: true,
-        token: this.sessionToken
+        token: this.sessionToken,
       };
     }
 
@@ -59,17 +61,17 @@ class ZabbixService {
       method: 'user.login',
       params: {
         user: this.username,
-        password: this.password
+        password: this.password,
       },
-      id: Math.floor(Math.random() * 1000000)
+      id: Math.floor(Math.random() * 1000000),
     };
 
     try {
       const response = await axios.post(apiUrl, requestData, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        timeout: 30000
+        timeout: 30000,
       });
 
       if (response.data.error) {
@@ -82,7 +84,7 @@ class ZabbixService {
           data: error.data,
           fullResponse: JSON.stringify(response.data),
           requestUrl: apiUrl,
-          requestData: JSON.stringify(requestData)
+          requestData: JSON.stringify(requestData),
         });
         throw error;
       }
@@ -93,19 +95,19 @@ class ZabbixService {
 
       return {
         success: true,
-        token
+        token,
       };
     } catch (error) {
       logger.error('Zabbix service: user.login failed', {
         error: error.message,
         code: error.code,
         responseStatus: error.response?.status,
-        responseData: error.response?.data
+        responseData: error.response?.data,
       });
       return {
         success: false,
         error: error.message,
-        code: error.code
+        code: error.code,
       };
     }
   }
@@ -128,7 +130,7 @@ class ZabbixService {
         // Маємо bearer токен, повертаємо його без змін
         return {
           token,
-          isBearer: true
+          isBearer: true,
         };
       }
 
@@ -150,7 +152,7 @@ class ZabbixService {
 
     return {
       token,
-      isBearer: this.isBearerAuth && !!token
+      isBearer: this.isBearerAuth && !!token,
     };
   }
 
@@ -190,7 +192,7 @@ class ZabbixService {
       }
 
       const trimmedToken = this.originalToken ? this.originalToken.trim() : '';
-      
+
       // Спочатку намагаємося використати токен, якщо він є
       if (trimmedToken) {
         this.isBearerAuth = this.isLikelyBearerToken(trimmedToken);
@@ -199,7 +201,7 @@ class ZabbixService {
         const loginResult = await this.login();
         if (!loginResult.success) {
           logger.error('Zabbix service: Failed to obtain session token via user.login', {
-            error: loginResult.error
+            error: loginResult.error,
           });
           this.isInitialized = false;
           return false;
@@ -208,7 +210,9 @@ class ZabbixService {
         this.isBearerAuth = false;
         this.sessionToken = loginResult.token;
       } else {
-        logger.warn('Zabbix service: Missing authentication credentials (token or username/password)');
+        logger.warn(
+          'Zabbix service: Missing authentication credentials (token or username/password)'
+        );
         this.isInitialized = false;
         return false;
       }
@@ -219,7 +223,7 @@ class ZabbixService {
       } catch (urlError) {
         logger.error('Zabbix service: Invalid URL format', {
           url: this.url,
-          error: urlError.message
+          error: urlError.message,
         });
         this.isInitialized = false;
         return false;
@@ -234,7 +238,9 @@ class ZabbixService {
       if (!testResult.success) {
         // Якщо Bearer токен не працює, але є username/password, спробуємо user.login
         if (this.isBearerAuth && this.username && this.password) {
-          logger.warn('Zabbix service: Bearer token authentication failed, attempting user.login as fallback...');
+          logger.warn(
+            'Zabbix service: Bearer token authentication failed, attempting user.login as fallback...'
+          );
           const loginResult = await this.login();
           if (loginResult.success && loginResult.token) {
             this.apiToken = loginResult.token;
@@ -247,11 +253,11 @@ class ZabbixService {
             }
           }
         }
-        
+
         logger.error('Zabbix service: Connection test failed', {
           error: testResult.error,
           code: testResult.code,
-          url: this.url
+          url: this.url,
         });
         this.isInitialized = false;
         return false;
@@ -261,7 +267,7 @@ class ZabbixService {
       logger.error('❌ Error initializing Zabbix service:', {
         error: error.message,
         stack: error.stack,
-        url: this.url
+        url: this.url,
       });
       this.isInitialized = false;
       return false;
@@ -288,13 +294,13 @@ class ZabbixService {
       try {
         const authContext = await this.getCurrentAuthToken();
         const headers = {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         };
         const requestData = {
           jsonrpc: '2.0',
           method: method,
           params: params,
-          id: Math.floor(Math.random() * 1000000)
+          id: Math.floor(Math.random() * 1000000),
         };
 
         // Для Bearer токенів використовуємо поле auth (не заголовок Authorization)
@@ -303,15 +309,15 @@ class ZabbixService {
           // Bearer токен передаємо в полі auth як session токен
           requestData.auth = authContext.token;
         } else {
-        // Session токен завжди в полі auth
-        requestData.auth = authContext.token;
+          // Session токен завжди в полі auth
+          requestData.auth = authContext.token;
         }
 
         const response = await axios.post(apiUrl, requestData, {
           headers,
-          timeout: 30000 // 30 секунд
+          timeout: 30000, // 30 секунд
         });
-        
+
         // Перевіряємо помилки в відповіді
         if (response.data?.error) {
           const error = new Error(response.data.error.message || 'Zabbix API error');
@@ -321,18 +327,18 @@ class ZabbixService {
             method: method,
             code: error.code,
             message: error.message,
-            data: error.data
+            data: error.data,
           });
           throw error;
         }
 
         return {
           success: true,
-          data: response.data.result
+          data: response.data.result,
         };
       } catch (error) {
         lastError = error;
-        
+
         // Детальне логування помилки
         const errorDetails = {
           method: method,
@@ -341,34 +347,46 @@ class ZabbixService {
           error: error.message,
           code: error.code,
           responseStatus: error.response?.status,
-          responseData: error.response?.data
+          responseData: error.response?.data,
         };
 
         // Якщо помилка автентифікації або невалідний токен, не повторюємо
-        if (error.response?.data?.error?.code === -32602 || 
-            error.response?.data?.error?.code === -32500 ||
-            error.response?.status === 401) {
+        if (
+          error.response?.data?.error?.code === -32602 ||
+          error.response?.data?.error?.code === -32500 ||
+          error.response?.status === 401
+        ) {
           logger.error('Zabbix API authentication error:', errorDetails);
           throw error;
         }
 
         // Якщо помилка підключення (ECONNREFUSED, ETIMEDOUT, etc.)
-        if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+        if (
+          error.code === 'ECONNREFUSED' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ENOTFOUND'
+        ) {
           logger.error('Zabbix API connection error:', errorDetails);
           if (attempt < retries) {
             const delay = attempt * 1000;
-            logger.warn(`Zabbix API connection failed (attempt ${attempt}/${retries}), retrying in ${delay}ms...`);
+            logger.warn(
+              `Zabbix API connection failed (attempt ${attempt}/${retries}), retrying in ${delay}ms...`
+            );
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         } else {
           logger.error('Zabbix API request error:', errorDetails);
 
           const apiErrorCode = error.response?.data?.error?.code;
-          const shouldAttemptRelogin = this.username && this.password &&
+          const shouldAttemptRelogin =
+            this.username &&
+            this.password &&
             (apiErrorCode === -32602 || apiErrorCode === -32500 || error.response?.status === 401);
 
           if (shouldAttemptRelogin) {
-            logger.warn('Zabbix API authentication error detected, attempting to refresh session via user.login...');
+            logger.warn(
+              'Zabbix API authentication error detected, attempting to refresh session via user.login...'
+            );
             try {
               await this.getCurrentAuthToken(true);
               logger.info('Zabbix authentication refreshed successfully, retrying request...');
@@ -380,7 +398,7 @@ class ZabbixService {
               continue;
             } catch (loginError) {
               logger.error('Failed to refresh Zabbix authentication via user.login', {
-                error: loginError.message
+                error: loginError.message,
               });
               lastError = loginError;
             }
@@ -388,7 +406,9 @@ class ZabbixService {
 
           if (attempt < retries) {
             const delay = attempt * 1000;
-            logger.warn(`Zabbix API request failed (attempt ${attempt}/${retries}), retrying in ${delay}ms...`);
+            logger.warn(
+              `Zabbix API request failed (attempt ${attempt}/${retries}), retrying in ${delay}ms...`
+            );
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
@@ -399,7 +419,7 @@ class ZabbixService {
       method: method,
       url: apiUrl,
       error: lastError?.message,
-      code: lastError?.code
+      code: lastError?.code,
     });
     throw lastError;
   }
@@ -414,7 +434,7 @@ class ZabbixService {
       if (!this.isInitialized) {
         return {
           success: false,
-          error: 'Zabbix service is not initialized'
+          error: 'Zabbix service is not initialized',
         };
       }
 
@@ -424,14 +444,14 @@ class ZabbixService {
         jsonrpc: '2.0',
         method: 'apiinfo.version',
         params: {},
-        id: Math.floor(Math.random() * 1000000)
+        id: Math.floor(Math.random() * 1000000),
       };
 
       const response = await axios.post(apiUrl, requestData, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        timeout: 30000
+        timeout: 30000,
       });
 
       if (response.data.error) {
@@ -441,7 +461,7 @@ class ZabbixService {
       const version = response.data.result;
       return {
         success: true,
-        version
+        version,
       };
     } catch (error) {
       logger.error('Zabbix connection test failed:', {
@@ -449,14 +469,14 @@ class ZabbixService {
         code: error.code,
         url: this.url,
         responseStatus: error.response?.status,
-        responseData: error.response?.data
+        responseData: error.response?.data,
       });
       return {
         success: false,
         error: error.message || 'Connection failed',
         code: error.code,
         responseStatus: error.response?.status,
-        responseData: error.response?.data
+        responseData: error.response?.data,
       };
     }
   }
@@ -476,7 +496,7 @@ class ZabbixService {
         selectSuppressionData: 'extend',
         sortfield: ['eventid'],
         sortorder: 'DESC',
-        limit: limit
+        limit: limit,
       };
 
       // Фільтр за severity
@@ -486,28 +506,28 @@ class ZabbixService {
 
       // Фільтр тільки активних проблем (не вирішених)
       params.filter = {
-        value: 1 // 1 = PROBLEM, 0 = OK
+        value: 1, // 1 = PROBLEM, 0 = OK
       };
 
       const result = await this.apiRequest('problem.get', params);
-      
+
       return {
         success: true,
-        problems: result.data || []
+        problems: result.data || [],
       };
     } catch (error) {
       logger.error('Error getting problems from Zabbix:', {
         error: error.message,
         code: error.code,
         responseStatus: error.response?.status,
-        responseData: error.response?.data
+        responseData: error.response?.data,
       });
       return {
         success: false,
         error: error.message || 'Failed to get problems',
         code: error.code,
         responseStatus: error.response?.status,
-        responseData: error.response?.data
+        responseData: error.response?.data,
       };
     }
   }
@@ -527,7 +547,7 @@ class ZabbixService {
         selectTags: 'extend',
         selectGroups: 'extend',
         selectDiscoveryRule: 'extend',
-        selectLastEvent: 'extend'
+        selectLastEvent: 'extend',
       };
 
       if (triggerIds.length > 0) {
@@ -535,10 +555,10 @@ class ZabbixService {
       }
 
       const result = await this.apiRequest('trigger.get', params);
-      
+
       return {
         success: true,
-        triggers: result.data || []
+        triggers: result.data || [],
       };
     } catch (error) {
       logger.error('Error getting triggers from Zabbix:', error);
@@ -559,7 +579,7 @@ class ZabbixService {
         selectInterfaces: 'extend',
         selectTags: 'extend',
         selectInventories: 'extend',
-        selectMacros: 'extend'
+        selectMacros: 'extend',
       };
 
       if (hostIds.length > 0) {
@@ -567,15 +587,183 @@ class ZabbixService {
       }
 
       const result = await this.apiRequest('host.get', params);
-      
+
       return {
         success: true,
-        hosts: result.data || []
+        hosts: result.data || [],
       };
     } catch (error) {
       logger.error('Error getting hosts from Zabbix:', error);
       throw error;
     }
+  }
+
+  /**
+   * Отримання всіх хостів з мережі з детальною інформацією
+   * @param {Object} options - Опції фільтрації
+   * @param {Array} options.groupIds - Фільтр по групах хостів
+   * @param {Boolean} options.monitored - Тільки моніторені хости (default: true)
+   * @param {String} options.search - Пошук за іменем хоста
+   * @returns {Object} - Результат з масивом хостів та їх мережевими адресами
+   */
+  async getAllHosts(options = {}) {
+    try {
+      const { groupIds, monitored = true, search } = options;
+
+      const params = {
+        output: [
+          'hostid',
+          'host',
+          'name',
+          'status',
+          'available',
+          'description',
+          'maintenance_status',
+          'maintenance_type',
+          'maintenanceid',
+          'snmp_available',
+          'jmx_available',
+          'ipmi_available',
+        ],
+        selectInterfaces: [
+          'interfaceid',
+          'ip',
+          'dns',
+          'port',
+          'type',
+          'main',
+          'useip',
+          'available',
+        ],
+        selectGroups: ['groupid', 'name'],
+        selectInventory: [
+          'os',
+          'hardware',
+          'software',
+          'location',
+          'serialno_a',
+          'model',
+          'vendor',
+          'type',
+          'macaddress_a',
+          'macaddress_b',
+        ],
+        selectTags: ['tag', 'value'],
+        sortfield: 'name',
+        sortorder: 'ASC',
+      };
+
+      if (monitored) {
+        params.monitored_hosts = true;
+      }
+
+      if (groupIds && groupIds.length > 0) {
+        params.groupids = groupIds;
+      }
+
+      if (search) {
+        params.search = { name: search };
+        params.searchWildcardsEnabled = true;
+      }
+
+      const result = await this.apiRequest('host.get', params);
+      const hosts = result.data || [];
+
+      // Форматуємо результат для зручного перегляду
+      const formatted = hosts.map(host => {
+        const interfaces = (host.interfaces || []).map(iface => ({
+          id: iface.interfaceid,
+          ip: iface.ip,
+          dns: iface.dns,
+          port: iface.port,
+          type: this._interfaceTypeName(iface.type),
+          typeId: parseInt(iface.type),
+          isMain: iface.main === '1',
+          useIp: iface.useip === '1',
+          available: this._availabilityName(iface.available),
+        }));
+
+        const mainInterface = interfaces.find(i => i.isMain) || interfaces[0] || null;
+
+        return {
+          hostId: host.hostid,
+          hostname: host.host,
+          displayName: host.name || host.host,
+          description: host.description || '',
+          status: host.status === '0' ? 'enabled' : 'disabled',
+          available: this._availabilityName(host.available),
+          snmpAvailable: this._availabilityName(host.snmp_available),
+          jmxAvailable: this._availabilityName(host.jmx_available),
+          ipmiAvailable: this._availabilityName(host.ipmi_available),
+          maintenance: host.maintenance_status === '1',
+          groups: (host.groups || []).map(g => ({ id: g.groupid, name: g.name })),
+          tags: host.tags || [],
+          inventory: host.inventory || {},
+          interfaces,
+          primaryIp: mainInterface?.ip || '',
+          primaryDns: mainInterface?.dns || '',
+          primaryPort: mainInterface?.port || '',
+          primaryType: mainInterface?.type || '',
+        };
+      });
+
+      return {
+        success: true,
+        total: formatted.length,
+        hosts: formatted,
+      };
+    } catch (error) {
+      logger.error('Error getting all hosts from Zabbix:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отримання груп хостів з Zabbix
+   * @returns {Object} - Результат з масивом груп хостів
+   */
+  async getHostGroups() {
+    try {
+      const params = {
+        output: ['groupid', 'name'],
+        selectHosts: 'count',
+        sortfield: 'name',
+        sortorder: 'ASC',
+        real_hosts: true,
+      };
+
+      const result = await this.apiRequest('hostgroup.get', params);
+      const groups = (result.data || []).map(g => ({
+        id: g.groupid,
+        name: g.name,
+        hostCount: parseInt(g.hosts) || 0,
+      }));
+
+      return {
+        success: true,
+        total: groups.length,
+        groups,
+      };
+    } catch (error) {
+      logger.error('Error getting host groups from Zabbix:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Конвертація типу інтерфейсу в людську назву
+   */
+  _interfaceTypeName(type) {
+    const types = { 1: 'Agent', 2: 'SNMP', 3: 'IPMI', 4: 'JMX' };
+    return types[String(type)] || 'Unknown';
+  }
+
+  /**
+   * Конвертація статусу доступності
+   */
+  _availabilityName(status) {
+    const statuses = { 0: 'unknown', 1: 'available', 2: 'unavailable' };
+    return statuses[String(status)] || 'unknown';
   }
 
   /**
@@ -593,7 +781,7 @@ class ZabbixService {
         selectSuppressionData: 'extend',
         sortfield: ['clock'],
         sortorder: 'DESC',
-        limit: options.limit || 1000
+        limit: options.limit || 1000,
       };
 
       if (eventIds.length > 0) {
@@ -617,10 +805,10 @@ class ZabbixService {
       }
 
       const result = await this.apiRequest('event.get', params);
-      
+
       return {
         success: true,
-        events: result.data || []
+        events: result.data || [],
       };
     } catch (error) {
       logger.error('Error getting events from Zabbix:', error);
@@ -640,14 +828,14 @@ class ZabbixService {
       const params = {
         eventids: [eventId],
         action: action,
-        message: message
+        message: message,
       };
 
       const result = await this.apiRequest('event.acknowledge', params);
-      
+
       return {
         success: true,
-        acknowledged: result.data.eventids || []
+        acknowledged: result.data.eventids || [],
       };
     } catch (error) {
       logger.error('Error acknowledging problem in Zabbix:', error);
@@ -664,7 +852,7 @@ class ZabbixService {
       const result = await this.apiRequest('apiinfo.version', {}, 1);
       return {
         success: true,
-        version: result.data
+        version: result.data,
       };
     } catch (error) {
       logger.error('Error getting Zabbix version:', error);
@@ -682,19 +870,19 @@ class ZabbixService {
     try {
       // Отримуємо проблеми
       const problemsResult = await this.getProblems(severities, limit);
-      
+
       if (!problemsResult.success) {
         logger.error('Failed to get problems from Zabbix:', {
           error: problemsResult.error,
-          code: problemsResult.code
+          code: problemsResult.code,
         });
         return {
           success: false,
           error: problemsResult.error || 'Failed to get problems',
-          code: problemsResult.code
+          code: problemsResult.code,
         };
       }
-      
+
       const problems = problemsResult.problems || [];
 
       if (problems.length === 0) {
@@ -702,7 +890,7 @@ class ZabbixService {
           success: true,
           problems: [],
           triggers: [],
-          hosts: []
+          hosts: [],
         };
       }
 
@@ -752,7 +940,7 @@ class ZabbixService {
         return {
           ...problem,
           trigger: trigger,
-          host: host
+          host: host,
         };
       });
 
@@ -760,7 +948,7 @@ class ZabbixService {
         success: true,
         problems: problemsWithDetails,
         triggers: triggers,
-        hosts: hosts
+        hosts: hosts,
       };
     } catch (error) {
       logger.error('Error getting problems with details from Zabbix:', error);
@@ -771,4 +959,3 @@ class ZabbixService {
 
 // Експортуємо singleton instance
 module.exports = new ZabbixService();
-
