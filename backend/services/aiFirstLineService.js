@@ -1202,7 +1202,10 @@ async function analyzePhoto(imagePath, problemDescription, userContext) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Проаналізуй фото та дай інструкцію. Ось зображення:' },
+            {
+              type: 'text',
+              text: 'Проаналізуй ТІЛЬКИ те, що видно на цьому фото. Одне фото = одна помилка. НЕ додавай BAF, Windows Update чи інші проблеми, якщо їх немає на зображенні. Ось фото:',
+            },
             { type: 'image_url', image_url: { url: imageUrl } },
           ],
         },
