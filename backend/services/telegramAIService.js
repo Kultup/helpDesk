@@ -1251,6 +1251,25 @@ class TelegramAIService {
         this.telegramService.userSessions.delete(chatId);
         return;
       }
+      // Fallback: якщо KB повернув question але текст — технічна проблема (принтер, інтернет) — використати Fast-Track
+      const aiEnhancedService = require('./aiEnhancedService');
+      const fastTrack = aiEnhancedService.findQuickSolution(text || '');
+      if (fastTrack && fastTrack.hasQuickFix && fastTrack.solution) {
+        const normalized = TelegramUtils.normalizeQuickSolutionSteps(fastTrack.solution);
+        await this.telegramService.sendMessage(chatId, normalized, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Створити тікет', callback_data: 'create_ticket' },
+              { text: 'Головне меню', callback_data: 'back_to_menu' },
+            ]),
+          },
+        });
+        session.dialog_history.push({ role: 'assistant', content: normalized });
+        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
+        return;
+      }
+
       this.recordInternetRequest(telegramId);
       const msg =
         result.offTopicResponse && String(result.offTopicResponse).trim()
@@ -1400,6 +1419,42 @@ class TelegramAIService {
         }
       );
       return;
+    }
+
+    // Fallback: якщо немає quickSolution але є needsMoreInfo — спробувати Fast-Track для типових проблем (принтер, інтернет)
+    if (!quickSolutionText && result.needsMoreInfo && text) {
+      const aiEnhancedService = require('./aiEnhancedService');
+      const fastTrack = aiEnhancedService.findQuickSolution(text);
+      if (fastTrack && fastTrack.hasQuickFix && fastTrack.solution) {
+        quickSolutionText = fastTrack.solution;
+        if (quickSolutionText) {
+          quickSolutionText = TelegramUtils.normalizeQuickSolutionSteps(quickSolutionText);
+          const missing = result.missingInfo || [];
+          session.awaitingErrorPhoto = missing.some(m => String(m).includes('фото помилки'));
+          let messageToSend = quickSolutionText;
+          if (session.awaitingErrorPhoto) {
+            messageToSend += '\n\n📸 Надішліть, будь ласка, фото помилки (скріншот).';
+          }
+          session.step = 'gathering_information';
+          session.lastMissingInfo = missing;
+          const gatherButtons = [
+            { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+            { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+          ];
+          if (session.awaitingErrorPhoto) {
+            gatherButtons.unshift({
+              text: '⏭️ Пропустити (без фото помилки)',
+              callback_data: 'skip_error_photo',
+            });
+          }
+          await this.telegramService.sendMessage(chatId, messageToSend, {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(gatherButtons) },
+          });
+          session.dialog_history.push({ role: 'assistant', content: messageToSend });
+          return;
+        }
+      }
     }
 
     session.ai_questions_count = (session.ai_questions_count || 0) + 1;
