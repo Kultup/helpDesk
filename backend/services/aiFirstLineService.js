@@ -13,6 +13,7 @@ const {
   COMPUTER_ACCESS_ANALYSIS,
   STATISTICS_ANALYSIS,
   RATING_EMOTION,
+  ZABBIX_ALERT_ANALYSIS,
   fillPrompt,
   MAX_TOKENS,
   TEMPERATURES,
@@ -95,6 +96,55 @@ function formatDialogHistory(dialogHistory) {
     .join('\n');
 }
 
+/**
+ * Час до закриття закладу. Графік: пн 12-21, вт-нд 10-21.
+ * Для SMART-ESCALATION: якщо < 2 год до закриття → High→Urgent.
+ * @returns {string}
+ */
+function getTimeContextForPrompt() {
+  const now = new Date();
+  let hours, minutes, day;
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Kyiv',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    });
+    const parts = fmt.formatToParts(now);
+    hours = parseInt(parts.find(p => p.type === 'hour').value, 10);
+    minutes = parseInt(parts.find(p => p.type === 'minute').value, 10);
+    const wd = (parts.find(p => p.type === 'weekday') || {}).value || '';
+    day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(wd);
+    if (day < 0) {
+      day = now.getUTCDay();
+    }
+  } catch (_) {
+    hours = now.getHours();
+    minutes = now.getMinutes();
+    day = now.getDay();
+  }
+  const currentMins = hours * 60 + minutes;
+  const CLOSE_MINS = 21 * 60; // 21:00
+  const openMins = day === 1 ? 12 * 60 : 10 * 60; // Mon 12:00, else 10:00
+  if (currentMins < openMins) {
+    return `Зараз: ${hours}:${String(minutes).padStart(2, '0')}, заклад ще не відкритий (відкриття о ${Math.floor(openMins / 60)}:00).`;
+  }
+  if (currentMins >= CLOSE_MINS) {
+    return `Зараз: ${hours}:${String(minutes).padStart(2, '0')}, заклад закрито на сьогодні.`;
+  }
+
+  const minsUntilClose = CLOSE_MINS - currentMins;
+  const hoursLeft = Math.floor(minsUntilClose / 60);
+  const minsLeft = minsUntilClose % 60;
+  const closeStr = `Заклад закривається о 21:00`;
+  if (minsUntilClose < 120) {
+    return `Зараз: ${hours}:${String(minutes).padStart(2, '0')}. ${closeStr} (через ${hoursLeft} год ${minsLeft} хв) — менше 2 годин до закриття! Рекомендується urgent.`;
+  }
+  return `Зараз: ${hours}:${String(minutes).padStart(2, '0')}. ${closeStr} (через ${hoursLeft} год ${minsLeft} хв).`;
+}
+
 function formatUserContext(userContext) {
   if (!userContext || typeof userContext !== 'object') {
     return '(немає)';
@@ -118,7 +168,120 @@ function formatUserContext(userContext) {
   if (userContext.computerAccessAnalysis) {
     parts.push(`Розпізнано доступ: ${userContext.computerAccessAnalysis}`);
   }
+  if (userContext.userEquipmentSummary) {
+    parts.push(`💻 Обладнання: ${userContext.userEquipmentSummary}`);
+  }
   return parts.length ? parts.join(', ') : '(немає)';
+}
+
+/** Мережевий шторм: 3+ тікети з одного міста про інтернет за 10 хв. */
+async function getNetworkStormContext(userCityId) {
+  if (!userCityId) {
+    return null;
+  }
+  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+  try {
+    const count = await Ticket.countDocuments({
+      createdAt: { $gte: tenMinAgo },
+      city: userCityId,
+      status: { $in: ['open', 'in_progress'] },
+      $or: [
+        { subcategory: { $regex: /network|інтернет|мереж|internet/i } },
+        { title: { $regex: /інтернет|зв'язок|інтернету|мереж|wifi|wi-fi|зв.?язку/i } },
+      ],
+    });
+    if (count >= 3) {
+      return `MEREЖЕВИЙ ШТОРМ (network storm detected): ${count} заявок з цього міста про інтернет за останні 10 хв.`;
+    }
+  } catch (err) {
+    logger.warn('getNetworkStormContext failed', err);
+  }
+  return null;
+}
+
+/** Активна заявка користувача (для анти-спаму). */
+async function getActiveTicketForUser(userId) {
+  if (!userId) {
+    return null;
+  }
+  try {
+    const ticket = await Ticket.findOne({
+      createdBy: userId,
+      status: { $in: ['open', 'in_progress'] },
+    })
+      .sort({ createdAt: -1 })
+      .select('ticketNumber')
+      .lean();
+    return ticket;
+  } catch (err) {
+    logger.warn('getActiveTicketForUser failed', err);
+  }
+  return null;
+}
+
+/** Дублікат: та сама локація (місто+заклад) + категорія за останні 10 хв. Повертає { context, ticketId }. */
+async function getDuplicateTicketContext(userCityId, userInstitutionId, categoryHint, problemText) {
+  if (!userCityId) {
+    return null;
+  }
+  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);
+  try {
+    const matchStage = {
+      createdAt: { $gte: tenMinAgo },
+      city: userCityId,
+      status: { $in: ['open', 'in_progress'] },
+    };
+    if (categoryHint) {
+      const cat = String(categoryHint).toLowerCase();
+      if (cat.includes('print') || cat.includes('принтер') || cat.includes('hardware')) {
+        matchStage.$or = [
+          { subcategory: { $regex: /print|принтер|hardware|друк/i } },
+          { title: { $regex: /принтер|друк|друку/i } },
+        ];
+      }
+    } else if (problemText && /принтер|друк/i.test(problemText)) {
+      matchStage.$or = [
+        { subcategory: { $regex: /print|принтер|hardware|друк/i } },
+        { title: { $regex: /принтер|друк|друку/i } },
+      ];
+    }
+    let tickets = await Ticket.find(matchStage)
+      .populate('createdBy', 'city institution firstName')
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('ticketNumber createdAt title createdBy _id')
+      .lean();
+    if (userInstitutionId && tickets.length) {
+      tickets = tickets.filter(
+        t => t.createdBy && String(t.createdBy.institution) === String(userInstitutionId)
+      );
+    }
+    if (tickets.length > 0) {
+      const t = tickets[0];
+      const minsAgo = Math.round((Date.now() - new Date(t.createdAt).getTime()) / 60000);
+      return {
+        context: `ДУБЛІКАТ: Користувач ${t.createdBy?.firstName || 'хтось'} вже створив заявку №${t.ticketNumber} ${minsAgo} хв тому (та сама локація+категорія). НЕ створювати нову. Відповідь: "О, бачу вже створили заявку по цьому ${minsAgo} хв тому. Я додам вас у копію, щоб ви теж бачили статус. Новий тікет не створюю, щоб не плутати чергу 😊"`,
+        ticketId: t._id,
+      };
+    }
+  } catch (err) {
+    logger.warn('getDuplicateTicketContext failed', err);
+  }
+  return null;
+}
+
+/** Орієнтовна черга для SLA (кількість open+in_progress, час ~12 хв/заявку). */
+async function getQueueContext() {
+  try {
+    const count = await Ticket.countDocuments({
+      status: { $in: ['open', 'in_progress'] },
+    });
+    const minutes = Math.max(15, Math.min(120, count * 12));
+    return { count, minutes };
+  } catch (err) {
+    logger.warn('getQueueContext failed', err);
+  }
+  return { count: 2, minutes: 40 };
 }
 
 /**
@@ -363,14 +526,71 @@ async function checkKbArticleRelevanceWithAI(
   }
 }
 
+const ANXIOUS_REPEAT_PATTERNS = [
+  /^ау\s*$/i,
+  /^де\s+ви\??\s*$/i,
+  /^ало\s*$/i,
+  /^альо\s*$/i,
+  /^ви\s+тут\??\s*$/i,
+  /^хтось\s+є\??\s*$/i,
+  /^є\s+хто\s*$/i,
+];
+
+/**
+ * Отримує контекст здоров'я сервера для промптів.
+ * Якщо все healthy — повертає порожній рядок (нічого не кажемо юзеру).
+ * Якщо є unhealthy/warning — повертає рядок з деталями для AI.
+ * @returns {Promise<string>}
+ */
+async function getServerHealthContext() {
+  try {
+    const { healthCheckService } = require('../middleware/healthCheck');
+    const healthStatus = await healthCheckService.runAllChecks();
+
+    if (healthStatus.status === 'healthy') {
+      return '';
+    }
+
+    const parts = [`Server status: ${healthStatus.status}`];
+    const checks = healthStatus.checks || {};
+
+    if (checks.database) {
+      parts.push(
+        `Database: ${checks.database.status}${checks.database.error ? ' (' + checks.database.error + ')' : ''}`
+      );
+    }
+    if (checks.cpu) {
+      parts.push(`CPU Load: ${checks.cpu.details?.usage ?? '?'}%`);
+    }
+    if (checks.memory) {
+      parts.push(`Memory: ${checks.memory.details?.systemMemoryUsage ?? '?'}%`);
+    }
+    if (checks.uptime) {
+      parts.push(`Uptime: ${checks.uptime.details?.formatted ?? '?'}`);
+    }
+    if (checks.ssl && checks.ssl.status !== 'healthy') {
+      const days = checks.ssl.details?.daysUntilExpiry;
+      parts.push(
+        `SSL: ${checks.ssl.status}${days !== null && days !== undefined ? ' (expires in ' + days + ' days)' : ''}`
+      );
+    }
+
+    return parts.join('\n');
+  } catch (err) {
+    logger.warn('getServerHealthContext failed', { message: err.message });
+    return '';
+  }
+}
+
 /**
  * Виклик 1: аналіз наміру та достатності інформації.
  * @param {Array} dialogHistory
  * @param {Object} userContext
  * @param {string} [webSearchContext] - опційний фрагмент з пошуку в інтернеті (troubleshooting) для формування quickSolution
- * @returns {Promise<{ requestType: 'question'|'appeal', requestTypeConfidence: number, requestTypeReason?: string|null, isTicketIntent: boolean, needsMoreInfo: boolean, category?: string, missingInfo: string[], confidence: number, priority?: string, emotionalTone?: string, quickSolution?: string, kbArticle?: object }>}
+ * @param {Object} [options] - { userId } для anti-spam (activeTicketInfo)
+ * @returns {Promise<{...}>}
  */
-async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') {
+async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', options = {}) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
     return {
@@ -646,19 +866,51 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     typeof INTENT_ANALYSIS_TEMPERATURE === 'number' ? INTENT_ANALYSIS_TEMPERATURE : 0.55;
 
   let extraContextBlock = '';
+  let duplicateTicketId = null;
+  const userId = options.userId;
+  if (userContext?.userCityId) {
+    const storm = await getNetworkStormContext(userContext.userCityId);
+    if (storm) {
+      extraContextBlock += `\n${storm}`;
+    }
+    const dup = await getDuplicateTicketContext(
+      userContext.userCityId,
+      userContext.userInstitutionId,
+      null,
+      lastUserMsg
+    );
+    if (dup) {
+      extraContextBlock += `\n${dup.context}`;
+      duplicateTicketId = dup.ticketId;
+    }
+  }
+  let activeTicketInfoStr = '(немає)';
+  if (userId) {
+    const active = await getActiveTicketForUser(userId);
+    const lastMsg = dialogHistory.filter(m => m.role === 'user').pop()?.content || '';
+    const isAnxious = ANXIOUS_REPEAT_PATTERNS.some(r => r.test(String(lastMsg).trim()));
+    if (active?.ticketNumber && isAnxious) {
+      activeTicketInfoStr = `Користувач має активну заявку №${active.ticketNumber}. НЕ створювати нову.`;
+    }
+  }
+
+  const serverHealthContext = await getServerHealthContext();
   let parsed = null;
 
   for (let iter = 0; iter < MAX_AGENTIC_ITERATIONS; iter++) {
     const agenticSecondPass = iter > 0 ? 'true' : 'false';
     const systemPrompt = fillPrompt(INTENT_ANALYSIS, {
       userContext: formatUserContext(userContext),
+      timeContext: getTimeContextForPrompt(),
       dialogHistory: formatDialogHistory(dialogHistory),
       quickSolutions: quickSolutionsText,
       webSearchContext: webSearchContext ? String(webSearchContext).trim() : '',
       similarTickets: similarTicketsForPrompt,
+      activeTicketInfo: activeTicketInfoStr,
       extraContextBlock: extraContextBlock
         ? `\nAdditional context (requested):\n${extraContextBlock}`
         : '',
+      serverHealthContext: serverHealthContext || '(all systems healthy)',
       agenticSecondPass,
     });
 
@@ -768,6 +1020,16 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
       ? Math.max(0, Math.min(1, parsed.requestTypeConfidence))
       : 0.7;
 
+  const adminMetadata =
+    parsed.admin_metadata && typeof parsed.admin_metadata === 'object'
+      ? {
+          server_status_note: parsed.admin_metadata.server_status_note || null,
+          user_hardware_context: parsed.admin_metadata.user_hardware_context || null,
+          remote_tool_hint: parsed.admin_metadata.remote_tool_hint || null,
+          self_healing_attempted: !!parsed.admin_metadata.self_healing_attempted,
+        }
+      : null;
+
   return {
     requestType,
     requestTypeConfidence,
@@ -783,6 +1045,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '') 
     quickSolution: validatedQuickSolution,
     offTopicResponse,
     kbArticle: null,
+    duplicateTicketId: duplicateTicketId || undefined,
+    admin_metadata: adminMetadata,
   };
 }
 
@@ -864,15 +1128,18 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
   const similarTicketsForSummary = relevanceSummary.relevant
     ? similarTicketsSummary
     : EMPTY_TICKETS_PLACEHOLDER;
+  const serverHealthContext = await getServerHealthContext();
   const systemPrompt = fillPrompt(TICKET_SUMMARY, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     priority: priorityHint || 'medium',
     category: categoryHint || 'Other',
     similarTickets: similarTicketsForSummary,
+    recognized_access_info: userContext?.computerAccessAnalysis ?? '',
+    serverHealthContext: serverHealthContext || '',
   });
 
-  const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;
+  const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority, environment_clues).`;
 
   // Виклик AI з retry механізмом
   const response = await retryHelper.retryAIRequest(
@@ -907,11 +1174,16 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
   const priority = ['low', 'medium', 'high', 'urgent'].includes(parsed.priority)
     ? parsed.priority
     : 'medium';
+  let description = String(parsed.description || '');
+  if (parsed.environment_clues && typeof parsed.environment_clues === 'object') {
+    description += `\n\n---\n🔧 [Metadata для адміна] environment_clues: ${JSON.stringify(parsed.environment_clues)}`;
+  }
   return {
     title: String(parsed.title || 'Проблема').slice(0, 200),
-    description: String(parsed.description || ''),
+    description,
     category: String(parsed.category || 'Інше').slice(0, 100),
     priority,
+    environment_clues: parsed.environment_clues || null,
   };
 }
 
@@ -1322,7 +1594,8 @@ async function generateConversationalResponse(
   dialogHistory,
   transitionType = 'request_details',
   userContext,
-  emotionalTone = 'neutral'
+  emotionalTone = 'neutral',
+  extraOptions = {}
 ) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
@@ -1334,12 +1607,23 @@ async function generateConversationalResponse(
     return 'Гаразд, зрозумів.';
   }
 
+  let queueVars = { queueContext: '(немає)', queueCount: '2-4', queueMinutes: '40' };
+  if (transitionType === 'session_closed' && extraOptions.priority === 'medium') {
+    const q = await getQueueContext();
+    queueVars = {
+      queueContext: `Перед користувачем в черзі ${q.count} заявок, орієнтовний час — ${q.minutes} хв`,
+      queueCount: String(q.count),
+      queueMinutes: String(q.minutes),
+    };
+  }
+
   const { CONVERSATIONAL_TRANSITION, TEMPERATURES } = require('../prompts/aiFirstLinePrompts');
   const systemPrompt = fillPrompt(CONVERSATIONAL_TRANSITION, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
     transitionType,
     emotionalTone,
+    ...queueVars,
   });
 
   const userMessage = `Згенеруй фразу для типу: ${transitionType}`;
@@ -1553,6 +1837,109 @@ async function generateKbArticleFromTitle(title, webSnippet = '') {
   return { content, category, tags };
 }
 
+/**
+ * AI аналіз Zabbix алерту — Triage + Enrichment.
+ * Визначає чи створювати тікет, збагачує опис, дає рекомендації.
+ * @param {Object} alert - ZabbixAlert object (or plain object with alert data)
+ * @param {Object} [options] - { recentAlerts: [] }
+ * @returns {Promise<Object|null>} - AI analysis result or null if AI disabled
+ */
+async function analyzeZabbixAlert(alert, options = {}) {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled) {
+    logger.info('AI: Zabbix alert analysis skipped — AI disabled');
+    return null;
+  }
+
+  const apiKey = settings.provider === 'gemini' ? settings.geminiApiKey : settings.openaiApiKey;
+  if (!apiKey || !apiKey.trim()) {
+    logger.warn('AI: Zabbix alert analysis skipped — no API key');
+    return null;
+  }
+
+  const severityLabels = {
+    0: 'Not classified',
+    1: 'Information',
+    2: 'Warning',
+    3: 'High',
+    4: 'Disaster',
+  };
+
+  const recentAlerts = options.recentAlerts || [];
+  let recentAlertsContext = '(немає)';
+  if (recentAlerts.length > 0) {
+    recentAlertsContext = recentAlerts
+      .map(
+        a =>
+          `- Alert #${a.alertId}: trigger="${a.triggerName}", severity=${a.severity}, status=${a.status}, resolved=${a.resolved}, time=${a.eventTime}`
+      )
+      .join('\n');
+  }
+
+  const eventTime = alert.eventTime
+    ? new Date(alert.eventTime).toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' })
+    : new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kiev' });
+
+  const systemPrompt = fillPrompt(ZABBIX_ALERT_ANALYSIS, {
+    alertHost: alert.host || 'Unknown',
+    alertTrigger: alert.triggerName || 'Unknown Trigger',
+    alertSeverity: String(alert.severity ?? 0),
+    alertSeverityLabel: severityLabels[alert.severity] || 'Unknown',
+    alertStatus: alert.status || 'PROBLEM',
+    alertMessage: alert.message || '',
+    alertTriggerDescription: alert.triggerDescription || '',
+    alertEventTime: eventTime,
+    recentAlertsContext,
+  });
+
+  const userMessage = `Проаналізуй цей Zabbix алерт і дай відповідь у JSON.`;
+
+  try {
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          userMessage,
+          MAX_TOKENS.ZABBIX_ALERT_ANALYSIS,
+          true,
+          TEMPERATURES.ZABBIX_ALERT_ANALYSIS
+        ),
+      'analyzeZabbixAlert'
+    );
+
+    if (!response) {
+      logger.warn('AI: analyzeZabbixAlert — empty response');
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(String(response).trim());
+    if (!parsed || typeof parsed !== 'object') {
+      logger.error('AI: analyzeZabbixAlert — failed to parse JSON', {
+        response: String(response).substring(0, 500),
+      });
+      return null;
+    }
+
+    return {
+      isCritical: !!parsed.isCritical,
+      isDuplicate: !!parsed.isDuplicate,
+      duplicateAlertId: parsed.duplicateAlertId || null,
+      isRecurring: !!parsed.isRecurring,
+      impactAssessment: ['critical', 'high', 'medium', 'low'].includes(parsed.impactAssessment)
+        ? parsed.impactAssessment
+        : 'medium',
+      descriptionUk: String(parsed.descriptionUk || ''),
+      possibleCauses: Array.isArray(parsed.possibleCauses) ? parsed.possibleCauses : [],
+      recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : [],
+      telegramSummary: String(parsed.telegramSummary || ''),
+    };
+  } catch (err) {
+    logger.error('AI: analyzeZabbixAlert error', { message: err.message });
+    return null;
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
@@ -1570,4 +1957,5 @@ module.exports = {
   transcribeVoiceToText,
   generateStatisticsAnalysis,
   generateKbArticleFromTitle,
+  analyzeZabbixAlert,
 };

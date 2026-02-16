@@ -943,7 +943,8 @@ class TelegramAIService {
       result = await aiFirstLineService.analyzeIntent(
         session.dialog_history,
         session.userContext,
-        webSearchContext
+        webSearchContext,
+        { userId: user?._id }
       );
     } catch (err) {
       logger.error('AI: помилка analyzeIntent', err);
@@ -1137,6 +1138,21 @@ class TelegramAIService {
       // Інформаційна відповідь без заявки (наприклад графік підтримки, контакт) — відправити одразу
       const offTopic = result.offTopicResponse && String(result.offTopicResponse).trim();
       if (offTopic) {
+        if (result.duplicateTicketId && user?._id) {
+          try {
+            const Ticket = require('../models/Ticket');
+            const dupTicket = await Ticket.findById(result.duplicateTicketId);
+            if (dupTicket && !dupTicket.watchers.some(w => String(w) === String(user._id))) {
+              await dupTicket.addWatcher(user._id);
+              logger.info('Користувача додано у копію дубліката', {
+                ticketId: dupTicket._id,
+                userId: user._id,
+              });
+            }
+          } catch (err) {
+            logger.warn('Не вдалося додати watcher до дубліката', { err: err?.message });
+          }
+        }
         const msg = offTopic.slice(0, 500);
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {

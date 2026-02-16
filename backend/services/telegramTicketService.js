@@ -647,12 +647,37 @@ class TelegramTicketService {
           String(aiSettings.geminiApiKey).trim()));
 
     if (aiEnabled && hasApiKey) {
+      let userEquipmentSummary = '';
+      try {
+        const Equipment = require('../models/Equipment');
+        const equipList = await Equipment.find({ assignedTo: profile._id }).lean();
+        if (equipList?.length) {
+          userEquipmentSummary =
+            equipList
+              .map(e => {
+                const parts = [e.name, e.brand, e.model].filter(Boolean);
+                const spec = e.specifications;
+                const cpu = spec?.get?.('CPU') || spec?.CPU;
+                if (cpu) {
+                  parts.push(cpu);
+                }
+                return parts.join(' ');
+              })
+              .filter(Boolean)
+              .join('; ') || equipList.map(e => e.name).join('; ');
+        }
+      } catch (_equipErr) {
+        /* equipment lookup optional */
+      }
       const userContext = {
         userCity: profile.city?.name || 'Не вказано',
+        userCityId: profile.city?._id || profile.city,
+        userInstitutionId: profile.institution?._id || profile.institution,
         userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
         userInstitution: profile.institution?.name || '',
         userName: [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
         userEmail: profile.email,
+        userEquipmentSummary: userEquipmentSummary || undefined,
       };
       const session = {
         mode: 'ai',
@@ -1433,7 +1458,9 @@ class TelegramTicketService {
       const filler = await aiFirstLineService.generateConversationalResponse(
         session.dialog_history || [],
         'session_closed',
-        session.userContext || {}
+        session.userContext || {},
+        session.cachedEmotionalTone || 'calm',
+        { priority: ticket?.priority || session?.cachedPriority || 'medium' }
       );
       const confirmText = `🎉 *${filler}*\n` + `🆔 \`${ticket._id}\``;
 

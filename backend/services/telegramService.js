@@ -53,12 +53,12 @@ class TelegramService {
 
   /** Час неактивності (мс), після якого сесію завершують з повідомленням у чат */
   static get SESSION_IDLE_TIMEOUT_MS() {
-    return 5 * 60 * 1000; // 5 хвилин
+    return 30 * 60 * 1000; // 30 хвилин
   }
 
   /** Час неактивності (мс), коли надсилати попередження (за 1 хв до відключення) */
   static get SESSION_IDLE_WARNING_MS() {
-    return 4 * 60 * 1000; // 4 хвилини
+    return 29 * 60 * 1000; // 29 хвилин
   }
 
   /** Інтервал перевірки неактивних сесій (мс) */
@@ -68,8 +68,8 @@ class TelegramService {
 
   /**
    * Перевіряє сесії на неактивність:
-   * - 4 хв: попередження + кнопка «Продовжити сесію»
-   * - 5 хв: завершення сесії
+   * - 29 хв: попередження + кнопка «Продовжити сесію»
+   * - 30 хв: завершення сесії
    */
   _checkSessionIdleTimeout() {
     if (!this.bot) {
@@ -111,11 +111,11 @@ class TelegramService {
       );
       logger.info('Надіслано попередження про неактивність сесії', { chatId });
     }
-    // 2. Завершення (5 хв неактивності)
+    // 2. Завершення (30 хв неактивності)
     for (const [chatId, _session] of toDelete) {
       this.userSessions.delete(chatId);
       const msg =
-        '⏱ Сесію завершено через неактивність (5 хв). Напишіть знову, якщо потрібна допомога.';
+        '⏱ Сесію завершено через неактивність (30 хв). Напишіть знову, якщо потрібна допомога.';
       this.sendMessage(chatId, msg, {
         reply_markup: {
           inline_keyboard: [
@@ -266,7 +266,7 @@ class TelegramService {
           () => this._checkSessionIdleTimeout(),
           TelegramService.SESSION_IDLE_CHECK_INTERVAL_MS
         );
-        logger.info('Таймер неактивних сесій увімкнено: попередження 4 хв, відключення 5 хв');
+        logger.info('Таймер неактивних сесій увімкнено: попередження 29 хв, відключення 30 хв');
       } catch (botError) {
         // Якщо не вдалося створити бота (наприклад, невалідний токен)
         logger.warn('⚠️ Не вдалося ініціалізувати Telegram бота:', botError.message);
@@ -1852,8 +1852,33 @@ class TelegramService {
           .populate('institution', 'name')
           .lean();
         const profile = fullUser || existingUser;
+        const userCityId = profile.city?._id || profile.city;
+        let userEquipmentSummary = '';
+        try {
+          const Equipment = require('../models/Equipment');
+          const equipList = await Equipment.find({ assignedTo: profile._id }).lean();
+          if (equipList && equipList.length) {
+            userEquipmentSummary =
+              equipList
+                .map(e => {
+                  const parts = [e.name, e.brand, e.model].filter(Boolean);
+                  const spec = e.specifications;
+                  const cpu = spec?.get?.('CPU') || spec?.CPU;
+                  if (cpu) {
+                    parts.push(cpu);
+                  }
+                  return parts.join(' ');
+                })
+                .filter(Boolean)
+                .join('; ') || equipList.map(e => e.name).join('; ');
+          }
+        } catch (_equipErr) {
+          /* equipment lookup optional */
+        }
         const userContext = {
           userCity: profile.city?.name || 'Не вказано',
+          userCityId,
+          userInstitutionId: profile.institution?._id || profile.institution,
           userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
           userInstitution: profile.institution?.name || '',
           userName:
@@ -1864,6 +1889,7 @@ class TelegramService {
           ),
           computerAccessAnalysis:
             (profile.computerAccessAnalysis && String(profile.computerAccessAnalysis).trim()) || '',
+          userEquipmentSummary: userEquipmentSummary || undefined,
         };
         const session = {
           mode: 'ai',
