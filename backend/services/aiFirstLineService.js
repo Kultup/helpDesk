@@ -5,6 +5,8 @@ const AISettings = require('../models/AISettings');
 const Ticket = require('../models/Ticket');
 const {
   INTENT_ANALYSIS,
+  INTENT_ANALYSIS_LIGHT,
+  selectIntentPrompt,
   SIMILAR_TICKETS_RELEVANCE_CHECK,
   KB_ARTICLE_RELEVANCE_CHECK,
   NEXT_QUESTION,
@@ -14,6 +16,12 @@ const {
   STATISTICS_ANALYSIS,
   RATING_EMOTION,
   ZABBIX_ALERT_ANALYSIS,
+  TICKET_UPDATE_NOTIFICATION,
+  CONVERSATION_SUMMARY,
+  AUTO_RESOLUTION_CHECK,
+  SLA_BREACH_DETECTION,
+  PROACTIVE_ISSUE_DETECTION,
+  KB_ARTICLE_GENERATION,
   fillPrompt,
   MAX_TOKENS,
   TEMPERATURES,
@@ -621,6 +629,67 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
       confidence: 0,
     };
   }
+
+  // ━━━━ LIGHT CLASSIFICATION (saves ~60% tokens for simple messages) ━━━━
+  const promptMode = selectIntentPrompt({
+    dialogHistory,
+    isFirstMessage: dialogHistory.filter(m => m.role === 'user').length <= 1,
+  });
+
+  if (promptMode === 'light') {
+    try {
+      const serverHealthContext = await getServerHealthContext();
+      const lightPrompt = fillPrompt(INTENT_ANALYSIS_LIGHT, {
+        userContext: formatUserContext(userContext),
+        timeContext: getTimeContextForPrompt(),
+        dialogHistory: formatDialogHistory(dialogHistory),
+        serverHealthContext: serverHealthContext || '✅ Все працює нормально',
+      });
+
+      const lightResponse = await callChatCompletion(
+        settings,
+        lightPrompt,
+        dialogHistory.length > 0 ? dialogHistory[dialogHistory.length - 1].content : '',
+        MAX_TOKENS.INTENT_ANALYSIS_LIGHT,
+        true,
+        TEMPERATURES.INTENT_ANALYSIS_LIGHT
+      );
+
+      if (lightResponse) {
+        const lightParsed = parseJsonFromResponse(lightResponse);
+        if (lightParsed && !lightParsed.needsFullAnalysis) {
+          logger.info('AI: Light classification resolved (saved tokens)', {
+            requestType: lightParsed.requestType,
+            confidence: lightParsed.requestTypeConfidence,
+          });
+          return {
+            requestType: lightParsed.requestType || 'greeting',
+            requestTypeConfidence: parseFloat(lightParsed.requestTypeConfidence) || 0.8,
+            requestTypeReason: 'light_classification',
+            isTicketIntent: !!lightParsed.isTicketIntent,
+            needsMoreInfo: !!lightParsed.needsMoreInfo,
+            missingInfo: [],
+            category: lightParsed.category || '',
+            confidence: parseFloat(lightParsed.confidence) || 0.8,
+            priority: lightParsed.priority || 'low',
+            emotionalTone: lightParsed.emotionalTone || 'neutral',
+            quickSolution: lightParsed.quickSolution || '',
+            offTopicResponse: lightParsed.offTopicResponse || '',
+            needMoreContext: false,
+            moreContextSource: 'none',
+            promptMode: 'light',
+          };
+        }
+        // If needsFullAnalysis is true, fall through to full analysis
+        logger.info('AI: Light classification detected IT problem, switching to full analysis');
+      }
+    } catch (lightErr) {
+      logger.warn('AI: Light classification failed, falling back to full', {
+        error: lightErr.message,
+      });
+    }
+  }
+  // ━━━━ END LIGHT CLASSIFICATION ━━━━
 
   // Отримуємо список доступних швидких рішень
   const aiEnhancedService = require('./aiEnhancedService');
@@ -1498,7 +1567,41 @@ async function analyzePhoto(imagePath, problemDescription, userContext) {
       );
     }
     const text = response?.choices?.[0]?.message?.content;
-    return text ? String(text).trim() : null;
+    if (!text) {
+      return null;
+    }
+
+    const fullText = String(text).trim();
+
+    // Parse structured metadata if present
+    const metadataSeparator = '---METADATA---';
+    const metadataIndex = fullText.indexOf(metadataSeparator);
+
+    if (metadataIndex !== -1) {
+      const userMessage = fullText.substring(0, metadataIndex).trim();
+      const metadataStr = fullText.substring(metadataIndex + metadataSeparator.length).trim();
+
+      let metadata = null;
+      try {
+        metadata = JSON.parse(metadataStr);
+        logger.info('AI: Photo analysis metadata parsed', {
+          errorType: metadata.errorType,
+          softwareDetected: metadata.softwareDetected,
+          hardwareDetected: metadata.hardwareDetected,
+          actionRequired: metadata.actionRequired,
+          severity: metadata.severity,
+        });
+      } catch (_parseErr) {
+        logger.warn('AI: Failed to parse photo metadata, returning text only');
+      }
+
+      return {
+        text: userMessage,
+        metadata: metadata || null,
+      };
+    }
+
+    return { text: fullText, metadata: null };
   } catch (err) {
     logger.error('AI: помилка аналізу фото (vision)', { message: err.message });
     return null;
@@ -1926,6 +2029,8 @@ async function analyzeZabbixAlert(alert, options = {}) {
       isDuplicate: !!parsed.isDuplicate,
       duplicateAlertId: parsed.duplicateAlertId || null,
       isRecurring: !!parsed.isRecurring,
+      rootCause: parsed.rootCause || null,
+      relatedAlertIds: Array.isArray(parsed.relatedAlertIds) ? parsed.relatedAlertIds : [],
       impactAssessment: ['critical', 'high', 'medium', 'low'].includes(parsed.impactAssessment)
         ? parsed.impactAssessment
         : 'medium',
@@ -1936,6 +2041,332 @@ async function analyzeZabbixAlert(alert, options = {}) {
     };
   } catch (err) {
     logger.error('AI: analyzeZabbixAlert error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// TICKET_UPDATE_NOTIFICATION
+// ============================================================
+async function generateTicketUpdateNotification(ticketData, statusChange) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const systemPrompt = fillPrompt(TICKET_UPDATE_NOTIFICATION, {
+      ticketTitle: ticketData.title || '',
+      previousStatus: statusChange.from || '',
+      newStatus: statusChange.to || '',
+      adminComment: statusChange.comment || '(без коментаря)',
+      ticketPriority: ticketData.priority || '',
+      ticketCategory: ticketData.category || '',
+      adminName: statusChange.adminName || 'Адміністратор',
+      userName: ticketData.userName || 'Користувач',
+      ticketCreatedAt: ticketData.createdAt
+        ? new Date(ticketData.createdAt).toLocaleString('uk-UA')
+        : '',
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          `Згенеруй повідомлення для користувача про зміну статусу з "${statusChange.from}" на "${statusChange.to}"`,
+          MAX_TOKENS.TICKET_UPDATE_NOTIFICATION,
+          false,
+          TEMPERATURES.TICKET_UPDATE_NOTIFICATION
+        ),
+      'generateTicketUpdateNotification'
+    );
+
+    if (!response || typeof response !== 'string') {
+      return null;
+    }
+
+    return response.trim();
+  } catch (err) {
+    logger.error('AI: generateTicketUpdateNotification error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// CONVERSATION_SUMMARY
+// ============================================================
+async function generateConversationSummary(dialogHistory, userContext, ticketInfo = {}) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const systemPrompt = fillPrompt(CONVERSATION_SUMMARY, {
+      dialogHistory: formatDialogHistory(dialogHistory),
+      userContext: formatUserContext(userContext),
+      category: ticketInfo.category || 'Не визначено',
+      priority: ticketInfo.priority || 'medium',
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          'Підсумуй цю розмову для адміністратора',
+          MAX_TOKENS.CONVERSATION_SUMMARY,
+          true,
+          TEMPERATURES.CONVERSATION_SUMMARY
+        ),
+      'generateConversationSummary'
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(response);
+    if (!parsed) {
+      logger.warn('AI: Failed to parse conversation summary JSON');
+      return null;
+    }
+
+    return {
+      problemStatement: String(parsed.problemStatement || ''),
+      keyDetails: Array.isArray(parsed.keyDetails) ? parsed.keyDetails : [],
+      userTriedSteps: Array.isArray(parsed.userTriedSteps) ? parsed.userTriedSteps : [],
+      remoteAccessInfo: parsed.remoteAccessInfo || null,
+      userMood: ['calm', 'frustrated', 'angry', 'confused', 'urgent'].includes(parsed.userMood)
+        ? parsed.userMood
+        : 'calm',
+      recommendedAction: String(parsed.recommendedAction || ''),
+      adminNotes: String(parsed.adminNotes || ''),
+    };
+  } catch (err) {
+    logger.error('AI: generateConversationSummary error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// AUTO_RESOLUTION_CHECK
+// ============================================================
+async function checkAutoResolution(recentMessages, ticketInfo = {}) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const messagesText = recentMessages
+      .map(m => `${m.role === 'user' ? 'Юзер' : 'Бот'}: ${m.content}`)
+      .join('\n');
+
+    const systemPrompt = fillPrompt(AUTO_RESOLUTION_CHECK, {
+      recentMessages: messagesText,
+      category: ticketInfo.category || '',
+      hadQuickSolution: ticketInfo.hadQuickSolution ? 'true' : 'false',
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          'Визнач, чи вирішена проблема',
+          MAX_TOKENS.AUTO_RESOLUTION_CHECK,
+          true,
+          TEMPERATURES.AUTO_RESOLUTION_CHECK
+        ),
+      'checkAutoResolution'
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(response);
+    if (!parsed) {
+      return null;
+    }
+
+    return {
+      status: ['RESOLVED', 'NOT_RESOLVED', 'UNCLEAR'].includes(parsed.status)
+        ? parsed.status
+        : 'UNCLEAR',
+      confidence: Math.max(0, Math.min(1, parseFloat(parsed.confidence) || 0)),
+      reason: String(parsed.reason || ''),
+      userSentiment: ['positive', 'neutral', 'negative'].includes(parsed.userSentiment)
+        ? parsed.userSentiment
+        : 'neutral',
+    };
+  } catch (err) {
+    logger.error('AI: checkAutoResolution error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// SLA_BREACH_DETECTION
+// ============================================================
+async function detectSlaBreaches(tickets) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const ticketQueue = tickets
+      .map(
+        t =>
+          `[${t._id}] "${t.title}" | Priority: ${t.priority} | Status: ${t.status} | Created: ${new Date(t.createdAt).toLocaleString('uk-UA')} | Category: ${t.category || 'N/A'}`
+      )
+      .join('\n');
+
+    const systemPrompt = fillPrompt(SLA_BREACH_DETECTION, {
+      ticketQueue,
+      currentTime: new Date().toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' }),
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          'Проаналізуй чергу тікетів на порушення SLA',
+          MAX_TOKENS.SLA_BREACH_DETECTION,
+          true,
+          TEMPERATURES.SLA_BREACH_DETECTION
+        ),
+      'detectSlaBreaches'
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(response);
+    if (!parsed) {
+      return null;
+    }
+
+    return {
+      breached: Array.isArray(parsed.breached) ? parsed.breached : [],
+      atRisk: Array.isArray(parsed.atRisk) ? parsed.atRisk : [],
+      summary: String(parsed.summary || ''),
+      recommendedOrder: Array.isArray(parsed.recommendedOrder) ? parsed.recommendedOrder : [],
+      alertLevel: ['critical', 'warning', 'normal'].includes(parsed.alertLevel)
+        ? parsed.alertLevel
+        : 'normal',
+    };
+  } catch (err) {
+    logger.error('AI: detectSlaBreaches error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// PROACTIVE_ISSUE_DETECTION
+// ============================================================
+async function detectProactiveIssues(trendData, hostInfo) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const systemPrompt = fillPrompt(PROACTIVE_ISSUE_DETECTION, {
+      trendData: typeof trendData === 'string' ? trendData : JSON.stringify(trendData, null, 2),
+      hostInfo: typeof hostInfo === 'string' ? hostInfo : JSON.stringify(hostInfo, null, 2),
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          'Проаналізуй тренди та прогнозуй проблеми',
+          MAX_TOKENS.PROACTIVE_ISSUE_DETECTION,
+          true,
+          TEMPERATURES.PROACTIVE_ISSUE_DETECTION
+        ),
+      'detectProactiveIssues'
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(response);
+    if (!parsed) {
+      return null;
+    }
+
+    return {
+      predictions: Array.isArray(parsed.predictions) ? parsed.predictions : [],
+      summary: String(parsed.summary || ''),
+      hostsMostAtRisk: Array.isArray(parsed.hostsMostAtRisk) ? parsed.hostsMostAtRisk : [],
+    };
+  } catch (err) {
+    logger.error('AI: detectProactiveIssues error', { message: err.message });
+    return null;
+  }
+}
+
+// ============================================================
+// KB_ARTICLE_GENERATION (повна версія)
+// ============================================================
+async function generateKbArticleFromTicket(ticket, dialogHistory = []) {
+  try {
+    const settings = await getAISettings();
+    if (!settings?.enabled) {
+      return null;
+    }
+
+    const systemPrompt = fillPrompt(KB_ARTICLE_GENERATION, {
+      ticketTitle: ticket.title || '',
+      ticketCategory: ticket.category || '',
+      ticketDescription: ticket.description || '',
+      ticketResolution: ticket.resolution || ticket.adminNotes || '',
+      dialogHistory: dialogHistory.length > 0 ? formatDialogHistory(dialogHistory) : '(немає)',
+      webContext: '(немає)',
+    });
+
+    const response = await retryHelper.retryAIRequest(
+      () =>
+        callChatCompletion(
+          settings,
+          systemPrompt,
+          'Створи статтю бази знань з цього вирішеного тікета',
+          MAX_TOKENS.KB_ARTICLE_GENERATION,
+          true,
+          TEMPERATURES.KB_ARTICLE_GENERATION
+        ),
+      'generateKbArticleFromTicket'
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    const parsed = parseJsonFromResponse(response);
+    if (!parsed) {
+      return null;
+    }
+
+    return {
+      title: String(parsed.title || ticket.title || ''),
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      content: String(parsed.content || ''),
+      difficulty: ['easy', 'medium', 'advanced'].includes(parsed.difficulty)
+        ? parsed.difficulty
+        : 'medium',
+      applicableTo: String(parsed.applicableTo || ''),
+    };
+  } catch (err) {
+    logger.error('AI: generateKbArticleFromTicket error', { message: err.message });
     return null;
   }
 }
@@ -1958,4 +2389,11 @@ module.exports = {
   generateStatisticsAnalysis,
   generateKbArticleFromTitle,
   analyzeZabbixAlert,
+  // New functions
+  generateTicketUpdateNotification,
+  generateConversationSummary,
+  checkAutoResolution,
+  detectSlaBreaches,
+  detectProactiveIssues,
+  generateKbArticleFromTicket,
 };

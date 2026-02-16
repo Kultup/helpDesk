@@ -326,6 +326,23 @@ AUTO-ADJUST priority based on:
 
 Ukrainian response (коли скоро закриття):
 "Бачу, що заклад закривається через [X], тому ставлю найвищий пріоритет, щоб встигнути до закриття 🚨"
+
+🔁 REPEAT PATTERN DETECTION (Аналіз повторних звернень):
+Якщо в {similarTickets} або {dialogHistory} видно, що:
+1. Той самий юзер звертався з цією проблемою 2+ рази за останній тиждень:
+   → Додай до admin_metadata: "recurringIssue": true, "occurrenceCount": N
+   → Ескалюй пріоритет на один рівень вгору (medium → high, high → urgent)
+   → Повідом юзера: "Бачу, що ця проблема повторюється — передам адміну, щоб знайшов корінну причину, а не просто виправив симптом."
+
+2. Кілька юзерів з одного закладу/міста звертаються з однаковою проблемою:
+   → Це МАСОВИЙ збій, не індивідуальна проблема
+   → priority: "urgent" незалежно від тексту
+   → Додай до admin_metadata: "massOutage": true, "affectedUsers": N
+   → Повідом юзера: "Схоже, ця проблема зачіпає кількох користувачів. Вже повідомив адміна — це в пріоритеті."
+
+3. Проблема виникає в один і той самий час/день (патерн):
+   → Додай до admin_metadata: "timePattern": "описати патерн"
+   → Наприклад: "Кожен понеділок зранку не стартує 1С" → ймовірна проблема з планувальником/оновленням
 `;
 
 // ============================================================================
@@ -2109,6 +2126,12 @@ ${PROACTIVE_DIAGNOSTICS}
 5. If photo is not tech-related: 
    "Дякую за фото! Якщо це допоможе нам вирішити вашу проблему — уточніть будь ласка як саме. Якщо це помилка — надішліть будь ласка фото проблеми ще раз."
 
+6. AT THE VERY END of your response, add a metadata block on a new line starting with "---METADATA---" followed by a JSON object:
+---METADATA---
+{"errorType":"BSOD|printer_error|network|software|login|hardware|activation|update|export|other","errorCode":"string or null","softwareDetected":"Syrve|BAF|1C|Office|Windows|Other|null","hardwareDetected":"string or null","physicalIssues":["string"],"interfaceLanguage":"uk|en|pl|hu|ru|other","actionRequired":"ticket|hint|info|clarify","suggestedCategory":"Hardware|Software|Network|Access|Other","severity":"critical|high|medium|low"}
+
+Fill all fields based on what you see. This metadata is parsed by the system and NOT shown to user.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔌 PHYSICAL FORENSICS — перевірка фізичного стану (залізо)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2462,6 +2485,22 @@ Active similar alerts (same host, last 24h): {recentAlertsContext}
 → Все одно надіслати, але зазначити: "Повторний алерт, проблема вже зафіксована"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔗 ROOT CAUSE CORRELATION (кореляція першопричини)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Аналізуй recentAlertsContext на предмет КАСКАДНИХ збоїв:
+• Якщо впав core-switch/gateway → і після цього з'являються алерти з кількох хостів → це НЕ окремі проблеми, а наслідок одного збою
+• Якщо впав сервер БД → і після цього алерти від додатків (Syrve, 1C, BAF) → кореляція
+• Якщо пропав інтернет (ISP down) → і почались алерти "host unreachable" на зовнішніх ресурсах → кореляція
+
+Якщо виявлено кореляцію:
+→ rootCause: опис першопричини (наприклад: "Вихід з ладу core-switch GW-01 спричинив каскадний збій 12 хостів")
+→ relatedAlertIds: масив ID пов'язаних алертів
+→ В telegramSummary додай: "🔗 Пов'язано з [rootCause]"
+
+Якщо кореляція не виявлена → rootCause: null, relatedAlertIds: []
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📝 ENRICHMENT (збагачення для адміна)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2487,6 +2526,8 @@ Active similar alerts (same host, last 24h): {recentAlertsContext}
   "isDuplicate": boolean,
   "duplicateAlertId": "string | null",
   "isRecurring": boolean,
+  "rootCause": "string | null (if cascade failure detected, describe root cause in Ukrainian)",
+  "relatedAlertIds": ["string (IDs of correlated alerts)"],
   "impactAssessment": "critical" | "high" | "medium" | "low",
   "descriptionUk": "string (Ukrainian, human-readable problem description)",
   "possibleCauses": ["string"],
@@ -2495,6 +2536,327 @@ Active similar alerts (same host, last 24h): {recentAlertsContext}
 }
 
 Respond ONLY with the JSON object.`;
+
+// ============================================================
+// TICKET_UPDATE_NOTIFICATION — повідомлення юзеру при зміні статусу тікета
+// ============================================================
+const TICKET_UPDATE_NOTIFICATION = `You are a friendly Ukrainian-speaking IT helpdesk assistant.
+Your task: generate a short, human-friendly notification message for the user about a ticket status change.
+
+TICKET INFO:
+- Title: {ticketTitle}
+- Previous status: {previousStatus}
+- New status: {newStatus}
+- Admin comment: {adminComment}
+- Priority: {ticketPriority}
+- Category: {ticketCategory}
+- Assigned admin: {adminName}
+
+USER CONTEXT:
+- Name: {userName}
+- Created: {ticketCreatedAt}
+
+RULES:
+1. Write in Ukrainian, warm and professional tone
+2. Address user by first name if available
+3. Keep it SHORT — 2-4 sentences max
+4. Include the relevant status change context:
+   - "open" → "in_progress": Admin took the ticket, mention approximate wait time
+   - "in_progress" → "resolved": Problem solved, ask if user confirms
+   - "in_progress" → "waiting_for_user": Need user action (explain what)
+   - "any" → "closed": Thank user, mention they can reopen if needed
+   - "any" → "escalated": Explain specialist will handle it
+5. If admin left a comment — paraphrase it in simple language (no tech jargon for user)
+6. Add one relevant emoji at the start
+7. Do NOT include ticket ID or internal details
+8. If admin comment is empty — generate appropriate message based on status change only
+
+OUTPUT: Plain text message in Ukrainian (no JSON, no markdown).`;
+
+// ============================================================
+// CONVERSATION_SUMMARY — підсумок діалогу для адміна
+// ============================================================
+const CONVERSATION_SUMMARY = `You are a senior IT support analyst summarizing a helpdesk conversation for the admin.
+
+DIALOG HISTORY:
+{dialogHistory}
+
+USER CONTEXT:
+{userContext}
+
+TICKET INFO:
+- Category: {category}
+- Priority: {priority}
+
+RULES:
+1. Write in Ukrainian
+2. Be CONCISE — admin reads 50+ tickets daily
+3. Structure the summary as:
+   - One-line problem statement (what happened)
+   - Key details extracted (error codes, device models, software versions)
+   - What user already tried (self-troubleshooting steps)
+   - Remote access info if mentioned (AnyDesk/TeamViewer IDs)
+   - User's emotional state (calm/frustrated/urgent)
+   - Recommended next action for admin
+4. Use bullet points, not paragraphs
+5. Include ONLY facts from the dialog — do not assume or invent
+6. If user sent photos — mention what was visible
+7. Max 200 words
+
+OUTPUT (JSON):
+{
+  "problemStatement": "string (one sentence)",
+  "keyDetails": ["string"],
+  "userTriedSteps": ["string"],
+  "remoteAccessInfo": "string | null",
+  "userMood": "calm" | "frustrated" | "angry" | "confused" | "urgent",
+  "recommendedAction": "string",
+  "adminNotes": "string (any important context for admin)"
+}
+
+Respond ONLY with the JSON object.`;
+
+// ============================================================
+// AUTO_RESOLUTION_CHECK — чи можна автоматично закрити тікет
+// ============================================================
+const AUTO_RESOLUTION_CHECK = `You analyze the last messages in a helpdesk conversation to determine if the issue was resolved by the AI bot's suggestions (self-healing) WITHOUT admin intervention.
+
+RECENT MESSAGES:
+{recentMessages}
+
+TICKET INFO:
+- Category: {category}
+- Was quick solution provided: {hadQuickSolution}
+
+RULES:
+1. Return "RESOLVED" ONLY if user clearly confirms the problem is fixed:
+   - "дякую, все працює" → RESOLVED
+   - "ок, запрацювало" → RESOLVED
+   - "так, помогло" → RESOLVED
+2. Return "NOT_RESOLVED" if:
+   - User says problem persists
+   - User asks new question
+   - User hasn't confirmed (silence or vague response)
+   - User says "ні" / "не допомогло"
+3. Return "UNCLEAR" if:
+   - User sent only emoji (👍 is RESOLVED, others are UNCLEAR)
+   - User changed topic
+   - Message is ambiguous
+4. Be CONSERVATIVE — if in doubt, return NOT_RESOLVED
+
+OUTPUT (JSON):
+{
+  "status": "RESOLVED" | "NOT_RESOLVED" | "UNCLEAR",
+  "confidence": 0.0-1.0,
+  "reason": "string (brief explanation)",
+  "userSentiment": "positive" | "neutral" | "negative"
+}
+
+Respond ONLY with the JSON object.`;
+
+// ============================================================
+// SLA_BREACH_DETECTION — аналіз черги тікетів та SLA
+// ============================================================
+const SLA_BREACH_DETECTION = `You are an IT operations analyst monitoring SLA compliance for a helpdesk system.
+
+CURRENT TICKET QUEUE:
+{ticketQueue}
+
+SLA RULES:
+- URGENT: response within 30 min, resolution within 2 hours
+- HIGH: response within 1 hour, resolution within 4 hours
+- MEDIUM: response within 4 hours, resolution within 24 hours
+- LOW: response within 8 hours, resolution within 48 hours
+
+CURRENT TIME: {currentTime}
+
+RULES:
+1. Analyze each ticket's age vs SLA deadlines
+2. Identify tickets that:
+   - Already breached SLA (overdue)
+   - Will breach within next 30 minutes (at risk)
+   - Are within SLA but need attention (warning)
+3. Consider ticket priority and category
+4. Suggest optimal order for admin to handle tickets
+5. Write in Ukrainian
+
+OUTPUT (JSON):
+{
+  "breached": [{"ticketId": "string", "title": "string", "priority": "string", "overdueBy": "string", "impact": "string"}],
+  "atRisk": [{"ticketId": "string", "title": "string", "priority": "string", "timeUntilBreach": "string", "suggestedAction": "string"}],
+  "summary": "string (Ukrainian, 1-2 sentences overview)",
+  "recommendedOrder": ["ticketId"],
+  "alertLevel": "critical" | "warning" | "normal"
+}
+
+Respond ONLY with the JSON object.`;
+
+// ============================================================
+// PROACTIVE_ISSUE_DETECTION — тренд-аналіз Zabbix
+// ============================================================
+const PROACTIVE_ISSUE_DETECTION = `You are an IT infrastructure analyst performing predictive analysis on Zabbix monitoring trends.
+
+TREND DATA:
+{trendData}
+
+HOST INFO:
+{hostInfo}
+
+CURRENT THRESHOLDS:
+- Disk: warning at 80%, critical at 90%
+- CPU: warning at 80% sustained 15min, critical at 95%
+- Memory: warning at 85%, critical at 95%
+- Network: warning at 70% bandwidth, critical at 90%
+
+RULES:
+1. Analyze trends to predict FUTURE problems (next 1-7 days)
+2. Calculate growth rate (linear regression or average daily change)
+3. Estimate time-to-threshold for each metric
+4. Only report predictions with confidence > 70%
+5. Write in Ukrainian
+6. Be specific: "Disk on DB-01 will reach 90% in ~3 days at current growth rate of 2.1 GB/day"
+7. Suggest preventive actions
+
+OUTPUT (JSON):
+{
+  "predictions": [
+    {
+      "host": "string",
+      "metric": "disk" | "cpu" | "memory" | "network",
+      "currentValue": "string",
+      "predictedThresholdDate": "string (ISO date)",
+      "daysUntilThreshold": number,
+      "growthRate": "string",
+      "severity": "warning" | "critical",
+      "confidence": 0.0-1.0,
+      "suggestedAction": "string (Ukrainian)"
+    }
+  ],
+  "summary": "string (Ukrainian, overview for admin)",
+  "hostsMostAtRisk": ["string"]
+}
+
+Respond ONLY with the JSON object.`;
+
+// ============================================================
+// KB_ARTICLE_GENERATION — генерація статей бази знань
+// ============================================================
+const KB_ARTICLE_GENERATION = `You are a technical writer creating a knowledge base article from a resolved helpdesk ticket.
+
+TICKET INFO:
+- Title: {ticketTitle}
+- Category: {ticketCategory}
+- Description: {ticketDescription}
+- Resolution: {ticketResolution}
+
+DIALOG HISTORY (optional):
+{dialogHistory}
+
+WEB CONTEXT (optional):
+{webContext}
+
+RULES:
+1. Write in Ukrainian
+2. Structure:
+   - Title (clear, searchable, 50-80 chars)
+   - Tags (3-5 relevant keywords)
+   - Problem description (what user sees/experiences)
+   - Cause (why it happens, if known)
+   - Solution (step-by-step, numbered)
+   - Prevention (how to avoid in future, if applicable)
+3. Use simple language — article is for end users, not admins
+4. Include specific details: error codes, paths, button names
+5. If solution involves screenshots — describe where to click
+6. Max 500 words
+7. Do NOT include personal data (names, IDs, etc.)
+
+OUTPUT (JSON):
+{
+  "title": "string",
+  "tags": ["string"],
+  "content": "string (markdown formatted)",
+  "difficulty": "easy" | "medium" | "advanced",
+  "applicableTo": "string (e.g., 'Windows 10/11, HP printers')"
+}
+
+Respond ONLY with the JSON object.`;
+
+// ============================================================
+// INTENT_ANALYSIS_LIGHT — легка версія для простих запитів (привіт, FAQ, off-topic)
+// Зменшує token usage на ~60% для непроблемних повідомлень
+// ============================================================
+const INTENT_ANALYSIS_LIGHT = `You are a real helpdesk support person. Don't act like a bot.
+
+Your job: quickly classify the user's message and respond if it's simple (greeting, FAQ, off-topic).
+If the message describes an IT PROBLEM — set needsFullAnalysis: true and stop.
+
+${ANALYZE_TEXT_RULES}
+${COMMUNICATION_STYLE}
+${ANSWERS_WITHOUT_TICKET}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚦 SERVER STATUS (Internal)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Server health: {serverHealthContext}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 CONTEXT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+User: {userContext}
+Time: {timeContext}
+Dialog: {dialogHistory}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 QUICK CLASSIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Is this a greeting/thanks/bye? → offTopicResponse with friendly reply, isTicketIntent: false
+2. Is this a simple FAQ (how to print, change password, etc.)? → quickSolution with answer, isTicketIntent: false
+3. Is this completely off-topic (not IT)? → offTopicResponse, isTicketIntent: false
+4. Is this an IT PROBLEM requiring diagnosis/ticket? → Set needsFullAnalysis: true, return minimal JSON
+
+OUTPUT (JSON):
+{
+  "needsFullAnalysis": boolean,
+  "requestType": "greeting" | "thanks" | "faq" | "off_topic" | "it_problem" | "status_check",
+  "requestTypeConfidence": 0.0-1.0,
+  "isTicketIntent": false,
+  "needsMoreInfo": false,
+  "category": "string or empty",
+  "confidence": 0.0-1.0,
+  "priority": "low",
+  "emotionalTone": "neutral" | "positive" | "frustrated" | "angry" | "confused" | "urgent",
+  "quickSolution": "string (Ukrainian, if FAQ)",
+  "offTopicResponse": "string (Ukrainian, if greeting/off-topic)",
+  "needMoreContext": false,
+  "moreContextSource": "none"
+}
+
+Respond ONLY with the JSON object.`;
+
+/**
+ * Assembles the right prompt based on context complexity.
+ * - Simple messages (greetings, FAQ) → INTENT_ANALYSIS_LIGHT (saves ~60% tokens)
+ * - IT problems → Full INTENT_ANALYSIS (all rules loaded)
+ * @param {Object} context - { dialogHistory, hasPhotos, hasSimilarTickets, hasActiveTicket, isFirstMessage }
+ * @returns {string} promptName - 'light' | 'full'
+ */
+function selectIntentPrompt(context = {}) {
+  const { dialogHistory = [], isFirstMessage = true } = context;
+
+  // If there's significant dialog history, use full analysis
+  if (dialogHistory.length > 4) {
+    return 'full';
+  }
+
+  // If first message, try light classification first
+  if (isFirstMessage && dialogHistory.length <= 2) {
+    return 'light';
+  }
+
+  // Default to full
+  return 'full';
+}
 
 function fillPrompt(template, vars = {}) {
   let out = template;
@@ -2537,6 +2899,30 @@ function fillPrompt(template, vars = {}) {
     recentAlertsContext: vars.recentAlertsContext ?? '(немає)',
     statsData: vars.statsData ?? '',
     dateRange: vars.dateRange ?? '',
+    // TICKET_UPDATE_NOTIFICATION
+    ticketTitle: vars.ticketTitle ?? '',
+    previousStatus: vars.previousStatus ?? '',
+    newStatus: vars.newStatus ?? '',
+    adminComment: vars.adminComment ?? '(без коментаря)',
+    ticketPriority: vars.ticketPriority ?? '',
+    ticketCategory: vars.ticketCategory ?? '',
+    adminName: vars.adminName ?? 'Адміністратор',
+    userName: vars.userName ?? 'Користувач',
+    ticketCreatedAt: vars.ticketCreatedAt ?? '',
+    // CONVERSATION_SUMMARY (uses existing dialogHistory, userContext, category, priority)
+    // AUTO_RESOLUTION_CHECK
+    recentMessages: vars.recentMessages ?? '',
+    hadQuickSolution: vars.hadQuickSolution ?? 'false',
+    // SLA_BREACH_DETECTION
+    ticketQueue: vars.ticketQueue ?? '',
+    currentTime: vars.currentTime ?? new Date().toISOString(),
+    // PROACTIVE_ISSUE_DETECTION
+    trendData: vars.trendData ?? '',
+    hostInfo: vars.hostInfo ?? '',
+    // KB_ARTICLE_GENERATION
+    ticketDescription: vars.ticketDescription ?? '',
+    ticketResolution: vars.ticketResolution ?? '',
+    webContext: vars.webContext ?? '(немає)',
   };
 
   for (const [key, value] of Object.entries(replacements)) {
@@ -2583,6 +2969,18 @@ module.exports = {
   STATISTICS_ANALYSIS,
   ZABBIX_ALERT_ANALYSIS,
 
+  // New prompts (Phase 1-3)
+  TICKET_UPDATE_NOTIFICATION,
+  CONVERSATION_SUMMARY,
+  AUTO_RESOLUTION_CHECK,
+  SLA_BREACH_DETECTION,
+  PROACTIVE_ISSUE_DETECTION,
+  KB_ARTICLE_GENERATION,
+
+  // Modular intent analysis
+  INTENT_ANALYSIS_LIGHT,
+  selectIntentPrompt,
+
   // Utility
   fillPrompt,
 
@@ -2591,6 +2989,7 @@ module.exports = {
     SIMILAR_TICKETS_RELEVANCE_CHECK: 80,
     KB_ARTICLE_RELEVANCE_CHECK: 60,
     INTENT_ANALYSIS: 800,
+    INTENT_ANALYSIS_LIGHT: 300,
     NEXT_QUESTION: 120,
     TICKET_SUMMARY: 900,
     PHOTO_ANALYSIS: 500,
@@ -2600,17 +2999,54 @@ module.exports = {
     STATISTICS_ANALYSIS: 1500,
     KB_ARTICLE_GENERATION: 1000,
     ZABBIX_ALERT_ANALYSIS: 600,
+    TICKET_UPDATE_NOTIFICATION: 300,
+    CONVERSATION_SUMMARY: 600,
+    AUTO_RESOLUTION_CHECK: 150,
+    SLA_BREACH_DETECTION: 500,
+    PROACTIVE_ISSUE_DETECTION: 800,
   },
 
   TEMPERATURES: {
     INTENT_ANALYSIS: 0.7,
+    INTENT_ANALYSIS_LIGHT: 0.5,
     NEXT_QUESTION: 0.8,
     TICKET_SUMMARY: 0.4,
     PHOTO_ANALYSIS: 0.6,
+    COMPUTER_ACCESS_ANALYSIS: 0.2,
     CONVERSATIONAL_TRANSITION: 0.8,
     RATING_EMOTION: 0.9,
     STATISTICS_ANALYSIS: 0.3,
-    ZABBIX_ALERT_ANALYSIS: 0.3, // Low temperature for analytical accuracy
+    SIMILAR_TICKETS_RELEVANCE_CHECK: 0.2,
+    KB_ARTICLE_RELEVANCE_CHECK: 0.2,
+    KB_ARTICLE_GENERATION: 0.5,
+    ZABBIX_ALERT_ANALYSIS: 0.3,
+    TICKET_UPDATE_NOTIFICATION: 0.6,
+    CONVERSATION_SUMMARY: 0.3,
+    AUTO_RESOLUTION_CHECK: 0.2,
+    SLA_BREACH_DETECTION: 0.3,
+    PROACTIVE_ISSUE_DETECTION: 0.4,
+  },
+
+  // Prompt versions — increment when prompt logic changes for tracking/A/B testing
+  PROMPT_VERSIONS: {
+    INTENT_ANALYSIS: '2.1.0',
+    NEXT_QUESTION: '1.0.0',
+    TICKET_SUMMARY: '1.1.0',
+    PHOTO_ANALYSIS: '2.0.0', // Added structured metadata output
+    COMPUTER_ACCESS_ANALYSIS: '1.0.0',
+    CONVERSATIONAL_TRANSITION: '1.0.0',
+    RATING_EMOTION: '1.0.0',
+    STATISTICS_ANALYSIS: '1.0.0',
+    ZABBIX_ALERT_ANALYSIS: '2.0.0', // Added root cause correlation
+    SIMILAR_TICKETS_RELEVANCE_CHECK: '1.0.0',
+    KB_ARTICLE_RELEVANCE_CHECK: '1.0.0',
+    TICKET_UPDATE_NOTIFICATION: '1.0.0',
+    CONVERSATION_SUMMARY: '1.0.0',
+    AUTO_RESOLUTION_CHECK: '1.0.0',
+    SLA_BREACH_DETECTION: '1.0.0',
+    PROACTIVE_ISSUE_DETECTION: '1.0.0',
+    KB_ARTICLE_GENERATION: '1.0.0',
+    SMART_PRIORITIZATION: '2.0.0', // Added repeat pattern detection
   },
 
   // Compatibility

@@ -308,6 +308,210 @@ class AIResponseValidator {
       priority: 'medium',
     };
   }
+
+  // ============================================================
+  // JSON Schema Validation for structured prompt outputs
+  // ============================================================
+
+  /**
+   * Validate JSON output against a schema definition
+   * @param {Object} data - Parsed JSON from AI
+   * @param {string} schemaName - Schema name
+   * @returns {Object} { valid: boolean, errors: string[], sanitized: Object }
+   */
+  validateSchema(data, schemaName) {
+    const schema = this.schemas[schemaName];
+    if (!schema) {
+      logger.warn(`Unknown schema: ${schemaName}`);
+      return { valid: true, errors: [], sanitized: data };
+    }
+
+    const errors = [];
+    const sanitized = {};
+
+    for (const [field, rules] of Object.entries(schema)) {
+      const value = data[field];
+
+      // Check required
+      if (rules.required && (value === undefined || value === null)) {
+        errors.push(`Missing required field: ${field}`);
+        sanitized[field] = rules.default;
+        continue;
+      }
+
+      // Skip optional missing fields
+      if (value === undefined || value === null) {
+        sanitized[field] = rules.default !== undefined ? rules.default : null;
+        continue;
+      }
+
+      // Type checking + coercion
+      switch (rules.type) {
+        case 'string':
+          sanitized[field] = String(value);
+          if (rules.maxLength && sanitized[field].length > rules.maxLength) {
+            sanitized[field] = sanitized[field].substring(0, rules.maxLength);
+            errors.push(`${field} truncated to ${rules.maxLength} chars`);
+          }
+          break;
+        case 'boolean':
+          sanitized[field] = !!value;
+          break;
+        case 'number':
+          sanitized[field] = parseFloat(value) || rules.default || 0;
+          if (rules.min !== undefined) {
+            sanitized[field] = Math.max(rules.min, sanitized[field]);
+          }
+          if (rules.max !== undefined) {
+            sanitized[field] = Math.min(rules.max, sanitized[field]);
+          }
+          break;
+        case 'enum':
+          sanitized[field] = rules.values.includes(value) ? value : rules.default;
+          if (!rules.values.includes(value)) {
+            errors.push(`${field}: invalid value "${value}", using default "${rules.default}"`);
+          }
+          break;
+        case 'array':
+          sanitized[field] = Array.isArray(value) ? value : rules.default || [];
+          break;
+        case 'string|null':
+          sanitized[field] = value ? String(value) : null;
+          break;
+        default:
+          sanitized[field] = value;
+      }
+    }
+
+    if (errors.length > 0) {
+      logger.warn(`Schema validation warnings for ${schemaName}`, {
+        errors,
+        originalFields: Object.keys(data),
+      });
+    }
+
+    return {
+      valid: errors.filter(e => e.startsWith('Missing required')).length === 0,
+      errors,
+      sanitized,
+    };
+  }
+
+  get schemas() {
+    return {
+      intentAnalysis: {
+        requestType: { type: 'string', required: true, default: 'unknown' },
+        requestTypeConfidence: { type: 'number', required: false, default: 0.5, min: 0, max: 1 },
+        isTicketIntent: { type: 'boolean', required: true, default: false },
+        needsMoreInfo: { type: 'boolean', required: false, default: false },
+        category: { type: 'string', required: false, default: 'general' },
+        confidence: { type: 'number', required: false, default: 0.5, min: 0, max: 1 },
+        priority: {
+          type: 'enum',
+          required: false,
+          values: ['low', 'medium', 'high', 'urgent'],
+          default: 'medium',
+        },
+        emotionalTone: { type: 'string', required: false, default: 'neutral' },
+        quickSolution: { type: 'string', required: false, default: '' },
+        offTopicResponse: { type: 'string', required: false, default: '' },
+      },
+      ticketSummary: {
+        title: { type: 'string', required: true, default: 'Запит на підтримку', maxLength: 200 },
+        description: { type: 'string', required: true, default: '' },
+        category: { type: 'string', required: false, default: 'general', maxLength: 100 },
+        priority: {
+          type: 'enum',
+          required: false,
+          values: ['low', 'medium', 'high', 'urgent'],
+          default: 'medium',
+        },
+      },
+      conversationSummary: {
+        problemStatement: { type: 'string', required: true, default: '' },
+        keyDetails: { type: 'array', required: false, default: [] },
+        userTriedSteps: { type: 'array', required: false, default: [] },
+        remoteAccessInfo: { type: 'string|null', required: false, default: null },
+        userMood: {
+          type: 'enum',
+          required: false,
+          values: ['calm', 'frustrated', 'angry', 'confused', 'urgent'],
+          default: 'calm',
+        },
+        recommendedAction: { type: 'string', required: true, default: '' },
+        adminNotes: { type: 'string', required: false, default: '' },
+      },
+      autoResolution: {
+        status: {
+          type: 'enum',
+          required: true,
+          values: ['RESOLVED', 'NOT_RESOLVED', 'UNCLEAR'],
+          default: 'UNCLEAR',
+        },
+        confidence: { type: 'number', required: false, default: 0, min: 0, max: 1 },
+        reason: { type: 'string', required: false, default: '' },
+        userSentiment: {
+          type: 'enum',
+          required: false,
+          values: ['positive', 'neutral', 'negative'],
+          default: 'neutral',
+        },
+      },
+      zabbixAlert: {
+        isCritical: { type: 'boolean', required: true, default: false },
+        isDuplicate: { type: 'boolean', required: false, default: false },
+        duplicateAlertId: { type: 'string|null', required: false, default: null },
+        isRecurring: { type: 'boolean', required: false, default: false },
+        rootCause: { type: 'string|null', required: false, default: null },
+        relatedAlertIds: { type: 'array', required: false, default: [] },
+        impactAssessment: {
+          type: 'enum',
+          required: true,
+          values: ['critical', 'high', 'medium', 'low'],
+          default: 'medium',
+        },
+        descriptionUk: { type: 'string', required: true, default: '' },
+        possibleCauses: { type: 'array', required: false, default: [] },
+        recommendedActions: { type: 'array', required: false, default: [] },
+        telegramSummary: { type: 'string', required: true, default: '' },
+      },
+      slaBreachDetection: {
+        breached: { type: 'array', required: false, default: [] },
+        atRisk: { type: 'array', required: false, default: [] },
+        summary: { type: 'string', required: true, default: '' },
+        recommendedOrder: { type: 'array', required: false, default: [] },
+        alertLevel: {
+          type: 'enum',
+          required: true,
+          values: ['critical', 'warning', 'normal'],
+          default: 'normal',
+        },
+      },
+      proactiveIssueDetection: {
+        predictions: { type: 'array', required: false, default: [] },
+        summary: { type: 'string', required: true, default: '' },
+        hostsMostAtRisk: { type: 'array', required: false, default: [] },
+      },
+      kbArticleGeneration: {
+        title: { type: 'string', required: true, default: '', maxLength: 200 },
+        tags: { type: 'array', required: false, default: [] },
+        content: { type: 'string', required: true, default: '' },
+        difficulty: {
+          type: 'enum',
+          required: false,
+          values: ['easy', 'medium', 'advanced'],
+          default: 'medium',
+        },
+        applicableTo: { type: 'string', required: false, default: '' },
+      },
+      statisticsAnalysis: {
+        summary: { type: 'string', required: true, default: '' },
+        keyInsights: { type: 'array', required: false, default: [] },
+        trends: { type: 'array', required: false, default: [] },
+        recommendations: { type: 'array', required: false, default: [] },
+      },
+    };
+  }
 }
 
 module.exports = new AIResponseValidator();

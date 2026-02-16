@@ -1626,11 +1626,14 @@ class TelegramAIService {
         if (file && file.file_path) {
           const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
           localPathErr = await this.telegramService.downloadTelegramFileByFileId(fileId, ext);
-          const analysisTextErr = await aiFirstLineService.analyzePhoto(
+          const analysisResultErr = await aiFirstLineService.analyzePhoto(
             localPathErr,
             problemDescription,
             session.userContext
           );
+          const analysisTextErr =
+            analysisResultErr?.text ||
+            (typeof analysisResultErr === 'string' ? analysisResultErr : null);
           if (analysisTextErr && analysisTextErr.trim()) {
             session.dialog_history.push({ role: 'assistant', content: analysisTextErr });
             botConversationService
@@ -1714,9 +1717,10 @@ class TelegramAIService {
       await this.telegramService.sendMessage(chatId, errorMsg);
       return;
     }
-    let analysisText = null;
+    let analysisResult = null;
+    let photoMetadata = null;
     try {
-      analysisText = await aiFirstLineService.analyzePhoto(
+      analysisResult = await aiFirstLineService.analyzePhoto(
         localPath,
         problemDescription,
         session.userContext
@@ -1731,6 +1735,17 @@ class TelegramAIService {
       } catch (_) {
         // Ignore cleanup error
       }
+    }
+    const analysisText =
+      analysisResult?.text || (typeof analysisResult === 'string' ? analysisResult : null);
+    if (analysisResult?.metadata) {
+      photoMetadata = analysisResult.metadata;
+      session.photoMetadata = photoMetadata;
+      logger.info('AI: Photo metadata saved to session', {
+        errorType: photoMetadata.errorType,
+        softwareDetected: photoMetadata.softwareDetected,
+        actionRequired: photoMetadata.actionRequired,
+      });
     }
     if (analysisText && analysisText.trim()) {
       const rawText = analysisText.trim();
