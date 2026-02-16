@@ -1054,7 +1054,8 @@ class TelegramAIService {
           [{ text: 'Створити тікет', callback_data: 'create_ticket' }],
           [{ text: 'Головне меню', callback_data: 'back_to_menu' }]
         );
-        const hintText = 'Можливо, ви мали на увазі одну з цих статей. Оберіть:';
+        const hintText =
+          'Можливо, ви мали на увазі одну з цих статей. Оберіть статтю — або «Створити тікет», якщо допомога з бази знань не підходить.';
         await this.telegramService.sendMessage(chatId, hintText, {
           reply_markup: { inline_keyboard: keyboard },
         });
