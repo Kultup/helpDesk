@@ -260,6 +260,11 @@ mongoose
     setupCleanupJob();
     logger.info('✅ Автоматичне очищення реєстрацій налаштовано');
 
+    // Закриття сесій Telegram після робочих годин (18:00)
+    const { setupCloseSessionsAfterHours } = require('./jobs/closeSessionsAfterHours');
+    setupCloseSessionsAfterHours();
+    logger.info('✅ Закриття сесій після годин налаштовано (18:00)');
+
     // Ініціалізуємо Zabbix polling
     const { setupZabbixPolling } = require('./jobs/zabbixPolling');
     setupZabbixPolling();

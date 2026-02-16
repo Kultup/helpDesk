@@ -56,13 +56,20 @@ class TelegramService {
     return 5 * 60 * 1000; // 5 хвилин
   }
 
+  /** Час неактивності (мс), коли надсилати попередження (за 1 хв до відключення) */
+  static get SESSION_IDLE_WARNING_MS() {
+    return 4 * 60 * 1000; // 4 хвилини
+  }
+
   /** Інтервал перевірки неактивних сесій (мс) */
   static get SESSION_IDLE_CHECK_INTERVAL_MS() {
     return 60 * 1000; // 1 хвилина
   }
 
   /**
-   * Перевіряє сесії на неактивність; якщо сесія без активності 5 хв — завершує її і відправляє повідомлення в чат.
+   * Перевіряє сесії на неактивність:
+   * - 4 хв: попередження + кнопка «Продовжити сесію»
+   * - 5 хв: завершення сесії
    */
   _checkSessionIdleTimeout() {
     if (!this.bot) {
@@ -70,16 +77,41 @@ class TelegramService {
     }
     const now = Date.now();
     const timeout = TelegramService.SESSION_IDLE_TIMEOUT_MS;
+    const warningThreshold = TelegramService.SESSION_IDLE_WARNING_MS;
+    const toWarn = [];
     const toDelete = [];
     for (const [chatId, session] of this.userSessions.entries()) {
       const last = session.lastActivityAt;
       if (!last) {
         continue;
       }
-      if (now - last >= timeout) {
+      const idle = now - last;
+      if (idle >= timeout) {
         toDelete.push([chatId, session]);
+      } else if (idle >= warningThreshold && !session.idleWarningSentAt) {
+        toWarn.push([chatId, session]);
       }
     }
+    // 1. Попередження (за 1 хв до відключення)
+    for (const [chatId, session] of toWarn) {
+      session.idleWarningSentAt = now;
+      this.userSessions.set(chatId, session);
+      const warnMsg =
+        '⏰ Сесію буде завершено через 1 хв через неактивність.\n\nНатисніть «Продовжити», якщо ще потребуєте допомоги.';
+      this.sendMessage(chatId, warnMsg, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⏱ Продовжити сесію', callback_data: 'extend_session' }],
+            [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
+            [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+          ],
+        },
+      }).catch(err =>
+        logger.warn('Session idle warning: не вдалося відправити', { chatId, err: err.message })
+      );
+      logger.info('Надіслано попередження про неактивність сесії', { chatId });
+    }
+    // 2. Завершення (5 хв неактивності)
     for (const [chatId, _session] of toDelete) {
       this.userSessions.delete(chatId);
       const msg =
@@ -101,13 +133,19 @@ class TelegramService {
     }
   }
 
-  /** Скинути всі активні сесії (для адміна). Користувачам у Telegram відправляється повідомлення. */
-  clearAllSessions() {
+  /**
+   * Скинути всі активні сесії.
+   * @param {Object} [options] - Опції
+   * @param {string} [options.reason] - Причина: 'admin' | 'after_hours'
+   */
+  clearAllSessions(options = {}) {
     const chatIds = [...this.userSessions.keys()];
     const count = chatIds.length;
     this.userSessions.clear();
     const msg =
-      '⏱ Сесію завершено (скинуто адміністратором). Напишіть знову, якщо потрібна допомога.';
+      options.reason === 'after_hours'
+        ? '⏰ Робочий день завершено. Всі сесії закрито.\n\nНапишіть знову завтра, якщо потрібна допомога.'
+        : '⏱ Сесію завершено (скинуто адміністратором). Напишіть знову, якщо потрібна допомога.';
     const replyMarkup = {
       inline_keyboard: [
         [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
@@ -228,7 +266,7 @@ class TelegramService {
           () => this._checkSessionIdleTimeout(),
           TelegramService.SESSION_IDLE_CHECK_INTERVAL_MS
         );
-        logger.info('Таймер неактивних сесій (5 хв) увімкнено');
+        logger.info('Таймер неактивних сесій увімкнено: попередження 4 хв, відключення 5 хв');
       } catch (botError) {
         // Якщо не вдалося створити бота (наприклад, невалідний токен)
         logger.warn('⚠️ Не вдалося ініціалізувати Telegram бота:', botError.message);
@@ -1181,6 +1219,24 @@ class TelegramService {
       if (callbackSession) {
         callbackSession.lastActivityAt = Date.now();
         this.userSessions.set(chatId, callbackSession);
+      }
+
+      // Продовження сесії (попередження про неактивність) — обробляємо до перевірки user
+      if (data === 'extend_session') {
+        const session = this.userSessions.get(chatId);
+        if (session) {
+          session.lastActivityAt = Date.now();
+          delete session.idleWarningSentAt;
+          this.userSessions.set(chatId, session);
+          await this.answerCallbackQuery(callbackQuery.id, 'Сесію продовжено ✅');
+          try {
+            await this.deleteMessage(chatId, messageId);
+          } catch {
+            // ignore — повідомлення могло вже бути видалено
+          }
+          await this.sendMessage(chatId, 'Сесію продовжено. Продовжуйте, якщо потрібна допомога.');
+          return;
+        }
       }
 
       // Спочатку перевіряємо, чи користувач вже зареєстрований

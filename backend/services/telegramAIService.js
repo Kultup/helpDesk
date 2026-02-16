@@ -399,20 +399,37 @@ class TelegramAIService {
         textParts.push(String(article.content).trim());
       }
       const articleText = TelegramUtils.normalizeQuickSolutionSteps(textParts.join('\n\n'));
-      await this.telegramService.sendMessage(chatId, articleText, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-            { text: 'Створити тікет', callback_data: 'create_ticket' },
-            { text: 'Головне меню', callback_data: 'back_to_menu' },
-          ]),
-        },
-      });
+      const session = this.telegramService.userSessions.get(chatId);
+      if (session) {
+        session.dialog_history = session.dialog_history || [];
+        session.dialog_history.push({ role: 'assistant', content: articleText });
+        session.step = 'awaiting_tip_feedback';
+        this.telegramService.userSessions.set(chatId, session);
+      }
       if (user) {
         botConversationService
           .appendMessage(chatId, user, 'assistant', articleText)
           .catch(() => {});
       }
+
+      const requiresAdminOnly = quickSolutionRequiresAdminOnly(articleText);
+      const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+        requiresAdminOnly
+          ? [
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+          : [
+              { text: '✅ Допомогло', callback_data: 'tip_helped' },
+              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]
+      );
+
+      await this.telegramService.sendMessage(chatId, articleText, {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: keyboard },
+      });
       const attachments = Array.isArray(article.attachments) ? article.attachments : [];
       for (const att of attachments) {
         const fp = att && (att.filePath || att.filepath);
@@ -977,7 +994,7 @@ class TelegramAIService {
     }
 
     if (!result.isTicketIntent) {
-      // [KB ВИМКНЕНО] Стаття з бази знань — відправити заголовок + текст, потім фото/відео
+      // [KB ВИМКНЕНО] Стаття з бази знань — та сама логіка: Допомогло / Ні, створити тікет / Скасувати
       // eslint-disable-next-line no-constant-condition
       if (false && result.kbArticle && result.kbArticle.title) {
         const article = result.kbArticle;
@@ -986,19 +1003,36 @@ class TelegramAIService {
           textParts.push(String(article.content).trim());
         }
         const articleText = TelegramUtils.normalizeQuickSolutionSteps(textParts.join('\n\n'));
-        await this.telegramService.sendMessage(chatId, articleText, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: 'Створити тікет', callback_data: 'create_ticket' },
-              { text: 'Головне меню', callback_data: 'back_to_menu' },
-            ]),
-          },
-        });
         session.dialog_history.push({ role: 'assistant', content: articleText });
+        session.step = 'awaiting_tip_feedback';
         botConversationService
           .appendMessage(chatId, user, 'assistant', articleText)
           .catch(() => {});
+
+        const requiresAdminOnly = quickSolutionRequiresAdminOnly(articleText);
+        const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+          requiresAdminOnly
+            ? [
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+            : [
+                { text: '✅ Допомогло', callback_data: 'tip_helped' },
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+        );
+
+        await this.telegramService.sendMessage(chatId, articleText, {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: keyboard },
+        });
 
         const attachments = Array.isArray(article.attachments) ? article.attachments : [];
         for (const att of attachments) {
@@ -1066,21 +1100,38 @@ class TelegramAIService {
         return;
       }
 
-      // Якщо є quickSolution (наприклад інструкція "як роздрукувати Word") — відправити його, не питати уточнень
+      // Якщо є quickSolution (наприклад інструкція "як роздрукувати Word") — та сама логіка: Допомогло / Ні, створити тікет / Скасувати
       const quickSol = result.quickSolution && String(result.quickSolution).trim();
       if (quickSol) {
         const normalized = TelegramUtils.normalizeQuickSolutionSteps(quickSol);
+        session.dialog_history.push({ role: 'assistant', content: normalized });
+        session.step = 'awaiting_tip_feedback';
+        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
+
+        const requiresAdminOnly = quickSolutionRequiresAdminOnly(normalized);
+        const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+          requiresAdminOnly
+            ? [
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+            : [
+                { text: '✅ Допомогло', callback_data: 'tip_helped' },
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+        );
+
         await this.telegramService.sendMessage(chatId, normalized, {
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: 'Створити тікет', callback_data: 'create_ticket' },
-              { text: 'Головне меню', callback_data: 'back_to_menu' },
-            ]),
-          },
+          reply_markup: { inline_keyboard: keyboard },
         });
-        session.dialog_history.push({ role: 'assistant', content: normalized });
-        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
         return;
       }
       // Інформаційна відповідь без заявки (наприклад графік підтримки, контакт) — відправити одразу
@@ -1252,21 +1303,39 @@ class TelegramAIService {
         return;
       }
       // Fallback: якщо KB повернув question але текст — технічна проблема (принтер, інтернет) — використати Fast-Track
+      // Та сама логіка кнопок, що й для AI: Допомогло / Ні, створити тікет / Скасувати
       const aiEnhancedService = require('./aiEnhancedService');
       const fastTrack = aiEnhancedService.findQuickSolution(text || '');
       if (fastTrack && fastTrack.hasQuickFix && fastTrack.solution) {
         const normalized = TelegramUtils.normalizeQuickSolutionSteps(fastTrack.solution);
+        session.dialog_history.push({ role: 'assistant', content: normalized });
+        session.step = 'awaiting_tip_feedback';
+        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
+
+        const requiresAdminOnly = quickSolutionRequiresAdminOnly(normalized);
+        const keyboard = TelegramUtils.inlineKeyboardTwoPerRow(
+          requiresAdminOnly
+            ? [
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+            : [
+                { text: '✅ Допомогло', callback_data: 'tip_helped' },
+                { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+                {
+                  text: this.telegramService.getCancelButtonText(),
+                  callback_data: 'cancel_ticket',
+                },
+              ]
+        );
+
         await this.telegramService.sendMessage(chatId, normalized, {
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: 'Створити тікет', callback_data: 'create_ticket' },
-              { text: 'Головне меню', callback_data: 'back_to_menu' },
-            ]),
-          },
+          reply_markup: { inline_keyboard: keyboard },
         });
-        session.dialog_history.push({ role: 'assistant', content: normalized });
-        botConversationService.appendMessage(chatId, user, 'assistant', normalized).catch(() => {});
         return;
       }
 
