@@ -151,7 +151,13 @@ function isKbArticleRelevantToQuery(userQuery, articleTitle, articleContentSnipp
   const articleText = `${title} ${snippet}`.trim();
   const articleTopics = getTopicSignatures(articleText);
 
-  // Якщо не вдалося визначити тему в запиті або в статті — не блокуємо (покладаємось на семантичний score)
+  // Якщо стаття про off-topic (президент, політика) а в запиті немає технічної теми — не показувати
+  if (articleTopics.includes('general_offtopic') && userTopics.length === 0) {
+    logger.info('KB relevance guard: стаття off-topic, запит без теми — блокуємо', {
+      articleTitle: title.slice(0, 60),
+    });
+    return false;
+  }
   if (userTopics.length === 0 || articleTopics.length === 0) {
     return true;
   }

@@ -6,6 +6,23 @@ function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Короткі відповіді — не шукати в KB (інакше "ні" збігається з "україни") */
+const UNINFORMATIVE_QUERIES = new Set([
+  'ні',
+  'нi',
+  'так',
+  'ок',
+  'добре',
+  'нет',
+  'no',
+  'yes',
+  'ніт',
+  'окей',
+  'угу',
+  'ага',
+  'ну',
+]);
+
 /** Слова, які не використовуємо для пошуку за ключовими словами (українська). */
 const STOP_WORDS = new Set([
   'не',
@@ -151,8 +168,11 @@ class KBSearchService {
    * @returns {Promise<Object|null>}
    */
   async findBestMatchForBotTextOnly(query = '') {
-    const q = String(query).trim();
+    const q = String(query).trim().toLowerCase();
     if (!q) {
+      return null;
+    }
+    if (q.length <= 3 || UNINFORMATIVE_QUERIES.has(q)) {
       return null;
     }
     try {

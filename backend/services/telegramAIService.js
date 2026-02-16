@@ -306,10 +306,23 @@ class TelegramAIService {
    * A.3: для звернення (appeal) опційно надіслати одну підказку з бази знань.
    * @param {string|number} chatId
    * @param {string} query - текст запиту користувача
+   * @param {Object} [session] - сесія (для контексту діалогу, якщо query короткий: "ні", "ок")
    */
-  async _sendKbHintForAppeal(chatId, query) {
-    const q = (query || '').trim();
+  async _sendKbHintForAppeal(chatId, query, session) {
+    let q = (query || '').trim();
     if (!q) {
+      return;
+    }
+    const uninformative = /^(ні|нi|так|ок|добре|нет|no|yes|ніт|окей|угу|ага|ну)$/i.test(q);
+    if (uninformative && session && Array.isArray(session.dialog_history)) {
+      const lastUser = [...session.dialog_history]
+        .reverse()
+        .find(m => m.role === 'user' && m.content && m.content.length > 15);
+      if (lastUser && lastUser.content) {
+        q = String(lastUser.content).trim();
+      }
+    }
+    if (q.length <= 3) {
       return;
     }
     try {
@@ -1324,7 +1337,7 @@ class TelegramAIService {
           },
         });
         if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
-          await this._sendKbHintForAppeal(chatId, text);
+          await this._sendKbHintForAppeal(chatId, text, session);
         }
         return;
       }
@@ -1433,7 +1446,7 @@ class TelegramAIService {
       reply_markup: { inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(baseButtons) },
     });
     if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
-      await this._sendKbHintForAppeal(chatId, text);
+      await this._sendKbHintForAppeal(chatId, text, session);
     }
   }
 
