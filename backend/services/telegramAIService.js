@@ -977,8 +977,9 @@ class TelegramAIService {
     }
 
     if (!result.isTicketIntent) {
-      // Стаття з бази знань — відправити заголовок + текст, потім фото/відео
-      if (result.kbArticle && result.kbArticle.title) {
+      // [KB ВИМКНЕНО] Стаття з бази знань — відправити заголовок + текст, потім фото/відео
+      // eslint-disable-next-line no-constant-condition
+      if (false && result.kbArticle && result.kbArticle.title) {
         const article = result.kbArticle;
         const textParts = [article.title];
         if (article.content && String(article.content).trim()) {
@@ -1040,8 +1041,9 @@ class TelegramAIService {
         return;
       }
 
-      // Середній score — "Можливо, ви мали на увазі:" з кнопками вибору статті
-      if (result.kbArticleCandidates && result.kbArticleCandidates.length > 0) {
+      // [KB ВИМКНЕНО] Середній score — "Можливо, ви мали на увазі:" з кнопками вибору статті
+      // eslint-disable-next-line no-constant-condition
+      if (false && result.kbArticleCandidates && result.kbArticleCandidates.length > 0) {
         const candidates = result.kbArticleCandidates.slice(0, 5);
         const keyboard = candidates.map(c => [
           {
@@ -1337,9 +1339,9 @@ class TelegramAIService {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(gatherButtons),
           },
         });
-        if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
-          await this._sendKbHintForAppeal(chatId, text, session);
-        }
+        // [KB ВИМКНЕНО] if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
+        //   await this._sendKbHintForAppeal(chatId, text, session);
+        // }
         return;
       }
 
@@ -1446,9 +1448,9 @@ class TelegramAIService {
     await this.telegramService.sendMessage(chatId, question, {
       reply_markup: { inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(baseButtons) },
     });
-    if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
-      await this._sendKbHintForAppeal(chatId, text, session);
-    }
+    // [KB ВИМКНЕНО] if (result.requestType === 'appeal' || session.cachedRequestType === 'appeal') {
+    //   await this._sendKbHintForAppeal(chatId, text, session);
+    // }
   }
 
   async handlePhotoInAiMode(chatId, photos, caption, session, user) {

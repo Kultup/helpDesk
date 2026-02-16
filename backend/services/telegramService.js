@@ -1428,10 +1428,10 @@ class TelegramService {
             await this.aiService.proceedToTicketConfirmationAfterNotHelped(chatId, user);
           }
           await this.answerCallbackQuery(callbackQuery.id);
-        } else if (data.startsWith('kb_article_')) {
-          const articleId = data.replace('kb_article_', '');
-          await this.aiService.handleKbArticleCallback(chatId, articleId, user);
-          await this.answerCallbackQuery(callbackQuery.id);
+          // [KB ВИМКНЕНО] } else if (data.startsWith('kb_article_')) {
+          //   const articleId = data.replace('kb_article_', '');
+          //   await this.aiService.handleKbArticleCallback(chatId, articleId, user);
+          //   await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'back') {
           await this.handleBackNavigation(chatId, user);
         } else if (data === 'back_to_menu') {
