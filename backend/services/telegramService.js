@@ -1534,11 +1534,9 @@ class TelegramService {
               documents: [],
             };
 
-            const filler = await aiFirstLineService.generateConversationalResponse(
-              session.dialog_history || [],
-              'confirm_photo_saved',
-              session.userContext || {}
-            );
+            this.userSessions.set(chatId, session);
+
+            const filler = 'Інформацію збережено';
             await this.sendMessage(
               chatId,
               `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
@@ -1570,6 +1568,7 @@ class TelegramService {
               photos: [],
             };
             session.step = 'photo';
+            this.userSessions.set(chatId, session);
 
             await this.sendMessage(
               chatId,

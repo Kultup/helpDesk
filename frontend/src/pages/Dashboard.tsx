@@ -719,7 +719,7 @@ const Dashboard: React.FC = () => {
                     {t('dashboard.recentTickets')}
                   </h2>
                   <Button
-                    onClick={() => navigate('/tickets')}
+                    onClick={() => navigate(`${basePath}/tickets`)}
                     variant="outline"
                     className="text-primary border-primary/30 hover:bg-primary/10 hover:border-primary px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base"
                   >
@@ -732,7 +732,7 @@ const Dashboard: React.FC = () => {
                       <div
                         key={ticket._id}
                         className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
-                        onClick={() => navigate(`/tickets/${ticket._id}`)}
+                        onClick={() => navigate(`${basePath}/tickets/${ticket._id}`)}
                       >
                         <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
                           <h3 className="font-bold text-foreground text-base sm:text-lg group-hover:text-primary transition-colors duration-300 flex-1 min-w-0 line-clamp-2">

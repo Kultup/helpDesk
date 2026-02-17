@@ -1208,7 +1208,7 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
     serverHealthContext: serverHealthContext || '',
   });
 
-  const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority, environment_clues).`;
+  const userMessage = `Діалог:\n${formatDialogHistory(dialogHistory)}\n\nСформуй готовий тікет (JSON: title, description, category, priority).`;
 
   // Виклик AI з retry механізмом
   const response = await retryHelper.retryAIRequest(
@@ -1244,15 +1244,11 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
     ? parsed.priority
     : 'medium';
   const description = String(parsed.description || '');
-  if (parsed.environment_clues && typeof parsed.environment_clues === 'object') {
-    // description += `\n\n---\n🔧 [Metadata для адміна] environment_clues: ${JSON.stringify(parsed.environment_clues)}`;
-  }
   return {
     title: String(parsed.title || 'Проблема').slice(0, 200),
     description,
     category: String(parsed.category || 'Інше').slice(0, 100),
     priority,
-    environment_clues: parsed.environment_clues || null,
   };
 }
 
