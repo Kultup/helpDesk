@@ -2,7 +2,7 @@
 export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',
-  SUPER_ADMIN = 'super_admin'
+  SUPER_ADMIN = 'super_admin',
 }
 
 // Helper функція для перевірки, чи користувач є адміністратором
@@ -71,20 +71,20 @@ export enum TicketStatus {
   OPEN = 'open',
   IN_PROGRESS = 'in_progress',
   RESOLVED = 'resolved',
-  CLOSED = 'closed'
+  CLOSED = 'closed',
 }
 
 export enum TicketPriority {
   LOW = 'low',
   MEDIUM = 'medium',
-  HIGH = 'high'
+  HIGH = 'high',
 }
 
 export enum TicketCategory {
   TECHNICAL = 'technical',
   ACCOUNT = 'account',
   BILLING = 'billing',
-  GENERAL = 'general'
+  GENERAL = 'general',
 }
 
 export interface Ticket {
@@ -352,7 +352,7 @@ export interface ApiResponse<T> {
 }
 
 // Спеціальний тип для відповіді оновлення тікета
-export type UpdateTicketResponse = ApiResponse<Ticket>
+export type UpdateTicketResponse = ApiResponse<Ticket>;
 
 export interface PaginatedResponse<T> {
   data: T[];
@@ -457,21 +457,21 @@ export enum EventType {
   REMINDER = 'reminder',
   DEADLINE = 'deadline',
   APPOINTMENT = 'appointment',
-  HOLIDAY = 'holiday'
+  HOLIDAY = 'holiday',
 }
 
 export enum EventStatus {
   SCHEDULED = 'scheduled',
   IN_PROGRESS = 'in_progress',
   COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
 }
 
 export enum EventPriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  URGENT = 'urgent'
+  URGENT = 'urgent',
 }
 
 export interface CalendarEvent {
@@ -533,7 +533,13 @@ export enum NotePriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  URGENT = 'urgent'
+  URGENT = 'urgent',
+}
+
+export enum NoteStatus {
+  TODO = 'todo',
+  IN_PROGRESS = 'in_progress',
+  DONE = 'done',
 }
 
 export interface AdminNote {
@@ -541,6 +547,7 @@ export interface AdminNote {
   title: string;
   content: string;
   priority: NotePriority;
+  status: NoteStatus;
   category?: string;
   tags: string[];
   color?: string;
@@ -558,6 +565,7 @@ export interface CreateNoteForm {
   title: string;
   content: string;
   priority?: NotePriority;
+  status?: NoteStatus;
   category?: string;
   tags?: string[];
   color?: string;
@@ -568,6 +576,7 @@ export interface UpdateNoteForm {
   title?: string;
   content?: string;
   priority?: NotePriority;
+  status?: NoteStatus;
   category?: string;
   tags?: string[];
   color?: string;
@@ -577,6 +586,7 @@ export interface UpdateNoteForm {
 export interface NoteFilters {
   category?: string;
   priority?: NotePriority;
+  status?: NoteStatus;
   search?: string;
   limit?: number;
   skip?: number;
@@ -584,7 +594,12 @@ export interface NoteFilters {
 
 // Типи для шаблонів сповіщень (для швидких повідомлень)
 export type NotificationTemplateType = 'email' | 'telegram' | 'web' | 'sms';
-export type NotificationTemplateCategory = 'ticket' | 'user' | 'system' | 'security' | 'maintenance';
+export type NotificationTemplateCategory =
+  | 'ticket'
+  | 'user'
+  | 'system'
+  | 'security'
+  | 'maintenance';
 
 export interface NotificationTemplate {
   _id: string;
@@ -635,7 +650,7 @@ export enum InstitutionType {
   PHARMACY = 'pharmacy',
   GAS_STATION = 'gas_station',
   TRANSPORT_HUB = 'transport_hub',
-  OTHER = 'other'
+  OTHER = 'other',
 }
 
 export interface Institution {
@@ -751,4 +766,3 @@ export interface InstitutionsResponse {
     hasPrevPage: boolean;
   };
 }
-

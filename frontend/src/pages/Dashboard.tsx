@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Ticket,
@@ -9,32 +9,21 @@ import {
   XCircle,
   TrendingUp,
   Users,
-  MapPin,
-  Briefcase,
   RefreshCw,
   BarChart3,
-  Calendar,
   FileText,
   Activity,
   Zap,
-  Sparkles,
   Plus,
   StickyNote,
   Monitor,
-  Target,
-  Lightbulb,
-  AlertCircle,
-  TrendingDown,
-  Minus,
-  ChevronUp,
-  ChevronDown,
 } from 'lucide-react';
 
 // Utils
 import { formatDateWithLocale } from '../utils/dateUtils';
 
 // UI Components
-import Card, { CardContent, CardHeader } from '../components/UI/Card';
+import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
@@ -43,7 +32,7 @@ import WeeklyTicketsChart from '../components/charts/WeeklyTicketsChart';
 import WorkloadByDayChart from '../components/charts/WorkloadByDayChart';
 
 // Admin Components
-import AdminNotes from '../components/AdminNotes';
+import MiniKanban from '../components/MiniKanban';
 import CreateTicketModal from '../components/CreateTicketModal';
 
 // Hooks and Services
@@ -53,8 +42,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 
 // Types and Utils
-import { TicketStatus, TicketPriority, UserRole, isAdminRole } from '../types';
-import { getStatusColor, getPriorityColor, formatDate } from '../utils';
+import { TicketPriority, UserRole, isAdminRole } from '../types';
+import { formatDate } from '../utils';
 
 // ============================================================================
 // INTERFACES
@@ -137,7 +126,7 @@ const Dashboard: React.FC = () => {
   // HOOKS AND STATE
   // ========================================
 
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -166,11 +155,6 @@ const Dashboard: React.FC = () => {
     totalUsers: number;
     growth: number;
   } | null>(null);
-  const [userStatsLoading, setUserStatsLoading] = useState<boolean>(false);
-
-  // AI Analysis state
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
   // Create Ticket Modal state
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
@@ -209,7 +193,6 @@ const Dashboard: React.FC = () => {
 
   const loadUserMonthlyStats = React.useCallback(async () => {
     if (!isAdmin) return;
-    setUserStatsLoading(true);
     try {
       const response = await apiService.getUserMonthlyStats();
       if (response?.success && response.data) {
@@ -222,24 +205,9 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       console.error('Помилка завантаження статистики користувачів:', error);
     } finally {
-      setUserStatsLoading(false);
+      // setUserStatsLoading(false); // remove if state is removed
     }
   }, [isAdmin]);
-
-  const handleAnalyze = async () => {
-    if (isAnalyzing) return;
-    setIsAnalyzing(true);
-    try {
-      const response = await apiService.analyzeAnalytics();
-      if (response.success && response.data) {
-        setAiAnalysis(response.data);
-      }
-    } catch (error) {
-      console.error('Помилка AI аналізу:', error);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   useEffect(() => {
     loadAdStats();
@@ -290,6 +258,7 @@ const Dashboard: React.FC = () => {
     loadUserMonthlyStats,
     saveScrollPosition,
     restoreScrollPosition,
+    t,
   ]);
 
   // Функція для обробки оновлення
@@ -528,181 +497,6 @@ const Dashboard: React.FC = () => {
                 <StatCard key={index} {...stat} />
               ))}
             </div>
-
-            {/* AI Analysis Section */}
-            <div className="mt-8 transition-all duration-500">
-              <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 overflow-hidden">
-                <div className="p-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-purple-100 p-2.5 rounded-xl shadow-sm">
-                        <Sparkles className="h-6 w-6 text-purple-600" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">AI Аналітика та інсайти</h2>
-                        <p className="text-xs text-gray-500">
-                          Інтелектуальний аналіз ефективності підрозділу
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleAnalyze}
-                      isLoading={isAnalyzing}
-                      disabled={isAnalyzing}
-                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg transform hover:scale-105 transition-all text-sm font-bold h-11 px-6"
-                    >
-                      <Zap className="h-4 w-4 mr-2" />
-                      {aiAnalysis ? 'Оновити аналіз' : 'Згенерувати аналіз'}
-                    </Button>
-                  </div>
-
-                  {aiAnalysis ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-                      {/* Summary & Insights */}
-                      <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 shadow-sm">
-                          <h3 className="text-sm font-bold text-purple-800 uppercase tracking-wider mb-3 flex items-center">
-                            <Target className="h-4 w-4 mr-2" />
-                            Короткий огляд
-                          </h3>
-                          <p className="text-gray-700 leading-relaxed italic border-l-4 border-purple-300 pl-4 py-1">
-                            "{aiAnalysis.summary}"
-                          </p>
-
-                          <div className="mt-6">
-                            <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wider mb-4 flex items-center">
-                              <Lightbulb className="h-4 w-4 mr-2" />
-                              Ключові інсайти
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {aiAnalysis.keyInsights?.map((insight: string, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-start gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100"
-                                >
-                                  <div className="h-2 w-2 rounded-full bg-blue-500 mt-2 shrink-0" />
-                                  <span className="text-sm text-gray-700">{insight}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Recommendations */}
-                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-100 shadow-sm">
-                          <h3 className="text-sm font-bold text-emerald-800 uppercase tracking-wider mb-4 flex items-center">
-                            <Zap className="h-4 w-4 mr-2" />
-                            Рекомендовані дії
-                          </h3>
-                          <div className="space-y-4">
-                            {aiAnalysis.recommendations?.map((rec: any, idx: number) => (
-                              <div
-                                key={idx}
-                                className="group p-4 bg-white border border-gray-100 rounded-xl hover:border-emerald-200 hover:shadow-md transition-all"
-                              >
-                                <div className="flex justify-between items-start mb-2">
-                                  <h4 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors uppercase text-xs">
-                                    {rec.title}
-                                  </h4>
-                                  <span
-                                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                                      rec.priority === 'high'
-                                        ? 'bg-rose-100 text-rose-700'
-                                        : rec.priority === 'medium'
-                                          ? 'bg-amber-100 text-amber-700'
-                                          : 'bg-blue-100 text-blue-700'
-                                    }`}
-                                  >
-                                    {rec.priority}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
-                                <div className="flex items-center text-[10px] text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded-md">
-                                  Ефект: {rec.expectedImpact}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Trends & Metrics */}
-                      <div className="space-y-6">
-                        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-indigo-100 shadow-sm">
-                          <h3 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">
-                            Тренди періоду
-                          </h3>
-                          <div className="space-y-4">
-                            {/* Positive */}
-                            {aiAnalysis.trends?.positive?.map((trend: string, idx: number) => (
-                              <div key={idx} className="flex items-center gap-3">
-                                <div className="p-1.5 bg-emerald-100 rounded-lg">
-                                  <TrendingUp className="h-3 w-3 text-emerald-600" />
-                                </div>
-                                <span className="text-sm text-gray-700">{trend}</span>
-                              </div>
-                            ))}
-                            {/* Negative */}
-                            {aiAnalysis.trends?.negative?.map((trend: string, idx: number) => (
-                              <div key={idx} className="flex items-center gap-3">
-                                <div className="p-1.5 bg-rose-100 rounded-lg">
-                                  <TrendingDown className="h-3 w-3 text-rose-600" />
-                                </div>
-                                <span className="text-sm text-gray-700">{trend}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-200/50">
-                          <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-80">
-                            Метрики якості
-                          </h3>
-                          <div className="space-y-6">
-                            <div>
-                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
-                                Швидкість
-                              </div>
-                              <div className="text-sm font-medium">
-                                {aiAnalysis.metrics?.performance}
-                              </div>
-                            </div>
-                            <hr className="opacity-20" />
-                            <div>
-                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
-                                Ефективність
-                              </div>
-                              <div className="text-sm font-medium">
-                                {aiAnalysis.metrics?.efficiency}
-                              </div>
-                            </div>
-                            <hr className="opacity-20" />
-                            <div>
-                              <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
-                                Якість
-                              </div>
-                              <div className="text-sm font-medium">
-                                {aiAnalysis.metrics?.quality}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 bg-white/40 rounded-3xl border border-dashed border-purple-200">
-                      <Sparkles className="h-12 w-12 text-purple-200 mb-4" />
-                      <p className="text-gray-500 font-medium">
-                        Аналіз за поточний період ще не згенеровано
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Отримайте інсайти від штучного інтелекту одним натисканням
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </div>
           </div>
         )}
 
@@ -733,6 +527,13 @@ const Dashboard: React.FC = () => {
                         key={ticket._id}
                         className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
                         onClick={() => navigate(`${basePath}/tickets/${ticket._id}`)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            navigate(`${basePath}/tickets/${ticket._id}`);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <div className="flex justify-between items-start mb-3 sm:mb-4 gap-2">
                           <h3 className="font-bold text-foreground text-base sm:text-lg group-hover:text-primary transition-colors duration-300 flex-1 min-w-0 line-clamp-2">
@@ -776,7 +577,7 @@ const Dashboard: React.FC = () => {
                               ? t('dashboard.statuses.open')
                               : ticket.status === 'in_progress'
                                 ? t('dashboard.statuses.inProgress')
-                                : ticket.status === 'resolved'
+                                : t('dashboard.statuses.resolved')
                                   ? t('dashboard.statuses.resolved')
                                   : t('dashboard.statuses.closed')}
                           </span>
@@ -849,6 +650,13 @@ const Dashboard: React.FC = () => {
                           key={ticket._id}
                           className="group border-l-4 border-error bg-gradient-to-r from-error/10 to-error/20 p-2 sm:p-3 lg:p-4 rounded-r-lg sm:rounded-r-xl cursor-pointer hover:from-error/20 hover:to-error/30 transition-all duration-300 shadow-sm hover:shadow-md"
                           onClick={() => navigate(`/tickets/${ticket._id}`)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              navigate(`/tickets/${ticket._id}`);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
                         >
                           <h3 className="font-bold text-foreground text-xs sm:text-sm mb-1 sm:mb-2 group-hover:text-error transition-colors duration-300 line-clamp-2">
                             {ticket.title}
@@ -922,6 +730,13 @@ const Dashboard: React.FC = () => {
                     <div
                       className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
                       onClick={() => navigate('/admin/active-directory?view=users')}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          navigate('/admin/active-directory?view=users');
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                     >
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -946,6 +761,13 @@ const Dashboard: React.FC = () => {
                     <div
                       className="flex items-center p-3 sm:p-4 bg-white/40 rounded-lg border border-warning/30 shadow-md cursor-pointer hover:bg-white/60 hover:shadow-lg transition-shadow"
                       onClick={() => navigate('/admin/active-directory?view=computers')}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          navigate('/admin/active-directory?view=computers');
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                     >
                       <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-warning text-white mr-3 sm:mr-4 flex-shrink-0">
                         <Monitor className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -982,24 +804,27 @@ const Dashboard: React.FC = () => {
               </h2>
               <div className="space-y-4 sm:space-y-6">
                 <div className="p-4 sm:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
-                  <AdminNotes />
+                  {/* Mini Trello (Admin Notes replacement) */}
+                  <div className="h-full">
+                    <MiniKanban />
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Modal для створення тікета */}
+          <CreateTicketModal
+            isOpen={isCreateTicketModalOpen}
+            onClose={() => setIsCreateTicketModalOpen(false)}
+            onSuccess={() => {
+              setIsCreateTicketModalOpen(false);
+              refetchTickets(); // Оновлюємо список тікетів
+              refetchStats(); // Оновлюємо статистику
+            }}
+          />
         </div>
       </div>
-
-      {/* Modal для створення тікету */}
-      <CreateTicketModal
-        isOpen={isCreateTicketModalOpen}
-        onClose={() => setIsCreateTicketModalOpen(false)}
-        onSuccess={() => {
-          setIsCreateTicketModalOpen(false);
-          refetchTickets(); // Оновлюємо список тікетів
-          refetchStats(); // Оновлюємо статистику
-        }}
-      />
     </div>
   );
 };

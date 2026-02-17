@@ -6,13 +6,7 @@ const logger = require('../utils/logger');
 // Отримати всі нотатки користувача
 const getAdminNotes = async (req, res) => {
   try {
-    const {
-      category,
-      priority,
-      search,
-      limit = 50,
-      skip = 0
-    } = req.query;
+    const { category, priority, search, limit = 50, skip = 0 } = req.query;
     const userId = req.user.id;
 
     let notes;
@@ -26,7 +20,7 @@ const getAdminNotes = async (req, res) => {
         category,
         priority,
         limit: parseInt(limit),
-        skip: parseInt(skip)
+        skip: parseInt(skip),
       };
 
       notes = await AdminNote.findByAuthor(userId, options);
@@ -35,14 +29,13 @@ const getAdminNotes = async (req, res) => {
     res.json({
       success: true,
       data: notes,
-      count: notes.length
+      count: notes.length,
     });
-
   } catch (error) {
     logger.error('Error fetching admin notes:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні нотаток'
+      message: 'Помилка при отриманні нотаток',
     });
   }
 };
@@ -56,14 +49,14 @@ const getAdminNoteById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     })
       .populate('author', 'name email')
       .populate('editedBy', 'name email');
@@ -71,7 +64,7 @@ const getAdminNoteById = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -80,14 +73,13 @@ const getAdminNoteById = async (req, res) => {
 
     res.json({
       success: true,
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error fetching admin note:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні нотатки'
+      message: 'Помилка при отриманні нотатки',
     });
   }
 };
@@ -100,19 +92,11 @@ const createAdminNote = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const {
-      title,
-      content,
-      priority,
-      category,
-      tags,
-      color,
-      reminderDate
-    } = req.body;
+    const { title, content, priority, category, tags, color, reminderDate, status } = req.body;
 
     const note = new AdminNote({
       title,
@@ -121,8 +105,9 @@ const createAdminNote = async (req, res) => {
       category,
       tags: tags || [],
       color,
+      status: status || 'todo',
       author: req.user.id,
-      reminderDate: reminderDate ? new Date(reminderDate) : null
+      reminderDate: reminderDate ? new Date(reminderDate) : null,
     });
 
     await note.save();
@@ -133,14 +118,13 @@ const createAdminNote = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Нотатку успішно створено',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error creating admin note:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при створенні нотатки'
+      message: 'Помилка при створенні нотатки',
     });
   }
 };
@@ -153,7 +137,7 @@ const updateAdminNote = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -163,40 +147,47 @@ const updateAdminNote = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
-    const {
-      title,
-      content,
-      priority,
-      category,
-      tags,
-      color,
-      reminderDate
-    } = req.body;
+    const { title, content, priority, category, tags, color, reminderDate, status } = req.body;
 
     const updates = {};
-    if (title !== undefined) updates.title = title;
-    if (content !== undefined) updates.content = content;
-    if (priority !== undefined) updates.priority = priority;
-    if (category !== undefined) updates.category = category;
-    if (tags !== undefined) updates.tags = tags;
-    if (color !== undefined) updates.color = color;
+    if (title !== undefined) {
+      updates.title = title;
+    }
+    if (content !== undefined) {
+      updates.content = content;
+    }
+    if (priority !== undefined) {
+      updates.priority = priority;
+    }
+    if (category !== undefined) {
+      updates.category = category;
+    }
+    if (tags !== undefined) {
+      updates.tags = tags;
+    }
+    if (color !== undefined) {
+      updates.color = color;
+    }
+    if (status !== undefined) {
+      updates.status = status;
+    }
     if (reminderDate !== undefined) {
       updates.reminderDate = reminderDate ? new Date(reminderDate) : null;
       updates.isReminderSent = false;
@@ -211,14 +202,13 @@ const updateAdminNote = async (req, res) => {
     res.json({
       success: true,
       message: 'Нотатку успішно оновлено',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error updating admin note:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при оновленні нотатки'
+      message: 'Помилка при оновленні нотатки',
     });
   }
 };
@@ -232,20 +222,20 @@ const deleteAdminNote = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -255,14 +245,13 @@ const deleteAdminNote = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Нотатку успішно видалено'
+      message: 'Нотатку успішно видалено',
     });
-
   } catch (error) {
     logger.error('Error deleting admin note:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при видаленні нотатки'
+      message: 'Помилка при видаленні нотатки',
     });
   }
 };
@@ -276,20 +265,20 @@ const togglePin = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -302,14 +291,13 @@ const togglePin = async (req, res) => {
     res.json({
       success: true,
       message: note.isPinned ? 'Нотатку закріплено' : 'Нотатку відкріплено',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error toggling pin:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при зміні статусу закріплення'
+      message: 'Помилка при зміні статусу закріплення',
     });
   }
 };
@@ -324,14 +312,13 @@ const getPinnedNotes = async (req, res) => {
     res.json({
       success: true,
       data: notes,
-      count: notes.length
+      count: notes.length,
     });
-
   } catch (error) {
     logger.error('Error fetching pinned notes:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні закріплених нотаток'
+      message: 'Помилка при отриманні закріплених нотаток',
     });
   }
 };
@@ -346,27 +333,27 @@ const addTag = async (req, res) => {
     if (!tag || !tag.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Тег не може бути порожнім'
+        message: 'Тег не може бути порожнім',
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -375,14 +362,13 @@ const addTag = async (req, res) => {
     res.json({
       success: true,
       message: 'Тег додано',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error adding tag:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при додаванні тегу'
+      message: 'Помилка при додаванні тегу',
     });
   }
 };
@@ -397,27 +383,27 @@ const removeTag = async (req, res) => {
     if (!tag) {
       return res.status(400).json({
         success: false,
-        message: 'Тег не вказано'
+        message: 'Тег не вказано',
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID нотатки'
+        message: 'Невірний ID нотатки',
       });
     }
 
     const note = await AdminNote.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -426,14 +412,13 @@ const removeTag = async (req, res) => {
     res.json({
       success: true,
       message: 'Тег видалено',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error removing tag:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при видаленні тегу'
+      message: 'Помилка при видаленні тегу',
     });
   }
 };
@@ -452,15 +437,14 @@ const getNotesStatistics = async (req, res) => {
         pinned: 0,
         withReminders: 0,
         byPriority: [],
-        byCategory: []
-      }
+        byCategory: [],
+      },
     });
-
   } catch (error) {
     logger.error('Error fetching notes statistics:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні статистики'
+      message: 'Помилка при отриманні статистики',
     });
   }
 };
@@ -475,5 +459,5 @@ module.exports = {
   getPinnedNotes,
   addTag,
   removeTag,
-  getNotesStatistics
+  getNotesStatistics,
 };
