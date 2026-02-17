@@ -791,12 +791,11 @@ const Equipment: React.FC = () => {
                       component="label"
                       sx={{ display: 'block', mb: 0.5 }}
                     >
-                      Заклад *
+                      Заклад
                     </Typography>
                     <TextField
                       select
                       fullWidth
-                      required
                       value={formData.institution}
                       onChange={(e: any) =>
                         setFormData({ ...formData, institution: e.target.value })
@@ -926,7 +925,7 @@ const Equipment: React.FC = () => {
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={!formData.name || !formData.institution}
+            disabled={!formData.name}
             startIcon={editingEquipment ? <EditIcon /> : <AddIcon />}
           >
             {editingEquipment ? 'Зберегти' : 'Додати'}
