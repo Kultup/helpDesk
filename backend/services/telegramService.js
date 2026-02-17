@@ -22,6 +22,7 @@ const TelegramTicketService = require('./telegramTicketService');
 const TelegramAIService = require('./telegramAIService');
 const aiFirstLineService = require('./aiFirstLineService');
 const botConversationService = require('./botConversationService');
+const equipmentService = require('./equipmentService');
 
 class TelegramService {
   constructor() {
@@ -2224,6 +2225,58 @@ class TelegramService {
   async handleDocument(msg) {
     const chatId = msg.chat.id;
     const session = this.userSessions.get(chatId);
+    const fileName = msg.document.file_name;
+
+    // Автоматичний імпорт інвентарних файлів
+    if (fileName && fileName.toUpperCase().startsWith('INV_')) {
+      try {
+        const user = await User.findOne({
+          $or: [{ telegramId: String(msg.from.id) }, { telegramId: msg.from.id }],
+        });
+
+        if (!user) {
+          await this.sendMessage(chatId, '❌ Помилка: Користувач не знайдений в системі.');
+          return;
+        }
+
+        // Тільки адміни та менеджери можуть імпортувати обладнання
+        if (user.role !== 'admin' && user.role !== 'manager') {
+          await this.sendMessage(chatId, '🚫 У вас немає прав для імпорту обладнання.');
+          return;
+        }
+
+        await this.sendMessage(
+          chatId,
+          `📥 Виявлено інвентарний файл: *${fileName}*\nПочинаю обробку...`,
+          { parse_mode: 'Markdown' }
+        );
+
+        const fileInfo = await this.bot.getFile(msg.document.file_id);
+        const localPath = await this.downloadTelegramFile(fileInfo.file_path);
+
+        const results = await equipmentService.importEquipment(localPath, user);
+
+        let resultMsg = `✅ *Імпорт завершено*\n`;
+        resultMsg += `📄 Файл: \`${fileName}\`\n`;
+        resultMsg += `🟢 Успішно: ${results.success}\n`;
+        resultMsg += `🔴 Помилок: ${results.failed}`;
+
+        if (results.errors.length > 0) {
+          resultMsg += `\n\n⚠️ *Деталі помилок (перші 5):*\n${results.errors.slice(0, 5).join('\n')}`;
+        }
+
+        await this.sendMessage(chatId, resultMsg, { parse_mode: 'Markdown' });
+
+        // Сповіщаємо адмінів
+        await this.notificationService.notifyAdminsAboutInventoryImport(fileName, user, results);
+
+        return;
+      } catch (error) {
+        logger.error('Помилка автоматичного імпорту обладнання з Telegram:', error);
+        await this.sendMessage(chatId, `❌ Помилка при обробці файлу: ${error.message}`);
+        return;
+      }
+    }
 
     if (session && session.step === 'photo') {
       await this.ticketService.handleTicketDocument(chatId, msg.document, msg.caption);

@@ -19,7 +19,7 @@ class TelegramNotificationService {
     return this.telegramService.isInitialized;
   }
 
-  async sendMessage(chatId, text, options) {
+  sendMessage(chatId, text, options) {
     return this.telegramService.sendMessage(chatId, text, options);
   }
 
@@ -755,6 +755,48 @@ class TelegramNotificationService {
       );
     } catch (error) {
       logger.error('Помилка відправки попередження про дедлайн:', error);
+    }
+  }
+
+  /**
+   * Сповіщення адмінів про автоматичний імпорт обладнання
+   */
+  async notifyAdminsAboutInventoryImport(filename, user, results) {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        return;
+      }
+
+      const admins = await User.find({
+        role: 'admin',
+        isActive: true,
+        telegramId: { $exists: true, $ne: null },
+      }).select('telegramId');
+
+      if (admins.length === 0) {
+        return;
+      }
+
+      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      const message =
+        `📊 *Автоматичний імпорт обладнання*\n\n` +
+        `👤 *Виконав:* ${userName}\n` +
+        `📄 *Файл:* \`${filename}\`\n\n` +
+        `✅ *Успішно:* ${results.success}\n` +
+        `❌ *Помилок:* ${results.failed}\n` +
+        (results.errors.length > 0
+          ? `\n⚠️ *Перші помилки:*\n${results.errors.slice(0, 3).join('\n')}`
+          : '');
+
+      for (const admin of admins) {
+        try {
+          await this.sendMessage(admin.telegramId, message, { parse_mode: 'Markdown' });
+        } catch (err) {
+          logger.error(`Не вдалося надіслати сповіщення адміну ${admin.telegramId}:`, err.message);
+        }
+      }
+    } catch (error) {
+      logger.error('Помилка сповіщення адмінів про імпорт обладнання:', error);
     }
   }
 }
