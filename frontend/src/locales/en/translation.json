@@ -432,6 +432,42 @@
       "deleteError": "Error deleting note"
     }
   },
+  "miniKanban": {
+    "title": "Task Board",
+    "subtitle": "Manage your quick tasks & todo's",
+    "todo": "To Do",
+    "inProgress": "In Progress",
+    "done": "Done",
+    "empty": "Empty",
+    "addCard": "Add card",
+    "newTask": "New Task",
+    "editTask": "Edit Task",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Task title...",
+    "detailsLabel": "Details",
+    "detailsPlaceholder": "Additional details...",
+    "priorityLabel": "Priority",
+    "statusLabel": "Status",
+    "save": "Save Task",
+    "saving": "Saving...",
+    "moveBack": "Move back",
+    "moveForward": "Move forward",
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "statuses": {
+      "todo": "To Do",
+      "in_progress": "In Progress",
+      "done": "Done"
+    },
+    "errors": {
+      "load": "Error loading tasks",
+      "save": "Error saving task"
+    }
+  },
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Welcome to your dashboard",

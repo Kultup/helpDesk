@@ -25,6 +25,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onMove,
   loading,
 }) => {
+  const { t } = useTranslation();
+
   const getPriorityColor = (priority: NotePriority): string => {
     switch (priority) {
       case NotePriority.URGENT:
@@ -110,7 +112,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium border ${getPriorityColor(note.priority)}`}
               >
-                {note.priority}
+                {t(`miniKanban.priorities.${note.priority}`)}
               </span>
 
               {/* Simple Move controls */}
@@ -124,7 +126,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       )
                     }
                     className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
-                    title="Move back"
+                    title={t('miniKanban.moveBack')}
                   >
                     ←
                   </button>
@@ -138,7 +140,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       )
                     }
                     className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
-                    title="Move forward"
+                    title={t('miniKanban.moveForward')}
                   >
                     →
                   </button>
@@ -149,12 +151,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         ))}
         {notes.length === 0 && (
           <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-lg">
-            <p className="text-xs text-gray-400">Empty</p>
+            <p className="text-xs text-gray-400">{t('miniKanban.empty')}</p>
             <button
               onClick={() => onAdd(status)}
               className="text-xs text-blue-500 hover:text-blue-600 font-medium mt-1"
             >
-              + Add card
+              + {t('miniKanban.addCard')}
             </button>
           </div>
         )}
@@ -199,7 +201,7 @@ const MiniKanban: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      setError('Error loading tasks');
+      setError(t('miniKanban.errors.load'));
     } finally {
       setLoading(false);
     }
@@ -255,14 +257,14 @@ const MiniKanban: React.FC = () => {
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);
-      setError('Error saving task');
+      setError(t('miniKanban.errors.save'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string): Promise<void> => {
-    if (!window.confirm(t('common.confirmDelete') || 'Delete this task?')) return;
+    if (!window.confirm(t('common.confirmDelete'))) return;
     try {
       await apiService.deleteAdminNote(id);
       setNotes(prev => prev.filter(n => n._id !== id));
@@ -314,15 +316,15 @@ const MiniKanban: React.FC = () => {
                 <path d="M15 3v18" />
               </svg>
             </span>
-            Task Board
+            {t('miniKanban.title')}
           </h3>
-          <p className="text-sm text-gray-500 ml-9">Manage your quick tasks & todo&apos;s</p>
+          <p className="text-sm text-gray-500 ml-9">{t('miniKanban.subtitle')}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full min-h-[400px]">
         <KanbanColumn
-          title="To Do"
+          title={t('miniKanban.todo')}
           status={NoteStatus.TODO}
           notes={todoNotes}
           onAdd={handleCreateClick}
@@ -332,7 +334,7 @@ const MiniKanban: React.FC = () => {
           loading={loading}
         />
         <KanbanColumn
-          title="In Progress"
+          title={t('miniKanban.inProgress')}
           status={NoteStatus.IN_PROGRESS}
           notes={inProgressNotes}
           onAdd={handleCreateClick}
@@ -342,7 +344,7 @@ const MiniKanban: React.FC = () => {
           loading={loading}
         />
         <KanbanColumn
-          title="Done"
+          title={t('miniKanban.done')}
           status={NoteStatus.DONE}
           notes={doneNotes}
           onAdd={handleCreateClick}
@@ -359,7 +361,7 @@ const MiniKanban: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
               <h3 className="font-bold text-gray-900">
-                {editingNoteId ? 'Edit Task' : 'New Task'}
+                {editingNoteId ? t('miniKanban.editTask') : t('miniKanban.newTask')}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -375,7 +377,7 @@ const MiniKanban: React.FC = () => {
                   htmlFor="task-title"
                   className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                 >
-                  Title
+                  {t('miniKanban.titleLabel')}
                 </label>
                 <input
                   id="task-title"
@@ -383,7 +385,7 @@ const MiniKanban: React.FC = () => {
                   value={formData.title}
                   onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  placeholder="Task title..."
+                  placeholder={t('miniKanban.titlePlaceholder')}
                   required
                 />
               </div>
@@ -393,14 +395,14 @@ const MiniKanban: React.FC = () => {
                   htmlFor="task-details"
                   className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                 >
-                  Details
+                  {t('miniKanban.detailsLabel')}
                 </label>
                 <textarea
                   id="task-details"
                   value={formData.content}
                   onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all min-h-[100px] resize-none"
-                  placeholder="Additional details..."
+                  placeholder={t('miniKanban.detailsPlaceholder')}
                   required
                 />
               </div>
@@ -411,7 +413,7 @@ const MiniKanban: React.FC = () => {
                     htmlFor="task-priority"
                     className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                   >
-                    Priority
+                    {t('miniKanban.priorityLabel')}
                   </label>
                   <select
                     id="task-priority"
@@ -421,10 +423,10 @@ const MiniKanban: React.FC = () => {
                     }
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value={NotePriority.LOW}>Low</option>
-                    <option value={NotePriority.MEDIUM}>Medium</option>
-                    <option value={NotePriority.HIGH}>High</option>
-                    <option value={NotePriority.URGENT}>Urgent</option>
+                    <option value={NotePriority.LOW}>{t('miniKanban.priorities.low')}</option>
+                    <option value={NotePriority.MEDIUM}>{t('miniKanban.priorities.medium')}</option>
+                    <option value={NotePriority.HIGH}>{t('miniKanban.priorities.high')}</option>
+                    <option value={NotePriority.URGENT}>{t('miniKanban.priorities.urgent')}</option>
                   </select>
                 </div>
                 <div>
@@ -432,7 +434,7 @@ const MiniKanban: React.FC = () => {
                     htmlFor="task-status"
                     className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1"
                   >
-                    Status
+                    {t('miniKanban.statusLabel')}
                   </label>
                   <select
                     id="task-status"
@@ -442,9 +444,11 @@ const MiniKanban: React.FC = () => {
                     }
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value={NoteStatus.TODO}>To Do</option>
-                    <option value={NoteStatus.IN_PROGRESS}>In Progress</option>
-                    <option value={NoteStatus.DONE}>Done</option>
+                    <option value={NoteStatus.TODO}>{t('miniKanban.statuses.todo')}</option>
+                    <option value={NoteStatus.IN_PROGRESS}>
+                      {t('miniKanban.statuses.in_progress')}
+                    </option>
+                    <option value={NoteStatus.DONE}>{t('miniKanban.statuses.done')}</option>
                   </select>
                 </div>
               </div>
@@ -455,14 +459,14 @@ const MiniKanban: React.FC = () => {
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all transform active:scale-95"
                 >
-                  {loading ? 'Saving...' : 'Save Task'}
+                  {loading ? t('miniKanban.saving') : t('miniKanban.save')}
                 </button>
               </div>
             </form>
