@@ -10,23 +10,20 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  TextField,
-  MenuItem,
   Button,
-  IconButton,
-  Chip,
-  Box,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  Divider,
-  Alert,
+  TextField,
+  MenuItem,
+  Chip,
+  IconButton,
+  Tooltip,
+  Box,
   Grid,
 } from '@mui/material';
+import { Equipment as EquipmentType } from '../types';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -43,35 +40,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
-interface Equipment {
-  _id: string;
-  name: string;
-  type: string;
-  brand?: string;
-  model?: string;
-  serialNumber?: string;
-  inventoryNumber?: string;
-  city?: {
-    _id: string;
-    name: string;
-  };
-  institution?: {
-    _id: string;
-    name: string;
-  };
-  status: string;
-  assignedTo?: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  location?: string;
-  notes?: string;
-  purchaseDate?: string;
-  warrantyExpiry?: string;
-  createdAt: string;
-}
+// Використовуємо глобальний тип Equipment з types/index.ts
+// interface Equipment { ... } - видалено, оскільки використовується імпортований тип
 
 const equipmentTypes = [
   { value: 'computer', label: "Комп'ютер" },
@@ -93,7 +63,7 @@ const statusTypes = [
 
 const Equipment: React.FC = () => {
   const { t } = useTranslation();
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
@@ -108,7 +78,7 @@ const Equipment: React.FC = () => {
 
   // Діалог створення/редагування
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<EquipmentType | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: 'computer',
@@ -331,7 +301,7 @@ const Equipment: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = (equipment: Equipment | null = null) => {
+  const handleOpenDialog = (equipment: EquipmentType | null = null) => {
     if (equipment) {
       setEditingEquipment(equipment);
       setFormData({
@@ -759,10 +729,10 @@ const Equipment: React.FC = () => {
                       select
                       fullWidth
                       value={formData.city}
-                      onChange={(e: any) => {
+                      onChange={e => {
                         const selectedCityId = e.target.value;
                         const selectedCity = cities.find(c => c._id === selectedCityId);
-                        console.log('🏙️ Вибране місто:', selectedCity?.name, 'ID:', selectedCityId);
+
                         // При зміні міста скидаємо заклад
                         setFormData({
                           ...formData,

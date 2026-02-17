@@ -1,10 +1,27 @@
 import React from 'react';
-import { User, Mail, Building, MapPin, Shield, Calendar, Clock, UserCheck, UserX, Smartphone, Hash, Cpu, Globe, Monitor } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Building,
+  MapPin,
+  Shield,
+  Calendar,
+  Clock,
+  UserCheck,
+  UserX,
+  Smartphone,
+  Hash,
+  Cpu,
+  Globe,
+  Monitor,
+  Laptop,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Modal from './UI/Modal';
 import Button from './UI/Button';
-import { User as UserType, UserRole } from '../types';
+import { User as UserType, UserRole, Equipment } from '../types';
 import { cn } from '../utils';
+import api from '../services/api';
 
 interface UserDetailsModalProps {
   isOpen: boolean;
@@ -14,8 +31,32 @@ interface UserDetailsModalProps {
 
 const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, user }) => {
   const { t } = useTranslation();
-  
-  if (!user) return null;
+  const [equipment, setEquipment] = React.useState<Equipment[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchUserEquipment = async (): Promise<void> => {
+      if (!user) return;
+
+      try {
+        setLoadingEquipment(true);
+        const response = await api.getEquipment({ assignedTo: user._id, limit: 100 });
+        if (response.success && response.data?.equipment) {
+          setEquipment(response.data.equipment);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user equipment:', error);
+      } finally {
+        setLoadingEquipment(false);
+      }
+    };
+
+    if (isOpen && user) {
+      fetchUserEquipment();
+    } else {
+      setEquipment([]);
+    }
+  }, [isOpen, user]);
 
   const formatDate = (date: string | Date): string => {
     return new Date(date).toLocaleDateString('uk-UA', {
@@ -23,7 +64,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -38,6 +79,8 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
     if (position && typeof position === 'object' && position.title) return position.title;
     return t('users.notSpecified');
   };
+
+  if (!user) return null;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('users.userDetails')}>
@@ -76,9 +119,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                 <span
                   className={cn(
                     'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                    user.isActive
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
+                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   )}
                 >
                   {user.isActive ? (
@@ -104,12 +145,14 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
             <h4 className="text-lg font-medium text-gray-900 border-b pb-2">
               {t('users.contactInformation')}
             </h4>
-            
+
             <div className="flex items-center space-x-3">
               <Mail className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-sm font-medium text-gray-500">Email</p>
-                <p className="text-sm text-gray-900">{user.email}</p>
+                <a href={`mailto:${user?.email}`} className="text-sm text-blue-600 hover:underline">
+                  {user?.email}
+                </a>
               </div>
             </div>
 
@@ -120,14 +163,17 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-500">Telegram</p>
-                {(user.telegramId || user.telegramUsername) ? (
+                {user.telegramId || user.telegramUsername ? (
                   <div className="space-y-1 mt-1">
                     {/* Визначаємо, чи telegramUsername є числовим ID */}
-                    {(() => {
-                      const isUsernameNumeric = user.telegramUsername && /^\d+$/.test(user.telegramUsername);
-                      const actualTelegramId = user.telegramId || (isUsernameNumeric ? user.telegramUsername : null);
-                      const actualTelegramUsername = user.telegramUsername && !isUsernameNumeric ? user.telegramUsername : null;
-                      
+                    {((): JSX.Element | null => {
+                      const isUsernameNumeric =
+                        user.telegramUsername && /^\d+$/.test(user.telegramUsername);
+                      const actualTelegramId =
+                        user.telegramId || (isUsernameNumeric ? user.telegramUsername : null);
+                      const actualTelegramUsername =
+                        user.telegramUsername && !isUsernameNumeric ? user.telegramUsername : null;
+
                       return (
                         <>
                           {actualTelegramId && (
@@ -137,12 +183,14 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                           )}
                           {actualTelegramUsername && (
                             <p className="text-sm text-gray-900">
-                              <span className="font-medium">Username:</span> @{actualTelegramUsername}
+                              <span className="font-medium">Username:</span> @
+                              {actualTelegramUsername}
                             </p>
                           )}
                           {!actualTelegramId && !actualTelegramUsername && (
                             <p className="text-xs text-yellow-600 mt-1">
-                              ⚠️ Для відправки сповіщень потрібен числовий Telegram ID. Додайте Telegram ID в налаштуваннях користувача.
+                              ⚠️ Для відправки сповіщень потрібен числовий Telegram ID. Додайте
+                              Telegram ID в налаштуваннях користувача.
                             </p>
                           )}
                         </>
@@ -162,7 +210,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
             <h4 className="text-lg font-medium text-gray-900 border-b pb-2">
               {t('users.workInformation')}
             </h4>
-            
+
             <div className="flex items-center space-x-3">
               <Building className="h-5 w-5 text-gray-400" />
               <div>
@@ -192,23 +240,24 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
         </div>
 
         {/* Доступ до ПК (фото збережене з Telegram) */}
-        {(user as { computerAccessPhoto?: string; computerAccessUpdatedAt?: string }).computerAccessPhoto && (
+        {(user as { computerAccessPhoto?: string; computerAccessUpdatedAt?: string })
+          .computerAccessPhoto && (
           <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
               <Monitor className="h-5 w-5 text-gray-600" />
               {t('users.computerAccess')}
             </h4>
-            <p className="text-sm text-gray-600 mb-2">
-              {t('users.computerAccessDescription')}
-            </p>
+            <p className="text-sm text-gray-600 mb-2">{t('users.computerAccessDescription')}</p>
             {(user as { computerAccessAnalysis?: string }).computerAccessAnalysis && (
               <p className="text-sm text-gray-800 mb-2 font-medium">
-                📋 {t('users.computerAccessAnalysis')}: {(user as { computerAccessAnalysis: string }).computerAccessAnalysis}
+                📋 {t('users.computerAccessAnalysis')}:{' '}
+                {(user as { computerAccessAnalysis: string }).computerAccessAnalysis}
               </p>
             )}
             {(user as { computerAccessUpdatedAt?: string }).computerAccessUpdatedAt && (
               <p className="text-xs text-gray-500 mb-3">
-                {t('users.lastUpdate')}: {formatDate((user as { computerAccessUpdatedAt: string }).computerAccessUpdatedAt)}
+                {t('users.lastUpdate')}:{' '}
+                {formatDate((user as { computerAccessUpdatedAt: string }).computerAccessUpdatedAt)}
               </p>
             )}
             <a
@@ -225,6 +274,59 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
             </a>
           </div>
         )}
+
+        {/* Обладнання */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <Laptop className="h-5 w-5 text-gray-600" />
+            {t('users.assignedEquipment') || 'Призначене обладнання'}
+          </h4>
+
+          {loadingEquipment ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            </div>
+          ) : equipment.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              {t('users.noEquipment') || 'Обладнання не призначено'}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {equipment.map(item => (
+                <div key={item._id} className="bg-white rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {item.type} • {item.brand} {item.model}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                        item.status === 'working'
+                          ? 'bg-green-100 text-green-800'
+                          : item.status === 'repair'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                      )}
+                    >
+                      {item.status === 'working'
+                        ? 'В роботі'
+                        : item.status === 'repair'
+                          ? 'В ремонті'
+                          : item.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                    <div>Warning: {item.inventoryNumber || '—'}</div>
+                    <div className="text-right">S/N: {item.serialNumber || '—'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Системна інформація */}
         <div className="bg-gray-50 rounded-lg p-4">
@@ -268,11 +370,15 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900">
-                          {device.label || [device.manufacturer, device.model].filter(Boolean).join(' ') || device.platform}
+                          {device.label ||
+                            [device.manufacturer, device.model].filter(Boolean).join(' ') ||
+                            device.platform}
                         </p>
                         <div className="flex items-center text-xs text-gray-500 gap-1">
                           <Hash className="h-3 w-3" />
-                          <span>{t('users.deviceId')}: {device.deviceId || '—'}</span>
+                          <span>
+                            {t('users.deviceId')}: {device.deviceId || '—'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -283,7 +389,12 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                       <Cpu className="h-4 w-4 text-gray-400" />
                       <div>
                         <p className="text-xs font-medium text-gray-500">{t('users.platform')}</p>
-                        <p className="text-sm text-gray-900">{device.platform || '—'}{device.osVersion ? ` • ${t('users.osVersion')}: ${device.osVersion}` : ''}</p>
+                        <p className="text-sm text-gray-900">
+                          {device.platform || '—'}
+                          {device.osVersion
+                            ? ` • ${t('users.osVersion')}: ${device.osVersion}`
+                            : ''}
+                        </p>
                       </div>
                     </div>
 
@@ -299,7 +410,9 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                       <Calendar className="h-4 w-4 text-gray-400" />
                       <div>
                         <p className="text-xs font-medium text-gray-500">{t('users.firstLogin')}</p>
-                        <p className="text-sm text-gray-900">{device.firstLoginAt ? formatDate(device.firstLoginAt) : '—'}</p>
+                        <p className="text-sm text-gray-900">
+                          {device.firstLoginAt ? formatDate(device.firstLoginAt) : '—'}
+                        </p>
                       </div>
                     </div>
 
@@ -328,7 +441,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                   <p className="text-sm text-gray-900">{user.position.description}</p>
                 </div>
               )}
-              
+
               {user.position.department && (
                 <div>
                   <p className="text-sm font-medium text-gray-500">{t('users.department')}</p>

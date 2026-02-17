@@ -10,6 +10,8 @@ import {
   UpdateCategoryForm,
   CategoryStats,
   AnalyticsData,
+  TelegramMessage,
+  Equipment,
   ApiResponse,
   UpdateTicketResponse,
   TicketsApiResponse,
@@ -34,7 +36,6 @@ import {
   CreateInstitutionData,
   InstitutionsResponse,
   InstitutionType,
-  TelegramMessage,
 } from '../types';
 
 // Реекспорт для зручності
@@ -741,6 +742,31 @@ class ApiService {
     const response: AxiosResponse<ApiResponse<Record<string, unknown>>> = await this.api.get(
       '/active-directory/statistics'
     );
+    return response.data;
+  }
+
+  // Методи для обладнання
+  async getEquipment(params?: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    status?: string;
+    city?: string;
+    institution?: string;
+    assignedTo?: string;
+    search?: string;
+  }): Promise<ApiResponse<{ equipment: Equipment[]; pagination: any }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response: AxiosResponse<ApiResponse<{ equipment: Equipment[]; pagination: any }>> =
+      await this.api.get(`/equipment?${queryParams.toString()}`);
     return response.data;
   }
 

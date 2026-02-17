@@ -766,3 +766,33 @@ export interface InstitutionsResponse {
     hasPrevPage: boolean;
   };
 }
+
+export interface Equipment {
+  _id: string;
+  name: string;
+  type: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
+  inventoryNumber?: string;
+  city?: {
+    _id: string;
+    name: string;
+  };
+  institution?: {
+    _id: string;
+    name: string;
+  };
+  status: string;
+  assignedTo?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  location?: string;
+  notes?: string;
+  purchaseDate?: string;
+  warrantyExpiry?: string;
+  createdAt: string;
+}
