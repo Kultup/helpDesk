@@ -777,20 +777,26 @@ class TelegramNotificationService {
         return;
       }
 
-      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      const userName = TelegramUtils.escapeHtml(
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+      );
+      const escapedFilename = TelegramUtils.escapeHtml(filename);
+      const escapedErrors = results.errors
+        .slice(0, 3)
+        .map(err => TelegramUtils.escapeHtml(err))
+        .join('\n');
+
       const message =
-        `📊 *Автоматичний імпорт обладнання*\n\n` +
-        `👤 *Виконав:* ${userName}\n` +
-        `📄 *Файл:* \`${filename}\`\n\n` +
-        `✅ *Успішно:* ${results.success}\n` +
-        `❌ *Помилок:* ${results.failed}\n` +
-        (results.errors.length > 0
-          ? `\n⚠️ *Перші помилки:*\n${results.errors.slice(0, 3).join('\n')}`
-          : '');
+        `📊 <b>Автоматичний імпорт обладнання</b>\n\n` +
+        `👤 <b>Виконав:</b> ${userName}\n` +
+        `📄 <b>Файл:</b> <code>${escapedFilename}</code>\n\n` +
+        `✅ <b>Успішно:</b> ${results.success}\n` +
+        `❌ <b>Помилок:</b> ${results.failed}\n` +
+        (results.errors.length > 0 ? `\n⚠️ <b>Перші помилки:</b>\n${escapedErrors}` : '');
 
       for (const admin of admins) {
         try {
-          await this.sendMessage(admin.telegramId, message, { parse_mode: 'Markdown' });
+          await this.sendMessage(admin.telegramId, message, { parse_mode: 'HTML' });
         } catch (err) {
           logger.error(`Не вдалося надіслати сповіщення адміну ${admin.telegramId}:`, err.message);
         }

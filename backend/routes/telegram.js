@@ -299,15 +299,22 @@ router.post(
         success: '✅',
       };
 
+      const escapeHtml = str => {
+        if (!str) {
+          return '';
+        }
+        return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      };
+
       const emoji = typeEmojis[type] || 'ℹ️';
       const formattedMessage = message
-        ? `${emoji} *Сповіщення*\n\n${message}`
-        : `${emoji} *Файл сповіщення*`;
+        ? `${emoji} <b>Сповіщення</b>\n\n${escapeHtml(message)}`
+        : `${emoji} <b>Файл сповіщення</b>`;
 
       try {
         let result;
         const sendOptions = {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           pin: String(pin) === 'true' || pin === true,
         };
 
