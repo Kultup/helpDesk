@@ -587,6 +587,63 @@ class AIEnhancedService {
    * @param {string} text - Текст повідомлення
    * @returns {Object} Результат аналізу
    */
+  /**
+   * Аналізує тікет для експорту (короткий зміст, настрій, теми, рекомендації)
+   * @param {Object} ticket - Об'єкт тікета
+   * @returns {Promise<Object>} - Результат аналізу
+   */
+  async analyzeTicketForExport(ticket) {
+    try {
+      const { GoogleGenerativeAI } = require('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+      const prompt = `
+        Проаналізуй цей тікет підтримки та поверни JSON з наступними полями:
+        1. "summary": Короткий зміст проблеми (1 речення).
+        2. "sentiment": Настрій користувача (Positive, Neutral, Negative, Frustrated).
+        3. "topics": Масив ключових тем (до 3 штук).
+        4. "recommendation": Рекомендована дія для вирішення (1 речення).
+
+        Тікет:
+        Заголовок: ${ticket.title}
+        Опис: ${ticket.description}
+        Пріоритет: ${ticket.priority}
+        Статус: ${ticket.status}
+      `;
+
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let text = response.text();
+
+      // Очистка markdown якщо є
+      text = text
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse AI export analysis JSON:', e);
+        return {
+          summary: 'Помилка аналізу',
+          sentiment: 'N/A',
+          topics: [],
+          recommendation: 'N/A',
+        };
+      }
+    } catch (error) {
+      console.error('AI Export Analysis Error:', error);
+      return {
+        summary: 'Помилка сервісу AI',
+        sentiment: 'N/A',
+        topics: [],
+        recommendation: 'N/A',
+      };
+    }
+  }
+
   async analyzeMessageWithInternet(text) {
     // Спочатку перевіряємо статичну базу
     const quickSolution = this.findQuickSolution(text);

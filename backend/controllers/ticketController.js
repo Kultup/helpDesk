@@ -9,6 +9,7 @@ const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
 const telegramService = require('../services/telegramServiceInstance');
 const ticketWebSocketService = require('../services/ticketWebSocketService');
+const aiEnhancedService = require('../services/aiEnhancedService');
 const logger = require('../utils/logger');
 logger.info('📱 telegramService імпортовано:', typeof telegramService);
 
@@ -989,6 +990,7 @@ exports.exportTickets = async (req, res) => {
       dateTo,
       includeComments = false,
       includeAttachments = false,
+      aiAnalysis = false,
     } = req.query;
 
     // Побудова фільтрів (аналогічно до getTickets)
@@ -1110,8 +1112,10 @@ exports.exportTickets = async (req, res) => {
       return metrics;
     };
 
-    // Підготовка даних для експорту
-    const exportData = tickets.map(ticket => {
+    const exportData = [];
+
+    // Обробка тікетів (послідовно для AI, щоб не перевантажити API)
+    for (const ticket of tickets) {
       const calculatedMetrics = calculateTicketMetrics(ticket);
 
       const baseData = {
@@ -1185,7 +1189,9 @@ exports.exportTickets = async (req, res) => {
         baseData['Коментарі'] = ticket.comments
           .map(
             comment =>
-              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${comment.content}`
+              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${
+                comment.content
+              }`
           )
           .join(' | ');
       }
@@ -1195,8 +1201,17 @@ exports.exportTickets = async (req, res) => {
         baseData['Вкладення'] = ticket.attachments.map(att => att.originalName).join(', ');
       }
 
-      return baseData;
-    });
+      // AI Аналіз
+      if (aiAnalysis === 'true') {
+        const analysis = await aiEnhancedService.analyzeTicketForExport(ticket);
+        baseData['AI Короткий зміст'] = analysis.summary;
+        baseData['AI Настрій'] = analysis.sentiment;
+        baseData['AI Теми'] = analysis.topics.join(', ');
+        baseData['AI Рекомендація'] = analysis.recommendation;
+      }
+
+      exportData.push(baseData);
+    }
 
     // Генерація файлу в залежності від формату
     if (format === 'excel') {

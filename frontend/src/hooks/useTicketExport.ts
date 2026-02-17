@@ -12,6 +12,7 @@ interface ExportFilters {
   dateTo?: string;
   includeComments: boolean;
   includeAttachments: boolean;
+  aiAnalysis: boolean;
 }
 
 export const useTicketExport = () => {
@@ -19,14 +20,14 @@ export const useTicketExport = () => {
 
   const exportTickets = async (filters: ExportFilters) => {
     setIsExporting(true);
-    
+
     try {
       // Підготовка параметрів запиту
       const params = new URLSearchParams();
-      
+
       // Додаємо формат
       params.append('format', filters.format);
-      
+
       // Додаємо фільтри якщо вони є
       if (filters.status) params.append('status', filters.status);
       if (filters.priority) params.append('priority', filters.priority);
@@ -35,10 +36,11 @@ export const useTicketExport = () => {
       if (filters.createdBy) params.append('createdBy', filters.createdBy);
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
-      
+
       // Додаємо додаткові опції
       params.append('includeComments', filters.includeComments.toString());
       params.append('includeAttachments', filters.includeAttachments.toString());
+      params.append('aiAnalysis', filters.aiAnalysis.toString());
 
       // Отримуємо токен з localStorage
       const token = localStorage.getItem('token');
@@ -57,7 +59,7 @@ export const useTicketExport = () => {
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -69,11 +71,11 @@ export const useTicketExport = () => {
 
       // Отримуємо blob з відповіді
       const blob = await response.blob();
-      
+
       // Визначаємо ім'я файлу з заголовків або створюємо власне
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `tickets_export_${new Date().toISOString().split('T')[0]}.${filters.format === 'excel' ? 'xlsx' : 'csv'}`;
-      
+
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="(.+)"/);
         if (filenameMatch) {
@@ -83,21 +85,20 @@ export const useTicketExport = () => {
 
       // Створюємо URL для завантаження
       const url = window.URL.createObjectURL(blob);
-      
+
       // Створюємо тимчасове посилання для завантаження
       const link = document.createElement('a');
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
-      
+
       link.click();
-      
+
       // Очищуємо ресурси
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       toast.success('Файл успішно завантажено!');
-      
     } catch (error) {
       console.error('Export error:', error);
       toast.error(error instanceof Error ? error.message : 'Помилка при експорті тікетів');
@@ -109,6 +110,6 @@ export const useTicketExport = () => {
 
   return {
     exportTickets,
-    isExporting
+    isExporting,
   };
 };

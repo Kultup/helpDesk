@@ -25,6 +25,7 @@ interface ExportFilters {
   dateTo?: string;
   includeComments: boolean;
   includeAttachments: boolean;
+  aiAnalysis: boolean;
 }
 
 const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
@@ -32,12 +33,13 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
   onClose,
   onExport,
   cities,
-  users
+  users,
 }) => {
   const [filters, setFilters] = useState<ExportFilters>({
     format: 'excel',
     includeComments: false,
-    includeAttachments: false
+    includeAttachments: false,
+    aiAnalysis: false,
   });
   const [isExporting, setIsExporting] = useState(false);
 
@@ -47,7 +49,7 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
     { value: 'in_progress', label: 'В роботі' },
     { value: 'resolved', label: 'Вирішений' },
     { value: 'closed', label: 'Закритий' },
-    { value: 'cancelled', label: 'Скасований' }
+    { value: 'cancelled', label: 'Скасований' },
   ];
 
   const priorityOptions = [
@@ -55,20 +57,20 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
     { value: 'low', label: 'Низький' },
     { value: 'medium', label: 'Середній' },
     { value: 'high', label: 'Високий' },
-    { value: 'urgent', label: 'Терміновий' }
+    { value: 'urgent', label: 'Терміновий' },
   ];
 
   const cityOptions = [
     { value: '', label: 'Всі міста' },
-    ...cities.map(city => ({ value: city._id, label: city.name }))
+    ...cities.map(city => ({ value: city._id, label: city.name })),
   ];
 
   const userOptions = [
     { value: '', label: 'Всі користувачі' },
-    ...users.map(user => ({ 
-      value: user._id, 
-      label: `${user.firstName} ${user.lastName} (${user.email})` 
-    }))
+    ...users.map(user => ({
+      value: user._id,
+      label: `${user.firstName} ${user.lastName} (${user.email})`,
+    })),
   ];
 
   const handleFilterChange = (key: keyof ExportFilters, value: any) => {
@@ -91,7 +93,8 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
     setFilters({
       format: 'excel',
       includeComments: false,
-      includeAttachments: false
+      includeAttachments: false,
+      aiAnalysis: false,
     });
   };
 
@@ -109,10 +112,7 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
               <p className="text-sm text-gray-500">Налаштуйте параметри експорту</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -121,9 +121,7 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
         <div className="p-6 space-y-6">
           {/* Format Selection */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">
-              Формат файлу
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Формат файлу</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleFilterChange('format', 'excel')}
@@ -165,56 +163,54 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Статус
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
                 <Select
                   value={filters.status || ''}
-                  onValueChange={(value) => handleFilterChange('status', value || undefined)}
+                  onValueChange={value => handleFilterChange('status', value || undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Всі статуси" />
                   </SelectTrigger>
                   <SelectContent>
-                     <SelectItem value="">Всі статуси</SelectItem>
-                     {statusOptions.filter(option => option.value !== '').map((option) => (
-                       <SelectItem key={option.value} value={option.value}>
-                         {option.label}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
+                    <SelectItem value="">Всі статуси</SelectItem>
+                    {statusOptions
+                      .filter(option => option.value !== '')
+                      .map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Пріоритет
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Пріоритет</label>
                 <Select
                   value={filters.priority || ''}
-                  onValueChange={(value) => handleFilterChange('priority', value || undefined)}
+                  onValueChange={value => handleFilterChange('priority', value || undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Всі пріоритети" />
                   </SelectTrigger>
                   <SelectContent>
-                     <SelectItem value="">Всі пріоритети</SelectItem>
-                     {priorityOptions.filter(option => option.value !== '').map((option) => (
-                       <SelectItem key={option.value} value={option.value}>
-                         {option.label}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
+                    <SelectItem value="">Всі пріоритети</SelectItem>
+                    {priorityOptions
+                      .filter(option => option.value !== '')
+                      .map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Місто
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Місто</label>
                 <Select
                   value={filters.city || ''}
-                  onValueChange={(value) => handleFilterChange('city', value || undefined)}
+                  onValueChange={value => handleFilterChange('city', value || undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Всі міста" />
@@ -229,14 +225,12 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Призначено
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Призначено</label>
                 <Select
                   value={filters.assignedTo || ''}
-                  onValueChange={(value) => handleFilterChange('assignedTo', value || undefined)}
+                  onValueChange={value => handleFilterChange('assignedTo', value || undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Всі користувачі" />
@@ -264,13 +258,13 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
                   type="date"
                   label="Від"
                   value={filters.dateFrom || ''}
-                  onChange={(e) => handleFilterChange('dateFrom', e.target.value || undefined)}
+                  onChange={e => handleFilterChange('dateFrom', e.target.value || undefined)}
                 />
                 <Input
                   type="date"
                   label="До"
                   value={filters.dateTo || ''}
-                  onChange={(e) => handleFilterChange('dateTo', e.target.value || undefined)}
+                  onChange={e => handleFilterChange('dateTo', e.target.value || undefined)}
                 />
               </div>
             </div>
@@ -284,7 +278,7 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
                 <input
                   type="checkbox"
                   checked={filters.includeComments}
-                  onChange={(e) => handleFilterChange('includeComments', e.target.checked)}
+                  onChange={e => handleFilterChange('includeComments', e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm text-gray-700">Включити коментарі</span>
@@ -293,10 +287,21 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
                 <input
                   type="checkbox"
                   checked={filters.includeAttachments}
-                  onChange={(e) => handleFilterChange('includeAttachments', e.target.checked)}
+                  onChange={e => handleFilterChange('includeAttachments', e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Включити список вкладень</span>
+                <span className="text-sm text-text-secondary">Включити список вкладень</span>
+              </label>
+              <label className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={filters.aiAnalysis}
+                  onChange={e => handleFilterChange('aiAnalysis', e.target.checked)}
+                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                />
+                <span className="text-sm text-text-secondary">
+                  Включити AI аналіз (може зайняти більше часу)
+                </span>
               </label>
             </div>
           </div>
@@ -311,11 +316,7 @@ const ExportTicketsModal: React.FC<ExportTicketsModalProps> = ({
             Скинути фільтри
           </button>
           <div className="flex space-x-3">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              disabled={isExporting}
-            >
+            <Button variant="secondary" onClick={onClose} disabled={isExporting}>
               Скасувати
             </Button>
             <Button
