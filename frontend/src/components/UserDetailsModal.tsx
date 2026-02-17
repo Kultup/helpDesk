@@ -166,7 +166,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ isOpen, onClose, us
                 {user.telegramId || user.telegramUsername ? (
                   <div className="space-y-1 mt-1">
                     {/* Визначаємо, чи telegramUsername є числовим ID */}
-                    {((): JSX.Element | null => {
+                    {((): React.ReactElement | null => {
                       const isUsernameNumeric =
                         user.telegramUsername && /^\d+$/.test(user.telegramUsername);
                       const actualTelegramId =

@@ -731,7 +731,6 @@ const Equipment: React.FC = () => {
                       value={formData.city}
                       onChange={e => {
                         const selectedCityId = e.target.value;
-                        const selectedCity = cities.find(c => c._id === selectedCityId);
 
                         // При зміні міста скидаємо заклад
                         setFormData({
