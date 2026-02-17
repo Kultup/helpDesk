@@ -1770,6 +1770,9 @@ class TelegramAIService {
       session.dialog_history.push({ role: 'assistant', content: rawText });
       botConversationService.appendMessage(chatId, user, 'assistant', rawText).catch(() => {});
 
+      const isClarification =
+        photoMetadata?.actionRequired === 'clarify' || /\[Дія:\s*уточнення\]/i.test(rawText);
+
       if (createTicketDirectly) {
         const shown = await this._showTicketConfirmationFromDialog(chatId, session, user);
         if (!shown) {
@@ -1788,6 +1791,7 @@ class TelegramAIService {
         }
         return;
       }
+
       if (hintOnly) {
         session.step = 'awaiting_tip_feedback';
         const normalizedHint = TelegramUtils.normalizeQuickSolutionSteps(displayText);
@@ -1800,6 +1804,21 @@ class TelegramAIService {
                 { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
               ],
             ],
+          },
+        });
+        return;
+      }
+
+      if (isClarification) {
+        session.step = 'gathering_information';
+        const normalizedClarify = TelegramUtils.normalizeQuickSolutionSteps(displayText || rawText);
+        await this.telegramService.sendMessage(chatId, normalizedClarify, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
           },
         });
         return;

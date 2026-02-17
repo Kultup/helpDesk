@@ -309,7 +309,6 @@ class TelegramTicketService {
                 text: TelegramUtils.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50),
                 callback_data: `recreate_ticket_${ticket._id}`,
               },
-              { text: '💬 Відповісти', callback_data: `reply_ticket_${ticket._id}` },
             ],
             backButtons,
           ],
