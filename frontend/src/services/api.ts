@@ -1355,10 +1355,24 @@ class ApiService {
   async sendTelegramNotification(payload: {
     message: string;
     type?: 'info' | 'warning' | 'error' | 'success';
+    attachment?: File;
+    pin?: boolean;
   }): Promise<ApiResponse<{ sent: boolean; groupChatId: string }>> {
-    const response: AxiosResponse<ApiResponse<{ sent: boolean; groupChatId: string }>> =
-      await this.api.post('/telegram/send-notification', payload);
-    return response.data;
+    const { attachment, pin, message, type } = payload;
+
+    if (attachment || pin !== undefined) {
+      const formData = new FormData();
+      formData.append('message', message);
+      if (type) formData.append('type', type);
+      if (attachment) formData.append('attachment', attachment);
+      if (pin !== undefined) formData.append('pin', String(pin));
+
+      return this.post('/telegram/send-notification', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    return this.post('/telegram/send-notification', { message, type });
   }
 
   // Методи для особистих нотаток адміністратора
@@ -1632,8 +1646,20 @@ class ApiService {
   // Відправити Telegram повідомлення користувачу
   async sendTelegramMessageToUser(
     ticketId: string,
-    content: string
+    content: string,
+    attachment?: File,
+    pin?: boolean
   ): Promise<ApiResponse<Record<string, unknown>>> {
+    if (attachment || pin !== undefined) {
+      const formData = new FormData();
+      formData.append('content', content);
+      if (attachment) formData.append('attachment', attachment);
+      if (pin !== undefined) formData.append('pin', String(pin));
+
+      return this.post(`/tickets/${ticketId}/send-telegram-message`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
     return this.post(`/tickets/${ticketId}/send-telegram-message`, { content });
   }
 

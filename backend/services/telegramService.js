@@ -365,6 +365,17 @@ class TelegramService {
         logger.debug(`Повідомлення успішно відправлено в чат ${chatId}`, {
           messageId: result.message_id,
         });
+
+        // Якщо вказано pin, закріплюємо повідомлення
+        if (options.pin && result.message_id) {
+          try {
+            await this.pinChatMessage(chatId, result.message_id);
+            logger.debug(`Повідомлення ${result.message_id} закріплено в чаті ${chatId}`);
+          } catch (pinError) {
+            logger.error(`Помилка закріплення повідомлення ${result.message_id}:`, pinError);
+          }
+        }
+
         return result;
       } catch (error) {
         // Якщо помилка пов'язана з парсингом Markdown, спробуємо відправити як звичайний текст
@@ -414,6 +425,67 @@ class TelegramService {
       return await this.bot.deleteMessage(chatId, messageId);
     } catch (error) {
       logger.error('Помилка видалення повідомлення:', error);
+      throw error;
+    }
+  }
+
+  async sendPhoto(chatId, photo, options = {}) {
+    if (!this.bot) {
+      logger.error('Telegram бот не ініціалізовано');
+      return;
+    }
+    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    try {
+      const result = await this.bot.sendPhoto(chatId, photo, defaultOptions);
+
+      if (options.pin && result.message_id) {
+        try {
+          await this.pinChatMessage(chatId, result.message_id);
+        } catch (pinError) {
+          logger.error(`Помилка закріплення фото:`, pinError);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Помилка відправки фото:', error);
+      throw error;
+    }
+  }
+
+  async sendDocument(chatId, document, options = {}) {
+    if (!this.bot) {
+      logger.error('Telegram бот не ініціалізовано');
+      return;
+    }
+    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    try {
+      const result = await this.bot.sendDocument(chatId, document, defaultOptions);
+
+      if (options.pin && result.message_id) {
+        try {
+          await this.pinChatMessage(chatId, result.message_id);
+        } catch (pinError) {
+          logger.error(`Помилка закріплення документа:`, pinError);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Помилка відправки документа:', error);
+      throw error;
+    }
+  }
+
+  async pinChatMessage(chatId, messageId) {
+    if (!this.bot) {
+      logger.error('Telegram бот не ініціалізовано');
+      return;
+    }
+    try {
+      return await this.bot.pinChatMessage(chatId, messageId, { disable_notification: true });
+    } catch (error) {
+      logger.error('Помилка закріплення повідомлення:', error);
       throw error;
     }
   }

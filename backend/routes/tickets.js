@@ -1357,19 +1357,21 @@ router.post(
   '/:id/send-telegram-message',
   authenticateToken,
   requirePermission('tickets.manage'),
+  upload.single('attachment'),
   async (req, res) => {
     try {
-      const { content, message } = req.body;
+      const { content, message, pin = false } = req.body;
       const messageContent = content || message; // Підтримка обох варіантів для сумісності
+      const attachment = req.file;
 
-      if (!messageContent || !messageContent.trim()) {
+      if ((!messageContent || !messageContent.trim()) && !attachment) {
         return res.status(400).json({
           success: false,
-          message: 'Повідомлення не може бути порожнім',
+          message: 'Повідомлення або файл не може бути порожнім',
         });
       }
 
-      if (messageContent.length > 1000) {
+      if (messageContent && messageContent.length > 1000) {
         return res.status(400).json({
           success: false,
           message: 'Повідомлення не може перевищувати 1000 символів',
@@ -1399,17 +1401,37 @@ router.post(
 
       // Відправляємо повідомлення через Telegram
       const chatId = user.telegramChatId || user.telegramId;
-      const telegramMessage =
-        `💬 *Повідомлення від адміністратора*\n\n` +
-        `📋 *Тікет:* ${ticket.title}\n` +
-        `🆔 \`${ticket._id}\`\n\n` +
-        `${messageContent.trim()}\n\n` +
-        `💡 Ви можете відповісти на це повідомлення, і ваша відповідь буде додана як коментар до тікету.`;
+      const telegramHeader = `💬 *Повідомлення від адміністратора*\n📋 *Тікет:* ${ticket.title}\n🆔 \`${ticket._id}\`\n\n`;
+      const telegramFooter = `\n\n💡 Ви можете відповісти на це повідомлення, і ваша відповідь буде додана як коментар до тікету.`;
+
+      const fullText = messageContent ? messageContent.trim() : '';
+      const telegramMessage = telegramHeader + fullText + telegramFooter;
 
       try {
-        const result = await telegramService.sendMessage(chatId, telegramMessage, {
+        let result;
+        const sendOptions = {
           parse_mode: 'Markdown',
-        });
+          pin: String(pin) === 'true' || pin === true,
+        };
+
+        if (attachment) {
+          const fs = require('fs');
+          const fileStream = fs.createReadStream(attachment.path);
+
+          if (attachment.mimetype.startsWith('image/')) {
+            result = await telegramService.sendPhoto(chatId, fileStream, {
+              caption: telegramMessage,
+              ...sendOptions,
+            });
+          } else {
+            result = await telegramService.sendDocument(chatId, fileStream, {
+              caption: telegramMessage,
+              ...sendOptions,
+            });
+          }
+        } else {
+          result = await telegramService.sendMessage(chatId, telegramMessage, sendOptions);
+        }
 
         // Зберігаємо повідомлення в окрему колекцію TelegramMessage
         const TelegramMessage = require('../models/TelegramMessage');
@@ -1417,12 +1439,19 @@ router.post(
           ticketId: ticket._id,
           senderId: req.user._id,
           recipientId: user._id,
-          content: messageContent.trim(),
+          content:
+            messageContent?.trim() || (attachment ? `[Файл: ${attachment.originalname}]` : ''),
           direction: 'admin_to_user',
           telegramMessageId: result?.message_id?.toString() || null,
           telegramChatId: String(chatId),
           sentAt: new Date(),
           deliveredAt: new Date(),
+          metadata: {
+            hasAttachment: !!attachment,
+            attachmentName: attachment?.originalname,
+            attachmentType: attachment?.mimetype,
+            pinned: sendOptions.pin,
+          },
         });
         await telegramMsg.save();
 

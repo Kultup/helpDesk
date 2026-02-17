@@ -4,6 +4,33 @@ const telegramService = require('../services/telegramServiceInstance');
 const User = require('../models/User');
 const { authenticateToken, isAdminRole } = require('../middleware/auth');
 const logger = require('../utils/logger');
+const multer = require('multer');
+const path = require('path');
+const { uploadsPath } = require('../config/paths');
+
+// Налаштування multer для завантаження файлів
+const telegramUploadPath = path.join(uploadsPath, 'telegram');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Перевіряємо наявність папки (створюється в app.js, але про всяк випадок)
+    const fs = require('fs');
+    if (!fs.existsSync(telegramUploadPath)) {
+      fs.mkdirSync(telegramUploadPath, { recursive: true });
+    }
+    cb(null, telegramUploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});
 
 /**
  * @route   GET /api/telegram/webhook
@@ -212,98 +239,131 @@ router.delete('/unlink', authenticateToken, async (req, res) => {
  * @desc    Відправка сповіщення через Telegram в групу
  * @access  Private
  */
-router.post('/send-notification', authenticateToken, async (req, res) => {
-  try {
-    if (!isAdminRole(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Недостатньо прав доступу',
-      });
-    }
-
-    const { message, type = 'info' } = req.body;
-
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        message: "Повідомлення є обов'язковим",
-      });
-    }
-
-    if (!telegramService.isInitialized || !telegramService.bot) {
-      return res.status(503).json({
-        success: false,
-        message: 'Telegram бот не ініціалізований',
-      });
-    }
-
-    // Отримуємо chatId з бази даних або змінної оточення
-    const TelegramConfig = require('../models/TelegramConfig');
-    let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
-
-    if (!groupChatId) {
-      try {
-        const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
-        if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
-          groupChatId = telegramConfig.chatId.trim();
-        }
-      } catch (configError) {
-        logger.error('Помилка отримання TelegramConfig:', configError);
-      }
-    }
-
-    if (!groupChatId) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'TELEGRAM_GROUP_CHAT_ID не встановлено. Перевірте налаштування в адмін панелі або встановіть змінну оточення.',
-      });
-    }
-
-    const typeEmojis = {
-      info: 'ℹ️',
-      warning: '⚠️',
-      error: '❌',
-      success: '✅',
-    };
-
-    const formattedMessage = `${typeEmojis[type] || 'ℹ️'} *Сповіщення*\n\n${message}`;
-
+router.post(
+  '/send-notification',
+  authenticateToken,
+  upload.single('attachment'),
+  async (req, res) => {
     try {
-      // Відправляємо повідомлення в групу
-      await telegramService.sendMessage(groupChatId, formattedMessage, { parse_mode: 'Markdown' });
+      if (!isAdminRole(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Недостатньо прав доступу',
+        });
+      }
 
-      logger.telegram('Швидке сповіщення відправлено в групу', {
-        adminId: req.user.id,
-        groupChatId,
-        type,
-        messageLength: message.length,
-      });
+      const { message, type = 'info', pin = false } = req.body;
+      const attachment = req.file;
 
-      res.json({
-        success: true,
-        message: 'Сповіщення відправлено в групу',
-        data: {
-          sent: true,
+      if (!message && !attachment) {
+        return res.status(400).json({
+          success: false,
+          message: "Повідомлення або файл є обов'язковим",
+        });
+      }
+
+      if (!telegramService.isInitialized || !telegramService.bot) {
+        return res.status(503).json({
+          success: false,
+          message: 'Telegram бот не ініціалізований',
+        });
+      }
+
+      // Отримуємо chatId з бази даних або змінної оточення
+      const TelegramConfig = require('../models/TelegramConfig');
+      let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+
+      if (!groupChatId) {
+        try {
+          const telegramConfig = await TelegramConfig.findOne({ key: 'default' });
+          if (telegramConfig && telegramConfig.chatId && telegramConfig.chatId.trim()) {
+            groupChatId = telegramConfig.chatId.trim();
+          }
+        } catch (configError) {
+          logger.error('Помилка отримання TelegramConfig:', configError);
+        }
+      }
+
+      if (!groupChatId) {
+        return res.status(400).json({
+          success: false,
+          message:
+            'TELEGRAM_GROUP_CHAT_ID не встановлено. Перевірте налаштування в адмін панелі або встановіть змінну оточення.',
+        });
+      }
+
+      const typeEmojis = {
+        info: 'ℹ️',
+        warning: '⚠️',
+        error: '❌',
+        success: '✅',
+      };
+
+      const emoji = typeEmojis[type] || 'ℹ️';
+      const formattedMessage = message
+        ? `${emoji} *Сповіщення*\n\n${message}`
+        : `${emoji} *Файл сповіщення*`;
+
+      try {
+        let result;
+        const sendOptions = {
+          parse_mode: 'Markdown',
+          pin: String(pin) === 'true' || pin === true,
+        };
+
+        if (attachment) {
+          const fs = require('fs');
+          const fileStream = fs.createReadStream(attachment.path);
+
+          if (attachment.mimetype.startsWith('image/')) {
+            result = await telegramService.sendPhoto(groupChatId, fileStream, {
+              caption: formattedMessage,
+              ...sendOptions,
+            });
+          } else {
+            result = await telegramService.sendDocument(groupChatId, fileStream, {
+              caption: formattedMessage,
+              ...sendOptions,
+            });
+          }
+        } else {
+          result = await telegramService.sendMessage(groupChatId, formattedMessage, sendOptions);
+        }
+
+        logger.telegram('Швидке сповіщення відправлено в групу', {
+          adminId: req.user.id,
           groupChatId,
-        },
-      });
+          type,
+          hasAttachment: !!attachment,
+          pinned: sendOptions.pin,
+        });
+
+        res.json({
+          success: true,
+          message: 'Сповіщення відправлено в групу',
+          data: {
+            sent: true,
+            groupChatId,
+            messageId: result?.message_id,
+          },
+        });
+      } catch (error) {
+        logger.error('Помилка відправки повідомлення в групу:', error);
+        res.status(500).json({
+          success: false,
+          message: 'Помилка відправки повідомлення в групу',
+          error: error.message,
+        });
+      }
     } catch (error) {
-      logger.error('Помилка відправки повідомлення в групу:', error);
+      logger.error('Помилка відправки швидкого сповіщення:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка відправки повідомлення в групу',
-        error: error.message,
+        message: 'Внутрішня помилка сервера',
       });
     }
-  } catch (error) {
-    logger.error('Помилка відправки швидкого сповіщення:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Внутрішня помилка сервера',
-    });
   }
-});
+);
 
 /**
  * @route   GET /api/telegram/status
