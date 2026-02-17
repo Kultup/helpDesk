@@ -48,9 +48,8 @@ exports.getEquipmentTemplate = async (req, res) => {
       'Тип обладнання (виберіть зі списку): computer, printer, phone, monitor, router, switch, ups, other';
     worksheet.getCell('C1').note = 'Виробник (наприклад: HP, Dell, Lenovo)';
     worksheet.getCell('D1').note = 'Модель (наприклад: Latitude 5420)';
-    worksheet.getCell('E1').note = 'Серійний номер (унікальний ідентифікатор)';
-    worksheet.getCell('F1').note =
-      'Інвентарний номер (якщо не вказано, буде згенеровано автоматично)';
+    worksheet.getCell('E1').note = 'Серійний номер (залиште пустим, якщо немає)';
+    worksheet.getCell('F1').note = 'Інвентарний номер (залиште пустим для автогенерації)';
     worksheet.getCell('G1').note = 'Назва міста (має співпадати з назвою в системі)';
     worksheet.getCell('H1').note = 'Назва закладу (має співпадати з назвою в системі)';
     worksheet.getCell('I1').note = 'Конкретне місцезнаходження (наприклад: Кабінет 201)';
@@ -74,6 +73,30 @@ exports.getEquipmentTemplate = async (req, res) => {
       purchaseDate: '2023-01-15',
       notes: 'Видано новому співробітнику',
     });
+
+    // Додаємо випадаючі списки (Data Validation) для колонок B (Type) та J (Status)
+    // Налаштовуємо для перших 500 рядків (після заголовка)
+    for (let i = 2; i <= 500; i++) {
+      // Випадаючий список для Типу (Колонка B)
+      worksheet.getCell(`B${i}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"computer,printer,phone,monitor,router,switch,ups,other"'],
+        showErrorMessage: true,
+        errorTitle: 'Невірний тип',
+        error: 'Будь ласка, оберіть тип зі списку',
+      };
+
+      // Випадаючий список для Статусу (Колонка J)
+      worksheet.getCell(`J${i}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"working,not_working,new,used"'],
+        showErrorMessage: true,
+        errorTitle: 'Невірний статус',
+        error: 'Будь ласка, оберіть статус зі списку',
+      };
+    }
 
     // Налаштування відповіді
     res.setHeader(
