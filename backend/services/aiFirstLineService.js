@@ -1243,9 +1243,9 @@ async function getTicketSummary(dialogHistory, userContext, priorityHint = '', c
   const priority = ['low', 'medium', 'high', 'urgent'].includes(parsed.priority)
     ? parsed.priority
     : 'medium';
-  let description = String(parsed.description || '');
+  const description = String(parsed.description || '');
   if (parsed.environment_clues && typeof parsed.environment_clues === 'object') {
-    description += `\n\n---\n🔧 [Metadata для адміна] environment_clues: ${JSON.stringify(parsed.environment_clues)}`;
+    // description += `\n\n---\n🔧 [Metadata для адміна] environment_clues: ${JSON.stringify(parsed.environment_clues)}`;
   }
   return {
     title: String(parsed.title || 'Проблема').slice(0, 200),
