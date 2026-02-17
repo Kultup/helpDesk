@@ -2252,17 +2252,13 @@ class TelegramService {
           return;
         }
 
-        // Тільки адміни та менеджери можуть імпортувати обладнання
-        if (user.role !== 'admin' && user.role !== 'manager') {
-          logger.warn(`Відхилено спробу імпорту інвентаризації користувачем без прав`, {
-            userId: user._id,
-            telegramId: user.telegramId,
-            role: user.role,
-            fileName: fileName,
-          });
-          await this.sendMessage(chatId, '🚫 У вас немає прав для імпорту обладнання.');
-          return;
-        }
+        // Дозволяємо всім користувачам імпортувати обладнання
+        logger.info(`Користувач розпочав імпорт інвентаризації`, {
+          userId: user._id,
+          telegramId: user.telegramId,
+          role: user.role,
+          fileName: fileName,
+        });
 
         const escapedFileName = TelegramUtils.escapeHtml(fileName);
         await this.sendMessage(
