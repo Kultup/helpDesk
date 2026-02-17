@@ -7,26 +7,26 @@ const logger = require('../utils/logger');
 // Отримати всі теги
 exports.getTags = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      search, 
-      sortBy = 'name', 
+    const {
+      page = 1,
+      limit = 50,
+      search,
+      sortBy = 'name',
       sortOrder = 'asc',
-      isActive = true 
+      isActive = true,
     } = req.query;
 
     // Побудова фільтрів
     const filters = {};
-    
+
     if (isActive !== undefined) {
       filters.isActive = isActive === 'true';
     }
-    
+
     if (search) {
       filters.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { description: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -40,8 +40,8 @@ exports.getTags = async (req, res) => {
       sort,
       populate: {
         path: 'createdBy',
-        select: 'email position'
-      }
+        select: 'email position',
+      },
     };
 
     const tags = await Tag.find(filters)
@@ -56,13 +56,13 @@ exports.getTags = async (req, res) => {
       tags,
       totalPages: Math.ceil(total / options.limit),
       currentPage: options.page,
-      total
+      total,
     });
   } catch (error) {
     logger.error('Помилка отримання тегів:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при отриманні тегів',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -76,8 +76,7 @@ exports.getTagById = async (req, res) => {
       return res.status(400).json({ message: 'Невірний ID тегу' });
     }
 
-    const tag = await Tag.findById(id)
-      .populate('createdBy', 'email position');
+    const tag = await Tag.findById(id).populate('createdBy', 'email position');
 
     if (!tag) {
       return res.status(404).json({ message: 'Тег не знайдено' });
@@ -86,9 +85,9 @@ exports.getTagById = async (req, res) => {
     res.json(tag);
   } catch (error) {
     logger.error('Помилка отримання тегу:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при отриманні тегу',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -98,9 +97,9 @@ exports.createTag = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Помилки валідації',
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
@@ -109,8 +108,8 @@ exports.createTag = async (req, res) => {
     // Перевірка на унікальність назви
     const existingTag = await Tag.findByName(name);
     if (existingTag) {
-      return res.status(400).json({ 
-        message: 'Тег з такою назвою вже існує' 
+      return res.status(400).json({
+        message: 'Тег з такою назвою вже існує',
       });
     }
 
@@ -118,27 +117,26 @@ exports.createTag = async (req, res) => {
       name: name.toLowerCase(),
       color,
       description,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     });
 
     await tag.save();
 
-    const populatedTag = await Tag.findById(tag._id)
-      .populate('createdBy', 'email position');
+    const populatedTag = await Tag.findById(tag._id).populate('createdBy', 'email position');
 
     res.status(201).json(populatedTag);
   } catch (error) {
     logger.error('Помилка створення тегу:', error);
-    
+
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Тег з такою назвою вже існує' 
+      return res.status(400).json({
+        message: 'Тег з такою назвою вже існує',
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       message: 'Помилка сервера при створенні тегу',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -148,9 +146,9 @@ exports.updateTag = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Помилки валідації',
-        errors: errors.array() 
+        errors: errors.array(),
       });
     }
 
@@ -170,36 +168,43 @@ exports.updateTag = async (req, res) => {
     if (name && name.toLowerCase() !== tag.name) {
       const existingTag = await Tag.findByName(name);
       if (existingTag) {
-        return res.status(400).json({ 
-          message: 'Тег з такою назвою вже існує' 
+        return res.status(400).json({
+          message: 'Тег з такою назвою вже існує',
         });
       }
     }
 
     // Оновлення полів
-    if (name) tag.name = name.toLowerCase();
-    if (color) tag.color = color;
-    if (description !== undefined) tag.description = description;
-    if (isActive !== undefined) tag.isActive = isActive;
+    if (name) {
+      tag.name = name.toLowerCase();
+    }
+    if (color) {
+      tag.color = color;
+    }
+    if (description !== undefined) {
+      tag.description = description;
+    }
+    if (isActive !== undefined) {
+      tag.isActive = isActive;
+    }
 
     await tag.save();
 
-    const populatedTag = await Tag.findById(tag._id)
-      .populate('createdBy', 'email position');
+    const populatedTag = await Tag.findById(tag._id).populate('createdBy', 'email position');
 
     res.json(populatedTag);
   } catch (error) {
     logger.error('Помилка оновлення тегу:', error);
-    
+
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Тег з такою назвою вже існує' 
+      return res.status(400).json({
+        message: 'Тег з такою назвою вже існує',
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       message: 'Помилка сервера при оновленні тегу',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -219,19 +224,16 @@ exports.deleteTag = async (req, res) => {
     }
 
     // Видалити тег з усіх тікетів
-    await Ticket.updateMany(
-      { tags: id },
-      { $pull: { tags: id } }
-    );
+    await Ticket.updateMany({ tags: id }, { $pull: { tags: id } });
 
     await Tag.findByIdAndDelete(id);
 
     res.json({ message: 'Тег успішно видалено' });
   } catch (error) {
     logger.error('Помилка видалення тегу:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при видаленні тегу',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -273,9 +275,9 @@ exports.addTagToTicket = async (req, res) => {
     res.json({ message: 'Тег успішно додано до тікету' });
   } catch (error) {
     logger.error('Помилка додавання тегу до тікету:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при додаванні тегу до тікету',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -311,9 +313,9 @@ exports.removeTagFromTicket = async (req, res) => {
     res.json({ message: 'Тег успішно видалено з тікету' });
   } catch (error) {
     logger.error('Помилка видалення тегу з тікету:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при видаленні тегу з тікету',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -327,8 +329,10 @@ exports.getTicketTags = async (req, res) => {
       return res.status(400).json({ message: 'Невірний ID тікету' });
     }
 
-    const ticket = await Ticket.findById(ticketId)
-      .populate('tags', 'name color description usageCount');
+    const ticket = await Ticket.findById(ticketId).populate(
+      'tags',
+      'name color description usageCount'
+    );
 
     if (!ticket) {
       return res.status(404).json({ message: 'Тікет не знайдено' });
@@ -337,9 +341,9 @@ exports.getTicketTags = async (req, res) => {
     res.json(ticket.tags || []);
   } catch (error) {
     logger.error('Помилка отримання тегів тікету:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при отриманні тегів тікету',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -354,9 +358,9 @@ exports.getMostUsedTags = async (req, res) => {
     res.json(tags);
   } catch (error) {
     logger.error('Помилка отримання популярних тегів:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при отриманні популярних тегів',
-      error: error.message 
+      error: error.message,
     });
   }
 };
@@ -367,25 +371,25 @@ exports.searchTags = async (req, res) => {
     const { q, limit = 10 } = req.query;
 
     if (!q || q.trim().length < 2) {
-      return res.status(400).json({ 
-        message: 'Пошуковий запит повинен містити принаймні 2 символи' 
+      return res.status(400).json({
+        message: 'Пошуковий запит повинен містити принаймні 2 символи',
       });
     }
 
     const tags = await Tag.find({
       name: { $regex: q.trim(), $options: 'i' },
-      isActive: true
+      isActive: true,
     })
-    .sort({ usageCount: -1, name: 1 })
-    .limit(parseInt(limit))
-    .select('name color description usageCount');
+      .sort({ usageCount: -1, name: 1 })
+      .limit(parseInt(limit))
+      .select('name color description usageCount');
 
     res.json(tags);
   } catch (error) {
     logger.error('Помилка пошуку тегів:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Помилка сервера при пошуку тегів',
-      error: error.message 
+      error: error.message,
     });
   }
 };

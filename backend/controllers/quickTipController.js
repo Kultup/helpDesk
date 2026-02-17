@@ -9,7 +9,7 @@ const searchQuickTips = async (req, res) => {
     if (!query || query.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Запит повинен містити принаймні 2 символи'
+        message: 'Запит повинен містити принаймні 2 символи',
       });
     }
 
@@ -18,13 +18,13 @@ const searchQuickTips = async (req, res) => {
     res.json({
       success: true,
       data: quickTips,
-      count: quickTips.length
+      count: quickTips.length,
     });
   } catch (error) {
     logger.error('Помилка при пошуку швидких порад:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при пошуку швидких порад'
+      message: 'Помилка сервера при пошуку швидких порад',
     });
   }
 };
@@ -38,7 +38,7 @@ const rateQuickTip = async (req, res) => {
     if (typeof isHelpful !== 'boolean') {
       return res.status(400).json({
         success: false,
-        message: 'Параметр isHelpful повинен бути boolean'
+        message: 'Параметр isHelpful повинен бути boolean',
       });
     }
 
@@ -46,7 +46,7 @@ const rateQuickTip = async (req, res) => {
     if (!quickTip) {
       return res.status(404).json({
         success: false,
-        message: 'Швидку пораду не знайдено'
+        message: 'Швидку пораду не знайдено',
       });
     }
 
@@ -63,14 +63,14 @@ const rateQuickTip = async (req, res) => {
       data: {
         helpfulCount: quickTip.helpfulCount,
         notHelpfulCount: quickTip.notHelpfulCount,
-        helpfulnessRatio: quickTip.helpfulnessRatio
-      }
+        helpfulnessRatio: quickTip.helpfulnessRatio,
+      },
     });
   } catch (error) {
     logger.error('Помилка при оцінці швидкої поради:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оцінці швидкої поради'
+      message: 'Помилка сервера при оцінці швидкої поради',
     });
   }
 };
@@ -82,7 +82,9 @@ const getAllQuickTips = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (isActive !== undefined) filter.isActive = isActive === 'true';
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
 
     const quickTips = await QuickTip.find(filter)
       .populate('createdBy', 'firstName lastName')
@@ -99,14 +101,14 @@ const getAllQuickTips = async (req, res) => {
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),
-        total
-      }
+        total,
+      },
     });
   } catch (error) {
     logger.error('Помилка при отриманні всіх швидких порад:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні швидких порад'
+      message: 'Помилка сервера при отриманні швидких порад',
     });
   }
 };
@@ -122,7 +124,7 @@ const createQuickTip = async (req, res) => {
       steps,
       priority,
       tags,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     });
 
     await quickTip.save();
@@ -130,13 +132,13 @@ const createQuickTip = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Швидку пораду створено успішно',
-      data: quickTip
+      data: quickTip,
     });
   } catch (error) {
     logger.error('Помилка при створенні швидкої поради:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при створенні швидкої поради'
+      message: 'Помилка сервера при створенні швидкої поради',
     });
   }
 };
@@ -147,29 +149,28 @@ const updateQuickTip = async (req, res) => {
     const { tipId } = req.params;
     const updateData = { ...req.body, updatedBy: req.user.id };
 
-    const quickTip = await QuickTip.findByIdAndUpdate(
-      tipId,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const quickTip = await QuickTip.findByIdAndUpdate(tipId, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!quickTip) {
       return res.status(404).json({
         success: false,
-        message: 'Швидку пораду не знайдено'
+        message: 'Швидку пораду не знайдено',
       });
     }
 
     res.json({
       success: true,
       message: 'Швидку пораду оновлено успішно',
-      data: quickTip
+      data: quickTip,
     });
   } catch (error) {
     logger.error('Помилка при оновленні швидкої поради:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оновленні швидкої поради'
+      message: 'Помилка сервера при оновленні швидкої поради',
     });
   }
 };
@@ -183,19 +184,19 @@ const deleteQuickTip = async (req, res) => {
     if (!quickTip) {
       return res.status(404).json({
         success: false,
-        message: 'Швидку пораду не знайдено'
+        message: 'Швидку пораду не знайдено',
       });
     }
 
     res.json({
       success: true,
-      message: 'Швидку пораду видалено успішно'
+      message: 'Швидку пораду видалено успішно',
     });
   } catch (error) {
     logger.error('Помилка при видаленні швидкої поради:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при видаленні швидкої поради'
+      message: 'Помилка сервера при видаленні швидкої поради',
     });
   }
 };
@@ -206,5 +207,5 @@ module.exports = {
   getAllQuickTips,
   createQuickTip,
   updateQuickTip,
-  deleteQuickTip
+  deleteQuickTip,
 };

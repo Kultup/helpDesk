@@ -11,7 +11,7 @@ let pollingJob = null;
 function setupZabbixPolling() {
   // Спочатку перевіряємо конфігурацію
   ZabbixConfig.getActive()
-    .then(async config => {
+    .then(config => {
       if (!config || !config.enabled) {
         logger.info('Zabbix polling: Integration is disabled, skipping job setup');
         return;
@@ -85,7 +85,7 @@ function setupZabbixPolling() {
 /**
  * Оновлення cron job при зміні конфігурації
  */
-async function updatePollingJob() {
+function updatePollingJob() {
   logger.info('Updating Zabbix polling job...');
 
   // Зупиняємо поточний job

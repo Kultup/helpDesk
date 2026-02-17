@@ -1,86 +1,89 @@
 const mongoose = require('mongoose');
 
-const ticketHistorySchema = new mongoose.Schema({
-  ticket: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ticket',
-    required: true,
-    index: true
+const ticketHistorySchema = new mongoose.Schema(
+  {
+    ticket: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ticket',
+      required: true,
+      index: true,
+    },
+    action: {
+      type: String,
+      required: true,
+      enum: [
+        'created',
+        'updated',
+        'status_changed',
+        'priority_changed',
+        'assigned',
+        'unassigned',
+        'comment_added',
+        'attachment_added',
+        'attachment_removed',
+        'tag_added',
+        'tag_removed',
+        'note_added',
+        'note_updated',
+        'note_removed',
+        'time_logged',
+        'due_date_changed',
+        'category_changed',
+        'title_changed',
+        'description_changed',
+        'watcher_added',
+        'watcher_removed',
+        'escalated',
+        'reopened',
+        'closed',
+        'resolved',
+      ],
+    },
+    field: {
+      type: String,
+      required: false, // Поле, яке було змінено (status, priority, assignedTo, тощо)
+    },
+    oldValue: {
+      type: mongoose.Schema.Types.Mixed, // Попереднє значення
+      required: false,
+    },
+    newValue: {
+      type: mongoose.Schema.Types.Mixed, // Нове значення
+      required: false,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed, // Додаткові дані (наприклад, IP адреса, user agent)
+      default: {},
+    },
+    isSystemGenerated: {
+      type: Boolean,
+      default: false, // true для автоматичних змін (наприклад, SLA порушення)
+    },
+    isVisible: {
+      type: Boolean,
+      default: true, // false для прихованих системних записів
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
   },
-  action: {
-    type: String,
-    required: true,
-    enum: [
-      'created',
-      'updated',
-      'status_changed',
-      'priority_changed',
-      'assigned',
-      'unassigned',
-      'comment_added',
-      'attachment_added',
-      'attachment_removed',
-      'tag_added',
-      'tag_removed',
-      'note_added',
-      'note_updated',
-      'note_removed',
-      'time_logged',
-      'due_date_changed',
-      'category_changed',
-      'title_changed',
-      'description_changed',
-      'watcher_added',
-      'watcher_removed',
-      'escalated',
-      'reopened',
-      'closed',
-      'resolved'
-    ]
-  },
-  field: {
-    type: String,
-    required: false // Поле, яке було змінено (status, priority, assignedTo, тощо)
-  },
-  oldValue: {
-    type: mongoose.Schema.Types.Mixed, // Попереднє значення
-    required: false
-  },
-  newValue: {
-    type: mongoose.Schema.Types.Mixed, // Нове значення
-    required: false
-  },
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: [500, 'Description cannot exceed 500 characters']
-  },
-  metadata: {
-    type: mongoose.Schema.Types.Mixed, // Додаткові дані (наприклад, IP адреса, user agent)
-    default: {}
-  },
-  isSystemGenerated: {
-    type: Boolean,
-    default: false // true для автоматичних змін (наприклад, SLA порушення)
-  },
-  isVisible: {
-    type: Boolean,
-    default: true // false для прихованих системних записів
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-    index: true
+  {
+    timestamps: false, // Використовуємо власне поле createdAt
   }
-}, {
-  timestamps: false // Використовуємо власне поле createdAt
-});
+);
 
 // Індекси для оптимізації запитів
 ticketHistorySchema.index({ ticket: 1, createdAt: -1 });
@@ -88,7 +91,7 @@ ticketHistorySchema.index({ user: 1, createdAt: -1 });
 ticketHistorySchema.index({ action: 1, createdAt: -1 });
 
 // Статичні методи
-ticketHistorySchema.statics.logChange = async function(ticketId, action, user, options = {}) {
+ticketHistorySchema.statics.logChange = function (ticketId, action, user, options = {}) {
   const {
     field = null,
     oldValue = null,
@@ -96,7 +99,7 @@ ticketHistorySchema.statics.logChange = async function(ticketId, action, user, o
     description = '',
     metadata = {},
     isSystemGenerated = false,
-    isVisible = true
+    isVisible = true,
   } = options;
 
   const historyEntry = new this({
@@ -109,14 +112,14 @@ ticketHistorySchema.statics.logChange = async function(ticketId, action, user, o
     description,
     metadata,
     isSystemGenerated,
-    isVisible
+    isVisible,
   });
 
-  return await historyEntry.save();
+  return historyEntry.save();
 };
 
 // Метод для отримання історії тікету з пагінацією
-ticketHistorySchema.statics.getTicketHistory = async function(ticketId, options = {}) {
+ticketHistorySchema.statics.getTicketHistory = async function (ticketId, options = {}) {
   const {
     page = 1,
     limit = 20,
@@ -124,31 +127,35 @@ ticketHistorySchema.statics.getTicketHistory = async function(ticketId, options 
     actions = null,
     user = null,
     startDate = null,
-    endDate = null
+    endDate = null,
   } = options;
 
   const query = { ticket: ticketId };
-  
+
   if (!includeHidden) {
     query.isVisible = true;
   }
-  
+
   if (actions && actions.length > 0) {
     query.action = { $in: actions };
   }
-  
+
   if (user) {
     query.user = user;
   }
-  
+
   if (startDate || endDate) {
     query.createdAt = {};
-    if (startDate) query.createdAt.$gte = new Date(startDate);
-    if (endDate) query.createdAt.$lte = new Date(endDate);
+    if (startDate) {
+      query.createdAt.$gte = new Date(startDate);
+    }
+    if (endDate) {
+      query.createdAt.$lte = new Date(endDate);
+    }
   }
 
   const skip = (page - 1) * limit;
-  
+
   const [history, total] = await Promise.all([
     this.find(query)
       .populate('user', 'firstName lastName email avatar')
@@ -156,7 +163,7 @@ ticketHistorySchema.statics.getTicketHistory = async function(ticketId, options 
       .skip(skip)
       .limit(limit)
       .lean(),
-    this.countDocuments(query)
+    this.countDocuments(query),
   ]);
 
   return {
@@ -165,13 +172,13 @@ ticketHistorySchema.statics.getTicketHistory = async function(ticketId, options 
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit)
-    }
+      pages: Math.ceil(total / limit),
+    },
   };
 };
 
 // Метод для отримання статистики змін
-ticketHistorySchema.statics.getChangeStats = async function(ticketId) {
+ticketHistorySchema.statics.getChangeStats = async function (ticketId) {
   const stats = await this.aggregate([
     { $match: { ticket: new mongoose.Types.ObjectId(ticketId), isVisible: true } },
     {
@@ -179,16 +186,16 @@ ticketHistorySchema.statics.getChangeStats = async function(ticketId) {
         _id: '$action',
         count: { $sum: 1 },
         lastChange: { $max: '$createdAt' },
-        users: { $addToSet: '$user' }
-      }
+        users: { $addToSet: '$user' },
+      },
     },
     {
       $lookup: {
         from: 'users',
         localField: 'users',
         foreignField: '_id',
-        as: 'userDetails'
-      }
+        as: 'userDetails',
+      },
     },
     {
       $project: {
@@ -203,19 +210,19 @@ ticketHistorySchema.statics.getChangeStats = async function(ticketId) {
               _id: '$$user._id',
               firstName: '$$user.firstName',
               lastName: '$$user.lastName',
-              email: '$$user.email'
-            }
-          }
-        }
-      }
-    }
+              email: '$$user.email',
+            },
+          },
+        },
+      },
+    },
   ]);
 
   return stats;
 };
 
 // Віртуальні поля
-ticketHistorySchema.virtual('formattedDescription').get(function() {
+ticketHistorySchema.virtual('formattedDescription').get(function () {
   // Форматування опису для відображення
   switch (this.action) {
     case 'status_changed':
@@ -240,7 +247,7 @@ ticketHistorySchema.virtual('formattedDescription').get(function() {
 });
 
 // Middleware для автоматичного логування змін
-ticketHistorySchema.pre('save', function(next) {
+ticketHistorySchema.pre('save', function (next) {
   if (this.isNew && !this.description) {
     this.description = this.formattedDescription;
   }

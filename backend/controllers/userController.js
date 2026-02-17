@@ -3,7 +3,6 @@ const Position = require('../models/Position');
 const City = require('../models/City');
 const Ticket = require('../models/Ticket');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const telegramService = require('../services/telegramServiceInstance');
@@ -22,37 +21,43 @@ exports.getUsers = async (req, res) => {
       isActive,
       search,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
     } = req.query;
 
     // Перевірка прав доступу
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду списку користувачів'
+        message: 'Немає прав для перегляду списку користувачів',
       });
     }
 
     // Побудова фільтрів
     const filters = {};
-    
-    if (role) filters.role = role;
-    if (position) filters.position = position;
-    if (city) filters.city = city;
+
+    if (role) {
+      filters.role = role;
+    }
+    if (position) {
+      filters.position = position;
+    }
+    if (city) {
+      filters.city = city;
+    }
     // За замовчуванням показуємо тільки активних користувачів
     if (isActive !== undefined) {
       filters.isActive = isActive === 'true';
     } else {
       filters.isActive = true; // За замовчуванням тільки активні
     }
-    
+
     // Пошук по тексту
     if (search) {
       filters.$or = [
         { firstName: { $regex: search, $options: 'i' } },
         { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { telegramUsername: { $regex: search, $options: 'i' } }
+        { telegramUsername: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -62,9 +67,9 @@ exports.getUsers = async (req, res) => {
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
       populate: [
         { path: 'position', select: 'title department level' },
-        { path: 'city', select: 'name region' }
+        { path: 'city', select: 'name region' },
       ],
-      select: '-password -emailVerificationToken -passwordResetToken'
+      select: '-password -emailVerificationToken -passwordResetToken',
     };
 
     const users = await User.paginate(filters, options);
@@ -77,19 +82,18 @@ exports.getUsers = async (req, res) => {
         totalPages: users.totalPages,
         totalItems: users.totalDocs,
         hasNext: users.hasNextPage,
-        hasPrev: users.hasPrevPage
-      }
+        hasPrev: users.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching users:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні користувачів',
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 // Отримати користувача за ID
 exports.getUserById = async (req, res) => {
@@ -99,7 +103,7 @@ exports.getUserById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -107,7 +111,7 @@ exports.getUserById = async (req, res) => {
     if (req.user.role !== 'admin' && req.user._id.toString() !== id) {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду цього користувача'
+        message: 'Немає прав для перегляду цього користувача',
       });
     }
 
@@ -119,14 +123,14 @@ exports.getUserById = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
     // Отримати статистику користувача
     const [createdTickets, assignedTickets] = await Promise.all([
       Ticket.countDocuments({ createdBy: id }),
-      Ticket.countDocuments({ assignedTo: id })
+      Ticket.countDocuments({ assignedTo: id }),
     ]);
 
     res.json({
@@ -135,16 +139,16 @@ exports.getUserById = async (req, res) => {
         ...user.toObject(),
         statistics: {
           createdTickets,
-          assignedTickets
-        }
-      }
+          assignedTickets,
+        },
+      },
     });
   } catch (error) {
     logger.error('Error fetching user:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -157,7 +161,7 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -165,12 +169,12 @@ exports.createUser = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для створення користувачів'
+        message: 'Немає прав для створення користувачів',
       });
     }
 
     logger.info('📝 Дані для створення користувача:', req.body);
-    
+
     const {
       firstName,
       lastName,
@@ -184,9 +188,9 @@ exports.createUser = async (req, res) => {
       telegramUsername,
       phone,
       isActive,
-      permissions = []
+      permissions = [],
     } = req.body;
-    
+
     logger.info('🏢 Department value:', department);
 
     // Перевірка унікальності email
@@ -194,7 +198,7 @@ exports.createUser = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Користувач з таким email вже існує'
+        message: 'Користувач з таким email вже існує',
       });
     }
 
@@ -204,20 +208,20 @@ exports.createUser = async (req, res) => {
       if (existingUserByLogin) {
         return res.status(400).json({
           success: false,
-          message: 'Користувач з таким логіном вже існує'
+          message: 'Користувач з таким логіном вже існує',
         });
       }
       // Валідація формату login
       if (!/^[a-zA-Z0-9_]+$/.test(login.trim())) {
         return res.status(400).json({
           success: false,
-          message: 'Логін може містити тільки літери, цифри та підкреслення'
+          message: 'Логін може містити тільки літери, цифри та підкреслення',
         });
       }
       if (login.trim().length < 3 || login.trim().length > 50) {
         return res.status(400).json({
           success: false,
-          message: 'Логін повинен містити від 3 до 50 символів'
+          message: 'Логін повинен містити від 3 до 50 символів',
         });
       }
     }
@@ -228,7 +232,7 @@ exports.createUser = async (req, res) => {
       if (!positionExists) {
         return res.status(400).json({
           success: false,
-          message: 'Вказана посада не існує'
+          message: 'Вказана посада не існує',
         });
       }
     }
@@ -239,19 +243,28 @@ exports.createUser = async (req, res) => {
       if (!cityExists) {
         return res.status(400).json({
           success: false,
-          message: 'Вказане місто не існує'
+          message: 'Вказане місто не існує',
         });
       }
     }
 
     // Валідація permissions
     const validPermissions = [
-      'create_tickets', 'edit_tickets', 'delete_tickets', 'assign_tickets',
-      'view_all_tickets', 'view_analytics', 'export_data', 'manage_users',
-      'manage_cities', 'manage_positions', 'system_settings', 'telegram_admin'
+      'create_tickets',
+      'edit_tickets',
+      'delete_tickets',
+      'assign_tickets',
+      'view_all_tickets',
+      'view_analytics',
+      'export_data',
+      'manage_users',
+      'manage_cities',
+      'manage_positions',
+      'system_settings',
+      'telegram_admin',
     ];
-    
-    const filteredPermissions = Array.isArray(permissions) 
+
+    const filteredPermissions = Array.isArray(permissions)
       ? permissions.filter(p => validPermissions.includes(p))
       : [];
 
@@ -263,17 +276,12 @@ exports.createUser = async (req, res) => {
     } else {
       // Генеруємо унікальний логін автоматично
       const { generateUniqueLogin } = require('../utils/helpers');
-      finalLogin = await generateUniqueLogin(
-        email,
-        telegramUsername,
-        null,
-        async (loginToCheck) => {
-          const user = await User.findOne({ login: loginToCheck });
-          return !!user;
-        }
-      );
+      finalLogin = await generateUniqueLogin(email, telegramUsername, null, async loginToCheck => {
+        const user = await User.findOne({ login: loginToCheck });
+        return !!user;
+      });
     }
-    
+
     const user = new User({
       firstName,
       lastName,
@@ -290,7 +298,7 @@ exports.createUser = async (req, res) => {
       isEmailVerified: true, // Адмін створює підтверджених користувачів
       registrationStatus: 'approved',
       permissions: filteredPermissions,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
     await user.save();
@@ -298,7 +306,7 @@ exports.createUser = async (req, res) => {
     // Заповнити дані для відповіді
     await user.populate([
       { path: 'position', select: 'title department' },
-      { path: 'city', select: 'name region' }
+      { path: 'city', select: 'name region' },
     ]);
 
     // Видалити пароль з відповіді
@@ -308,14 +316,14 @@ exports.createUser = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Користувача успішно створено',
-      data: userResponse
+      data: userResponse,
     });
   } catch (error) {
     logger.error('Error creating user:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при створенні користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -325,19 +333,19 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -345,7 +353,7 @@ exports.updateUser = async (req, res) => {
     if (req.user.role !== 'admin' && req.user._id.toString() !== id) {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для редагування цього користувача'
+        message: 'Немає прав для редагування цього користувача',
       });
     }
 
@@ -353,7 +361,7 @@ exports.updateUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -370,7 +378,7 @@ exports.updateUser = async (req, res) => {
       phone,
       isActive,
       avatar,
-      permissions
+      permissions,
     } = req.body;
 
     // Логуємо вхідні дані для діагностики
@@ -384,7 +392,7 @@ exports.updateUser = async (req, res) => {
       telegramIdType: typeof telegramId,
       hasTelegramUsername: telegramUsername !== undefined,
       telegramUsernameValue: telegramUsername,
-      bodyKeys: Object.keys(req.body)
+      bodyKeys: Object.keys(req.body),
     });
 
     // Перевірка унікальності email (якщо змінюється)
@@ -393,7 +401,7 @@ exports.updateUser = async (req, res) => {
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'Користувач з таким email вже існує'
+          message: 'Користувач з таким email вже існує',
         });
       }
     }
@@ -404,20 +412,20 @@ exports.updateUser = async (req, res) => {
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'Користувач з таким логіном вже існує'
+          message: 'Користувач з таким логіном вже існує',
         });
       }
       // Валідація формату login
       if (!/^[a-zA-Z0-9_]+$/.test(login.trim())) {
         return res.status(400).json({
           success: false,
-          message: 'Логін може містити тільки літери, цифри та підкреслення'
+          message: 'Логін може містити тільки літери, цифри та підкреслення',
         });
       }
       if (login.trim().length < 3 || login.trim().length > 50) {
         return res.status(400).json({
           success: false,
-          message: 'Логін повинен містити від 3 до 50 символів'
+          message: 'Логін повинен містити від 3 до 50 символів',
         });
       }
     }
@@ -427,16 +435,22 @@ exports.updateUser = async (req, res) => {
       if (role !== undefined || isActive !== undefined) {
         return res.status(403).json({
           success: false,
-          message: 'Немає прав для зміни ролі або статусу активності'
+          message: 'Немає прав для зміни ролі або статусу активності',
         });
       }
     }
 
     // Оновлення полів
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (email !== undefined) user.email = email;
-    
+    if (firstName !== undefined) {
+      user.firstName = firstName;
+    }
+    if (lastName !== undefined) {
+      user.lastName = lastName;
+    }
+    if (email !== undefined) {
+      user.email = email;
+    }
+
     // Оновлюємо login тільки якщо він переданий і не порожній
     // Важливо: не оновлюємо login, якщо він порожній або null, щоб не видалити існуючий login
     // Якщо login не передається в запиті (undefined), не змінюємо його
@@ -445,14 +459,14 @@ exports.updateUser = async (req, res) => {
       if (login === null || (typeof login === 'string' && login.trim() === '')) {
         return res.status(400).json({
           success: false,
-          message: 'Логін не може бути порожнім'
+          message: 'Логін не може бути порожнім',
         });
       }
       // Якщо login передано і він не порожній, оновлюємо його
       user.login = String(login).toLowerCase().trim();
     }
     // Якщо login не передано в запиті (undefined), залишаємо існуючий login без змін
-    
+
     // Обробка Telegram полів
     // Якщо передано telegramId, перевіряємо чи це username (@username) чи числовий ID
     if (telegramId !== undefined) {
@@ -465,24 +479,24 @@ exports.updateUser = async (req, res) => {
         // Перевіряємо чи це username (починається з @ або містить літери) чи числовий ID
         if (trimmedTelegramId.startsWith('@') || /^[a-zA-Z0-9_]{5,32}$/.test(trimmedTelegramId)) {
           // Це username - зберігаємо в telegramUsername (без @ на початку)
-          const username = trimmedTelegramId.startsWith('@') 
-            ? trimmedTelegramId.substring(1) 
+          const username = trimmedTelegramId.startsWith('@')
+            ? trimmedTelegramId.substring(1)
             : trimmedTelegramId;
-          
+
           // Перевірка унікальності username (якщо змінюється)
           if (user.telegramUsername !== username) {
-            const existingUser = await User.findOne({ 
+            const existingUser = await User.findOne({
               telegramUsername: username,
-              _id: { $ne: id }
+              _id: { $ne: id },
             });
             if (existingUser) {
               return res.status(400).json({
                 success: false,
-                message: `Користувач з Telegram username "${username}" вже існує`
+                message: `Користувач з Telegram username "${username}" вже існує`,
               });
             }
           }
-          
+
           user.telegramUsername = username;
           // Очищаємо telegramId, якщо встановлюємо username
           user.telegramId = undefined;
@@ -491,43 +505,45 @@ exports.updateUser = async (req, res) => {
           // Це числовий ID - зберігаємо в telegramId
           // Перевірка унікальності ID (якщо змінюється)
           if (user.telegramId !== trimmedTelegramId) {
-            const existingUser = await User.findOne({ 
+            const existingUser = await User.findOne({
               telegramId: trimmedTelegramId,
-              _id: { $ne: id }
+              _id: { $ne: id },
             });
             if (existingUser) {
               return res.status(400).json({
                 success: false,
-                message: `Користувач з Telegram ID "${trimmedTelegramId}" вже існує`
+                message: `Користувач з Telegram ID "${trimmedTelegramId}" вже існує`,
               });
             }
           }
-          
+
           user.telegramId = trimmedTelegramId;
           // Очищаємо telegramUsername, якщо встановлюємо ID
           user.telegramUsername = undefined;
           logger.info(`Setting telegramId for user ${id}: ${user.telegramId}`);
         } else {
           // Невідомий формат - намагаємося інтерпретувати як username
-          logger.warn(`Unknown Telegram format for user ${id}: ${trimmedTelegramId}, treating as username`);
-          const username = trimmedTelegramId.startsWith('@') 
-            ? trimmedTelegramId.substring(1) 
+          logger.warn(
+            `Unknown Telegram format for user ${id}: ${trimmedTelegramId}, treating as username`
+          );
+          const username = trimmedTelegramId.startsWith('@')
+            ? trimmedTelegramId.substring(1)
             : trimmedTelegramId;
-          
+
           // Перевірка унікальності
           if (user.telegramUsername !== username) {
-            const existingUser = await User.findOne({ 
+            const existingUser = await User.findOne({
               telegramUsername: username,
-              _id: { $ne: id }
+              _id: { $ne: id },
             });
             if (existingUser) {
               return res.status(400).json({
                 success: false,
-                message: `Користувач з Telegram username "${username}" вже існує`
+                message: `Користувач з Telegram username "${username}" вже існує`,
               });
             }
           }
-          
+
           user.telegramUsername = username;
           user.telegramId = undefined;
         }
@@ -539,46 +555,63 @@ exports.updateUser = async (req, res) => {
         user.telegramUsername = undefined;
       } else {
         const trimmedUsername = String(telegramUsername).trim();
-        user.telegramUsername = trimmedUsername.startsWith('@') 
-          ? trimmedUsername.substring(1) 
+        user.telegramUsername = trimmedUsername.startsWith('@')
+          ? trimmedUsername.substring(1)
           : trimmedUsername;
       }
     }
-    
-    if (phone !== undefined) user.phone = phone;
-    if (avatar !== undefined) user.avatar = avatar;
-    
+
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+    }
+
     // Поля, які може змінювати тільки адмін
     if (req.user.role === 'admin') {
-      if (role !== undefined) user.role = role;
-      
+      if (role !== undefined) {
+        user.role = role;
+      }
+
       // Оновлення permissions
       if (permissions !== undefined) {
         const validPermissions = [
-          'create_tickets', 'edit_tickets', 'delete_tickets', 'assign_tickets',
-          'view_all_tickets', 'view_analytics', 'export_data', 'manage_users',
-          'manage_cities', 'manage_positions', 'system_settings', 'telegram_admin'
+          'create_tickets',
+          'edit_tickets',
+          'delete_tickets',
+          'assign_tickets',
+          'view_all_tickets',
+          'view_analytics',
+          'export_data',
+          'manage_users',
+          'manage_cities',
+          'manage_positions',
+          'system_settings',
+          'telegram_admin',
         ];
-        
+
         // Якщо роль admin, то permissions не потрібні (адмін має всі права)
         if (role === 'admin') {
           user.permissions = [];
         } else {
-          const filteredPermissions = Array.isArray(permissions) 
+          const filteredPermissions = Array.isArray(permissions)
             ? permissions.filter(p => validPermissions.includes(p))
             : [];
           user.permissions = filteredPermissions;
         }
       }
-      
-      if (isActive !== undefined) user.isActive = isActive;
+
+      if (isActive !== undefined) {
+        user.isActive = isActive;
+      }
       if (position !== undefined) {
         if (position) {
           const positionExists = await Position.findById(position);
           if (!positionExists) {
             return res.status(400).json({
               success: false,
-              message: 'Вказана посада не існує'
+              message: 'Вказана посада не існує',
             });
           }
         }
@@ -590,7 +623,7 @@ exports.updateUser = async (req, res) => {
           if (!cityExists) {
             return res.status(400).json({
               success: false,
-              message: 'Вказане місто не існує'
+              message: 'Вказане місто не існує',
             });
           }
         }
@@ -605,11 +638,11 @@ exports.updateUser = async (req, res) => {
         userId: user._id,
         originalLogin: user.login,
         loginType: typeof user.login,
-        hasLogin: !!user.login
+        hasLogin: !!user.login,
       });
       return res.status(400).json({
         success: false,
-        message: 'Логін користувача не може бути порожнім. Будь ласка, вкажіть логін.'
+        message: 'Логін користувача не може бути порожнім. Будь ласка, вкажіть логін.',
       });
     }
 
@@ -623,27 +656,27 @@ exports.updateUser = async (req, res) => {
       } else {
         return res.status(400).json({
           success: false,
-          message: 'Логін користувача не може бути порожнім'
+          message: 'Логін користувача не може бути порожнім',
         });
       }
     }
 
     user.lastModifiedBy = req.user._id;
-    
+
     // Логуємо перед збереженням
     logger.info('Saving user with login:', {
       userId: user._id,
       login: user.login,
       loginType: typeof user.login,
-      loginLength: String(user.login).length
+      loginLength: String(user.login).length,
     });
-    
+
     await user.save();
 
     // Заповнити дані для відповіді
     await user.populate([
       { path: 'position', select: 'title department' },
-      { path: 'city', select: 'name region' }
+      { path: 'city', select: 'name region' },
     ]);
 
     // Видалити пароль з відповіді
@@ -655,14 +688,14 @@ exports.updateUser = async (req, res) => {
     res.json({
       success: true,
       message: 'Користувача успішно оновлено',
-      data: userResponse
+      data: userResponse,
     });
   } catch (error) {
     logger.error('Error updating user:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -675,7 +708,7 @@ exports.deleteUser = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -683,7 +716,7 @@ exports.deleteUser = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для видалення користувачів'
+        message: 'Немає прав для видалення користувачів',
       });
     }
 
@@ -691,7 +724,7 @@ exports.deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -699,18 +732,15 @@ exports.deleteUser = async (req, res) => {
     if (user._id.equals(req.user._id)) {
       return res.status(400).json({
         success: false,
-        message: 'Не можна видалити самого себе'
+        message: 'Не можна видалити самого себе',
       });
     }
 
     // Перевіряємо чи є у користувача активні тікети
     const Ticket = require('../models/Ticket');
     const activeTicketsCount = await Ticket.countDocuments({
-      $or: [
-        { createdBy: id },
-        { assignedTo: id }
-      ],
-      status: { $in: ['open', 'in_progress'] }
+      $or: [{ createdBy: id }, { assignedTo: id }],
+      status: { $in: ['open', 'in_progress'] },
     });
 
     if (activeTicketsCount > 0) {
@@ -722,15 +752,15 @@ exports.deleteUser = async (req, res) => {
 
       res.json({
         success: true,
-        message: `Користувача деактивовано (має ${activeTicketsCount} активних тікетів)`
+        message: `Користувача деактивовано (має ${activeTicketsCount} активних тікетів)`,
       });
     } else {
       // Повне видалення якщо немає активних тікетів
       await User.findByIdAndDelete(id);
-      
+
       res.json({
         success: true,
-        message: 'Користувача повністю видалено з системи'
+        message: 'Користувача повністю видалено з системи',
       });
     }
   } catch (error) {
@@ -738,7 +768,7 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -748,8 +778,10 @@ exports.toggleUserActive = async (req, res) => {
   try {
     logger.info('🔄 toggleUserActive викликано:', {
       userId: req.params.id,
-      currentUser: req.user ? { id: req.user._id, role: req.user.role, email: req.user.email } : 'не знайдено',
-      headers: req.headers.authorization ? 'токен присутній' : 'токен відсутній'
+      currentUser: req.user
+        ? { id: req.user._id, role: req.user.role, email: req.user.email }
+        : 'не знайдено',
+      headers: req.headers.authorization ? 'токен присутній' : 'токен відсутній',
     });
 
     const { id } = req.params;
@@ -758,7 +790,7 @@ exports.toggleUserActive = async (req, res) => {
       logger.info('❌ Невірний ID користувача:', id);
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -767,7 +799,7 @@ exports.toggleUserActive = async (req, res) => {
       logger.info('❌ Недостатньо прав:', { userRole: req.user.role, required: 'admin' });
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для зміни статусу користувачів'
+        message: 'Немає прав для зміни статусу користувачів',
       });
     }
 
@@ -775,7 +807,7 @@ exports.toggleUserActive = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -783,14 +815,14 @@ exports.toggleUserActive = async (req, res) => {
     if (user._id.equals(req.user._id)) {
       return res.status(400).json({
         success: false,
-        message: 'Не можна змінити статус самого себе'
+        message: 'Не можна змінити статус самого себе',
       });
     }
 
     // Перемикаємо статус активності
     const newActiveStatus = !user.isActive;
     user.isActive = newActiveStatus;
-    
+
     if (newActiveStatus) {
       // Активуємо користувача
       user.deletedAt = null;
@@ -800,23 +832,25 @@ exports.toggleUserActive = async (req, res) => {
       user.deletedAt = new Date();
       user.deletedBy = req.user._id;
     }
-    
+
     await user.save();
 
     res.json({
       success: true,
-      message: newActiveStatus ? 'Користувача успішно активовано' : 'Користувача успішно деактивовано',
+      message: newActiveStatus
+        ? 'Користувача успішно активовано'
+        : 'Користувача успішно деактивовано',
       data: {
         userId: user._id,
-        isActive: user.isActive
-      }
+        isActive: user.isActive,
+      },
     });
   } catch (error) {
     logger.error('Error toggling user active status:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при зміні статусу користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -827,7 +861,9 @@ exports.bulkToggleUsers = async (req, res) => {
     logger.info('🔄 bulkToggleUsers викликано:', {
       userIds: req.body.userIds,
       action: req.body.action,
-      currentUser: req.user ? { id: req.user._id, role: req.user.role, email: req.user.email } : 'не знайдено'
+      currentUser: req.user
+        ? { id: req.user._id, role: req.user.role, email: req.user.email }
+        : 'не знайдено',
     });
 
     const { userIds, action } = req.body;
@@ -836,14 +872,14 @@ exports.bulkToggleUsers = async (req, res) => {
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Необхідно вказати список ID користувачів'
+        message: 'Необхідно вказати список ID користувачів',
       });
     }
 
     if (!['activate', 'deactivate'].includes(action)) {
       return res.status(400).json({
         success: false,
-        message: 'Дія повинна бути "activate" або "deactivate"'
+        message: 'Дія повинна бути "activate" або "deactivate"',
       });
     }
 
@@ -852,7 +888,7 @@ exports.bulkToggleUsers = async (req, res) => {
       logger.info('❌ Недостатньо прав:', { userRole: req.user.role, required: 'admin' });
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для масової зміни статусу користувачів'
+        message: 'Немає прав для масової зміни статусу користувачів',
       });
     }
 
@@ -861,45 +897,41 @@ exports.bulkToggleUsers = async (req, res) => {
     if (invalidIds.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Невірні ID користувачів: ${invalidIds.join(', ')}`
+        message: `Невірні ID користувачів: ${invalidIds.join(', ')}`,
       });
     }
 
     // Знаходимо користувачів
     const users = await User.find({ _id: { $in: userIds } });
-    
+
     if (users.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Користувачів не знайдено'
+        message: 'Користувачів не знайдено',
       });
     }
 
     // Перевіряємо, чи не намагається адміністратор змінити свій власний статус
     const currentUserId = req.user._id.toString();
     const selfModification = userIds.includes(currentUserId);
-    
+
     if (selfModification) {
       return res.status(400).json({
         success: false,
-        message: 'Не можна змінити власний статус в масовій операції'
+        message: 'Не можна змінити власний статус в масовій операції',
       });
     }
 
     const isActivating = action === 'activate';
     const updateData = {
       isActive: isActivating,
-      ...(isActivating 
+      ...(isActivating
         ? { deletedAt: null, deletedBy: null }
-        : { deletedAt: new Date(), deletedBy: req.user._id }
-      )
+        : { deletedAt: new Date(), deletedBy: req.user._id }),
     };
 
     // Виконуємо масове оновлення
-    const result = await User.updateMany(
-      { _id: { $in: userIds } },
-      updateData
-    );
+    const result = await User.updateMany({ _id: { $in: userIds } }, updateData);
 
     // Отримуємо оновлених користувачів для відповіді
     const updatedUsers = await User.find({ _id: { $in: userIds } })
@@ -912,16 +944,15 @@ exports.bulkToggleUsers = async (req, res) => {
       data: {
         action,
         modifiedCount: result.modifiedCount,
-        users: updatedUsers
-      }
+        users: updatedUsers,
+      },
     });
-
   } catch (error) {
     logger.error('Error in bulk toggle users:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при масовій зміні статусу користувачів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -935,7 +966,7 @@ exports.changePassword = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -943,7 +974,7 @@ exports.changePassword = async (req, res) => {
     if (req.user.role !== 'admin' && req.user._id.toString() !== id) {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для зміни пароля цього користувача'
+        message: 'Немає прав для зміни пароля цього користувача',
       });
     }
 
@@ -951,7 +982,7 @@ exports.changePassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -961,7 +992,7 @@ exports.changePassword = async (req, res) => {
       if (!isCurrentPasswordValid) {
         return res.status(400).json({
           success: false,
-          message: 'Поточний пароль невірний'
+          message: 'Поточний пароль невірний',
         });
       }
     }
@@ -970,7 +1001,7 @@ exports.changePassword = async (req, res) => {
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: 'Новий пароль повинен містити мінімум 6 символів'
+        message: 'Новий пароль повинен містити мінімум 6 символів',
       });
     }
 
@@ -984,14 +1015,14 @@ exports.changePassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Пароль успішно змінено'
+      message: 'Пароль успішно змінено',
     });
   } catch (error) {
     logger.error('Error changing password:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при зміні пароля',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1007,7 +1038,7 @@ exports.getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -1016,15 +1047,12 @@ exports.getProfile = async (req, res) => {
       Ticket.countDocuments({ createdBy: user._id }),
       Ticket.countDocuments({ assignedTo: user._id }),
       Ticket.find({
-        $or: [
-          { createdBy: user._id },
-          { assignedTo: user._id }
-        ]
+        $or: [{ createdBy: user._id }, { assignedTo: user._id }],
       })
         .sort({ updatedAt: -1 })
         .limit(5)
         .populate('city', 'name')
-        .select('title status priority updatedAt')
+        .select('title status priority updatedAt'),
     ]);
 
     res.json({
@@ -1033,17 +1061,17 @@ exports.getProfile = async (req, res) => {
         ...user.toObject(),
         statistics: {
           createdTickets,
-          assignedTickets
+          assignedTickets,
         },
-        recentActivity
-      }
+        recentActivity,
+      },
     });
   } catch (error) {
     logger.error('Error fetching profile:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні профілю',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1056,39 +1084,43 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const {
-      firstName,
-      lastName,
-      telegramUsername,
-      phone,
-      avatar
-    } = req.body;
+    const { firstName, lastName, telegramUsername, phone, avatar } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
     // Оновлення дозволених полів
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (telegramUsername !== undefined) user.telegramUsername = telegramUsername;
-    if (phone !== undefined) user.phone = phone;
-    if (avatar !== undefined) user.avatar = avatar;
+    if (firstName !== undefined) {
+      user.firstName = firstName;
+    }
+    if (lastName !== undefined) {
+      user.lastName = lastName;
+    }
+    if (telegramUsername !== undefined) {
+      user.telegramUsername = telegramUsername;
+    }
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+    }
 
     await user.save();
 
     // Заповнити дані для відповіді
     await user.populate([
       { path: 'position', select: 'title department' },
-      { path: 'city', select: 'name region' }
+      { path: 'city', select: 'name region' },
     ]);
 
     // Видалити пароль з відповіді
@@ -1100,14 +1132,14 @@ exports.updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Профіль успішно оновлено',
-      data: userResponse
+      data: userResponse,
     });
   } catch (error) {
     logger.error('Error updating profile:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні профілю',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1119,7 +1151,7 @@ exports.getUserStatistics = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду статистики користувачів'
+        message: 'Немає прав для перегляду статистики користувачів',
       });
     }
 
@@ -1132,17 +1164,17 @@ exports.getUserStatistics = async (req, res) => {
           adminUsers: { $sum: { $cond: [{ $eq: ['$role', 'admin'] }, 1, 0] } },
           regularUsers: { $sum: { $cond: [{ $eq: ['$role', 'user'] }, 1, 0] } },
           verifiedUsers: { $sum: { $cond: ['$emailVerified', 1, 0] } },
-          usersWithTelegram: { 
-            $sum: { 
+          usersWithTelegram: {
+            $sum: {
               $cond: [
-                { $and: [{ $ne: ['$telegramId', null] }, { $ne: ['$telegramId', ''] }] }, 
-                1, 
-                0
-              ] 
-            } 
-          }
-        }
-      }
+                { $and: [{ $ne: ['$telegramId', null] }, { $ne: ['$telegramId', ''] }] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
     ]);
 
     const stats = statistics[0] || {
@@ -1151,7 +1183,7 @@ exports.getUserStatistics = async (req, res) => {
       adminUsers: 0,
       regularUsers: 0,
       verifiedUsers: 0,
-      usersWithTelegram: 0
+      usersWithTelegram: 0,
     };
 
     // Статистика по містах
@@ -1162,19 +1194,19 @@ exports.getUserStatistics = async (req, res) => {
           from: 'cities',
           localField: 'city',
           foreignField: '_id',
-          as: 'cityInfo'
-        }
+          as: 'cityInfo',
+        },
       },
       { $unwind: '$cityInfo' },
       {
         $group: {
           _id: '$city',
           cityName: { $first: '$cityInfo.name' },
-          userCount: { $sum: 1 }
-        }
+          userCount: { $sum: 1 },
+        },
       },
       { $sort: { userCount: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     // Статистика по посадах
@@ -1185,19 +1217,19 @@ exports.getUserStatistics = async (req, res) => {
           from: 'positions',
           localField: 'position',
           foreignField: '_id',
-          as: 'positionInfo'
-        }
+          as: 'positionInfo',
+        },
       },
       { $unwind: '$positionInfo' },
       {
         $group: {
           _id: '$position',
           positionTitle: { $first: '$positionInfo.title' },
-          userCount: { $sum: 1 }
-        }
+          userCount: { $sum: 1 },
+        },
       },
       { $sort: { userCount: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     res.json({
@@ -1206,15 +1238,15 @@ exports.getUserStatistics = async (req, res) => {
         general: stats,
         byCity: cityStats,
         byPosition: positionStats,
-        generatedAt: new Date()
-      }
+        generatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error fetching user statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики користувачів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1224,22 +1256,22 @@ exports.getAdmins = async (req, res) => {
   try {
     const admins = await User.find({
       role: 'admin',
-      isActive: true
+      isActive: true,
     })
-    .select('_id firstName lastName email position')
-    .populate('position', 'title department')
-    .sort({ firstName: 1, lastName: 1 });
+      .select('_id firstName lastName email position')
+      .populate('position', 'title department')
+      .sort({ firstName: 1, lastName: 1 });
 
     res.json({
       success: true,
-      data: admins
+      data: admins,
     });
   } catch (error) {
     logger.error('Error fetching admins:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні списку адміністраторів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1250,13 +1282,8 @@ exports.getPendingRegistrations = async (req, res) => {
     logger.info('🔍 getPendingRegistrations called');
     logger.info('👤 User:', req.user?.email, req.user?.role);
     logger.info('📋 Query params:', req.query);
-    
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = req.query;
+
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     // Перевіряємо, чи є користувачі з pending статусом
     const totalPendingCount = await User.countDocuments({ registrationStatus: 'pending' });
@@ -1268,18 +1295,17 @@ exports.getPendingRegistrations = async (req, res) => {
       sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
       populate: [
         { path: 'position', select: 'title department' },
-        { path: 'city', select: 'name region' }
+        { path: 'city', select: 'name region' },
       ],
-      select: '-password'
+      select: '-password',
     };
 
-    const pendingUsers = await User.paginate(
-      { registrationStatus: 'pending' },
-      options
-    );
+    const pendingUsers = await User.paginate({ registrationStatus: 'pending' }, options);
 
     logger.info(`✅ Found ${pendingUsers.docs.length} pending users on page ${pendingUsers.page}`);
-    logger.info(`📄 Total pages: ${pendingUsers.totalPages}, Total docs: ${pendingUsers.totalDocs}`);
+    logger.info(
+      `📄 Total pages: ${pendingUsers.totalPages}, Total docs: ${pendingUsers.totalDocs}`
+    );
 
     // Перетворюємо документи в об'єкти для правильної серіалізації
     const usersData = pendingUsers.docs.map(user => {
@@ -1295,8 +1321,8 @@ exports.getPendingRegistrations = async (req, res) => {
         totalPages: pendingUsers.totalPages,
         totalItems: pendingUsers.totalDocs,
         hasNextPage: pendingUsers.hasNextPage,
-        hasPrevPage: pendingUsers.hasPrevPage
-      }
+        hasPrevPage: pendingUsers.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching pending registrations:', error);
@@ -1304,7 +1330,7 @@ exports.getPendingRegistrations = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні списку заявок на реєстрацію',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1318,14 +1344,14 @@ exports.approveRegistration = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
     if (user.registrationStatus !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: 'Реєстрація вже була оброблена'
+        message: 'Реєстрація вже була оброблена',
       });
     }
 
@@ -1342,20 +1368,24 @@ exports.approveRegistration = async (req, res) => {
     }
 
     // Відправити WebSocket сповіщення
-     try {
-       registrationWebSocketService.notifyRegistrationStatusChange({
-         _id: user._id,
-         firstName: user.firstName,
-         lastName: user.lastName,
-         email: user.email
-       }, 'pending', 'approved');
+    try {
+      registrationWebSocketService.notifyRegistrationStatusChange(
+        {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+        },
+        'pending',
+        'approved'
+      );
 
-       // Отримати оновлену кількість запитів на реєстрацію
-       const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
-       registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
-     } catch (wsError) {
-       logger.error('Помилка відправки WebSocket сповіщення:', wsError);
-     }
+      // Отримати оновлену кількість запитів на реєстрацію
+      const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
+      registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
+    } catch (wsError) {
+      logger.error('Помилка відправки WebSocket сповіщення:', wsError);
+    }
 
     // Отримати оновленого користувача з заповненими полями
     const updatedUser = await User.findById(id)
@@ -1366,14 +1396,14 @@ exports.approveRegistration = async (req, res) => {
     res.json({
       success: true,
       message: 'Реєстрацію користувача підтверджено',
-      data: updatedUser
+      data: updatedUser,
     });
   } catch (error) {
     logger.error('Error approving registration:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при підтвердженні реєстрації',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1388,14 +1418,14 @@ exports.rejectRegistration = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
     if (user.registrationStatus !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: 'Реєстрація вже була оброблена'
+        message: 'Реєстрація вже була оброблена',
       });
     }
 
@@ -1405,7 +1435,7 @@ exports.rejectRegistration = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      telegramId: user.telegramId
+      telegramId: user.telegramId,
     };
 
     // Відправити сповіщення в Telegram перед видаленням
@@ -1417,15 +1447,19 @@ exports.rejectRegistration = async (req, res) => {
     }
 
     // Відправити WebSocket сповіщення перед видаленням
-     try {
-       registrationWebSocketService.notifyRegistrationStatusChange(userDataForNotification, 'pending', 'rejected');
+    try {
+      registrationWebSocketService.notifyRegistrationStatusChange(
+        userDataForNotification,
+        'pending',
+        'rejected'
+      );
 
-       // Отримати оновлену кількість запитів на реєстрацію (після видалення)
-       const pendingCount = await User.countDocuments({ registrationStatus: 'pending' }) - 1; // -1 бо користувач ще не видалений
-       registrationWebSocketService.notifyRegistrationCountUpdate(Math.max(0, pendingCount));
-     } catch (wsError) {
-       logger.error('Помилка відправки WebSocket сповіщення:', wsError);
-     }
+      // Отримати оновлену кількість запитів на реєстрацію (після видалення)
+      const pendingCount = (await User.countDocuments({ registrationStatus: 'pending' })) - 1; // -1 бо користувач ще не видалений
+      registrationWebSocketService.notifyRegistrationCountUpdate(Math.max(0, pendingCount));
+    } catch (wsError) {
+      logger.error('Помилка відправки WebSocket сповіщення:', wsError);
+    }
 
     // Видаляємо користувача з бази даних замість збереження зі статусом rejected
     await User.findByIdAndDelete(id);
@@ -1433,14 +1467,14 @@ exports.rejectRegistration = async (req, res) => {
     res.json({
       success: true,
       message: 'Реєстрацію користувача відхилено та видалено з системи',
-      data: { deletedUserId: id }
+      data: { deletedUserId: id },
     });
   } catch (error) {
     logger.error('Error rejecting registration:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при відхиленні реєстрації',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1449,30 +1483,30 @@ exports.rejectRegistration = async (req, res) => {
 exports.cleanupRegistrations = async (req, res) => {
   try {
     const { runCleanupNow } = require('../jobs/cleanupJob');
-    
+
     const result = await runCleanupNow();
-    
+
     res.json({
       success: true,
       message: `Очищення завершено. Видалено ${result.total} записів`,
       data: {
         pending: {
           cleaned: result.pending.cleaned,
-          details: result.pending.details
+          details: result.pending.details,
         },
         rejected: {
           cleaned: result.rejected.cleaned,
-          details: result.rejected.details
+          details: result.rejected.details,
         },
-        total: result.total
-      }
+        total: result.total,
+      },
     });
   } catch (error) {
     logger.error('Error cleaning up registrations:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при очищенні реєстрацій',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1485,7 +1519,7 @@ exports.forceDeleteUser = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID користувача'
+        message: 'Невірний ID користувача',
       });
     }
 
@@ -1493,7 +1527,7 @@ exports.forceDeleteUser = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для видалення користувачів'
+        message: 'Немає прав для видалення користувачів',
       });
     }
 
@@ -1501,7 +1535,7 @@ exports.forceDeleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -1509,25 +1543,19 @@ exports.forceDeleteUser = async (req, res) => {
     if (user._id.equals(req.user._id)) {
       return res.status(400).json({
         success: false,
-        message: 'Не можна видалити самого себе'
+        message: 'Не можна видалити самого себе',
       });
     }
 
     // Перевіряємо чи є у користувача активні тікети
     const Ticket = require('../models/Ticket');
     const activeTicketsCount = await Ticket.countDocuments({
-      $or: [
-        { createdBy: id },
-        { assignedTo: id }
-      ],
-      status: { $in: ['open', 'in_progress'] }
+      $or: [{ createdBy: id }, { assignedTo: id }],
+      status: { $in: ['open', 'in_progress'] },
     });
 
     const allTicketsCount = await Ticket.countDocuments({
-      $or: [
-        { createdBy: id },
-        { assignedTo: id }
-      ]
+      $or: [{ createdBy: id }, { assignedTo: id }],
     });
 
     // Зберігаємо інформацію про користувача для логування
@@ -1536,36 +1564,37 @@ exports.forceDeleteUser = async (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      role: user.role
+      role: user.role,
     };
 
     // Повне видалення користувача з бази даних
     await User.findByIdAndDelete(id);
-    
+
     logger.info(`🗑️ Користувача повністю видалено:`, {
       ...userInfo,
       activeTickets: activeTicketsCount,
       totalTickets: allTicketsCount,
-      deletedBy: req.user.email
+      deletedBy: req.user.email,
     });
 
     res.json({
       success: true,
-      message: activeTicketsCount > 0 
-        ? `Користувача повністю видалено з системи (було ${activeTicketsCount} активних тікетів та ${allTicketsCount} загалом)`
-        : 'Користувача повністю видалено з системи',
+      message:
+        activeTicketsCount > 0
+          ? `Користувача повністю видалено з системи (було ${activeTicketsCount} активних тікетів та ${allTicketsCount} загалом)`
+          : 'Користувача повністю видалено з системи',
       data: {
         deletedUser: userInfo,
         activeTicketsCount,
-        totalTicketsCount: allTicketsCount
-      }
+        totalTicketsCount: allTicketsCount,
+      },
     });
   } catch (error) {
     logger.error('Error force deleting user:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при повному видаленні користувача',
-      error: error.message
+      error: error.message,
     });
   }
 };

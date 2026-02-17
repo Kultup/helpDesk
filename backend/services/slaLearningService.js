@@ -13,19 +13,13 @@ class SLALearningService {
    */
   async getSimilarTicketsStatistics(params = {}) {
     try {
-      const {
-        category,
-        priority,
-        cityId,
-        keywords = [],
-        limit = 50
-      } = params;
+      const { category, priority, cityId, keywords = [], limit = 50 } = params;
 
       // Будуємо запит для пошуку подібних тікетів
       const query = {
         status: 'resolved', // Тільки вирішені тікети (знаємо реальний час)
         'sla.hours': { $exists: true, $ne: null },
-        actualHours: { $exists: true, $ne: null } // Має бути вказано фактичний час
+        actualHours: { $exists: true, $ne: null }, // Має бути вказано фактичний час
       };
 
       if (category) {
@@ -43,10 +37,7 @@ class SLALearningService {
       // Пошук по ключовим словам у заголовку/описі
       if (keywords.length > 0) {
         const keywordRegex = keywords.map(kw => new RegExp(kw, 'i'));
-        query.$or = [
-          { title: { $in: keywordRegex } },
-          { description: { $in: keywordRegex } }
-        ];
+        query.$or = [{ title: { $in: keywordRegex } }, { description: { $in: keywordRegex } }];
       }
 
       // Отримуємо подібні тікети
@@ -60,7 +51,7 @@ class SLALearningService {
         return {
           found: false,
           count: 0,
-          message: 'Немає історичних даних для подібних тікетів'
+          message: 'Немає історичних даних для подібних тікетів',
         };
       }
 
@@ -73,9 +64,9 @@ class SLALearningService {
       const medianActual = this.calculateMedian(actualHours);
       const minActual = Math.min(...actualHours);
       const maxActual = Math.max(...actualHours);
-      
+
       const avgSLA = slaHours.reduce((sum, h) => sum + h, 0) / slaHours.length;
-      
+
       // Точність попередніх прогнозів
       const accuracyData = similarTickets
         .filter(t => t.sla?.hours && t.actualHours)
@@ -88,7 +79,8 @@ class SLALearningService {
         });
 
       const avgError = accuracyData.reduce((sum, d) => sum + d.error, 0) / accuracyData.length;
-      const avgErrorPercent = accuracyData.reduce((sum, d) => sum + d.errorPercent, 0) / accuracyData.length;
+      const avgErrorPercent =
+        accuracyData.reduce((sum, d) => sum + d.errorPercent, 0) / accuracyData.length;
 
       // Розподіл за часом
       const distribution = this.calculateDistribution(actualHours);
@@ -100,29 +92,29 @@ class SLALearningService {
           average: Math.round(avgActual * 10) / 10,
           median: Math.round(medianActual * 10) / 10,
           min: Math.round(minActual * 10) / 10,
-          max: Math.round(maxActual * 10) / 10
+          max: Math.round(maxActual * 10) / 10,
         },
         predicted: {
-          average: Math.round(avgSLA * 10) / 10
+          average: Math.round(avgSLA * 10) / 10,
         },
         accuracy: {
           averageError: Math.round(avgError * 10) / 10,
-          averageErrorPercent: Math.round(avgErrorPercent * 10) / 10
+          averageErrorPercent: Math.round(avgErrorPercent * 10) / 10,
         },
         distribution,
         examples: similarTickets.slice(0, 5).map(t => ({
           title: t.title,
           priority: t.priority,
           predicted: t.sla?.hours,
-          actual: t.actualHours
-        }))
+          actual: t.actualHours,
+        })),
       };
     } catch (error) {
       logger.error('Помилка отримання статистики подібних тікетів:', error);
       return {
         found: false,
         count: 0,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -131,22 +123,69 @@ class SLALearningService {
    * Отримати ключові слова з тексту для пошуку подібних тікетів
    */
   extractKeywords(text) {
-    if (!text) return [];
+    if (!text) {
+      return [];
+    }
 
     const stopWords = new Set([
-      'не', 'та', 'що', 'як', 'на', 'в', 'з', 'по', 'до', 'від', 'у', 'і', 'а', 'але',
-      'працює', 'робить', 'робити', 'зробити', 'буде', 'має', 'можна', 'треба', 'потрібно'
+      'не',
+      'та',
+      'що',
+      'як',
+      'на',
+      'в',
+      'з',
+      'по',
+      'до',
+      'від',
+      'у',
+      'і',
+      'а',
+      'але',
+      'працює',
+      'робить',
+      'робити',
+      'зробити',
+      'буде',
+      'має',
+      'можна',
+      'треба',
+      'потрібно',
     ]);
 
     // Важливі технічні терміни
     const importantTerms = [
-      'принтер', 'комп\'ютер', 'ноутбук', 'сервер', 'монітор', 'клавіатура', 'мишка',
-      'інтернет', 'мережа', 'wifi', 'vpn', 'пошта', 'outlook', 'windows', 'office',
-      'пароль', 'доступ', '1с', 'телефон', 'друкує', 'вмикається', 'завантажується',
-      'гальмує', 'повільно', 'зависає', 'помилка', 'вірус'
+      'принтер',
+      "комп'ютер",
+      'ноутбук',
+      'сервер',
+      'монітор',
+      'клавіатура',
+      'мишка',
+      'інтернет',
+      'мережа',
+      'wifi',
+      'vpn',
+      'пошта',
+      'outlook',
+      'windows',
+      'office',
+      'пароль',
+      'доступ',
+      '1с',
+      'телефон',
+      'друкує',
+      'вмикається',
+      'завантажується',
+      'гальмує',
+      'повільно',
+      'зависає',
+      'помилка',
+      'вірус',
     ];
 
-    const words = text.toLowerCase()
+    const words = text
+      .toLowerCase()
       .replace(/[^\wа-яіїєґ\s]/gi, ' ')
       .split(/\s+/)
       .filter(word => word.length > 2 && !stopWords.has(word));
@@ -171,12 +210,12 @@ class SLALearningService {
    * Розрахунок медіани
    */
   calculateMedian(arr) {
-    if (arr.length === 0) return 0;
+    if (arr.length === 0) {
+      return 0;
+    }
     const sorted = [...arr].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
   }
 
   /**
@@ -189,16 +228,23 @@ class SLALearningService {
       '4-8 год': 0,
       '8-24 год': 0,
       '24-48 год': 0,
-      'понад 48 год': 0
+      'понад 48 год': 0,
     };
 
     hours.forEach(h => {
-      if (h < 1) ranges['до 1 год']++;
-      else if (h < 4) ranges['1-4 год']++;
-      else if (h < 8) ranges['4-8 год']++;
-      else if (h < 24) ranges['8-24 год']++;
-      else if (h < 48) ranges['24-48 год']++;
-      else ranges['понад 48 год']++;
+      if (h < 1) {
+        ranges['до 1 год']++;
+      } else if (h < 4) {
+        ranges['1-4 год']++;
+      } else if (h < 8) {
+        ranges['4-8 год']++;
+      } else if (h < 24) {
+        ranges['8-24 год']++;
+      } else if (h < 48) {
+        ranges['24-48 год']++;
+      } else {
+        ranges['понад 48 год']++;
+      }
     });
 
     // Конвертуємо в відсотки
@@ -207,7 +253,7 @@ class SLALearningService {
     Object.keys(ranges).forEach(range => {
       distribution[range] = {
         count: ranges[range],
-        percent: Math.round((ranges[range] / total) * 100)
+        percent: Math.round((ranges[range] / total) * 100),
       };
     });
 
@@ -220,13 +266,13 @@ class SLALearningService {
   async getRecommendedSLA(ticket) {
     try {
       const keywords = this.extractKeywords(`${ticket.title} ${ticket.description || ''}`);
-      
+
       const stats = await this.getSimilarTicketsStatistics({
         category: ticket.category,
         priority: ticket.priority,
         cityId: ticket.city,
         keywords,
-        limit: 50
+        limit: 50,
       });
 
       if (!stats.found || stats.count < 3) {
@@ -234,7 +280,7 @@ class SLALearningService {
         return {
           hasLearning: false,
           reason: 'Недостатньо історичних даних для точного прогнозу',
-          recommendedHours: null
+          recommendedHours: null,
         };
       }
 
@@ -251,16 +297,16 @@ class SLALearningService {
           averageActual: stats.actual.average,
           medianActual: stats.actual.median,
           range: `${stats.actual.min}-${stats.actual.max} год`,
-          previousAccuracy: `±${Math.round(stats.accuracy.averageErrorPercent)}%`
+          previousAccuracy: `±${Math.round(stats.accuracy.averageErrorPercent)}%`,
         },
-        reason: `На основі ${stats.count} подібних тікетів. Середній час: ${stats.actual.median}h, з буфером 20%: ${recommendedHours}h`
+        reason: `На основі ${stats.count} подібних тікетів. Середній час: ${stats.actual.median}h, з буфером 20%: ${recommendedHours}h`,
       };
     } catch (error) {
       logger.error('Помилка розрахунку рекомендованого SLA:', error);
       return {
         hasLearning: false,
         reason: 'Помилка аналізу історичних даних',
-        recommendedHours: null
+        recommendedHours: null,
       };
     }
   }

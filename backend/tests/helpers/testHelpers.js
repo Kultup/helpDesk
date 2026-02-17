@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../../models/User');
 const Ticket = require('../../models/Ticket');
@@ -8,7 +7,6 @@ const City = require('../../models/City');
 const Position = require('../../models/Position');
 
 // Додаємо bcrypt для використання в функціях
-const bcryptHelper = bcrypt;
 
 /**
  * Підключення до тестової бази даних
@@ -18,7 +16,7 @@ const connectDB = async () => {
     const mongoUri = process.env.MONGODB_TEST_URI || 'mongodb://localhost:27017/helpdesk_test';
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
     });
   } catch (error) {
     console.error('Помилка підключення до тестової БД:', error);
@@ -52,7 +50,7 @@ const clearDatabase = async () => {
     require('../../models/Comment');
     require('../../models/Notification');
     require('../../models/Tag'); // Додаємо Tag модель
-    
+
     // Використовуємо mongoose models для видалення
     const User = require('../../models/User');
     const Ticket = require('../../models/Ticket');
@@ -62,7 +60,7 @@ const clearDatabase = async () => {
     const Comment = require('../../models/Comment');
     const Notification = require('../../models/Notification');
     const Tag = require('../../models/Tag');
-    
+
     // Видаляємо документи з основних колекцій паралельно
     await Promise.all([
       User.deleteMany({}).catch(() => {}),
@@ -72,7 +70,7 @@ const clearDatabase = async () => {
       Position.deleteMany({}).catch(() => {}),
       Comment.deleteMany({}).catch(() => {}),
       Notification.deleteMany({}).catch(() => {}),
-      Tag.deleteMany({}).catch(() => {})
+      Tag.deleteMany({}).catch(() => {}),
     ]);
   } catch (error) {
     // Не викидаємо помилку, щоб не зупиняти тести
@@ -84,15 +82,19 @@ const clearDatabase = async () => {
  * Створення тестового користувача
  */
 const createTestUser = async (overrides = {}) => {
-  const uniqueEmail = overrides.email || `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
+  const uniqueEmail =
+    overrides.email || `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@example.com`;
   const baseLogin = (overrides.login || uniqueEmail.split('@')[0]).toLowerCase();
   const sanitizedLogin = baseLogin.replace(/[^a-z0-9_]/gi, '');
-  const uniqueLogin = (sanitizedLogin && sanitizedLogin.length >= 3) ? sanitizedLogin : `testuser_${Math.random().toString(36).substr(2,5)}`;
-  
+  const uniqueLogin =
+    sanitizedLogin && sanitizedLogin.length >= 3
+      ? sanitizedLogin
+      : `testuser_${Math.random().toString(36).substr(2, 5)}`;
+
   // Якщо пароль передано, використовуємо його як є (модель сама захешує якщо потрібно)
   // Якщо пароль не передано, використовуємо дефолтний
   const password = overrides.password !== undefined ? overrides.password : 'password123';
-  
+
   const defaultUser = {
     email: uniqueEmail,
     login: uniqueLogin,
@@ -103,9 +105,9 @@ const createTestUser = async (overrides = {}) => {
     department: 'IT Department',
     isActive: true,
     registrationStatus: 'approved',
-    ...overrides
+    ...overrides,
   };
-  
+
   // Видаляємо password з overrides щоб не перезаписати
   delete defaultUser.password;
   defaultUser.password = password;
@@ -120,8 +122,8 @@ const createTestUser = async (overrides = {}) => {
           $setOnInsert: {
             name: 'Київ',
             region: 'Київська область',
-            coordinates: { lat: 50.4501, lng: 30.5234 }
-          }
+            coordinates: { lat: 50.4501, lng: 30.5234 },
+          },
         },
         { upsert: true }
       );
@@ -130,12 +132,14 @@ const createTestUser = async (overrides = {}) => {
         city = await City.create({
           name: 'Київ',
           region: 'Київська область',
-          coordinates: { lat: 50.4501, lng: 30.5234 }
+          coordinates: { lat: 50.4501, lng: 30.5234 },
         });
       }
     } catch (error) {
       city = await City.findOne({ name: 'Київ' });
-      if (!city) throw error;
+      if (!city) {
+        throw error;
+      }
     }
   }
 
@@ -147,7 +151,7 @@ const createTestUser = async (overrides = {}) => {
         department: 'IT',
         isActive: true,
         isPublic: true,
-        createdBy: new mongoose.Types.ObjectId()
+        createdBy: new mongoose.Types.ObjectId(),
       });
     } catch (error) {
       try {
@@ -161,8 +165,8 @@ const createTestUser = async (overrides = {}) => {
               isPublic: true,
               createdAt: new Date(),
               updatedAt: new Date(),
-              createdBy: new mongoose.Types.ObjectId()
-            }
+              createdBy: new mongoose.Types.ObjectId(),
+            },
           },
           { upsert: true }
         );
@@ -186,35 +190,36 @@ const createTestUser = async (overrides = {}) => {
     ...defaultUser,
     position: position._id,
     city: city._id,
-    refreshTokens: [] // Ініціалізуємо одразу
+    refreshTokens: [], // Ініціалізуємо одразу
   });
-  
+
   // Перевіряємо що position та city правильно збережені
   if (!user.position || !user.city) {
     throw new Error('Position or city not saved correctly');
   }
-  
+
   return user;
 };
 
 /**
  * Створення тестового адміністратора
  */
-const createTestAdmin = async (overrides = {}) => {
-  const adminEmail = overrides.email || `admin-${Date.now()}-${Math.random().toString(36).substr(2,5)}@example.com`;
-  return await createTestUser({
+const createTestAdmin = (overrides = {}) => {
+  const adminEmail =
+    overrides.email || `admin-${Date.now()}-${Math.random().toString(36).substr(2, 5)}@example.com`;
+  return createTestUser({
     email: adminEmail,
     firstName: 'Admin',
     lastName: 'User',
     role: 'admin',
-    ...overrides
+    ...overrides,
   });
 };
 
 /**
  * Генерація JWT токена для тестування
  */
-const generateAuthToken = (user) => {
+const generateAuthToken = user => {
   return jwt.sign(
     { userId: user._id.toString(), email: user.email, role: user.role },
     process.env.JWT_SECRET,
@@ -230,7 +235,7 @@ const createTestCategory = async (user, overrides = {}) => {
   if (!user) {
     user = await createTestUser();
   }
-  
+
   const uniqueName = overrides.name || `Test Category ${Date.now()}`;
   const defaultCategory = {
     name: uniqueName,
@@ -238,10 +243,10 @@ const createTestCategory = async (user, overrides = {}) => {
     color: '#FF5733',
     isActive: true,
     createdBy: user._id,
-    ...overrides
+    ...overrides,
   };
 
-  return await Category.create(defaultCategory);
+  return Category.create(defaultCategory);
 };
 
 /**
@@ -252,7 +257,7 @@ const createTestTicket = async (user, overrides = {}) => {
   if (!user) {
     user = await createTestUser();
   }
-  
+
   let category = await Category.findOne();
   if (!category) {
     category = await createTestCategory(user);
@@ -266,8 +271,8 @@ const createTestTicket = async (user, overrides = {}) => {
         $setOnInsert: {
           name: 'Київ',
           region: 'Київська область',
-          coordinates: { lat: 50.4501, lng: 30.5234 }
-        }
+          coordinates: { lat: 50.4501, lng: 30.5234 },
+        },
       },
       { upsert: true }
     );
@@ -280,7 +285,10 @@ const createTestTicket = async (user, overrides = {}) => {
     for (let i = 0; i < 5; i++) {
       const candidate = `TK-${year}-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`;
       const existing = await Ticket.findOne({ ticketNumber: candidate });
-      if (!existing) { ticketNumber = candidate; break; }
+      if (!existing) {
+        ticketNumber = candidate;
+        break;
+      }
     }
   }
 
@@ -293,16 +301,16 @@ const createTestTicket = async (user, overrides = {}) => {
     city: city._id,
     createdBy: user._id,
     ticketNumber,
-    ...overrides
+    ...overrides,
   };
 
-  return await Ticket.create(defaultTicket);
+  return Ticket.create(defaultTicket);
 };
 
 /**
  * Очікування асинхронної операції
  */
-const waitFor = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const waitFor = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 module.exports = {
   connectDB,
@@ -313,6 +321,5 @@ module.exports = {
   generateAuthToken,
   createTestCategory,
   createTestTicket,
-  waitFor
+  waitFor,
 };
-

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -7,11 +8,11 @@ const checkInstitutions = async () => {
     console.log('✅ Підключено до MongoDB');
 
     const Institution = mongoose.model('Institution', new mongoose.Schema({}, { strict: false }));
-    
+
     // Перевіряємо всі заклади
     const allInstitutions = await Institution.find({}).limit(10);
     console.log('\n📊 Всього закладів в БД:', await Institution.countDocuments());
-    
+
     console.log('\n🏢 Перші 10 закладів:');
     allInstitutions.forEach(inst => {
       console.log(`  - ${inst.name}`);

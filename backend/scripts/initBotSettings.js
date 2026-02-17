@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 require('dotenv').config();
 const database = require('../config/database');
 const BotSettings = require('../models/BotSettings');
@@ -20,22 +21,22 @@ const BotSettings = require('../models/BotSettings');
       priorityTexts: new Map([
         ['low', '🟢 Низький'],
         ['medium', '🟡 Середній'],
-        ['high', '🔴 Високий']
+        ['high', '🔴 Високий'],
       ]),
       statusTexts: new Map([
         ['open', 'Відкритий'],
         ['in_progress', 'В роботі'],
         ['pending', 'Очікує'],
         ['resolved', 'Вирішений'],
-        ['closed', 'Закритий']
+        ['closed', 'Закритий'],
       ]),
       statusEmojis: new Map([
         ['open', '🆕'],
         ['in_progress', '⚙️'],
         ['pending', '⏳'],
         ['resolved', '✅'],
-        ['closed', '🔒']
-      ])
+        ['closed', '🔒'],
+      ]),
     });
 
     await settings.save();

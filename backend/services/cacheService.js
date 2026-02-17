@@ -11,7 +11,7 @@ class CacheService {
     try {
       await redisClient.connect();
       this.isEnabled = redisClient.isConnected;
-      
+
       if (this.isEnabled) {
         logger.info('✅ CacheService ініціалізовано');
       } else {
@@ -35,7 +35,7 @@ class CacheService {
 
     try {
       const value = await redisClient.client.get(key);
-      
+
       if (value === null) {
         return null;
       }
@@ -67,7 +67,7 @@ class CacheService {
 
     try {
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-      
+
       if (ttl > 0) {
         await redisClient.client.setex(key, ttl, stringValue);
       } else {
@@ -105,7 +105,7 @@ class CacheService {
    * @param {string} pattern - Паттерн для пошуку (наприклад, 'user:*')
    * @returns {Promise<number>} - Кількість видалених ключів
    */
-  async deleteByPattern(pattern) {
+  deleteByPattern(pattern) {
     if (!this.isEnabled || !redisClient.client) {
       return 0;
     }
@@ -113,13 +113,13 @@ class CacheService {
     try {
       const stream = redisClient.client.scanStream({
         match: pattern,
-        count: 100
+        count: 100,
       });
 
       const keysToDelete = [];
 
       return new Promise((resolve, reject) => {
-        stream.on('data', (keys) => {
+        stream.on('data', keys => {
           keysToDelete.push(...keys);
         });
 
@@ -143,7 +143,7 @@ class CacheService {
           }
         });
 
-        stream.on('error', (error) => {
+        stream.on('error', error => {
           logger.error(`❌ Помилка сканування за паттерном (${pattern}):`, error);
           reject(error);
         });
@@ -163,17 +163,17 @@ class CacheService {
    */
   async getOrSet(key, fetchFn, ttl = this.defaultTTL) {
     const cached = await this.get(key);
-    
+
     if (cached !== null) {
       return cached;
     }
 
     // Якщо немає в кеші, виконуємо функцію
     const value = await fetchFn();
-    
+
     // Зберігаємо результат в кеш
     await this.set(key, value, ttl);
-    
+
     return value;
   }
 
@@ -259,7 +259,7 @@ class CacheService {
    * @param {string} pattern - Паттерн (наприклад, 'user:*')
    * @returns {Promise<string[]>} - Масив ключів
    */
-  async keys(pattern) {
+  keys(pattern) {
     if (!this.isEnabled || !redisClient.client) {
       return [];
     }
@@ -268,11 +268,11 @@ class CacheService {
       const keys = [];
       const stream = redisClient.client.scanStream({
         match: pattern,
-        count: 100
+        count: 100,
       });
 
       return new Promise((resolve, reject) => {
-        stream.on('data', (resultKeys) => {
+        stream.on('data', resultKeys => {
           keys.push(...resultKeys);
         });
 
@@ -280,7 +280,7 @@ class CacheService {
           resolve(keys);
         });
 
-        stream.on('error', (error) => {
+        stream.on('error', error => {
           reject(error);
         });
       });
@@ -314,4 +314,3 @@ class CacheService {
 const cacheService = new CacheService();
 
 module.exports = cacheService;
-

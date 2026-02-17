@@ -1,204 +1,232 @@
 const mongoose = require('mongoose');
 
-const notificationSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Notification title is required'],
-    trim: true,
-    maxlength: [200, 'Title cannot exceed 200 characters']
-  },
-  message: {
-    type: String,
-    required: [true, 'Notification message is required'],
-    trim: true,
-    maxlength: [1000, 'Message cannot exceed 1000 characters']
-  },
-  type: {
-    type: String,
-    enum: {
-      values: [
-        'ticket_created', 'ticket_updated', 'ticket_assigned', 'ticket_resolved', 'ticket_closed',
-        'comment_added', 'mention', 'deadline_approaching', 'deadline_passed',
-        'system_maintenance', 'system_update', 'security_alert',
-        'user_registered', 'user_login', 'password_changed',
-        'user_status_change', 'user_role_change', 'user_registration_status_change',
-        'user_activated', 'user_deactivated', 'user_approved', 'user_rejected',
-        'report_ready', 'export_completed', 'backup_completed',
-        'custom', 'announcement'
-      ],
-      message: 'Invalid notification type'
+const notificationSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, 'Notification title is required'],
+      trim: true,
+      maxlength: [200, 'Title cannot exceed 200 characters'],
     },
-    required: true
-  },
-  priority: {
-    type: String,
-    enum: {
-      values: ['low', 'medium', 'high', 'urgent'],
-      message: 'Priority must be one of: low, medium, high, urgent'
+    message: {
+      type: String,
+      required: [true, 'Notification message is required'],
+      trim: true,
+      maxlength: [1000, 'Message cannot exceed 1000 characters'],
     },
-    default: 'medium'
-  },
-  category: {
-    type: String,
-    enum: {
-      values: ['ticket', 'system', 'user', 'security', 'report', 'general'],
-      message: 'Invalid notification category'
-    },
-    required: true
-  },
-  recipient: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Recipient is required']
-  },
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null // null для системних сповіщень
-  },
-  relatedTicket: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ticket',
-    default: null
-  },
-  relatedComment: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Comment',
-    default: null
-  },
-  relatedUser: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
-  channels: [{
     type: {
       type: String,
-      enum: ['web', 'email', 'telegram', 'sms', 'push'],
-      required: true
+      enum: {
+        values: [
+          'ticket_created',
+          'ticket_updated',
+          'ticket_assigned',
+          'ticket_resolved',
+          'ticket_closed',
+          'comment_added',
+          'mention',
+          'deadline_approaching',
+          'deadline_passed',
+          'system_maintenance',
+          'system_update',
+          'security_alert',
+          'user_registered',
+          'user_login',
+          'password_changed',
+          'user_status_change',
+          'user_role_change',
+          'user_registration_status_change',
+          'user_activated',
+          'user_deactivated',
+          'user_approved',
+          'user_rejected',
+          'report_ready',
+          'export_completed',
+          'backup_completed',
+          'custom',
+          'announcement',
+        ],
+        message: 'Invalid notification type',
+      },
+      required: true,
     },
-    status: {
+    priority: {
       type: String,
-      enum: ['pending', 'sent', 'delivered', 'failed', 'read'],
-      default: 'pending'
+      enum: {
+        values: ['low', 'medium', 'high', 'urgent'],
+        message: 'Priority must be one of: low, medium, high, urgent',
+      },
+      default: 'medium',
     },
-    sentAt: {
-      type: Date,
-      default: null
+    category: {
+      type: String,
+      enum: {
+        values: ['ticket', 'system', 'user', 'security', 'report', 'general'],
+        message: 'Invalid notification category',
+      },
+      required: true,
     },
-    deliveredAt: {
-      type: Date,
-      default: null
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Recipient is required'],
+    },
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null, // null для системних сповіщень
+    },
+    relatedTicket: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ticket',
+      default: null,
+    },
+    relatedComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      default: null,
+    },
+    relatedUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    channels: [
+      {
+        type: {
+          type: String,
+          enum: ['web', 'email', 'telegram', 'sms', 'push'],
+          required: true,
+        },
+        status: {
+          type: String,
+          enum: ['pending', 'sent', 'delivered', 'failed', 'read'],
+          default: 'pending',
+        },
+        sentAt: {
+          type: Date,
+          default: null,
+        },
+        deliveredAt: {
+          type: Date,
+          default: null,
+        },
+        readAt: {
+          type: Date,
+          default: null,
+        },
+        error: {
+          type: String,
+          default: null,
+        },
+        externalId: {
+          type: String, // ID повідомлення в зовнішній системі (Telegram, email service)
+          default: null,
+        },
+      },
+    ],
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    actionUrl: {
+      type: String,
+      default: null,
+    },
+    actionText: {
+      type: String,
+      default: null,
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
     },
     readAt: {
       type: Date,
-      default: null
+      default: null,
     },
-    error: {
-      type: String,
-      default: null
+    expiresAt: {
+      type: Date,
+      default: function () {
+        // За замовчуванням сповіщення зберігаються 30 днів
+        return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      },
     },
-    externalId: {
-      type: String, // ID повідомлення в зовнішній системі (Telegram, email service)
-      default: null
-    }
-  }],
-  data: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
-  actionUrl: {
-    type: String,
-    default: null
-  },
-  actionText: {
-    type: String,
-    default: null
-  },
-  isRead: {
-    type: Boolean,
-    default: false
-  },
-  readAt: {
-    type: Date,
-    default: null
-  },
-  expiresAt: {
-    type: Date,
-    default: function() {
-      // За замовчуванням сповіщення зберігаються 30 днів
-      return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
-  },
-  // Поле userId для сумісності з контролером (alias для recipient)
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false // Не обов'язкове, синхронізується з recipient
-  },
-  // Поле read для сумісності з контролером (alias для isRead)
-  read: {
-    type: Boolean,
-    default: false,
-    required: false // Не обов'язкове, синхронізується з isRead
-  },
-  scheduledFor: {
-    type: Date,
-    default: null
-  },
-  isScheduled: {
-    type: Boolean,
-    default: false
-  },
-  retryCount: {
-    type: Number,
-    default: 0,
-    max: 5
-  },
-  lastRetryAt: {
-    type: Date,
-    default: null
-  },
-  metadata: {
-    ipAddress: String,
-    userAgent: String,
-    source: {
-      type: String,
-      enum: ['web', 'api', 'system', 'telegram'],
-      default: 'system'
+    // Поле userId для сумісності з контролером (alias для recipient)
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false, // Не обов'язкове, синхронізується з recipient
     },
-    batchId: String, // для групових сповіщень
-    templateId: String,
-    variables: mongoose.Schema.Types.Mixed
+    // Поле read для сумісності з контролером (alias для isRead)
+    read: {
+      type: Boolean,
+      default: false,
+      required: false, // Не обов'язкове, синхронізується з isRead
+    },
+    scheduledFor: {
+      type: Date,
+      default: null,
+    },
+    isScheduled: {
+      type: Boolean,
+      default: false,
+    },
+    retryCount: {
+      type: Number,
+      default: 0,
+      max: 5,
+    },
+    lastRetryAt: {
+      type: Date,
+      default: null,
+    },
+    metadata: {
+      ipAddress: String,
+      userAgent: String,
+      source: {
+        type: String,
+        enum: ['web', 'api', 'system', 'telegram'],
+        default: 'system',
+      },
+      batchId: String, // для групових сповіщень
+      templateId: String,
+      variables: mongoose.Schema.Types.Mixed,
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-});
+);
 
 // Віртуальні поля
-notificationSchema.virtual('isExpired').get(function() {
+notificationSchema.virtual('isExpired').get(function () {
   return this.expiresAt && this.expiresAt < new Date();
 });
 
-notificationSchema.virtual('isOverdue').get(function() {
+notificationSchema.virtual('isOverdue').get(function () {
   return this.scheduledFor && this.scheduledFor < new Date() && !this.isRead;
 });
 
-notificationSchema.virtual('age').get(function() {
+notificationSchema.virtual('age').get(function () {
   const now = new Date();
   const created = this.createdAt || now;
   const diffMs = now - created;
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffHours / 24);
-  
-  if (diffDays > 0) return `${diffDays} днів тому`;
-  if (diffHours > 0) return `${diffHours} годин тому`;
+
+  if (diffDays > 0) {
+    return `${diffDays} днів тому`;
+  }
+  if (diffHours > 0) {
+    return `${diffHours} годин тому`;
+  }
   return 'щойно';
 });
 
-notificationSchema.virtual('channelStatus').get(function() {
+notificationSchema.virtual('channelStatus').get(function () {
   const status = {};
   this.channels.forEach(channel => {
     status[channel.type] = channel.status;
@@ -224,7 +252,7 @@ notificationSchema.index({ 'metadata.batchId': 1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Middleware для синхронізації userId та recipient
-notificationSchema.pre('save', function(next) {
+notificationSchema.pre('save', function (next) {
   // Якщо встановлено userId, але не recipient - синхронізуємо
   if (this.userId && !this.recipient) {
     this.recipient = this.userId;
@@ -248,23 +276,21 @@ notificationSchema.pre('save', function(next) {
 });
 
 // Статичні методи
-notificationSchema.statics.findByUser = function(userId, options = {}) {
-  const {
-    includeRead = true,
-    category = null,
-    type = null,
-    limit = 50,
-    skip = 0
-  } = options;
+notificationSchema.statics.findByUser = function (userId, options = {}) {
+  const { includeRead = true, category = null, type = null, limit = 50, skip = 0 } = options;
 
-  let query = { recipient: userId };
-  
+  const query = { recipient: userId };
+
   if (!includeRead) {
     query.isRead = false;
   }
-  if (type) query.type = type;
-  if (category) query.category = category;
-  
+  if (type) {
+    query.type = type;
+  }
+  if (category) {
+    query.category = category;
+  }
+
   return this.find(query)
     .populate('sender', 'firstName lastName avatar')
     .populate('relatedTicket', 'title ticketNumber status')
@@ -275,47 +301,47 @@ notificationSchema.statics.findByUser = function(userId, options = {}) {
     .skip(skip);
 };
 
-notificationSchema.statics.findUnread = function(userId) {
-  return this.find({ 
-    recipient: userId, 
-    isRead: false, 
-    isArchived: false 
+notificationSchema.statics.findUnread = function (userId) {
+  return this.find({
+    recipient: userId,
+    isRead: false,
+    isArchived: false,
   })
     .populate('sender', 'firstName lastName')
     .populate('relatedTicket', 'title ticketNumber')
     .sort({ createdAt: -1 });
 };
 
-notificationSchema.statics.findByTicket = function(ticketId) {
+notificationSchema.statics.findByTicket = function (ticketId) {
   return this.find({ relatedTicket: ticketId })
     .populate('recipient', 'firstName lastName email')
     .populate('sender', 'firstName lastName')
     .sort({ createdAt: -1 });
 };
 
-notificationSchema.statics.findScheduled = function() {
+notificationSchema.statics.findScheduled = function () {
   return this.find({
     isScheduled: true,
     scheduledFor: { $lte: new Date() },
-    'channels.status': 'pending'
+    'channels.status': 'pending',
   }).sort({ scheduledFor: 1 });
 };
 
-notificationSchema.statics.findFailed = function() {
+notificationSchema.statics.findFailed = function () {
   return this.find({
     'channels.status': 'failed',
-    retryCount: { $lt: 5 }
+    retryCount: { $lt: 5 },
   }).sort({ lastRetryAt: 1 });
 };
 
-notificationSchema.statics.getStatistics = function(userId = null, days = 30) {
+notificationSchema.statics.getStatistics = function (userId = null, days = 30) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const matchStage = { createdAt: { $gte: since } };
-  
+
   if (userId) {
     matchStage.recipient = new mongoose.Types.ObjectId(userId);
   }
-  
+
   return this.aggregate([
     { $match: matchStage },
     {
@@ -327,52 +353,50 @@ notificationSchema.statics.getStatistics = function(userId = null, days = 30) {
         byType: {
           $push: {
             type: '$type',
-            count: 1
-          }
+            count: 1,
+          },
         },
         byPriority: {
           $push: {
             priority: '$priority',
-            count: 1
-          }
-        }
-      }
-    }
+            count: 1,
+          },
+        },
+      },
+    },
   ]);
 };
 
-notificationSchema.statics.createBatch = function(notifications, batchId = null) {
+notificationSchema.statics.createBatch = function (notifications, batchId = null) {
   if (!batchId) {
     batchId = new mongoose.Types.ObjectId().toString();
   }
-  
+
   const notificationsWithBatch = notifications.map(notification => ({
     ...notification,
     metadata: {
       ...notification.metadata,
-      batchId
-    }
+      batchId,
+    },
   }));
-  
+
   return this.insertMany(notificationsWithBatch);
 };
 
 // Методи екземпляра
-notificationSchema.methods.markAsRead = function() {
+notificationSchema.methods.markAsRead = function () {
   this.isRead = true;
   this.readAt = new Date();
   return this.save();
 };
 
-notificationSchema.methods.markAsUnread = function() {
+notificationSchema.methods.markAsUnread = function () {
   this.isRead = false;
   this.readAt = null;
   return this.save();
 };
 
-
-
-notificationSchema.methods.addChannel = function(type, status = 'pending') {
+notificationSchema.methods.addChannel = function (type, status = 'pending') {
   const existingChannel = this.channels.find(c => c.type === type);
   if (!existingChannel) {
     this.channels.push({ type, status });
@@ -381,13 +405,18 @@ notificationSchema.methods.addChannel = function(type, status = 'pending') {
   return Promise.resolve(this);
 };
 
-notificationSchema.methods.updateChannelStatus = function(type, status, error = null, externalId = null) {
+notificationSchema.methods.updateChannelStatus = function (
+  type,
+  status,
+  error = null,
+  externalId = null
+) {
   const channel = this.channels.find(c => c.type === type);
   if (channel) {
     channel.status = status;
     channel.error = error;
     channel.externalId = externalId;
-    
+
     const now = new Date();
     if (status === 'sent' && !channel.sentAt) {
       channel.sentAt = now;
@@ -396,17 +425,17 @@ notificationSchema.methods.updateChannelStatus = function(type, status, error = 
     } else if (status === 'read' && !channel.readAt) {
       channel.readAt = now;
     }
-    
+
     return this.save();
   }
   return Promise.resolve(this);
 };
 
-notificationSchema.methods.retry = function() {
+notificationSchema.methods.retry = function () {
   if (this.retryCount < 5) {
     this.retryCount += 1;
     this.lastRetryAt = new Date();
-    
+
     // Скидаємо статус каналів з помилками
     this.channels.forEach(channel => {
       if (channel.status === 'failed') {
@@ -414,19 +443,19 @@ notificationSchema.methods.retry = function() {
         channel.error = null;
       }
     });
-    
+
     return this.save();
   }
   return Promise.resolve(this);
 };
 
-notificationSchema.methods.schedule = function(scheduledFor) {
+notificationSchema.methods.schedule = function (scheduledFor) {
   this.scheduledFor = scheduledFor;
   this.isScheduled = true;
   return this.save();
 };
 
-notificationSchema.methods.unschedule = function() {
+notificationSchema.methods.unschedule = function () {
   this.scheduledFor = null;
   this.isScheduled = false;
   return this.save();

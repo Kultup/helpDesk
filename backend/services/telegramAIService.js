@@ -427,7 +427,7 @@ class TelegramAIService {
       );
 
       await this.telegramService.sendMessage(chatId, articleText, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: { inline_keyboard: keyboard },
       });
       const attachments = Array.isArray(article.attachments) ? article.attachments : [];
@@ -519,7 +519,7 @@ class TelegramAIService {
         session.editingFromConfirm = false;
         const d = session.ticketDraft;
         await this.telegramService.sendTyping(chatId);
-        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+        const msg = `✅ <b>Перевірте, чи все правильно</b>\n\n📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(d.title || '—')}\n\n📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(d.description || '—')}\n\n📊 <b>Категорія:</b> ${TelegramUtils.escapeHtml(d.subcategory || '—')}\n⚡ <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(d.priority || '—')}\n\nВсе правильно?`;
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
@@ -528,7 +528,7 @@ class TelegramAIService {
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]),
           },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         });
         return;
       }
@@ -570,7 +570,7 @@ class TelegramAIService {
           type: session.ticketDraft.type || 'problem',
         };
         const d = session.ticketDraft;
-        const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${d.title || '—'}\n\n📝 *Опис:*\n${d.description || '—'}\n\n📊 *Категорія:* ${d.subcategory || '—'}\n⚡ *Пріоритет:* ${d.priority || '—'}\n\nВсе правильно?`;
+        const msg = `✅ <b>Перевірте, чи все правильно</b>\n\n📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(d.title || '—')}\n\n📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(d.description || '—')}\n\n📊 <b>Категорія:</b> ${TelegramUtils.escapeHtml(d.subcategory || '—')}\n⚡ <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(d.priority || '—')}\n\nВсе правильно?`;
         await this.telegramService.sendMessage(chatId, msg, {
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
@@ -579,7 +579,7 @@ class TelegramAIService {
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]),
           },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         });
         return;
       }
@@ -828,9 +828,9 @@ class TelegramAIService {
         const rateText = nbu.date ? `Курс USD за ${nbu.date}` : 'Курс USD (НБУ)';
         await this.telegramService.sendMessage(
           chatId,
-          `💵 *${rateText}:* ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+          `💵 <b>${TelegramUtils.escapeHtml(rateText)}:</b> ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`,
           {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                 { text: 'Створити тікет', callback_data: 'create_ticket' },
@@ -900,9 +900,9 @@ class TelegramAIService {
         this.recordInternetRequest(telegramId);
         await this.telegramService.sendMessage(
           chatId,
-          `🌤 *Погода в ${weather.city}:* ${weather.description}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+          `🌤 <b>Погода в ${TelegramUtils.escapeHtml(weather.city)}:</b> ${TelegramUtils.escapeHtml(weather.description)}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`,
           {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                 { text: 'Створити тікет', callback_data: 'create_ticket' },
@@ -1031,7 +1031,7 @@ class TelegramAIService {
         );
 
         await this.telegramService.sendMessage(chatId, articleText, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         });
 
@@ -1130,7 +1130,7 @@ class TelegramAIService {
         );
 
         await this.telegramService.sendMessage(chatId, normalized, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         });
         return;
@@ -1205,9 +1205,9 @@ class TelegramAIService {
           const rateText = nbu.date ? `Курс USD за ${nbu.date}` : 'Курс USD (НБУ)';
           await this.telegramService.sendMessage(
             chatId,
-            `💵 *${rateText}:* ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+            `💵 <b>${TelegramUtils.escapeHtml(rateText)}:</b> ${nbu.rate.toFixed(2)} грн\n\nЯкщо потрібна допомога з тікетом — пиши.`,
             {
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                   { text: 'Створити тікет', callback_data: 'create_ticket' },
@@ -1273,9 +1273,9 @@ class TelegramAIService {
           this.recordInternetRequest(telegramId);
           await this.telegramService.sendMessage(
             chatId,
-            `🌤 *Погода в ${weather.city}:* ${weather.description}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`,
+            `🌤 <b>Погода в ${TelegramUtils.escapeHtml(weather.city)}:</b> ${TelegramUtils.escapeHtml(weather.description)}, ${Math.round(weather.temp)}°C\n\nЯкщо потрібна допомога з тікетом — пиши.`,
             {
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                   { text: 'Створити тікет', callback_data: 'create_ticket' },
@@ -1349,7 +1349,7 @@ class TelegramAIService {
         );
 
         await this.telegramService.sendMessage(chatId, normalized, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: { inline_keyboard: keyboard },
         });
         return;
@@ -1384,7 +1384,7 @@ class TelegramAIService {
 
     // Special handling for auto-ticket quick solutions (Fast-Track)
     if (result.autoTicket && quickSolutionText) {
-      await this.telegramService.sendMessage(chatId, quickSolutionText, { parse_mode: 'Markdown' });
+      await this.telegramService.sendMessage(chatId, quickSolutionText, { parse_mode: 'HTML' });
       // Fall through to ticket confirmation block
     }
 
@@ -1438,7 +1438,7 @@ class TelegramAIService {
         });
 
         await this.telegramService.sendMessage(chatId, messageToSend, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(gatherButtons),
           },
@@ -1467,7 +1467,7 @@ class TelegramAIService {
       );
 
       await this.telegramService.sendMessage(chatId, quickSolutionText, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: keyboard,
         },
@@ -1533,7 +1533,7 @@ class TelegramAIService {
             });
           }
           await this.telegramService.sendMessage(chatId, messageToSend, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: { inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(gatherButtons) },
           });
           session.dialog_history.push({ role: 'assistant', content: messageToSend });
@@ -1778,7 +1778,7 @@ class TelegramAIService {
         if (!shown) {
           const fallback = TelegramUtils.normalizeQuickSolutionSteps(displayText);
           await this.telegramService.sendMessage(chatId, fallback, {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [
                 [
@@ -1796,7 +1796,7 @@ class TelegramAIService {
         session.step = 'awaiting_tip_feedback';
         const normalizedHint = TelegramUtils.normalizeQuickSolutionSteps(displayText);
         await this.telegramService.sendMessage(chatId, normalizedHint, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: [
               [
@@ -1813,7 +1813,7 @@ class TelegramAIService {
         session.step = 'gathering_information';
         const normalizedClarify = TelegramUtils.normalizeQuickSolutionSteps(displayText || rawText);
         await this.telegramService.sendMessage(chatId, normalizedClarify, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
               { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
@@ -1840,7 +1840,7 @@ class TelegramAIService {
             ]
       );
       await this.telegramService.sendMessage(chatId, normalizedPhotoText, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: photoKeyboard,
         },
@@ -1898,7 +1898,7 @@ class TelegramAIService {
       subcategory: summary.category,
       type: 'problem',
     };
-    const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+    const msg = `✅ <b>Перевірте, чи все правильно</b>\n\n📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(summary.title)}\n\n📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(summary.description)}\n\n📊 <b>Категорія:</b> ${TelegramUtils.escapeHtml(summary.category)}\n⚡ <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(summary.priority)}\n\nВсе правильно?`;
     await this.telegramService.sendMessage(chatId, msg, {
       reply_markup: {
         inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
@@ -1907,7 +1907,7 @@ class TelegramAIService {
           { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
         ]),
       },
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
     });
     return true;
   }
@@ -1999,17 +1999,17 @@ class TelegramAIService {
           : 0;
       const monthlyTotal = usage.monthlyTotalTokens || 0;
       let msg =
-        `🔢 *Використання токенів AI (OpenAI)*\n\n` +
+        `🔢 <b>Використання токенів AI (OpenAI)</b>\n\n` +
         `📥 Вхідні (prompt): ${usage.promptTokens.toLocaleString()}\n` +
         `📤 Вихідні (completion): ${usage.completionTokens.toLocaleString()}\n` +
         `📊 Всього (з перезапуску): ${usage.totalTokens.toLocaleString()}\n` +
         `🔄 Запитів: ${usage.requestCount}\n\n` +
-        `📅 *Цього місяця (${usage.monthlyMonth || '—'}):* ${monthlyTotal.toLocaleString()} токенів`;
+        `📅 <b>Цього місяця (${usage.monthlyMonth || '—'}):</b> ${monthlyTotal.toLocaleString()} токенів`;
       if (limit > 0) {
         const remaining = Math.max(0, limit - monthlyTotal);
         msg +=
-          `\n\n📌 *Ваш місячний ліміт:* ${limit.toLocaleString()}\n` +
-          `✅ *Залишилось по квоті:* ${remaining.toLocaleString()} токенів`;
+          `\n\n📌 <b>Ваш місячний ліміт:</b> ${limit.toLocaleString()}\n` +
+          `✅ <b>Залишилось по квоті:</b> ${remaining.toLocaleString()} токенів`;
       }
       const topUp =
         settings && typeof settings.topUpAmount === 'number' && settings.topUpAmount > 0
@@ -2020,7 +2020,7 @@ class TelegramAIService {
           ? settings.remainingBalance
           : null;
       if (topUp > 0 || (balance !== null && balance >= 0)) {
-        msg += '\n\n💰 *По сумі:*';
+        msg += '\n\n💰 <b>По сумі:</b>';
         if (topUp > 0) {
           msg += ` поповнення $${topUp.toFixed(2)}`;
         }
@@ -2028,9 +2028,9 @@ class TelegramAIService {
           msg += (topUp > 0 ? ' |' : '') + ` залишок $${Number(balance).toFixed(2)}`;
         }
       }
-      msg += `\n\n_Лічильник сесії — з перезапуску сервера. Місячний — зберігається._`;
+      msg += `\n\n<i>Лічильник сесії — з перезапуску сервера. Місячний — зберігається.</i>`;
       await this.telegramService.sendMessage(chatId, msg, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '🔄 Скинути лічильник', callback_data: 'reset_tokens' }],
@@ -2051,8 +2051,8 @@ class TelegramAIService {
       if (!isAdmin) {
         await this.telegramService.sendMessage(
           chatId,
-          `❌ *Доступ заборонено*\n\nЦя функція доступна тільки адміністраторам.`,
-          { parse_mode: 'Markdown' }
+          `❌ <b>Доступ заборонено</b>\n\nЦя функція доступна тільки адміністраторам.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -2064,7 +2064,7 @@ class TelegramAIService {
     } catch (error) {
       logger.error('Помилка handleCheckApiLimitCallback:', error);
       await this.telegramService.sendMessage(chatId, 'Виникла помилка.', {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     }
   }
@@ -2116,9 +2116,9 @@ class TelegramAIService {
         subcategory: summary.category,
         type: 'problem',
       };
-      const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
+      const msg = `✅ <b>Перевірте, чи все правильно</b>\n\n📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(summary.title)}\n\n📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(summary.description)}\n\n📊 <b>Категорія:</b> ${TelegramUtils.escapeHtml(summary.category)}\n⚡ <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(summary.priority)}\n\nВсе правильно?`;
       await this.telegramService.sendMessage(chatId, msg, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],

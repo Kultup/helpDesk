@@ -1,4 +1,3 @@
-const { authenticate } = require('ldap-authentication');
 const ldap = require('ldapjs');
 const logger = require('../utils/logger');
 const ActiveDirectoryConfig = require('../models/ActiveDirectoryConfig');
@@ -12,7 +11,7 @@ class ActiveDirectoryService {
         url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
         timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
         connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
-        reconnect: true
+        reconnect: true,
       },
       adminDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
       adminPassword: process.env.AD_ADMIN_PASSWORD || 'Qa123456',
@@ -20,18 +19,18 @@ class ActiveDirectoryService {
       computerSearchBase: process.env.AD_COMPUTER_SEARCH_BASE || 'dc=dreamland,dc=loc',
       usernameAttribute: process.env.AD_USERNAME_ATTRIBUTE || 'sAMAccountName',
       username: 'dpytlyk-da',
-      userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
+      userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
     };
     this.connectionState = {
       isAvailable: this.enabled,
       lastFailure: null,
       retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
       consecutiveFailures: 0,
-      maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+      maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3,
     };
     this.cache = {
       users: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 },
-      computers: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 }
+      computers: { data: [], lastUpdate: null, ttl: 5 * 60 * 1000 },
     };
     this._configLoaded = false;
     // Завантажуємо конфігурацію з БД асинхронно
@@ -46,8 +45,8 @@ class ActiveDirectoryService {
     }
     try {
       // Спочатку пробуємо завантажити з БД
-      let config = await ActiveDirectoryConfig.findOne({ key: 'default' });
-      
+      const config = await ActiveDirectoryConfig.findOne({ key: 'default' });
+
       if (config) {
         this.enabled = config.enabled;
         this.config = {
@@ -55,7 +54,7 @@ class ActiveDirectoryService {
             url: config.ldapUrl,
             timeout: config.timeout,
             connectTimeout: config.connectTimeout,
-            reconnect: true
+            reconnect: true,
           },
           adminDn: config.adminDn,
           adminPassword: config.adminPassword,
@@ -63,14 +62,14 @@ class ActiveDirectoryService {
           computerSearchBase: config.computerSearchBase,
           usernameAttribute: config.usernameAttribute,
           username: config.adminDn.split('@')[0] || 'admin',
-          userDn: config.adminDn
+          userDn: config.adminDn,
         };
         this.connectionState = {
           isAvailable: config.enabled,
           lastFailure: null,
           retryAfter: config.retryInterval,
           consecutiveFailures: 0,
-          maxRetries: config.maxRetries
+          maxRetries: config.maxRetries,
         };
       } else {
         // Якщо немає в БД, використовуємо .env
@@ -80,7 +79,7 @@ class ActiveDirectoryService {
             url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
             timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
             connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
-            reconnect: true
+            reconnect: true,
           },
           adminDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
           adminPassword: process.env.AD_ADMIN_PASSWORD || 'Qa123456',
@@ -88,14 +87,14 @@ class ActiveDirectoryService {
           computerSearchBase: process.env.AD_COMPUTER_SEARCH_BASE || 'dc=dreamland,dc=loc',
           usernameAttribute: process.env.AD_USERNAME_ATTRIBUTE || 'sAMAccountName',
           username: 'dpytlyk-da',
-          userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
+          userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
         };
         this.connectionState = {
           isAvailable: this.enabled,
           lastFailure: null,
           retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
           consecutiveFailures: 0,
-          maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+          maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3,
         };
       }
     } catch (error) {
@@ -107,7 +106,7 @@ class ActiveDirectoryService {
           url: process.env.AD_LDAP_URL || 'ldap://192.168.100.2:389',
           timeout: parseInt(process.env.AD_TIMEOUT) || 5000,
           connectTimeout: parseInt(process.env.AD_CONNECT_TIMEOUT) || 10000,
-          reconnect: true
+          reconnect: true,
         },
         adminDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
         adminPassword: process.env.AD_ADMIN_PASSWORD || 'Qa123456',
@@ -115,14 +114,14 @@ class ActiveDirectoryService {
         computerSearchBase: process.env.AD_COMPUTER_SEARCH_BASE || 'dc=dreamland,dc=loc',
         usernameAttribute: process.env.AD_USERNAME_ATTRIBUTE || 'sAMAccountName',
         username: 'dpytlyk-da',
-        userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc'
+        userDn: process.env.AD_ADMIN_DN || 'dpytlyk-da@dreamland.loc',
       };
       this.connectionState = {
         isAvailable: this.enabled,
         lastFailure: null,
         retryAfter: parseInt(process.env.AD_RETRY_INTERVAL) || 2 * 60 * 1000,
         consecutiveFailures: 0,
-        maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3
+        maxRetries: parseInt(process.env.AD_MAX_RETRIES) || 3,
       };
     }
 
@@ -158,7 +157,7 @@ class ActiveDirectoryService {
     this.connectionState.isAvailable = false;
     this.connectionState.lastFailure = Date.now();
     this.connectionState.consecutiveFailures++;
-    
+
     // Експоненційне збільшення часу очікування
     const baseRetryTime = this.connectionState.retryAfter;
     this.connectionState.retryAfter = Math.min(
@@ -167,16 +166,24 @@ class ActiveDirectoryService {
     );
 
     // Логуємо тільки перші кілька помилок або кожну 10-ту, щоб зменшити спам
-    if (this.connectionState.consecutiveFailures <= 3 || this.connectionState.consecutiveFailures % 10 === 0) {
-      logger.warn(`AD недоступний (спроба ${this.connectionState.consecutiveFailures}). Наступна спроба через ${this.connectionState.retryAfter / 1000} секунд:`, error.message);
+    if (
+      this.connectionState.consecutiveFailures <= 3 ||
+      this.connectionState.consecutiveFailures % 10 === 0
+    ) {
+      logger.warn(
+        `AD недоступний (спроба ${this.connectionState.consecutiveFailures}). Наступна спроба через ${this.connectionState.retryAfter / 1000} секунд:`,
+        error.message
+      );
     }
   }
 
   // Перевірка кешу
   isCacheValid(cacheKey) {
     const cache = this.cache[cacheKey];
-    if (!cache.lastUpdate) return false;
-    return (Date.now() - cache.lastUpdate) < cache.ttl;
+    if (!cache.lastUpdate) {
+      return false;
+    }
+    return Date.now() - cache.lastUpdate < cache.ttl;
   }
 
   // Оновлення кешу
@@ -184,7 +191,7 @@ class ActiveDirectoryService {
     this.cache[cacheKey] = {
       data: data,
       lastUpdate: Date.now(),
-      ttl: this.cache[cacheKey].ttl
+      ttl: this.cache[cacheKey].ttl,
     };
   }
 
@@ -195,10 +202,10 @@ class ActiveDirectoryService {
         url: this.config.ldapOpts.url,
         timeout: this.config.ldapOpts.timeout,
         connectTimeout: this.config.ldapOpts.connectTimeout,
-        reconnect: this.config.ldapOpts.reconnect
+        reconnect: this.config.ldapOpts.reconnect,
       });
 
-      client.on('error', (err) => {
+      client.on('error', err => {
         logger.error('LDAP Client Error:', err);
         reject(err);
       });
@@ -214,9 +221,9 @@ class ActiveDirectoryService {
   async authenticate() {
     try {
       const client = await this.createClient();
-      
+
       return new Promise((resolve, reject) => {
-        client.bind(this.config.adminDn, this.config.adminPassword, (err) => {
+        client.bind(this.config.adminDn, this.config.adminPassword, err => {
           if (err) {
             logger.error('AD Authentication failed:', err);
             client.unbind();
@@ -250,7 +257,7 @@ class ActiveDirectoryService {
     let client;
     try {
       client = await this.authenticate();
-      
+
       const searchOptions = {
         filter: '(&(objectClass=user)(objectCategory=person))',
         scope: 'sub',
@@ -258,7 +265,7 @@ class ActiveDirectoryService {
         paged: true, // Використовуємо пагінацію
         attributes: [
           'sAMAccountName',
-          'displayName', 
+          'displayName',
           'mail',
           'department',
           'title',
@@ -266,15 +273,15 @@ class ActiveDirectoryService {
           'whenCreated',
           'lastLogon',
           'userAccountControl',
-          'distinguishedName'
-        ]
+          'distinguishedName',
+        ],
       };
 
       return new Promise((resolve, reject) => {
         const users = [];
-        
+
         // Додаємо обробник помилок з'єднання
-        client.on('error', (err) => {
+        client.on('error', err => {
           logger.error('LDAP connection error during search:', err);
           reject(err);
         });
@@ -282,7 +289,7 @@ class ActiveDirectoryService {
         client.on('close', () => {
           logger.info('LDAP connection closed during search');
         });
-        
+
         client.search(this.config.userSearchBase, searchOptions, (err, res) => {
           if (err) {
             logger.error('User search error:', err);
@@ -290,12 +297,14 @@ class ActiveDirectoryService {
             return;
           }
 
-          res.on('searchEntry', (entry) => {
+          res.on('searchEntry', entry => {
             try {
               // Функція для отримання значення атрибуту
-              const getAttrValue = (attrName) => {
+              const getAttrValue = attrName => {
                 const attr = entry.attributes.find(a => a.type === attrName);
-                if (!attr) return null;
+                if (!attr) {
+                  return null;
+                }
                 // Використовуємо .values замість застарілого .vals
                 const values = attr.values || attr.vals || [];
                 return values.length > 0 ? values[0] : null;
@@ -311,9 +320,9 @@ class ActiveDirectoryService {
                 created: getAttrValue('whenCreated'),
                 lastLogon: getAttrValue('lastLogon'),
                 enabled: !(parseInt(getAttrValue('userAccountControl') || '0') & 2), // Перевірка чи активний акаунт
-                dn: getAttrValue('distinguishedName') || entry.objectName
+                dn: getAttrValue('distinguishedName') || entry.objectName,
               };
-              
+
               // Додаємо тільки якщо є username
               if (user.username) {
                 users.push(user);
@@ -323,19 +332,19 @@ class ActiveDirectoryService {
             }
           });
 
-          res.on('error', (err) => {
+          res.on('error', err => {
             logger.error('Search error:', err);
             reject(err);
           });
 
-          res.on('end', (result) => {
+          res.on('end', _result => {
             logger.info(`Found ${users.length} users`);
             // Кешуємо результат
             this.updateCache('users', users);
             // Позначаємо AD як доступний
             this.connectionState.isAvailable = true;
             this.connectionState.consecutiveFailures = 0;
-            
+
             // Закриваємо з'єднання тільки після завершення пошуку
             if (client) {
               client.unbind(() => {
@@ -350,7 +359,7 @@ class ActiveDirectoryService {
       logger.error('Error getting users:', error);
       // Позначаємо AD як недоступний
       this.markADUnavailable();
-      
+
       // Закриваємо з'єднання у випадку помилки
       if (client) {
         try {
@@ -359,13 +368,13 @@ class ActiveDirectoryService {
           logger.error('Error unbinding client:', unbindError);
         }
       }
-      
+
       // Повертаємо кешовані дані замість помилки
       if (this.cache.users.data && this.cache.users.data.length > 0) {
         logger.info('Returning cached users due to AD error');
         return this.cache.users.data;
       }
-      
+
       // Якщо немає кешованих даних, повертаємо порожній масив
       logger.info('No cached users available, returning empty array');
       return [];
@@ -389,7 +398,7 @@ class ActiveDirectoryService {
     let client;
     try {
       client = await this.authenticate();
-      
+
       const searchOptions = {
         filter: '(objectClass=computer)',
         scope: 'sub',
@@ -404,15 +413,15 @@ class ActiveDirectoryService {
           'lastLogon',
           'userAccountControl',
           'distinguishedName',
-          'description'
-        ]
+          'description',
+        ],
       };
 
       return new Promise((resolve, reject) => {
         const computers = [];
-        
+
         // Додаємо обробник помилок з'єднання
-        client.on('error', (err) => {
+        client.on('error', err => {
           logger.error('LDAP connection error during computer search:', err);
           reject(err);
         });
@@ -420,7 +429,7 @@ class ActiveDirectoryService {
         client.on('close', () => {
           logger.info('LDAP connection closed during computer search');
         });
-        
+
         client.search(this.config.computerSearchBase, searchOptions, (err, res) => {
           if (err) {
             logger.error('Computer search error:', err);
@@ -428,12 +437,14 @@ class ActiveDirectoryService {
             return;
           }
 
-          res.on('searchEntry', (entry) => {
+          res.on('searchEntry', entry => {
             try {
               // Функція для отримання значення атрибуту
-              const getAttrValue = (attrName) => {
+              const getAttrValue = attrName => {
                 const attr = entry.attributes.find(a => a.type === attrName);
-                if (!attr) return null;
+                if (!attr) {
+                  return null;
+                }
                 // Використовуємо .values замість застарілого .vals
                 const values = attr.values || attr.vals || [];
                 return values.length > 0 ? values[0] : null;
@@ -448,9 +459,9 @@ class ActiveDirectoryService {
                 lastLogon: getAttrValue('lastLogon'),
                 enabled: !(parseInt(getAttrValue('userAccountControl') || '0') & 2),
                 dn: getAttrValue('distinguishedName') || entry.objectName,
-                description: getAttrValue('description')
+                description: getAttrValue('description'),
               };
-              
+
               // Додаємо тільки якщо є name
               if (computer.name) {
                 computers.push(computer);
@@ -460,19 +471,19 @@ class ActiveDirectoryService {
             }
           });
 
-          res.on('error', (err) => {
+          res.on('error', err => {
             logger.error('Search error:', err);
             reject(err);
           });
 
-          res.on('end', (result) => {
+          res.on('end', _result => {
             logger.info(`Found ${computers.length} computers`);
             // Кешуємо результат
             this.updateCache('computers', computers);
             // Позначаємо AD як доступний
             this.connectionState.isAvailable = true;
             this.connectionState.consecutiveFailures = 0;
-            
+
             // Закриваємо з'єднання тільки після завершення пошуку
             if (client) {
               client.unbind(() => {
@@ -487,7 +498,7 @@ class ActiveDirectoryService {
       logger.error('Error getting computers:', error);
       // Позначаємо AD як недоступний
       this.markADUnavailable();
-      
+
       // Закриваємо з'єднання у випадку помилки
       if (client) {
         try {
@@ -496,13 +507,13 @@ class ActiveDirectoryService {
           logger.error('Error unbinding client:', unbindError);
         }
       }
-      
+
       // Повертаємо кешовані дані замість помилки
       if (this.cache.computers.data && this.cache.computers.data.length > 0) {
         logger.info('Returning cached computers due to AD error');
         return this.cache.computers.data;
       }
-      
+
       // Якщо немає кешованих даних, повертаємо порожній масив
       logger.info('No cached computers available, returning empty array');
       return [];
@@ -514,14 +525,14 @@ class ActiveDirectoryService {
     let client;
     try {
       client = await this.authenticate();
-      
+
       const searchOptions = {
         filter: `(&(objectClass=user)(objectCategory=person)(sAMAccountName=${username}))`,
         scope: 'sub',
         sizeLimit: 10, // Для пошуку конкретного користувача достатньо малого ліміту
         attributes: [
           'sAMAccountName',
-          'displayName', 
+          'displayName',
           'mail',
           'department',
           'title',
@@ -529,13 +540,13 @@ class ActiveDirectoryService {
           'whenCreated',
           'lastLogon',
           'userAccountControl',
-          'distinguishedName'
-        ]
+          'distinguishedName',
+        ],
       };
 
       return new Promise((resolve, reject) => {
         // Додаємо обробник помилок з'єднання
-        client.on('error', (err) => {
+        client.on('error', err => {
           logger.error('LDAP connection error during user search:', err);
           reject(err);
         });
@@ -543,7 +554,7 @@ class ActiveDirectoryService {
         client.on('close', () => {
           logger.info('LDAP connection closed during user search');
         });
-        
+
         client.search(this.config.userSearchBase, searchOptions, (err, res) => {
           if (err) {
             reject(err);
@@ -551,12 +562,14 @@ class ActiveDirectoryService {
           }
 
           let user = null;
-          res.on('searchEntry', (entry) => {
+          res.on('searchEntry', entry => {
             try {
               // Функція для отримання значення атрибуту
-              const getAttrValue = (attrName) => {
+              const getAttrValue = attrName => {
                 const attr = entry.attributes.find(a => a.type === attrName);
-                if (!attr) return null;
+                if (!attr) {
+                  return null;
+                }
                 // Використовуємо .values замість застарілого .vals
                 const values = attr.values || attr.vals || [];
                 return values.length > 0 ? values[0] : null;
@@ -572,19 +585,19 @@ class ActiveDirectoryService {
                 created: getAttrValue('whenCreated'),
                 lastLogon: getAttrValue('lastLogon'),
                 enabled: !(parseInt(getAttrValue('userAccountControl') || '0') & 2),
-                dn: getAttrValue('distinguishedName') || entry.objectName
+                dn: getAttrValue('distinguishedName') || entry.objectName,
               };
             } catch (entryError) {
               logger.error('Error processing user search entry:', entryError);
             }
           });
 
-          res.on('error', (err) => {
+          res.on('error', err => {
             logger.error('Search error:', err);
             reject(err);
           });
 
-          res.on('end', (result) => {
+          res.on('end', _result => {
             // Закриваємо з'єднання тільки після завершення пошуку
             if (client) {
               client.unbind(() => {
@@ -597,7 +610,7 @@ class ActiveDirectoryService {
       });
     } catch (error) {
       logger.error('Error searching user:', error);
-      
+
       // Закриваємо з'єднання у випадку помилки
       if (client) {
         try {
@@ -618,24 +631,24 @@ class ActiveDirectoryService {
         url: this.config.ldapOpts.url,
         adminDn: this.config.adminDn,
         userSearchBase: this.config.userSearchBase,
-        timeout: this.config.ldapOpts.timeout
+        timeout: this.config.ldapOpts.timeout,
       });
-      
+
       client = await this.authenticate();
       logger.info('AD authentication successful, testing user search...');
-      
+
       // Тестуємо простий пошук користувачів без створення нового клієнта
       const searchOptions = {
         filter: '(&(objectClass=user)(objectCategory=person))',
         scope: 'sub',
         attributes: ['sAMAccountName', 'displayName'],
         sizeLimit: 10, // Обмежуємо кількість для тесту
-        paged: true // Додаємо пагінацію
+        paged: true, // Додаємо пагінацію
       };
 
       return new Promise((resolve, reject) => {
         const users = [];
-        
+
         client.search(this.config.userSearchBase, searchOptions, (err, res) => {
           if (err) {
             logger.error('Search error:', err);
@@ -644,28 +657,27 @@ class ActiveDirectoryService {
             return;
           }
 
-          res.on('searchEntry', (entry) => {
+          res.on('searchEntry', entry => {
             users.push(entry.object);
           });
 
-          res.on('error', (err) => {
+          res.on('error', err => {
             logger.error('Search result error:', err);
             client.unbind();
             reject(err);
           });
 
-          res.on('end', (result) => {
+          res.on('end', _result => {
             client.unbind();
             logger.info(`Found ${users.length} users in AD test`);
-            resolve({ 
-              success: true, 
+            resolve({
+              success: true,
               message: `Connection to Active Directory successful. Found ${users.length} users.`,
-              userCount: users.length
+              userCount: users.length,
             });
           });
         });
       });
-      
     } catch (error) {
       logger.error('AD Connection test failed:', error);
       if (client) {
@@ -675,10 +687,10 @@ class ActiveDirectoryService {
           logger.error('Error unbinding client:', unbindError);
         }
       }
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `Connection failed: ${error.message}`,
-        error: error.toString()
+        error: error.toString(),
       };
     }
   }

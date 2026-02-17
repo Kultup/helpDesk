@@ -1,15 +1,14 @@
 const User = require('../models/User');
-const Position = require('../models/Position');
+const Ticket = require('../models/Ticket');
 const City = require('../models/City');
 const telegramService = require('../services/telegramServiceInstance');
-const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 
 // Обробка вебхука від Telegram
 exports.handleWebhook = async (req, res) => {
   try {
     const update = req.body;
-    
+
     if (update.message) {
       await handleMessage(update.message);
     } else if (update.callback_query) {
@@ -21,7 +20,7 @@ exports.handleWebhook = async (req, res) => {
     logger.error('Помилка обробки Telegram вебхука:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка обробки вебхука'
+      message: 'Помилка обробки вебхука',
     });
   }
 };
@@ -39,7 +38,8 @@ async function handleMessage(message) {
       .populate('city', 'name');
 
     if (!user && !text?.startsWith('/start')) {
-      await telegramService.sendMessage(chatId, 
+      await telegramService.sendMessage(
+        chatId,
         'Ви не авторизовані. Використайте команду /start для початку роботи.'
       );
       return;
@@ -54,7 +54,8 @@ async function handleMessage(message) {
     }
   } catch (error) {
     logger.error('Помилка обробки повідомлення:', error);
-    await telegramService.sendMessage(chatId, 
+    await telegramService.sendMessage(
+      chatId,
       'Виникла помилка при обробці вашого повідомлення. Спробуйте пізніше.'
     );
   }
@@ -68,33 +69,34 @@ async function handleCommand(chatId, command, telegramId, user) {
     case '/start':
       await handleStartCommand(chatId, telegramId, args);
       break;
-    
+
     case '/help':
       await handleHelpCommand(chatId, user);
       break;
-    
+
     case '/profile':
       await handleProfileCommand(chatId, user);
       break;
-    
+
     case '/tickets':
       await handleTicketsCommand(chatId, user);
       break;
-    
+
     case '/create':
       await handleCreateTicketCommand(chatId, user, args.join(' '));
       break;
-    
+
     case '/status':
       await handleStatusCommand(chatId, user, args[0]);
       break;
-    
+
     case '/cities':
       await handleCitiesCommand(chatId, user);
       break;
-    
+
     default:
-      await telegramService.sendMessage(chatId, 
+      await telegramService.sendMessage(
+        chatId,
         'Невідома команда. Використайте /help для перегляду доступних команд.'
       );
   }
@@ -103,7 +105,7 @@ async function handleCommand(chatId, command, telegramId, user) {
 // Команда /start
 async function handleStartCommand(chatId, telegramId, args) {
   const authToken = args[0];
-  
+
   if (authToken) {
     // Спроба авторизації з токеном
     try {
@@ -112,45 +114,45 @@ async function handleStartCommand(chatId, telegramId, args) {
         user.telegramId = telegramId;
         user.authToken = undefined; // Видаляємо токен після використання
         await user.save();
-        
-        await telegramService.sendMessage(chatId, 
+
+        await telegramService.sendMessage(
+          chatId,
           `Вітаємо, ${user.email}! Ваш акаунт успішно підключено до Telegram.`
         );
         await handleHelpCommand(chatId, user);
       } else {
-        await telegramService.sendMessage(chatId, 
-          'Невірний або застарілий токен авторизації.'
-        );
+        await telegramService.sendMessage(chatId, 'Невірний або застарілий токен авторизації.');
       }
     } catch (error) {
       logger.error('Помилка авторизації через Telegram:', error);
-      await telegramService.sendMessage(chatId, 
+      await telegramService.sendMessage(
+        chatId,
         'Помилка авторизації. Спробуйте отримати новий токен.'
       );
     }
   } else {
-    await telegramService.sendMessage(chatId, 
+    await telegramService.sendMessage(
+      chatId,
       'Вітаємо в системі Help Desk!\n\n' +
-      'Для авторизації отримайте токен у веб-інтерфейсі та використайте команду:\n' +
-      '/start YOUR_TOKEN'
+        'Для авторизації отримайте токен у веб-інтерфейсі та використайте команду:\n' +
+        '/start YOUR_TOKEN'
     );
   }
 }
 
 // Команда /help
 async function handleHelpCommand(chatId, user) {
-  const helpText = user ? 
-    'Доступні команди:\n\n' +
-    '/profile - Переглянути профіль\n' +
-    '/tickets - Мої тикети\n' +
-    '/create <опис> - Створити тикет\n' +
-    '/status <ID> - Статус тикету\n' +
-    '/cities - Список міст\n' +
-    '/help - Ця довідка'
-    :
-    'Для використання бота спочатку авторизуйтесь:\n' +
-    '/start YOUR_TOKEN\n\n' +
-    'Токен можна отримати у веб-інтерфейсі системи.';
+  const helpText = user
+    ? 'Доступні команди:\n\n' +
+      '/profile - Переглянути профіль\n' +
+      '/tickets - Мої тикети\n' +
+      '/create <опис> - Створити тикет\n' +
+      '/status <ID> - Статус тикету\n' +
+      '/cities - Список міст\n' +
+      '/help - Ця довідка'
+    : 'Для використання бота спочатку авторизуйтесь:\n' +
+      '/start YOUR_TOKEN\n\n' +
+      'Токен можна отримати у веб-інтерфейсі системи.';
 
   await telegramService.sendMessage(chatId, helpText);
 }
@@ -162,7 +164,7 @@ async function handleProfileCommand(chatId, user) {
     return;
   }
 
-  const profileText = 
+  const profileText =
     `👤 Ваш профіль:\n\n` +
     `📧 Email: ${user.email}\n` +
     `💼 Посада: ${user.position?.name || 'Не вказано'}\n` +
@@ -181,14 +183,11 @@ async function handleTicketsCommand(chatId, user) {
 
   try {
     const tickets = await Ticket.find({
-      $or: [
-        { createdBy: user._id },
-        { assignedTo: user._id }
-      ]
+      $or: [{ createdBy: user._id }, { assignedTo: user._id }],
     })
-    .populate('city', 'name')
-    .sort({ createdAt: -1 })
-    .limit(10);
+      .populate('city', 'name')
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     if (tickets.length === 0) {
       await telegramService.sendMessage(chatId, 'У вас немає тикетів.');
@@ -196,12 +195,12 @@ async function handleTicketsCommand(chatId, user) {
     }
 
     let ticketsText = '🎫 Ваші тикети:\n\n';
-    
+
     tickets.forEach((ticket, index) => {
       const statusEmoji = getStatusEmoji(ticket.status);
       const priorityEmoji = getPriorityEmoji(ticket.priority);
-      
-      ticketsText += 
+
+      ticketsText +=
         `${index + 1}. ${statusEmoji} ${ticket.title}\n` +
         `   ID: ${ticket._id}\n` +
         `   ${priorityEmoji} Пріоритет: ${ticket.priority}\n` +
@@ -224,9 +223,9 @@ async function handleCreateTicketCommand(chatId, user, description) {
   }
 
   if (!description || description.trim().length < 10) {
-    await telegramService.sendMessage(chatId, 
-      'Опис тикету занадто короткий. Мінімум 10 символів.\n' +
-      'Використання: /create Опис проблеми'
+    await telegramService.sendMessage(
+      chatId,
+      'Опис тикету занадто короткий. Мінімум 10 символів.\n' + 'Використання: /create Опис проблеми'
     );
     return;
   }
@@ -246,14 +245,14 @@ async function handleCreateTicketCommand(chatId, user, description) {
       city: userCity?._id,
       createdBy: user._id,
       metadata: {
-        source: 'telegram'
-      }
+        source: 'telegram',
+      },
     });
 
     await ticket.save();
     await ticket.populate([
       { path: 'city', select: 'name' },
-      { path: 'createdBy', select: 'firstName lastName email' }
+      { path: 'createdBy', select: 'firstName lastName email' },
     ]);
 
     // Відправка WebSocket сповіщення про новий тікет
@@ -262,12 +261,17 @@ async function handleCreateTicketCommand(chatId, user, description) {
       ticketWebSocketService.notifyNewTicket(ticket);
       logger.info('✅ WebSocket сповіщення про новий тікет відправлено (Telegram /create)');
     } catch (wsError) {
-      logger.error('❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram /create):', wsError);
+      logger.error(
+        '❌ Помилка відправки WebSocket сповіщення про новий тікет (Telegram /create):',
+        wsError
+      );
     }
 
     // Відправка FCM сповіщення адміністраторам про новий тікет
     try {
-      logger.info('📱 Спроба відправки FCM сповіщення адміністраторам про новий тікет (Telegram /create)');
+      logger.info(
+        '📱 Спроба відправки FCM сповіщення адміністраторам про новий тікет (Telegram /create)'
+      );
       const fcmService = require('../services/fcmService');
       const adminCount = await fcmService.sendToAdmins({
         title: '🎫 Новий тікет',
@@ -278,20 +282,28 @@ async function handleCreateTicketCommand(chatId, user, description) {
           ticketTitle: ticket.title,
           ticketStatus: ticket.status,
           ticketPriority: ticket.priority,
-          createdBy: ticket.createdBy?.firstName && ticket.createdBy?.lastName 
-            ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
-            : 'Невідомий користувач'
-        }
+          createdBy:
+            ticket.createdBy?.firstName && ticket.createdBy?.lastName
+              ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}`
+              : 'Невідомий користувач',
+        },
       });
-      logger.info(`✅ FCM сповіщення про новий тікет відправлено ${adminCount} адміністраторам (Telegram /create)`);
+      logger.info(
+        `✅ FCM сповіщення про новий тікет відправлено ${adminCount} адміністраторам (Telegram /create)`
+      );
     } catch (error) {
-      logger.error('❌ Помилка відправки FCM сповіщення про новий тікет (Telegram /create):', error);
+      logger.error(
+        '❌ Помилка відправки FCM сповіщення про новий тікет (Telegram /create):',
+        error
+      );
       logger.error('   Stack:', error.stack);
     }
 
     // Відправка Telegram сповіщення про новий тікет в групу
     try {
-      logger.info('📢 Спроба відправки Telegram сповіщення в групу про новий тікет (Telegram /create)');
+      logger.info(
+        '📢 Спроба відправки Telegram сповіщення в групу про новий тікет (Telegram /create)'
+      );
       const telegramService = require('../services/telegramService');
       await telegramService.sendNewTicketNotificationToGroup(ticket, user);
       logger.info('✅ Telegram сповіщення в групу відправлено (Telegram /create)');
@@ -301,7 +313,7 @@ async function handleCreateTicketCommand(chatId, user, description) {
       // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
     }
 
-    const successText = 
+    const successText =
       `✅ Тикет створено успішно!\n\n` +
       `🆔 ID: ${ticket._id}\n` +
       `📝 Заголовок: ${ticket.title}\n` +
@@ -324,7 +336,8 @@ async function handleStatusCommand(chatId, user, ticketId) {
   }
 
   if (!ticketId) {
-    await telegramService.sendMessage(chatId, 
+    await telegramService.sendMessage(
+      chatId,
       'Вкажіть ID тикету.\nВикористання: /status TICKET_ID'
     );
     return;
@@ -333,14 +346,11 @@ async function handleStatusCommand(chatId, user, ticketId) {
   try {
     const ticket = await Ticket.findOne({
       _id: ticketId,
-      $or: [
-        { createdBy: user._id },
-        { assignedTo: user._id }
-      ]
+      $or: [{ createdBy: user._id }, { assignedTo: user._id }],
     })
-    .populate('city', 'name')
-    .populate('assignedTo', 'email')
-    .populate('createdBy', 'email');
+      .populate('city', 'name')
+      .populate('assignedTo', 'email')
+      .populate('createdBy', 'email');
 
     if (!ticket) {
       await telegramService.sendMessage(chatId, 'Тикет не знайдено або у вас немає доступу.');
@@ -349,8 +359,8 @@ async function handleStatusCommand(chatId, user, ticketId) {
 
     const statusEmoji = getStatusEmoji(ticket.status);
     const priorityEmoji = getPriorityEmoji(ticket.priority);
-    
-    const statusText = 
+
+    const statusText =
       `🎫 Інформація про тикет:\n\n` +
       `🆔 ID: ${ticket._id}\n` +
       `📝 Заголовок: ${ticket.title}\n` +
@@ -379,7 +389,7 @@ async function handleCitiesCommand(chatId, user) {
 
   try {
     const cities = await City.find().sort({ name: 1 }).limit(20);
-    
+
     if (cities.length === 0) {
       await telegramService.sendMessage(chatId, 'Список міст порожній.');
       return;
@@ -405,7 +415,7 @@ async function handleCallbackQuery(callbackQuery) {
 
   try {
     const user = await User.findOne({ telegramId: userId });
-    
+
     if (!user) {
       await telegramService.answerCallbackQuery(callbackQuery.id, 'Ви не авторизовані');
       return;
@@ -434,7 +444,7 @@ async function handleTicketCallback(chatId, data, user, callbackQueryId) {
 
   try {
     const ticket = await Ticket.findById(ticketId);
-    
+
     if (!ticket) {
       await telegramService.answerCallbackQuery(callbackQueryId, 'Тикет не знайдено');
       return;
@@ -444,14 +454,15 @@ async function handleTicketCallback(chatId, data, user, callbackQueryId) {
       case 'details':
         await handleStatusCommand(chatId, user, ticketId);
         break;
-      
+
       case 'take':
         if (user.role === 'admin' || ticket.assignedTo?.toString() === user._id.toString()) {
           ticket.assignedTo = user._id;
           ticket.status = 'in_progress';
           await ticket.save();
-          
-          await telegramService.sendMessage(chatId, 
+
+          await telegramService.sendMessage(
+            chatId,
             `✅ Ви взяли тикет "${ticket.title}" в роботу.`
           );
         } else {
@@ -475,20 +486,24 @@ async function handleTextMessage(chatId, text, user) {
   // Якщо повідомлення схоже на опис проблеми, пропонуємо створити тикет
   if (text && text.length > 20) {
     const keyboard = {
-      inline_keyboard: [[
-        {
-          text: '🎫 Створити тикет',
-          callback_data: `create_ticket_${text.substring(0, 50)}`
-        }
-      ]]
+      inline_keyboard: [
+        [
+          {
+            text: '🎫 Створити тикет',
+            callback_data: `create_ticket_${text.substring(0, 50)}`,
+          },
+        ],
+      ],
     };
 
-    await telegramService.sendMessage(chatId, 
+    await telegramService.sendMessage(
+      chatId,
       'Схоже, ви описуєте проблему. Хочете створити тикет?',
       { reply_markup: keyboard }
     );
   } else {
-    await telegramService.sendMessage(chatId, 
+    await telegramService.sendMessage(
+      chatId,
       'Я не розумію ваше повідомлення. Використайте /help для перегляду команд.'
     );
   }
@@ -500,7 +515,7 @@ function getStatusEmoji(status) {
     open: '🔴',
     in_progress: '🟡',
     resolved: '🟢',
-    closed: '⚫'
+    closed: '⚫',
   };
   return emojis[status] || '❓';
 }
@@ -509,7 +524,7 @@ function getPriorityEmoji(priority) {
   const emojis = {
     low: '🔵',
     medium: '🟡',
-    high: '🔴'
+    high: '🔴',
   };
   return emojis[priority] || '❓';
 }
@@ -519,7 +534,7 @@ function getStatusText(status) {
     open: 'Відкритий',
     in_progress: 'В роботі',
     resolved: 'Вирішений',
-    closed: 'Закритий'
+    closed: 'Закритий',
   };
   return texts[status] || 'Невідомий';
 }
@@ -528,7 +543,7 @@ function getPriorityText(priority) {
   const texts = {
     low: 'Низький',
     medium: 'Середній',
-    high: 'Високий'
+    high: 'Високий',
   };
   return texts[priority] || 'Невідомий';
 }
@@ -538,10 +553,10 @@ exports.generateAuthToken = async (req, res) => {
   try {
     const userId = req.user.id;
     const authToken = require('crypto').randomBytes(32).toString('hex');
-    
-    await User.findByIdAndUpdate(userId, { 
+
+    await User.findByIdAndUpdate(userId, {
       authToken,
-      authTokenExpires: new Date(Date.now() + 10 * 60 * 1000) // 10 хвилин
+      authTokenExpires: new Date(Date.now() + 10 * 60 * 1000), // 10 хвилин
     });
 
     res.json({
@@ -549,14 +564,14 @@ exports.generateAuthToken = async (req, res) => {
       data: {
         token: authToken,
         expiresIn: '10 хвилин',
-        instructions: `Використайте команду в Telegram: /start ${authToken}`
-      }
+        instructions: `Використайте команду в Telegram: /start ${authToken}`,
+      },
     });
   } catch (error) {
     logger.error('Помилка генерації токену авторизації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка генерації токену'
+      message: 'Помилка генерації токену',
     });
   }
 };
@@ -565,22 +580,22 @@ exports.generateAuthToken = async (req, res) => {
 exports.disconnectTelegram = async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    await User.findByIdAndUpdate(userId, { 
+
+    await User.findByIdAndUpdate(userId, {
       telegramId: undefined,
       authToken: undefined,
-      authTokenExpires: undefined
+      authTokenExpires: undefined,
     });
 
     res.json({
       success: true,
-      message: 'Telegram відключено від акаунту'
+      message: 'Telegram відключено від акаунту',
     });
   } catch (error) {
     logger.error('Помилка відключення Telegram:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка відключення Telegram'
+      message: 'Помилка відключення Telegram',
     });
   }
 };
@@ -590,19 +605,19 @@ exports.getTelegramStatus = async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId).select('telegramId');
-    
+
     res.json({
       success: true,
       data: {
         connected: !!user.telegramId,
-        telegramId: user.telegramId
-      }
+        telegramId: user.telegramId,
+      },
     });
   } catch (error) {
     logger.error('Помилка перевірки статусу Telegram:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка перевірки статусу'
+      message: 'Помилка перевірки статусу',
     });
   }
 };

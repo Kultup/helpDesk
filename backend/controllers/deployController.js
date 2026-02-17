@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 /**
  * GitHub Webhook для автоматичного деплою
  */
-exports.githubWebhook = async (req, res) => {
+exports.githubWebhook = (req, res) => {
   try {
     const signature = req.headers['x-hub-signature-256'];
     const event = req.headers['x-github-event'];
@@ -52,41 +52,34 @@ exports.githubWebhook = async (req, res) => {
           echo "✅ Deploy завершено успішно"
         `;
 
-        exec(
-          deployScript,
-          { timeout: 120000 },
-          (error, stdout, stderr) => {
-            if (error) {
-              logger.error('❌ Помилка деплою:', error);
-              logger.error('stderr:', stderr);
-              return;
-            }
-
-            logger.info('✅ Деплой успішний!');
-            logger.info('stdout:', stdout);
-
-            // Логування в окремий файл
-            const fs = require('fs');
-            const deployLog = `/srv/helpDesk/backend/logs/deploy.log`;
-            const timestamp = new Date().toISOString();
-            fs.appendFileSync(
-              deployLog,
-              `\n\n=== ${timestamp} ===\n${stdout}\n${stderr}\n`
-            );
+        exec(deployScript, { timeout: 120000 }, (error, stdout, stderr) => {
+          if (error) {
+            logger.error('❌ Помилка деплою:', error);
+            logger.error('stderr:', stderr);
+            return;
           }
-        );
+
+          logger.info('✅ Деплой успішний!');
+          logger.info('stdout:', stdout);
+
+          // Логування в окремий файл
+          const fs = require('fs');
+          const deployLog = `/srv/helpDesk/backend/logs/deploy.log`;
+          const timestamp = new Date().toISOString();
+          fs.appendFileSync(deployLog, `\n\n=== ${timestamp} ===\n${stdout}\n${stderr}\n`);
+        });
 
         return res.status(200).json({
           status: 'success',
           message: 'Deployment started',
           branch,
-          repo
+          repo,
         });
       } else {
         logger.info(`ℹ️ Ігнорую push в гілку ${branch}`);
         return res.status(200).json({
           status: 'ignored',
-          message: 'Not master/main branch'
+          message: 'Not master/main branch',
         });
       }
     }
@@ -94,7 +87,7 @@ exports.githubWebhook = async (req, res) => {
     // Інші події ігноруємо
     return res.status(200).json({
       status: 'ignored',
-      event
+      event,
     });
   } catch (error) {
     logger.error('💥 Помилка webhook:', error);
@@ -105,7 +98,7 @@ exports.githubWebhook = async (req, res) => {
 /**
  * Ручний деплой (для адмінів)
  */
-exports.manualDeploy = async (req, res) => {
+exports.manualDeploy = (req, res) => {
   try {
     logger.info('🔧 Ручний деплой запущено адміністратором');
 
@@ -121,39 +114,35 @@ exports.manualDeploy = async (req, res) => {
       pm2 restart helpdesk-backend
     `;
 
-    exec(
-      deployScript,
-      { timeout: 120000 },
-      (error, stdout, stderr) => {
-        if (error) {
-          logger.error('❌ Помилка деплою:', error);
-          return res.status(500).json({
-            success: false,
-            error: error.message,
-            stderr
-          });
-        }
-
-        logger.info('✅ Ручний деплой успішний');
-
-        return res.json({
-          success: true,
-          message: 'Deployment completed',
-          output: stdout
+    exec(deployScript, { timeout: 120000 }, (error, stdout, stderr) => {
+      if (error) {
+        logger.error('❌ Помилка деплою:', error);
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+          stderr,
         });
       }
-    );
+
+      logger.info('✅ Ручний деплой успішний');
+
+      return res.json({
+        success: true,
+        message: 'Deployment completed',
+        output: stdout,
+      });
+    });
 
     // Відповідаємо одразу (деплой йде в фоні)
     res.json({
       success: true,
-      message: 'Deployment started in background'
+      message: 'Deployment started in background',
     });
   } catch (error) {
     logger.error('💥 Помилка ручного деплою:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -161,7 +150,7 @@ exports.manualDeploy = async (req, res) => {
 /**
  * Статус останнього деплою
  */
-exports.getDeployStatus = async (req, res) => {
+exports.getDeployStatus = (req, res) => {
   try {
     const fs = require('fs');
     const deployLog = '/srv/helpDesk/backend/logs/deploy.log';
@@ -170,7 +159,7 @@ exports.getDeployStatus = async (req, res) => {
       return res.json({
         success: true,
         lastDeploy: null,
-        message: 'No deployments yet'
+        message: 'No deployments yet',
       });
     }
 
@@ -180,13 +169,13 @@ exports.getDeployStatus = async (req, res) => {
 
     return res.json({
       success: true,
-      lastDeploy: lines
+      lastDeploy: lines,
     });
   } catch (error) {
     logger.error('💥 Помилка читання логів деплою:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 };

@@ -12,75 +12,81 @@ const router = express.Router();
 const registerSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Невірний формат email',
-    'any.required': 'Email є обов\'язковим'
+    'any.required': "Email є обов'язковим",
   }),
-  login: Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_]+$/).required().messages({
-    'string.min': 'Логін повинен містити мінімум 3 символи',
-    'string.max': 'Логін не може перевищувати 50 символів',
-    'string.pattern.base': 'Логін може містити тільки латинські літери, цифри та підкреслення',
-    'any.required': 'Логін є обов\'язковим'
-  }),
+  login: Joi.string()
+    .min(3)
+    .max(50)
+    .pattern(/^[a-zA-Z0-9_]+$/)
+    .required()
+    .messages({
+      'string.min': 'Логін повинен містити мінімум 3 символи',
+      'string.max': 'Логін не може перевищувати 50 символів',
+      'string.pattern.base': 'Логін може містити тільки латинські літери, цифри та підкреслення',
+      'any.required': "Логін є обов'язковим",
+    }),
   password: Joi.string().min(6).required().messages({
     'string.min': 'Пароль повинен містити мінімум 6 символів',
-    'any.required': 'Пароль є обов\'язковим'
+    'any.required': "Пароль є обов'язковим",
   }),
   firstName: Joi.string().max(50).required().messages({
-    'string.max': 'Ім\'я не може перевищувати 50 символів',
-    'any.required': 'Ім\'я є обов\'язковим'
+    'string.max': "Ім'я не може перевищувати 50 символів",
+    'any.required': "Ім'я є обов'язковим",
   }),
   lastName: Joi.string().max(50).required().messages({
     'string.max': 'Прізвище не може перевищувати 50 символів',
-    'any.required': 'Прізвище є обов\'язковим'
+    'any.required': "Прізвище є обов'язковим",
   }),
   position: Joi.string().required().messages({
-    'any.required': 'Посада є обов\'язковою'
+    'any.required': "Посада є обов'язковою",
   }),
   department: Joi.string().allow('').optional().default('').messages({
-    'string.base': 'Відділ повинен бути рядком'
+    'string.base': 'Відділ повинен бути рядком',
   }),
   city: Joi.string().required().messages({
-    'any.required': 'Місто є обов\'язковим'
+    'any.required': "Місто є обов'язковим",
   }),
-  phone: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional().messages({
-    'string.pattern.base': 'Невірний формат номера телефону'
-  }),
+  phone: Joi.string()
+    .pattern(/^\+?[1-9]\d{1,14}$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Невірний формат номера телефону',
+    }),
   telegramId: Joi.string().optional().messages({
-    'string.base': 'Telegram ID повинен бути рядком'
+    'string.base': 'Telegram ID повинен бути рядком',
   }),
   institution: Joi.string().optional().messages({
-    'string.base': 'Institution ID повинен бути рядком'
-  })
+    'string.base': 'Institution ID повинен бути рядком',
+  }),
 });
 
 const loginSchema = Joi.object({
   login: Joi.string().min(3).max(50).required().messages({
     'string.min': 'Логін повинен містити мінімум 3 символи',
     'string.max': 'Логін не може перевищувати 50 символів',
-    'any.required': 'Логін є обов\'язковим'
+    'any.required': "Логін є обов'язковим",
   }),
   password: Joi.string().required().messages({
-    'any.required': 'Пароль є обов\'язковим'
+    'any.required': "Пароль є обов'язковим",
   }),
   device: Joi.object({
     deviceId: Joi.string().min(3).max(200).required(),
-    platform: Joi.string().valid('android','ios','web','other').optional(),
+    platform: Joi.string().valid('android', 'ios', 'web', 'other').optional(),
     manufacturer: Joi.string().allow(null, '').optional(),
     model: Joi.string().allow(null, '').optional(),
     osVersion: Joi.string().allow(null, '').optional(),
     sdkInt: Joi.number().integer().allow(null).optional(),
     appVersion: Joi.string().allow(null, '').optional(),
     pushToken: Joi.string().allow(null, '').optional(),
-    label: Joi.string().allow(null, '').optional()
-  }).optional()
+    label: Joi.string().allow(null, '').optional(),
+  }).optional(),
 });
 
 // Функція для генерації JWT токена
-const generateToken = (userId) => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+const generateToken = userId => {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
 };
 
 // @route   POST /api/auth/register
@@ -89,53 +95,66 @@ const generateToken = (userId) => {
 router.post('/register', async (req, res) => {
   try {
     logger.info('🚀 Початок процесу реєстрації користувача');
-    
+
     // Валідація даних
     const { error, value } = registerSchema.validate(req.body);
     if (error) {
       return res.status(400).json({
         success: false,
-        message: error.details[0].message
+        message: error.details[0].message,
       });
     }
 
-    const { email, login: providedLogin, password, firstName, lastName, position, department, city, phone, telegramId, institution } = value;
+    const {
+      email,
+      login: providedLogin,
+      password,
+      firstName,
+      lastName,
+      position,
+      department,
+      city,
+      phone,
+      telegramId,
+      institution,
+    } = value;
 
     // Перевірка чи користувач вже існує (включаючи неактивних та pending)
-    const existingUser = await User.findOne({ 
-      email: email.toLowerCase() 
+    const existingUser = await User.findOne({
+      email: email.toLowerCase(),
     });
-    
+
     if (existingUser) {
       // Якщо користувач існує і має статус pending
       if (existingUser.registrationStatus === 'pending') {
         return res.status(400).json({
           success: false,
-          message: 'Заявка з цим email вже подана і очікує розгляду адміністратора'
+          message: 'Заявка з цим email вже подана і очікує розгляду адміністратора',
         });
       }
-      
+
       // Якщо користувач існує і має статус rejected
       if (existingUser.registrationStatus === 'rejected') {
         return res.status(400).json({
           success: false,
-          message: 'Реєстрація з цим email була відхилена. Зверніться до адміністратора'
+          message: 'Реєстрація з цим email була відхилена. Зверніться до адміністратора',
         });
       }
-      
+
       // Якщо користувач існує і активний
       if (existingUser.isActive && existingUser.registrationStatus === 'approved') {
         return res.status(400).json({
           success: false,
-          message: 'Користувач з таким email вже зареєстрований'
+          message: 'Користувач з таким email вже зареєстрований',
         });
       }
-      
+
       // Якщо користувач існує але неактивний (м'яко видалений)
       if (!existingUser.isActive && existingUser.deletedAt) {
         return res.status(400).json({
           success: false,
-          message: 'Цей email був раніше використаний. Зверніться до адміністратора для відновлення доступу'
+          message:
+            'Цей email був раніше використаний. Зверніться до адміністратора для відновлення доступу',
         });
       }
     }
@@ -143,14 +162,14 @@ router.post('/register', async (req, res) => {
     // Перевірка унікальності логіну
     const normalizedLogin = providedLogin.toLowerCase().trim();
     const existingUserWithLogin = await User.findOne({ login: normalizedLogin });
-    
+
     if (existingUserWithLogin) {
       return res.status(400).json({
         success: false,
-        message: 'Користувач з таким логіном вже існує'
+        message: 'Користувач з таким логіном вже існує',
       });
     }
-    
+
     // Створення нового користувача зі статусом pending
     const user = new User({
       email: email.toLowerCase(),
@@ -165,7 +184,7 @@ router.post('/register', async (req, res) => {
       telegramId,
       institution: institution || undefined,
       registrationStatus: 'pending',
-      isActive: false
+      isActive: false,
     });
 
     await user.save();
@@ -175,10 +194,10 @@ router.post('/register', async (req, res) => {
     try {
       logger.info('📡 Спроба відправити WebSocket сповіщення про нову реєстрацію');
       logger.info('🔍 WebSocket сервіс ініціалізований:', !!registrationWebSocketService.io);
-      
+
       await registrationWebSocketService.notifyNewRegistrationRequest(user);
       logger.info('✅ WebSocket сповіщення про нову реєстрацію відправлено успішно');
-      
+
       // Отримуємо оновлену кількість запитів на реєстрацію та відправляємо оновлення
       const pendingCount = await User.countDocuments({ registrationStatus: 'pending' });
       registrationWebSocketService.notifyRegistrationCountUpdate(pendingCount);
@@ -199,10 +218,12 @@ router.post('/register', async (req, res) => {
           userId: user._id.toString(),
           userEmail: user.email,
           userName: `${user.firstName} ${user.lastName}`,
-          registrationStatus: user.registrationStatus
-        }
+          registrationStatus: user.registrationStatus,
+        },
       });
-      logger.info(`✅ FCM сповіщення про нову реєстрацію відправлено ${adminCount} адміністраторам`);
+      logger.info(
+        `✅ FCM сповіщення про нову реєстрацію відправлено ${adminCount} адміністраторам`
+      );
     } catch (error) {
       logger.error('❌ Помилка відправки FCM сповіщення про нову реєстрацію:', error);
       logger.error('   Stack:', error.stack);
@@ -219,15 +240,14 @@ router.post('/register', async (req, res) => {
       success: true,
       message: 'Заявку на реєстрацію подано. Очікуйте підтвердження від адміністратора.',
       data: {
-        user: populatedUser
-      }
+        user: populatedUser,
+      },
     });
-
   } catch (error) {
     logger.error('Помилка реєстрації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при реєстрації'
+      message: 'Помилка сервера при реєстрації',
     });
   }
 });
@@ -242,7 +262,7 @@ router.post('/login', async (req, res) => {
     if (error) {
       return res.status(400).json({
         success: false,
-        message: error.details[0].message
+        message: error.details[0].message,
       });
     }
 
@@ -257,7 +277,7 @@ router.post('/login', async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Невірний логін або пароль'
+        message: 'Невірний логін або пароль',
       });
     }
 
@@ -265,7 +285,7 @@ router.post('/login', async (req, res) => {
     if (user.registrationStatus === 'pending') {
       return res.status(401).json({
         success: false,
-        message: 'Ваша реєстрація очікує підтвердження адміністратора'
+        message: 'Ваша реєстрація очікує підтвердження адміністратора',
       });
     }
 
@@ -273,18 +293,18 @@ router.post('/login', async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Акаунт деактивовано'
+        message: 'Акаунт деактивовано',
       });
     }
 
     // Перевірка пароля
     const bcrypt = require('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Невірний логін або пароль'
+        message: 'Невірний логін або пароль',
       });
     }
 
@@ -294,14 +314,20 @@ router.post('/login', async (req, res) => {
     // Якщо передали інформацію про пристрій — оновлюємо/додаємо її
     try {
       if (device && device.deviceId) {
-        if (!Array.isArray(user.devices)) {user.devices = [];}
+        if (!Array.isArray(user.devices)) {
+          user.devices = [];
+        }
         const now = new Date();
-        const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
+        const clientIp =
+          req.headers['x-forwarded-for']?.split(',')[0] ||
+          req.ip ||
+          req.connection?.remoteAddress ||
+          null;
 
         const idx = user.devices.findIndex(d => d.deviceId === device.deviceId);
         if (idx >= 0) {
           user.devices[idx] = {
-            ...user.devices[idx].toObject?.() || user.devices[idx],
+            ...(user.devices[idx].toObject?.() || user.devices[idx]),
             platform: device.platform || user.devices[idx].platform,
             manufacturer: device.manufacturer ?? user.devices[idx].manufacturer,
             model: device.model ?? user.devices[idx].model,
@@ -312,7 +338,7 @@ router.post('/login', async (req, res) => {
             label: device.label ?? user.devices[idx].label,
             lastLoginAt: now,
             lastIp: clientIp,
-            isActive: true
+            isActive: true,
           };
         } else {
           user.devices.push({
@@ -328,7 +354,7 @@ router.post('/login', async (req, res) => {
             firstLoginAt: now,
             lastLoginAt: now,
             lastIp: clientIp,
-            isActive: true
+            isActive: true,
           });
         }
       }
@@ -342,8 +368,8 @@ router.post('/login', async (req, res) => {
       {
         $set: {
           lastLogin: user.lastLogin,
-          devices: user.devices || []
-        }
+          devices: user.devices || [],
+        },
       }
     );
 
@@ -365,18 +391,23 @@ router.post('/login', async (req, res) => {
           position: user.position,
           city: user.city,
           isActive: user.isActive,
-          lastLogin: user.lastLogin
-        }
-      }
+          lastLogin: user.lastLogin,
+        },
+      },
     });
-
   } catch (error) {
     logger.error('Помилка авторизації:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка сервера при авторизації',
-      error: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? error.message : undefined,
-      stack: process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' ? error.stack : undefined
+      error:
+        process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+          ? error.message
+          : undefined,
+      stack:
+        process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+          ? error.stack
+          : undefined,
     });
   }
 });
@@ -387,11 +418,11 @@ router.post('/login', async (req, res) => {
 router.put('/device', authenticateToken, async (req, res) => {
   try {
     const { device } = req.body;
-    
+
     if (!device || !device.deviceId) {
       return res.status(400).json({
         success: false,
-        message: 'Інформація про пристрій обов\'язкова'
+        message: "Інформація про пристрій обов'язкова",
       });
     }
 
@@ -399,7 +430,7 @@ router.put('/device', authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -407,12 +438,16 @@ router.put('/device', authenticateToken, async (req, res) => {
       user.devices = [];
     }
     const now = new Date();
-    const clientIp = (req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection?.remoteAddress || null);
+    const clientIp =
+      req.headers['x-forwarded-for']?.split(',')[0] ||
+      req.ip ||
+      req.connection?.remoteAddress ||
+      null;
 
     const idx = user.devices.findIndex(d => d.deviceId === device.deviceId);
     if (idx >= 0) {
       user.devices[idx] = {
-        ...user.devices[idx].toObject?.() || user.devices[idx],
+        ...(user.devices[idx].toObject?.() || user.devices[idx]),
         platform: device.platform || user.devices[idx].platform,
         manufacturer: device.manufacturer ?? user.devices[idx].manufacturer,
         model: device.model ?? user.devices[idx].model,
@@ -423,7 +458,7 @@ router.put('/device', authenticateToken, async (req, res) => {
         label: device.label ?? user.devices[idx].label,
         lastLoginAt: now,
         lastIp: clientIp,
-        isActive: true
+        isActive: true,
       };
     } else {
       user.devices.push({
@@ -439,7 +474,7 @@ router.put('/device', authenticateToken, async (req, res) => {
         firstLoginAt: now,
         lastLoginAt: now,
         lastIp: clientIp,
-        isActive: true
+        isActive: true,
       });
     }
 
@@ -447,20 +482,20 @@ router.put('/device', authenticateToken, async (req, res) => {
       { _id: user._id },
       {
         $set: {
-          devices: user.devices || []
-        }
+          devices: user.devices || [],
+        },
       }
     );
 
     res.json({
       success: true,
-      message: 'Інформацію про пристрій оновлено'
+      message: 'Інформацію про пристрій оновлено',
     });
   } catch (error) {
     logger.error('Помилка оновлення інформації про пристрій:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оновленні інформації про пристрій'
+      message: 'Помилка сервера при оновленні інформації про пристрій',
     });
   }
 });
@@ -468,7 +503,7 @@ router.put('/device', authenticateToken, async (req, res) => {
 // @route   GET /api/auth/me
 // @desc    Отримання інформації про поточного користувача
 // @access  Private
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticateToken, (req, res) => {
   try {
     // Створюємо об'єкт користувача без пароля
     const userWithoutPassword = {
@@ -483,18 +518,18 @@ router.get('/me', authenticateToken, async (req, res) => {
       isActive: req.user.isActive,
       lastLogin: req.user.lastLogin,
       createdAt: req.user.createdAt,
-      updatedAt: req.user.updatedAt
+      updatedAt: req.user.updatedAt,
     };
 
     res.json({
       success: true,
-      data: userWithoutPassword
+      data: userWithoutPassword,
     });
   } catch (error) {
     logger.error('Помилка отримання профілю:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -502,22 +537,22 @@ router.get('/me', authenticateToken, async (req, res) => {
 // @route   POST /api/auth/refresh
 // @desc    Оновлення токена
 // @access  Private
-router.post('/refresh', authenticateToken, async (req, res) => {
+router.post('/refresh', authenticateToken, (req, res) => {
   try {
     const token = generateToken(req.user._id);
-    
+
     res.json({
       success: true,
       message: 'Токен успішно оновлено',
       data: {
-        token
-      }
+        token,
+      },
     });
   } catch (error) {
     logger.error('Помилка оновлення токена:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -528,37 +563,38 @@ router.post('/refresh', authenticateToken, async (req, res) => {
 router.get('/check-registration-status', async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email є обов\'язковим'
+        message: "Email є обов'язковим",
       });
     }
-    
-    const user = await User.findOne({ email: email.toLowerCase() })
-      .select('registrationStatus isActive');
-    
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      'registrationStatus isActive'
+    );
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача з таким email не знайдено'
+        message: 'Користувача з таким email не знайдено',
       });
     }
-    
+
     res.json({
       success: true,
       data: {
         registrationStatus: user.registrationStatus,
         isActive: user.isActive,
-        isApproved: user.registrationStatus === 'approved' && user.isActive
-      }
+        isApproved: user.registrationStatus === 'approved' && user.isActive,
+      },
     });
   } catch (error) {
     logger.error('Помилка перевірки статусу реєстрації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при перевірці статусу реєстрації'
+      message: 'Помилка сервера при перевірці статусу реєстрації',
     });
   }
 });
@@ -566,20 +602,20 @@ router.get('/check-registration-status', async (req, res) => {
 // @route   POST /api/auth/logout
 // @desc    Вихід з системи
 // @access  Private
-router.post('/logout', authenticateToken, async (req, res) => {
+router.post('/logout', authenticateToken, (req, res) => {
   try {
     // В реальному додатку тут можна додати токен до чорного списку
     // або зберегти інформацію про вихід в базі даних
-    
+
     res.json({
       success: true,
-      message: 'Успішний вихід з системи'
+      message: 'Успішний вихід з системи',
     });
   } catch (error) {
     logger.error('Помилка виходу:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -591,26 +627,26 @@ router.get('/register/positions', async (req, res) => {
   try {
     const Position = require('../models/Position');
     // Виключаємо посаду "адміністратор системи" зі списку для реєстрації
-    const positions = await Position.find({ 
+    const positions = await Position.find({
       isActive: true,
       title: {
         $not: {
-          $regex: /адміністратор системи|администратор системы|system administrator/i
-        }
-      }
+          $regex: /адміністратор системи|администратор системы|system administrator/i,
+        },
+      },
     })
       .select('_id title')
       .sort({ title: 1 });
-    
+
     res.json({
       success: true,
-      data: positions
+      data: positions,
     });
   } catch (error) {
     logger.error('Помилка отримання посад для реєстрації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -621,19 +657,17 @@ router.get('/register/positions', async (req, res) => {
 router.get('/register/cities', async (req, res) => {
   try {
     const City = require('../models/City');
-    const cities = await City.find()
-      .select('_id name region')
-      .sort({ name: 1 });
-    
+    const cities = await City.find().select('_id name region').sort({ name: 1 });
+
     res.json({
       success: true,
-      data: cities
+      data: cities,
     });
   } catch (error) {
     logger.error('Помилка отримання міст для реєстрації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -647,16 +681,16 @@ router.get('/register/institutions', async (req, res) => {
     const institutions = await Institution.find({ isActive: true })
       .select('_id name')
       .sort({ name: 1 });
-    
+
     res.json({
       success: true,
-      data: institutions
+      data: institutions,
     });
   } catch (error) {
     logger.error('Помилка отримання закладів для реєстрації:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });

@@ -15,13 +15,11 @@ const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
     }
 
     // Генеруємо ключ кешу
-    const cacheKey = keyGenerator 
-      ? keyGenerator(req)
-      : generateCacheKey(req);
+    const cacheKey = keyGenerator ? keyGenerator(req) : generateCacheKey(req);
 
     // Спробуємо отримати з кешу
     const cached = await cacheService.get(cacheKey);
-    
+
     if (cached !== null) {
       // Встановлюємо заголовок для індикації кешу
       res.set('X-Cache', 'HIT');
@@ -30,16 +28,16 @@ const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
 
     // Зберігаємо оригінальний метод res.json
     const originalJson = res.json.bind(res);
-    
+
     // Перевизначаємо res.json для збереження відповіді в кеш
-    res.json = function(data) {
+    res.json = function (data) {
       // Зберігаємо в кеш тільки успішні відповіді
       if (res.statusCode === 200) {
         cacheService.set(cacheKey, data, ttl).catch(err => {
           console.error('Помилка збереження в кеш:', err);
         });
       }
-      
+
       res.set('X-Cache', 'MISS');
       return originalJson(data);
     };
@@ -53,16 +51,16 @@ const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
  * @param {Object} req - Express request object
  * @returns {string} Ключ кешу
  */
-const generateCacheKey = (req) => {
+const generateCacheKey = req => {
   const keyData = {
     path: req.path,
     query: req.query,
-    user: req.user ? req.user._id : null
+    user: req.user ? req.user._id : null,
   };
 
   const keyString = JSON.stringify(keyData);
   const hash = crypto.createHash('md5').update(keyString).digest('hex');
-  
+
   return `cache:${req.method}:${req.path}:${hash}`;
 };
 
@@ -71,19 +69,14 @@ const generateCacheKey = (req) => {
  * @param {string|Function} pattern - Паттерн ключів для видалення або функція для генерації
  * @returns {Function} Express middleware
  */
-const invalidateCache = (pattern) => {
+const invalidateCache = pattern => {
   return async (req, res, next) => {
-    // Зберігаємо оригінальний статус код
-    const originalStatus = res.statusCode;
-    
     // Перевизначаємо res.json для перехоплення статусу
     const originalJson = res.json.bind(res);
-    res.json = function(data) {
+    res.json = function (data) {
       // Після успішного виконання інвалідуємо кеш
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        const cachePattern = typeof pattern === 'function' 
-          ? pattern(req)
-          : pattern;
+        const cachePattern = typeof pattern === 'function' ? pattern(req) : pattern;
 
         if (cachePattern) {
           // Видаляємо конкретний ключ або за паттерном
@@ -98,7 +91,7 @@ const invalidateCache = (pattern) => {
           }
         }
       }
-      
+
       return originalJson(data);
     };
 
@@ -111,55 +104,50 @@ const invalidateCache = (pattern) => {
  */
 const cacheKeyGenerators = {
   // Ключ для категорій
-  categories: (req) => {
+  categories: req => {
     const includeInactive = req.query.includeInactive === 'true';
     return `cache:categories:${includeInactive}`;
   },
 
   // Ключ для конкретної категорії
-  category: (req) => {
+  category: req => {
     return `cache:category:${req.params.id}`;
   },
 
   // Ключ для користувачів з пагінацією
-  users: (req) => {
+  users: req => {
     const { page = 1, limit = 10, ...filters } = req.query;
-    const filtersHash = crypto.createHash('md5')
-      .update(JSON.stringify(filters))
-      .digest('hex');
+    const filtersHash = crypto.createHash('md5').update(JSON.stringify(filters)).digest('hex');
     return `cache:users:${page}:${limit}:${filtersHash}`;
   },
 
   // Ключ для конкретного користувача
-  user: (req) => {
+  user: req => {
     return `cache:user:${req.params.id}`;
   },
 
   // Ключ для тікетів з фільтрами
-  tickets: (req) => {
+  tickets: req => {
     const { page = 1, limit = 10, ...filters } = req.query;
-    const filtersHash = crypto.createHash('md5')
-      .update(JSON.stringify(filters))
-      .digest('hex');
+    const filtersHash = crypto.createHash('md5').update(JSON.stringify(filters)).digest('hex');
     return `cache:tickets:${page}:${limit}:${filtersHash}`;
   },
 
   // Ключ для конкретного тікету
-  ticket: (req) => {
+  ticket: req => {
     return `cache:ticket:${req.params.id}`;
   },
 
   // Ключ для статистики
-  stats: (req) => {
+  stats: req => {
     const type = req.params.type || 'general';
     return `cache:stats:${type}`;
-  }
+  },
 };
 
 module.exports = {
   cacheMiddleware,
   invalidateCache,
   cacheKeyGenerators,
-  generateCacheKey
+  generateCacheKey,
 };
-

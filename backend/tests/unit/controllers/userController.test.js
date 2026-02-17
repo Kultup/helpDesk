@@ -1,19 +1,23 @@
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, createTestAdmin, generateAuthToken } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  createTestAdmin,
+} = require('../../helpers/testHelpers');
 const userController = require('../../../controllers/userController');
 const User = require('../../../models/User');
-const Ticket = require('../../../models/Ticket');
 
 // Моки (emailService та telegramService тепер глобальні в setup.js)
 jest.mock('express-validator', () => ({
-  validationResult: jest.fn()
+  validationResult: jest.fn(),
 }));
 
 describe('UserController', () => {
   let mockReq;
   let mockRes;
-  let mockNext;
   let testUser;
   let testAdmin;
 
@@ -31,12 +35,12 @@ describe('UserController', () => {
 
     testUser = await createTestUser({
       email: `user-${Date.now()}@example.com`,
-      role: 'user'
+      role: 'user',
     });
 
     testAdmin = await createTestAdmin({
       email: `admin-${Date.now()}@example.com`,
-      role: 'admin'
+      role: 'admin',
     });
 
     mockReq = {
@@ -44,15 +48,13 @@ describe('UserController', () => {
       params: {},
       query: {},
       user: testAdmin,
-      ip: '127.0.0.1'
+      ip: '127.0.0.1',
     };
 
     mockRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
-
-    mockNext = jest.fn();
   });
 
   describe('getUsers', () => {
@@ -82,7 +84,7 @@ describe('UserController', () => {
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
-          message: expect.stringContaining('Немає прав')
+          message: expect.stringContaining('Немає прав'),
         })
       );
     });
@@ -156,7 +158,7 @@ describe('UserController', () => {
         expect(mockRes.json).toHaveBeenCalledWith(
           expect.objectContaining({
             success: false,
-            message: expect.stringContaining('не знайдено')
+            message: expect.stringContaining('не знайдено'),
           })
         );
       } else {
@@ -172,14 +174,14 @@ describe('UserController', () => {
       mockReq.user = {
         _id: testUser._id, // ObjectId, не рядок
         userId: testUser._id.toString(),
-        role: testUser.role
+        role: testUser.role,
       };
 
       await userController.getProfile(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getProfile failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -194,16 +196,16 @@ describe('UserController', () => {
     it('should update user profile', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.user = {
         _id: testUser._id.toString(),
-        userId: testUser._id.toString()
+        userId: testUser._id.toString(),
       };
       mockReq.body = {
         firstName: 'Updated',
-        lastName: 'Name'
+        lastName: 'Name',
       };
 
       await userController.updateProfile(mockReq, mockRes);
@@ -223,17 +225,17 @@ describe('UserController', () => {
     it('should toggle user active status', async () => {
       const userToToggle = await createTestUser({
         email: `toggle-${Date.now()}@example.com`,
-        isActive: true
+        isActive: true,
       });
 
       // Встановлюємо правильний об'єкт користувача з усіма необхідними полями
       mockReq.user = {
         _id: testAdmin._id,
         role: testAdmin.role || 'admin',
-        email: testAdmin.email
+        email: testAdmin.email,
       };
       mockReq.headers = {
-        authorization: 'Bearer test-token' // Додаємо для логування
+        authorization: 'Bearer test-token', // Додаємо для логування
       };
       mockReq.params.id = userToToggle._id.toString();
 
@@ -241,7 +243,7 @@ describe('UserController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       // Перевіряємо успішну відповідь
       if (response.success === false) {
         console.error('toggleUserActive failed:', response);
@@ -267,7 +269,7 @@ describe('UserController', () => {
       if (statusCode === 403) {
         expect(mockRes.json).toHaveBeenCalledWith(
           expect.objectContaining({
-            success: false
+            success: false,
           })
         );
       } else {
@@ -283,7 +285,7 @@ describe('UserController', () => {
       const Ticket = require('../../../models/Ticket');
       const Category = require('../../../models/Category');
       const City = require('../../../models/City');
-      
+
       let category = await Category.findOne();
       if (!category) {
         category = await require('../../helpers/testHelpers').createTestCategory(testUser);
@@ -294,7 +296,7 @@ describe('UserController', () => {
         city = await City.create({
           name: 'Київ',
           region: 'Київська область',
-          coordinates: { lat: 50.4501, lng: 30.5234 }
+          coordinates: { lat: 50.4501, lng: 30.5234 },
         });
       }
 
@@ -305,7 +307,7 @@ describe('UserController', () => {
         priority: 'medium',
         category: category._id,
         city: city._id,
-        createdBy: testUser._id
+        createdBy: testUser._id,
       });
 
       mockReq.user = testAdmin;
@@ -323,4 +325,3 @@ describe('UserController', () => {
     });
   });
 });
-

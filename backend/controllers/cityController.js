@@ -15,14 +15,16 @@ exports.getAllCities = async (req, res) => {
       search,
       sortBy = 'name',
       sortOrder = 'asc',
-      withStatistics = false
+      withStatistics = false,
     } = req.query;
 
     // Побудова фільтрів
     const filters = {};
-    
-    if (region) {filters.region = region;}
-    
+
+    if (region) {
+      filters.region = region;
+    }
+
     // Пошук по назві міста
     if (search) {
       filters.name = { $regex: search, $options: 'i' };
@@ -31,7 +33,7 @@ exports.getAllCities = async (req, res) => {
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
+      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
     };
 
     const cities = await City.paginate(filters, options);
@@ -41,12 +43,12 @@ exports.getAllCities = async (req, res) => {
       for (const city of cities.docs) {
         const [userCount, ticketCount] = await Promise.all([
           User.countDocuments({ city: city._id, isActive: true }),
-          Ticket.countDocuments({ city: city._id })
+          Ticket.countDocuments({ city: city._id }),
         ]);
-        
+
         city._doc.statistics = {
           userCount,
-          ticketCount
+          ticketCount,
         };
       }
     }
@@ -59,15 +61,15 @@ exports.getAllCities = async (req, res) => {
         totalPages: cities.totalPages,
         totalItems: cities.totalDocs,
         hasNext: cities.hasNextPage,
-        hasPrev: cities.hasPrevPage
-      }
+        hasPrev: cities.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching cities:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні міст',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -80,7 +82,7 @@ exports.getCityById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID міста'
+        message: 'Невірний ID міста',
       });
     }
 
@@ -89,7 +91,7 @@ exports.getCityById = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'Місто не знайдено'
+        message: 'Місто не знайдено',
       });
     }
 
@@ -102,7 +104,7 @@ exports.getCityById = async (req, res) => {
         .limit(5)
         .populate('createdBy', 'firstName lastName')
         .populate('assignedTo', 'firstName lastName')
-        .select('title status priority createdAt')
+        .select('title status priority createdAt'),
     ]);
 
     // Статистика по статусах тикетів
@@ -111,9 +113,9 @@ exports.getCityById = async (req, res) => {
       {
         $group: {
           _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     res.json({
@@ -127,16 +129,16 @@ exports.getCityById = async (req, res) => {
             acc[stat._id] = stat.count;
             return acc;
           }, {}),
-          recentTickets
-        }
-      }
+          recentTickets,
+        },
+      },
     });
   } catch (error) {
     logger.error('Error fetching city:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні міста',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -145,14 +147,14 @@ exports.getCityById = async (req, res) => {
 exports.createCity = async (req, res) => {
   try {
     logger.info('🏙️ Створення міста - оригінальні дані запиту:', JSON.stringify(req.body, null, 2));
-    
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       logger.info('❌ Помилки валідації:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -160,20 +162,12 @@ exports.createCity = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для створення міст'
+        message: 'Немає прав для створення міст',
       });
     }
 
-    const {
-      name,
-      nameEn,
-      region,
-      coordinates,
-      population,
-      timezone,
-      postalCodes,
-      description
-    } = req.body;
+    const { name, nameEn, region, coordinates, population, timezone, postalCodes, description } =
+      req.body;
 
     logger.info('🏙️ Координати для створення міста:', coordinates);
     logger.info('🏙️ Тип координат:', typeof coordinates);
@@ -183,14 +177,14 @@ exports.createCity = async (req, res) => {
     }
 
     // Перевірка унікальності назви міста
-    const existingCity = await City.findOne({ 
-      name: { $regex: new RegExp(`^${name}$`, 'i') } 
+    const existingCity = await City.findOne({
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
     });
-    
+
     if (existingCity) {
       return res.status(400).json({
         success: false,
-        message: 'Місто з такою назвою вже існує'
+        message: 'Місто з такою назвою вже існує',
       });
     }
 
@@ -203,14 +197,14 @@ exports.createCity = async (req, res) => {
       timezone,
       postalCodes,
       description,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     };
 
     logger.info('🏙️ Дані для створення міста:', JSON.stringify(cityData, null, 2));
 
     const city = new City(cityData);
 
-    logger.info('🏙️ Об\'єкт міста перед збереженням:', JSON.stringify(city.toObject(), null, 2));
+    logger.info("🏙️ Об'єкт міста перед збереженням:", JSON.stringify(city.toObject(), null, 2));
 
     await city.save();
 
@@ -229,14 +223,14 @@ exports.createCity = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Місто успішно створено',
-      data: city
+      data: city,
     });
   } catch (error) {
     logger.error('Error creating city:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при створенні міста',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -246,19 +240,19 @@ exports.updateCity = async (req, res) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID міста'
+        message: 'Невірний ID міста',
       });
     }
 
@@ -266,7 +260,7 @@ exports.updateCity = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для редагування міст'
+        message: 'Немає прав для редагування міст',
       });
     }
 
@@ -274,7 +268,7 @@ exports.updateCity = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'Місто не знайдено'
+        message: 'Місто не знайдено',
       });
     }
 
@@ -287,34 +281,52 @@ exports.updateCity = async (req, res) => {
       timezone,
       postalCodes,
       description,
-      isActive
+      isActive,
     } = req.body;
 
     // Перевірка унікальності назви міста (якщо змінюється)
     if (name && name !== city.name) {
-      const existingCity = await City.findOne({ 
+      const existingCity = await City.findOne({
         name: { $regex: new RegExp(`^${name}$`, 'i') },
-        _id: { $ne: id }
+        _id: { $ne: id },
       });
-      
+
       if (existingCity) {
         return res.status(400).json({
           success: false,
-          message: 'Місто з такою назвою вже існує'
+          message: 'Місто з такою назвою вже існує',
         });
       }
     }
 
     // Оновлення полів
-    if (name !== undefined) {city.name = name;}
-    if (nameEn !== undefined) {city.nameEn = nameEn;}
-    if (region !== undefined) {city.region = region;}
-    if (coordinates !== undefined) {city.coordinates = coordinates;}
-    if (population !== undefined) {city.population = population;}
-    if (timezone !== undefined) {city.timezone = timezone;}
-    if (postalCodes !== undefined) {city.postalCodes = postalCodes;}
-    if (description !== undefined) {city.description = description;}
-    if (isActive !== undefined) {city.isActive = isActive;}
+    if (name !== undefined) {
+      city.name = name;
+    }
+    if (nameEn !== undefined) {
+      city.nameEn = nameEn;
+    }
+    if (region !== undefined) {
+      city.region = region;
+    }
+    if (coordinates !== undefined) {
+      city.coordinates = coordinates;
+    }
+    if (population !== undefined) {
+      city.population = population;
+    }
+    if (timezone !== undefined) {
+      city.timezone = timezone;
+    }
+    if (postalCodes !== undefined) {
+      city.postalCodes = postalCodes;
+    }
+    if (description !== undefined) {
+      city.description = description;
+    }
+    if (isActive !== undefined) {
+      city.isActive = isActive;
+    }
 
     city.lastModifiedBy = req.user._id;
     await city.save();
@@ -332,14 +344,14 @@ exports.updateCity = async (req, res) => {
     res.json({
       success: true,
       message: 'Місто успішно оновлено',
-      data: city
+      data: city,
     });
   } catch (error) {
     logger.error('Error updating city:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні міста',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -352,7 +364,7 @@ exports.deleteCity = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID міста'
+        message: 'Невірний ID міста',
       });
     }
 
@@ -360,7 +372,7 @@ exports.deleteCity = async (req, res) => {
     if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для видалення міст'
+        message: 'Немає прав для видалення міст',
       });
     }
 
@@ -368,20 +380,20 @@ exports.deleteCity = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'Місто не знайдено'
+        message: 'Місто не знайдено',
       });
     }
 
     // Перевірка чи є користувачі або тикети пов'язані з цим містом
     const [userCount, ticketCount] = await Promise.all([
       User.countDocuments({ city: id }),
-      Ticket.countDocuments({ city: id })
+      Ticket.countDocuments({ city: id }),
     ]);
 
     if (userCount > 0 || ticketCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Не можна видалити місто. З ним пов'язано ${userCount} користувачів та ${ticketCount} тикетів. Спочатку деактивуйте місто.`
+        message: `Не можна видалити місто. З ним пов'язано ${userCount} користувачів та ${ticketCount} тикетів. Спочатку деактивуйте місто.`,
       });
     }
 
@@ -399,14 +411,14 @@ exports.deleteCity = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Місто успішно видалено'
+      message: 'Місто успішно видалено',
     });
   } catch (error) {
     logger.error('Error deleting city:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні міста',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -420,27 +432,27 @@ exports.getRegions = async (req, res) => {
       {
         $group: {
           _id: '$region',
-          cityCount: { $sum: 1 }
-        }
+          cityCount: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     const regionsWithStats = regionStats.map(stat => ({
       name: stat._id,
-      cityCount: stat.cityCount
+      cityCount: stat.cityCount,
     }));
 
     res.json({
       success: true,
-      data: regionsWithStats
+      data: regionsWithStats,
     });
   } catch (error) {
     logger.error('Error fetching regions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні регіонів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -452,7 +464,7 @@ exports.getCityStatistics = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду статистики міст'
+        message: 'Немає прав для перегляду статистики міст',
       });
     }
 
@@ -465,9 +477,9 @@ exports.getCityStatistics = async (req, res) => {
           _id: null,
           totalCities: { $sum: 1 },
           activeCities: { $sum: { $cond: ['$isActive', 1, 0] } },
-          totalPopulation: { $sum: '$population' }
-        }
-      }
+          totalPopulation: { $sum: '$population' },
+        },
+      },
     ]);
 
     // Статистика по регіонах
@@ -477,10 +489,10 @@ exports.getCityStatistics = async (req, res) => {
         $group: {
           _id: '$region',
           cityCount: { $sum: 1 },
-          totalPopulation: { $sum: '$population' }
-        }
+          totalPopulation: { $sum: '$population' },
+        },
       },
-      { $sort: { cityCount: -1 } }
+      { $sort: { cityCount: -1 } },
     ]);
 
     // Топ міст за кількістю користувачів
@@ -491,8 +503,8 @@ exports.getCityStatistics = async (req, res) => {
           from: 'cities',
           localField: 'city',
           foreignField: '_id',
-          as: 'cityInfo'
-        }
+          as: 'cityInfo',
+        },
       },
       { $unwind: '$cityInfo' },
       ...(region ? [{ $match: { 'cityInfo.region': region } }] : []),
@@ -501,11 +513,11 @@ exports.getCityStatistics = async (req, res) => {
           _id: '$city',
           cityName: { $first: '$cityInfo.name' },
           region: { $first: '$cityInfo.region' },
-          userCount: { $sum: 1 }
-        }
+          userCount: { $sum: 1 },
+        },
       },
       { $sort: { userCount: -1 } },
-      { $limit: parseInt(limit) }
+      { $limit: parseInt(limit) },
     ]);
 
     // Топ міст за кількістю тикетів
@@ -516,8 +528,8 @@ exports.getCityStatistics = async (req, res) => {
           from: 'cities',
           localField: 'city',
           foreignField: '_id',
-          as: 'cityInfo'
-        }
+          as: 'cityInfo',
+        },
       },
       { $unwind: '$cityInfo' },
       ...(region ? [{ $match: { 'cityInfo.region': region } }] : []),
@@ -528,17 +540,17 @@ exports.getCityStatistics = async (req, res) => {
           region: { $first: '$cityInfo.region' },
           ticketCount: { $sum: 1 },
           openTickets: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
-          resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } }
-        }
+          resolvedTickets: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        },
       },
       { $sort: { ticketCount: -1 } },
-      { $limit: parseInt(limit) }
+      { $limit: parseInt(limit) },
     ]);
 
     const stats = generalStats[0] || {
       totalCities: 0,
       activeCities: 0,
-      totalPopulation: 0
+      totalPopulation: 0,
     };
 
     res.json({
@@ -548,40 +560,36 @@ exports.getCityStatistics = async (req, res) => {
         byRegion: regionStats,
         topCitiesByUsers: cityUserStats,
         topCitiesByTickets: cityTicketStats,
-        generatedAt: new Date()
-      }
+        generatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error fetching city statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики міст',
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 // Пошук міст
 exports.searchCities = async (req, res) => {
   try {
     const { q } = req.query;
     const cities = await City.find({
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { region: { $regex: q, $options: 'i' } }
-      ]
+      $or: [{ name: { $regex: q, $options: 'i' } }, { region: { $regex: q, $options: 'i' } }],
     }).limit(20);
 
     res.json({
       success: true,
-      data: cities
+      data: cities,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при пошуку міст',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -594,13 +602,13 @@ exports.getCitiesByRegion = async (req, res) => {
 
     res.json({
       success: true,
-      data: cities
+      data: cities,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні міст регіону',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -612,13 +620,13 @@ exports.exportCities = async (req, res) => {
     res.json({
       success: true,
       data: cities,
-      message: 'Дані експортовано успішно'
+      message: 'Дані експортовано успішно',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при експорті даних',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -627,20 +635,17 @@ exports.exportCities = async (req, res) => {
 exports.bulkUpdateCities = async (req, res) => {
   try {
     const { cityIds, updates } = req.body;
-    await City.updateMany(
-      { _id: { $in: cityIds } },
-      { $set: updates }
-    );
+    await City.updateMany({ _id: { $in: cityIds } }, { $set: updates });
 
     res.json({
       success: true,
-      message: 'Міста оновлено успішно'
+      message: 'Міста оновлено успішно',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при масовому оновленні',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -653,13 +658,13 @@ exports.bulkDeleteCities = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Міста видалено успішно'
+      message: 'Міста видалено успішно',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при масовому видаленні',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -671,7 +676,7 @@ exports.toggleCityStatus = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'Місто не знайдено'
+        message: 'Місто не знайдено',
       });
     }
 
@@ -681,13 +686,13 @@ exports.toggleCityStatus = async (req, res) => {
     res.json({
       success: true,
       data: city,
-      message: 'Статус міста змінено'
+      message: 'Статус міста змінено',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при зміні статусу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -698,13 +703,13 @@ exports.getCityUsers = async (req, res) => {
     const users = await User.find({ city: req.params.id });
     res.json({
       success: true,
-      data: users
+      data: users,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні користувачів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -715,13 +720,13 @@ exports.getCityTickets = async (req, res) => {
     const tickets = await Ticket.find({ city: req.params.id });
     res.json({
       success: true,
-      data: tickets
+      data: tickets,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні тикетів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -737,14 +742,14 @@ exports.getCityDetailedStatistics = async (req, res) => {
       success: true,
       data: {
         ticketCount,
-        userCount
-      }
+        userCount,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -757,29 +762,29 @@ exports.importCities = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Дані імпортовано успішно'
+      message: 'Дані імпортовано успішно',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при імпорті даних',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 // Валідація даних міст
-exports.validateCityData = async (req, res) => {
+exports.validateCityData = (req, res) => {
   try {
     res.json({
       success: true,
-      message: 'Дані валідні'
+      message: 'Дані валідні',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка валідації',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -790,13 +795,13 @@ exports.getNearbyCities = async (req, res) => {
     const cities = await City.find({}).limit(10);
     res.json({
       success: true,
-      data: cities
+      data: cities,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні сусідніх міст',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -807,46 +812,46 @@ exports.getCitiesForMap = async (req, res) => {
     const cities = await City.find({});
     res.json({
       success: true,
-      data: cities
+      data: cities,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні міст для карти',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 // Синхронізація з зовнішнім джерелом
-exports.syncWithExternalSource = async (req, res) => {
+exports.syncWithExternalSource = (req, res) => {
   try {
     res.json({
       success: true,
-      message: 'Синхронізація завершена'
+      message: 'Синхронізація завершена',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка синхронізації',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 // Історія змін міста
-exports.getCityHistory = async (req, res) => {
+exports.getCityHistory = (req, res) => {
   try {
     res.json({
       success: true,
       data: [],
-      message: 'Історія отримана'
+      message: 'Історія отримана',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні історії',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -858,20 +863,20 @@ exports.restoreCity = async (req, res) => {
     if (!city) {
       return res.status(404).json({
         success: false,
-        message: 'Місто не знайдено'
+        message: 'Місто не знайдено',
       });
     }
 
     res.json({
       success: true,
       data: city,
-      message: 'Місто відновлено'
+      message: 'Місто відновлено',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Помилка при відновленні',
-      error: error.message
+      error: error.message,
     });
   }
 };

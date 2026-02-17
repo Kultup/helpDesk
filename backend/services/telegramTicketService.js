@@ -37,10 +37,11 @@ class TelegramTicketService {
       if (tickets.length === 0) {
         await this.sendMessage(
           chatId,
-          `📋 *Мої тікети*\n` +
+          `📋 <b>Мої тікети</b>\n` +
             `📄 У вас поки що немає тікетів\n` +
             `💡 Створіть новий тікет для отримання допомоги`,
           {
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
             },
@@ -49,7 +50,7 @@ class TelegramTicketService {
         return;
       }
 
-      let text = `📋 *Ваші тікети*\n`;
+      let text = `📋 <b>Ваші тікети</b>\n`;
       const keyboard = [];
       const ticketButtons = [];
 
@@ -62,7 +63,7 @@ class TelegramTicketService {
           year: 'numeric',
         });
         const title = TelegramUtils.truncateButtonText(ticket.title, 50);
-        text += `\n${index + 1}. ${emoji} *${title}* — ${statusText}, \`${date}\``;
+        text += `\n${index + 1}. ${emoji} <b>${TelegramUtils.escapeHtml(title)}</b> — ${statusText}, <code>${date}</code>`;
         ticketButtons.push({ text: '🔎 Деталі', callback_data: `view_ticket_${ticket._id}` });
       });
 
@@ -79,10 +80,10 @@ class TelegramTicketService {
       logger.error('Помилка отримання тікетів:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка завантаження тікетів*\n` +
+        `❌ <b>Помилка завантаження тікетів</b>\n` +
           `Не вдалося завантажити список тікетів\n` +
-          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -97,10 +98,11 @@ class TelegramTicketService {
       if (tickets.length === 0) {
         await this.sendMessage(
           chatId,
-          `📜 *Історія тікетів*\n` +
+          `📜 <b>Історія тікетів</b>\n` +
             `📄 У вас поки що немає тікетів\n` +
             `💡 Створіть новий тікет для отримання допомоги`,
           {
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
             },
@@ -109,7 +111,7 @@ class TelegramTicketService {
         return;
       }
 
-      let text = `📜 *Історія тікетів*\n` + `📋 Показано ${tickets.length} тікетів\n`;
+      let text = `📜 <b>Історія тікетів</b>\n` + `📋 Показано ${tickets.length} тікетів\n`;
 
       const keyboard = [];
 
@@ -123,7 +125,8 @@ class TelegramTicketService {
         });
 
         text +=
-          `\n${index + 1}. ${status} *${ticket.title}*\n` + `   📊 ${statusText} | 📅 ${date}`;
+          `\n${index + 1}. ${status} <b>${TelegramUtils.escapeHtml(ticket.title)}</b>\n` +
+          `   📊 ${statusText} | 📅 ${date}`;
 
         keyboard.push({
           text: TelegramUtils.truncateButtonText(`🔄 Повторити: ${ticket.title}`, 50),
@@ -141,16 +144,16 @@ class TelegramTicketService {
 
       await this.sendMessage(chatId, text, {
         reply_markup: { inline_keyboard: historyKeyboard },
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     } catch (error) {
       logger.error('Помилка отримання історії тікетів:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка завантаження історії*\n` +
+        `❌ <b>Помилка завантаження історії</b>\n` +
           `Не вдалося завантажити історію тікетів\n` +
-          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -162,13 +165,18 @@ class TelegramTicketService {
       if (!originalTicket) {
         await this.sendMessage(
           chatId,
-          `❌ *Тікет не знайдено*\n\nОригінальний тікет не знайдено в системі.`
+          `❌ <b>Тікет не знайдено</b>\n\nОригінальний тікет не знайдено в системі.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
 
       if (String(originalTicket.createdBy) !== String(user._id)) {
-        await this.sendMessage(chatId, `❌ *Доступ заборонено*\n\nЦей тікет не належить вам.`);
+        await this.sendMessage(
+          chatId,
+          `❌ <b>Доступ заборонено</b>\n\nЦей тікет не належить вам.`,
+          { parse_mode: 'HTML' }
+        );
         return;
       }
 
@@ -187,11 +195,11 @@ class TelegramTicketService {
       this.userSessions.set(chatId, session);
 
       const message =
-        `🔄 *Повторне створення тікету*\n` +
-        `📋 *Заголовок:* \`${originalTicket.title}\`\n` +
-        `📝 *Опис:* \`${originalTicket.description || 'Без опису'}\`\n` +
+        `🔄 <b>Повторне створення тікету</b>\n` +
+        `📋 <b>Заголовок:</b> <code>${TelegramUtils.escapeHtml(originalTicket.title)}</code>\n` +
+        `📝 <b>Опис:</b> <code>${TelegramUtils.escapeHtml(originalTicket.description || 'Без опису')}</code>\n` +
         `\n✏️ Ви можете змінити заголовок або описати нову проблему\n` +
-        `📋 *Крок 1/3:* Введіть заголовок тікету\n` +
+        `📋 <b>Крок 1/3:</b> Введіть заголовок тікету\n` +
         `💡 Опишіть коротко суть проблеми`;
 
       await this.sendMessage(chatId, message, {
@@ -203,13 +211,14 @@ class TelegramTicketService {
             ],
           ],
         },
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     } catch (error) {
       logger.error('Помилка повторного створення тікету:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка*\n` + `Не вдалося завантажити дані тікету\n` + `🔄 Спробуйте ще раз`
+        `❌ <b>Помилка</b>\n` + `Не вдалося завантажити дані тікету\n` + `🔄 Спробуйте ще раз`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -224,13 +233,18 @@ class TelegramTicketService {
       if (!ticket) {
         await this.sendMessage(
           chatId,
-          `❌ *Тікет не знайдено*\n\nОригінальний тікет не знайдено в системі.`
+          `❌ <b>Тікет не знайдено</b>\n\nОригінальний тікет не знайдено в системі.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
 
       if (String(ticket.createdBy._id || ticket.createdBy) !== String(user._id)) {
-        await this.sendMessage(chatId, `❌ *Доступ заборонено*\n\nЦей тікет не належить вам.`);
+        await this.sendMessage(
+          chatId,
+          `❌ <b>Доступ заборонено</b>\n\nЦей тікет не належить вам.`,
+          { parse_mode: 'HTML' }
+        );
         return;
       }
 
@@ -255,15 +269,15 @@ class TelegramTicketService {
       const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
 
       let message =
-        `🎫 *Деталі тікету*\n` +
-        `📋 ${ticket.title}\n` +
+        `🎫 <b>Деталі тікету</b>\n` +
+        `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
         `📊 ${statusEmoji} ${statusText} | ⚡ ${priorityText}\n` +
-        `🏙️ ${ticket.city?.name || 'Не вказано'} | 📅 \`${date}\`\n` +
-        `🆔 \`${ticketNumber}\`\n\n` +
-        `📝 *Опис:*\n${ticket.description}\n\n`;
+        `🏙️ ${TelegramUtils.escapeHtml(ticket.city?.name || 'Не вказано')} | 📅 <code>${date}</code>\n` +
+        `🆔 <code>${ticketNumber}</code>\n\n` +
+        `📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(ticket.description)}\n\n`;
 
       if (comments.length > 0) {
-        message += `💬 *Коментарі (${comments.length}):*\n\n`;
+        message += `💬 <b>Коментарі (${comments.length}):</b>\n\n`;
         comments.forEach((comment, index) => {
           const commentAuthor = comment.author;
           const authorName =
@@ -279,14 +293,14 @@ class TelegramTicketService {
             minute: '2-digit',
           });
 
-          message += `${index + 1}. ${roleLabel} *${authorName}* (\`${commentDate}\`):\n`;
-          message += `${comment.content}\n\n`;
+          message += `${index + 1}. ${roleLabel} <b>${TelegramUtils.escapeHtml(authorName)}</b> (<code>${commentDate}</code>):\n`;
+          message += `${TelegramUtils.escapeHtml(comment.content)}\n\n`;
         });
       } else {
-        message += `💬 *Коментарі:*\nПоки що немає коментарів.\n\n`;
+        message += `💬 <b>Коментарі:</b>\nПоки що немає коментарів.\n\n`;
       }
 
-      message += `💡 *Коментарі:*\nВикористовуйте веб-панель для додавання коментарів до тікету.`;
+      message += `💡 <b>Коментарі:</b>\nВикористовуйте веб-панель для додавання коментарів до тікету.`;
 
       const history = this.telegramService.getNavigationHistory(chatId);
       const backButtons = [];
@@ -313,13 +327,14 @@ class TelegramTicketService {
             backButtons,
           ],
         },
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     } catch (error) {
       logger.error('Помилка перегляду деталей тікету:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка завантаження деталей*\nНе вдалося завантажити дані тікету`
+        `❌ <b>Помилка завантаження деталей</b>\nНе вдалося завантажити дані тікету`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -347,8 +362,8 @@ class TelegramTicketService {
         }
 
         const message =
-          `📊 *Оцініть якість вирішення*\n` +
-          `📋 ${title}\n` +
+          `📊 <b>Оцініть якість вирішення</b>\n` +
+          `📋 ${TelegramUtils.escapeHtml(title)}\n` +
           `📊 ${emoji} ${statusText}\n` +
           `Оберіть оцінку від 1 до 5:`;
 
@@ -367,7 +382,7 @@ class TelegramTicketService {
 
         await this.sendMessage(String(user.telegramId), message, {
           reply_markup: { inline_keyboard: keyboard },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         });
         logger.info('✅ Запит на оцінку відправлено в Telegram користувачу');
       } else if (ticketSource === 'mobile') {
@@ -418,8 +433,8 @@ class TelegramTicketService {
         if (user.telegramId) {
           try {
             const message =
-              `📊 *Оцініть якість вирішення*\n` +
-              `📋 ${title}\n` +
+              `📊 <b>Оцініть якість вирішення</b>\n` +
+              `📋 ${TelegramUtils.escapeHtml(title)}\n` +
               `📊 ${emoji} ${statusText}\n` +
               `Оберіть оцінку від 1 до 5:`;
 
@@ -438,7 +453,7 @@ class TelegramTicketService {
 
             await this.sendMessage(String(user.telegramId), message, {
               reply_markup: { inline_keyboard: keyboard },
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
             });
             logger.info('✅ Запит на оцінку відправлено в Telegram користувачу (web)');
           } catch (tgError) {
@@ -455,12 +470,12 @@ class TelegramTicketService {
     try {
       const ticket = await Ticket.findById(ticketId);
       if (!ticket) {
-        await this.sendMessage(chatId, `❌ *Тікет не знайдено*`);
+        await this.sendMessage(chatId, `❌ <b>Тікет не знайдено</b>`, { parse_mode: 'HTML' });
         return;
       }
 
       if (String(ticket.createdBy) !== String(user._id)) {
-        await this.sendMessage(chatId, `❌ *Доступ заборонено*`);
+        await this.sendMessage(chatId, `❌ <b>Доступ заборонено</b>`, { parse_mode: 'HTML' });
         return;
       }
 
@@ -478,7 +493,7 @@ class TelegramTicketService {
       } catch (aiErr) {
         logger.warn('AI emotion для оцінки недоступно:', aiErr?.message);
       }
-      await this.sendMessage(chatId, emotionText, { parse_mode: 'Markdown' });
+      await this.sendMessage(chatId, emotionText, { parse_mode: 'HTML' });
 
       // GIF або стікер під оцінку (BotSettings.ratingMedia або дефолтні GIF)
       if (this.bot) {
@@ -507,7 +522,7 @@ class TelegramTicketService {
       }
     } catch (error) {
       logger.error('Помилка обробки оцінки якості:', error);
-      await this.sendMessage(chatId, `❌ *Помилка збереження оцінки*`);
+      await this.sendMessage(chatId, `❌ <b>Помилка збереження оцінки</b>`, { parse_mode: 'HTML' });
     }
   }
 
@@ -560,9 +575,9 @@ class TelegramTicketService {
 
       await this.sendMessage(
         chatId,
-        `✅ *Заголовок використано*\n` +
-          `📋 ${session.ticketData.title}\n` +
-          `\n📝 *Крок 2/4:* Введіть опис проблеми\n` +
+        `✅ <b>Заголовок використано</b>\n` +
+          `📋 ${TelegramUtils.escapeHtml(session.ticketData.title)}\n` +
+          `\n📝 <b>Крок 2/4:</b> Введіть опис проблеми\n` +
           `💡 Опишіть детально вашу проблему`,
         {
           reply_markup: {
@@ -576,7 +591,7 @@ class TelegramTicketService {
               ],
             ],
           },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         }
       );
     } catch (error) {
@@ -603,9 +618,9 @@ class TelegramTicketService {
 
       await this.sendMessage(
         chatId,
-        `✅ *Опис використано*\n` +
-          `📝 ${session.ticketData.description.substring(0, 100)}${session.ticketData.description.length > 100 ? '...' : ''}\n` +
-          `\n📸 *Крок 3/4:* Бажаєте додати фото до заявки?`,
+        `✅ <b>Опис використано</b>\n` +
+          `📝 ${TelegramUtils.escapeHtml(session.ticketData.description.substring(0, 100))}${session.ticketData.description.length > 100 ? '...' : ''}\n` +
+          `\n📸 <b>Крок 3/4:</b> Бажаєте додати фото до заявки?`,
         {
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
@@ -614,7 +629,7 @@ class TelegramTicketService {
               { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]),
           },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         }
       );
     } catch (error) {
@@ -692,10 +707,10 @@ class TelegramTicketService {
       this.userSessions.set(chatId, session);
       await this.sendMessage(
         chatId,
-        `📝 *Створення тікета*\n\n` +
+        `📝 <b>Створення тікета</b>\n\n` +
           `Опишіть проблему своїми словами. Я постараюся швидко зібрати все необхідне.\n\n` +
           `📸 Можете також надіслати фото або скріншот проблеми.\n\n` +
-          `*Приклади:*\n` +
+          `<b>Приклади:</b>\n` +
           `• Принтер не друкує\n` +
           `• Не працює телефон у закладі\n` +
           `• Syrve не відкривається`,
@@ -705,7 +720,7 @@ class TelegramTicketService {
               [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
             ],
           },
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         }
       );
       return;
@@ -724,10 +739,11 @@ class TelegramTicketService {
     this.userSessions.set(chatId, session);
     await this.sendMessage(
       chatId,
-      `📝 *Створення нового тікету*\n` +
-        `📋 *Крок 1/4:* Введіть заголовок тікету\n` +
+      `📝 <b>Створення нового тікету</b>\n` +
+        `📋 <b>Крок 1/4:</b> Введіть заголовок тікету\n` +
         `💡 Опишіть коротко суть проблеми`,
       {
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
@@ -754,13 +770,14 @@ class TelegramTicketService {
               session.editingFromConfirm = false;
               const categoryEmoji = TelegramUtils.getCategoryEmoji(session.ticketDraft.subcategory);
               const summaryMessage =
-                `✅ *Дякую за інформацію!*\n\n` +
-                `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
-                `📌 *Заголовок:*\n${session.ticketDraft.title || '—'}\n\n` +
-                `📝 *Опис:*\n${session.ticketDraft.description || '—'}\n\n` +
-                `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory || '—'}\n\n` +
+                `✅ <b>Дякую за інформацію!</b>\n\n` +
+                `📋 <b>РЕЗЮМЕ ТІКЕТА:</b>\n\n` +
+                `📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(session.ticketDraft.title || '—')}\n\n` +
+                `📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(session.ticketDraft.description || '—')}\n\n` +
+                `${categoryEmoji} <b>Категорія:</b> ${TelegramUtils.escapeHtml(session.ticketDraft.subcategory || '—')}\n\n` +
                 `💡 Все правильно?`;
               await this.sendMessage(chatId, summaryMessage, {
+                parse_mode: 'HTML',
                 reply_markup: {
                   inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                     { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
@@ -791,13 +808,14 @@ class TelegramTicketService {
           session.step = 'confirm_ticket';
           const categoryEmoji = TelegramUtils.getCategoryEmoji(session.ticketDraft.subcategory);
           const summaryMessage =
-            `✅ *Дякую за інформацію!*\n\n` +
-            `📋 *РЕЗЮМЕ ТІКЕТА:*\n\n` +
-            `📌 *Заголовок:*\n${session.ticketDraft.title}\n\n` +
-            `📝 *Опис:*\n${session.ticketDraft.description}\n\n` +
-            `${categoryEmoji} *Категорія:* ${session.ticketDraft.subcategory}\n\n` +
+            `✅ <b>Дякую за інформацію!</b>\n\n` +
+            `📋 <b>РЕЗЮМЕ ТІКЕТА:</b>\n\n` +
+            `📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(session.ticketDraft.title)}\n\n` +
+            `📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(session.ticketDraft.description)}\n\n` +
+            `${categoryEmoji} <b>Категорія:</b> ${TelegramUtils.escapeHtml(session.ticketDraft.subcategory)}\n\n` +
             `💡 Все правильно?`;
           await this.sendMessage(chatId, summaryMessage, {
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                 { text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' },
@@ -816,6 +834,7 @@ class TelegramTicketService {
           session.ticketData.title = text;
           session.step = 'description';
           await this.sendMessage(chatId, 'Крок 2/4: Введіть опис проблеми:', {
+            parse_mode: 'HTML',
             reply_markup: {
               inline_keyboard: [
                 [{ text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' }],
@@ -829,8 +848,9 @@ class TelegramTicketService {
           session.step = 'photo';
           await this.sendMessage(
             chatId,
-            `📎 *Крок 3/4:* Бажаєте додати фото або файли до заявки?`,
+            `📎 <b>Крок 3/4:</b> Бажаєте додати фото або файли до заявки?`,
             {
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
                   { text: '📷 Додати фото', callback_data: 'attach_photo' },
@@ -929,10 +949,11 @@ class TelegramTicketService {
       if (fileSizeBytes > maxSizeBytes) {
         await this.sendMessage(
           chatId,
-          `❌ Файл занадто великий!\n\n` +
+          `❌ <b>Файл занадто великий!</b>\n\n` +
             `Розмір: ${formatFileSize(fileSizeBytes)}\n` +
             `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
-            `Будь ласка, надішліть файл меншого розміру.`
+            `Будь ласка, надішліть файл меншого розміру.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -944,10 +965,11 @@ class TelegramTicketService {
       if (!allowedExtensions.includes(fileExtension)) {
         await this.sendMessage(
           chatId,
-          `❌ Непідтримуваний тип файлу!\n\n` +
+          `❌ <b>Непідтримуваний тип файлу!</b>\n\n` +
             `Підтримувані формати: JPG, JPEG, PNG, GIF, WebP\n` +
             `Ваш файл: ${fileExtension || 'невідомий'}\n\n` +
-            `Будь ласка, надішліть фото у підтримуваному форматі.`
+            `Будь ласка, надішліть фото у підтримуваному форматі.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -959,10 +981,11 @@ class TelegramTicketService {
       if (session.ticketData.photos.length >= 5) {
         await this.sendMessage(
           chatId,
-          `❌ Досягнуто максимальну кількість фото!\n\n` +
+          `❌ <b>Досягнуто максимальну кількість фото!</b>\n\n` +
             `Максимум: 5 фото на тікет\n` +
             `Поточна кількість: ${session.ticketData.photos.length}\n\n` +
-            `Натисніть "Завершити" для продовження.`
+            `Натисніть "Завершити" для продовження.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -984,9 +1007,10 @@ class TelegramTicketService {
         });
         await this.sendMessage(
           chatId,
-          `❌ Помилка завантаження фото!\n\n` +
+          `❌ <b>Помилка завантаження фото!</b>\n\n` +
             `Не вдалося завантажити фото з Telegram серверів.\n` +
-            `Спробуйте надіслати фото ще раз або зверніться до адміністратора.`
+            `Спробуйте надіслати фото ще раз або зверніться до адміністратора.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1001,11 +1025,12 @@ class TelegramTicketService {
 
       await this.sendMessage(
         chatId,
-        `✅ Фото додано! (${session.ticketData.photos.length}/5)\n\n` +
+        `✅ <b>Фото додано!</b> (${session.ticketData.photos.length}/5)\n\n` +
           `📏 Розмір: ${formatFileSize(fileSizeBytes)}\n` +
           `📄 Формат: ${fileExtension.toUpperCase()}\n\n` +
           'Хочете додати ще фото?',
         {
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
               { text: '📷 Додати ще фото', callback_data: 'add_more_photos' },
@@ -1023,9 +1048,10 @@ class TelegramTicketService {
       });
       await this.sendMessage(
         chatId,
-        `❌ Помилка обробки фото!\n\n` +
+        `❌ <b>Помилка обробки фото!</b>\n\n` +
           `Виникла несподівана помилка. Спробуйте надіслати фото ще раз.\n` +
-          `Якщо проблема повторюється, зверніться до адміністратора.`
+          `Якщо проблема повторюється, зверніться до адміністратора.`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -1042,7 +1068,8 @@ class TelegramTicketService {
         logger.error('Документ не містить file_id', { document });
         await this.sendMessage(
           chatId,
-          'Помилка: не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.'
+          '❌ <b>Помилка:</b> не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.',
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1054,10 +1081,11 @@ class TelegramTicketService {
       if (fileSizeBytes > maxSizeBytes) {
         await this.sendMessage(
           chatId,
-          `❌ Файл занадто великий!\n\n` +
+          `❌ <b>Файл занадто великий!</b>\n\n` +
             `Розмір: ${formatFileSize(fileSizeBytes)}\n` +
             `Максимальний розмір: ${formatFileSize(maxSizeBytes)}\n\n` +
-            `Будь ласка, надішліть файл меншого розміру.`
+            `Будь ласка, надішліть файл меншого розміру.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1069,7 +1097,8 @@ class TelegramTicketService {
         logger.error('Помилка отримання інформації про файл', { fileId, error: error.message });
         await this.sendMessage(
           chatId,
-          'Помилка: не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.'
+          '❌ <b>Помилка:</b> не вдалося отримати інформацію про файл. Спробуйте надіслати ще раз.',
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1097,10 +1126,11 @@ class TelegramTicketService {
       if (totalFiles >= 10) {
         await this.sendMessage(
           chatId,
-          `❌ Досягнуто максимальну кількість файлів!\n\n` +
+          `❌ <b>Досягнуто максимальну кількість файлів!</b>\n\n` +
             `Максимум: 10 файлів на тікет\n` +
             `Поточна кількість: ${totalFiles}\n\n` +
-            `Натисніть "Завершити" для продовження.`
+            `Натисніть "Завершити" для продовження.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1123,9 +1153,10 @@ class TelegramTicketService {
         });
         await this.sendMessage(
           chatId,
-          `❌ Помилка завантаження файлу!\n\n` +
+          `❌ <b>Помилка завантаження файлу!</b>\n\n` +
             `Не вдалося завантажити файл з Telegram серверів.\n` +
-            `Спробуйте надіслати файл ще раз або зверніться до адміністратора.`
+            `Спробуйте надіслати файл ще раз або зверніться до адміністратора.`,
+          { parse_mode: 'HTML' }
         );
         return;
       }
@@ -1142,12 +1173,13 @@ class TelegramTicketService {
 
       await this.sendMessage(
         chatId,
-        `✅ Файл додано! (${totalFiles + 1}/10)\n\n` +
-          `📄 Назва: ${fileName}\n` +
+        `✅ <b>Файл додано!</b> (${totalFiles + 1}/10)\n\n` +
+          `📄 Назва: ${TelegramUtils.escapeHtml(fileName)}\n` +
           `📏 Розмір: ${formatFileSize(fileSizeBytes)}\n` +
           `📋 Формат: ${fileExtension.toUpperCase() || 'невідомий'}\n\n` +
           'Хочете додати ще файли?',
         {
+          parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
               { text: '📎 Додати ще файл', callback_data: 'add_more_photos' },
@@ -1165,9 +1197,10 @@ class TelegramTicketService {
       });
       await this.sendMessage(
         chatId,
-        `❌ Помилка обробки файлу!\n\n` +
+        `❌ <b>Помилка обробки файлу!</b>\n\n` +
           `Виникла несподівана помилка. Спробуйте надіслати файл ще раз.\n` +
-          `Якщо проблема повторюється, зверніться до адміністратора.`
+          `Якщо проблема повторюється, зверніться до адміністратора.`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -1264,7 +1297,7 @@ class TelegramTicketService {
         user.computerAccessAnalysis ||
         (session.userContext && session.userContext.computerAccessAnalysis);
       if (computerAccess) {
-        description = `🔑 *Доступ до ПК:* ${computerAccess}\n\n${description}`;
+        description = `🔑 <b>Доступ до ПК:</b> ${TelegramUtils.escapeHtml(computerAccess)}\n\n${description}`;
       }
 
       const ticketData = {
@@ -1461,9 +1494,11 @@ class TelegramTicketService {
         session.cachedEmotionalTone || 'calm',
         { priority: ticket?.priority || session?.cachedPriority || 'medium' }
       );
-      const confirmText = `🎉 *${filler}*\n` + `🆔 \`${ticket._id}\``;
+      const confirmText =
+        `🎉 <b>${TelegramUtils.escapeHtml(filler)}</b>\n` + `🆔 <code>${ticket._id}</code>`;
 
       await this.sendMessage(chatId, confirmText, {
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
         },
@@ -1474,10 +1509,10 @@ class TelegramTicketService {
       logger.error('Помилка створення тікету:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка створення тікету*\n\n` +
+        `❌ <b>Помилка створення тікету</b>\n\n` +
           `Виникла технічна помилка при створенні тікету.\n\n` +
-          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`,
+        { parse_mode: 'HTML' }
       );
     }
   }

@@ -1,20 +1,25 @@
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, createTestAdmin, createTestTicket } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  createTestAdmin,
+  createTestTicket,
+} = require('../../helpers/testHelpers');
 const notificationController = require('../../../controllers/notificationController');
 const Notification = require('../../../models/Notification');
 const User = require('../../../models/User');
-const Ticket = require('../../../models/Ticket');
 
 // Моки (telegramServiceInstance тепер глобальний в setup.js)
 jest.mock('express-validator', () => ({
-  validationResult: jest.fn()
+  validationResult: jest.fn(),
 }));
 
 describe('NotificationController', () => {
   let mockReq;
   let mockRes;
-  let mockNext;
   let testUser;
   let testAdmin;
   let testTicket;
@@ -33,12 +38,12 @@ describe('NotificationController', () => {
 
     testUser = await createTestUser({
       email: `user-${Date.now()}@example.com`,
-      role: 'user'
+      role: 'user',
     });
 
     testAdmin = await createTestAdmin({
       email: `admin-${Date.now()}@example.com`,
-      role: 'admin'
+      role: 'admin',
     });
 
     testTicket = await createTestTicket(testUser);
@@ -51,17 +56,15 @@ describe('NotificationController', () => {
         id: testUser._id.toString(),
         _id: testUser._id,
         userId: testUser._id.toString(),
-        role: testUser.role
+        role: testUser.role,
       },
-      ip: '127.0.0.1'
+      ip: '127.0.0.1',
     };
 
     mockRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
-
-    mockNext = jest.fn();
   });
 
   describe('getNotifications', () => {
@@ -74,7 +77,7 @@ describe('NotificationController', () => {
         title: 'Test Notification',
         message: 'Test message',
         relatedTicket: testTicket._id,
-        userId: testUser._id // Додаємо для сумісності з контролером
+        userId: testUser._id, // Додаємо для сумісності з контролером
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -85,7 +88,7 @@ describe('NotificationController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getNotifications failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -106,7 +109,7 @@ describe('NotificationController', () => {
         title: 'Read Notification',
         message: 'Message',
         isRead: true,
-        read: true // Для сумісності з контролером
+        read: true, // Для сумісності з контролером
       });
 
       await Notification.create({
@@ -117,7 +120,7 @@ describe('NotificationController', () => {
         title: 'Unread Notification',
         message: 'Message',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -140,7 +143,7 @@ describe('NotificationController', () => {
     it('should create a new notification', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       // Перевіряємо що користувач існує перед створенням сповіщення
@@ -151,7 +154,7 @@ describe('NotificationController', () => {
         id: testAdmin._id.toString(),
         userId: testAdmin._id.toString(),
         _id: testAdmin._id,
-        role: testAdmin.role
+        role: testAdmin.role,
       };
       mockReq.body = {
         userId: testUser._id.toString(),
@@ -160,7 +163,7 @@ describe('NotificationController', () => {
         title: 'New Notification',
         message: 'Notification message',
         relatedTicket: testTicket._id.toString(),
-        priority: 'high'
+        priority: 'high',
       };
 
       await notificationController.createNotification(mockReq, mockRes);
@@ -179,7 +182,9 @@ describe('NotificationController', () => {
         const savedNotification = await Notification.findOne({ title: 'New Notification' });
         if (savedNotification) {
           // Контролер використовує userId, модель синхронізує з recipient
-          expect(savedNotification.userId?.toString() || savedNotification.recipient?.toString()).toBe(testUser._id.toString());
+          expect(
+            savedNotification.userId?.toString() || savedNotification.recipient?.toString()
+          ).toBe(testUser._id.toString());
         }
       }
     });
@@ -187,7 +192,7 @@ describe('NotificationController', () => {
     it('should return 400 with validation errors', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => false,
-        array: () => [{ msg: 'Title is required' }]
+        array: () => [{ msg: 'Title is required' }],
       });
 
       mockReq.body = {};
@@ -200,7 +205,7 @@ describe('NotificationController', () => {
     it('should return 404 for non-existent user', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const fakeUserId = new mongoose.Types.ObjectId();
@@ -208,7 +213,7 @@ describe('NotificationController', () => {
         userId: fakeUserId.toString(),
         type: 'ticket_update',
         title: 'Notification',
-        message: 'Message'
+        message: 'Message',
       };
 
       await notificationController.createNotification(mockReq, mockRes);
@@ -227,7 +232,7 @@ describe('NotificationController', () => {
         title: 'Test Notification',
         message: 'Message',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -238,7 +243,7 @@ describe('NotificationController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('markAsRead failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -271,7 +276,7 @@ describe('NotificationController', () => {
         title: 'Notification 1',
         message: 'Message 1',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       await Notification.create({
@@ -282,7 +287,7 @@ describe('NotificationController', () => {
         title: 'Notification 2',
         message: 'Message 2',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -313,7 +318,7 @@ describe('NotificationController', () => {
         title: 'Read',
         message: 'Message',
         isRead: true,
-        read: true // Для сумісності з контролером
+        read: true, // Для сумісності з контролером
       });
 
       await Notification.create({
@@ -324,7 +329,7 @@ describe('NotificationController', () => {
         title: 'Unread 1',
         message: 'Message',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       await Notification.create({
@@ -335,7 +340,7 @@ describe('NotificationController', () => {
         title: 'Unread 2',
         message: 'Message',
         isRead: false,
-        read: false // Для сумісності з контролером
+        read: false, // Для сумісності з контролером
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -345,7 +350,7 @@ describe('NotificationController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getUnreadCount failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -367,7 +372,7 @@ describe('NotificationController', () => {
         type: 'ticket_updated',
         category: 'ticket',
         title: 'To Delete',
-        message: 'Message'
+        message: 'Message',
       });
 
       mockReq.user.id = testUser._id.toString();
@@ -378,7 +383,7 @@ describe('NotificationController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('deleteNotification failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -391,4 +396,3 @@ describe('NotificationController', () => {
     });
   });
 });
-

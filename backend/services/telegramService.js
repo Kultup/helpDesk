@@ -42,6 +42,7 @@ class TelegramService {
     this.navigationHistory = sessionManager.createNavigationHistoryMap();
     this._initializing = false; // Флаг для перевірки процесу ініціалізації
     this.internetRequestCounts = sessionManager.createInternetRequestCountsMap();
+    this.token = null; // Токен бота
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -98,8 +99,9 @@ class TelegramService {
       session.idleWarningSentAt = now;
       this.userSessions.set(chatId, session);
       const warnMsg =
-        '⏰ Сесію буде завершено через 1 хв через неактивність.\n\nНатисніть «Продовжити», якщо ще потребуєте допомоги.';
+        '⏰ <b>Сесію буде завершено через 1 хв через неактивність.</b>\n\nНатисніть «Продовжити», якщо ще потребуєте допомоги.';
       this.sendMessage(chatId, warnMsg, {
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '⏱ Продовжити сесію', callback_data: 'extend_session' }],
@@ -116,8 +118,9 @@ class TelegramService {
     for (const [chatId, _session] of toDelete) {
       this.userSessions.delete(chatId);
       const msg =
-        '⏱ Сесію завершено через неактивність (30 хв). Напишіть знову, якщо потрібна допомога.';
+        '⏱ <b>Сесію завершено через неактивність (30 хв).</b> Напишіть знову, якщо потрібна допомога.';
       this.sendMessage(chatId, msg, {
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
@@ -145,8 +148,8 @@ class TelegramService {
     this.userSessions.clear();
     const msg =
       options.reason === 'after_hours'
-        ? '⏰ Робочий день завершено. Всі сесії закрито.\n\nНапишіть знову завтра, якщо потрібна допомога.'
-        : '⏱ Сесію завершено (скинуто адміністратором). Напишіть знову, якщо потрібна допомога.';
+        ? '⏰ <b>Робочий день завершено. Всі сесії закрито.</b>\n\nНапишіть знову завтра, якщо потрібна допомога.'
+        : '⏱ <b>Сесію завершено (скинуто адміністратором).</b> Напишіть знову, якщо потрібна допомога.';
     const replyMarkup = {
       inline_keyboard: [
         [{ text: '📝 Створити тікет', callback_data: 'create_ticket' }],
@@ -154,7 +157,7 @@ class TelegramService {
       ],
     };
     for (const chatId of chatIds) {
-      this.sendMessage(chatId, msg, { reply_markup: replyMarkup }).catch(err =>
+      this.sendMessage(chatId, msg, { parse_mode: 'HTML', reply_markup: replyMarkup }).catch(err =>
         logger.warn('clearAllSessions: не вдалося відправити повідомлення', {
           chatId,
           err: err.message,
@@ -209,6 +212,7 @@ class TelegramService {
         return;
       }
 
+      this.token = token;
       const hasWebhookUrl = !!(cfg?.webhookUrl && cfg.webhookUrl.trim());
       const usePolling = !hasWebhookUrl;
       this.mode = usePolling ? 'polling' : 'webhook';
@@ -225,7 +229,7 @@ class TelegramService {
             // Якщо помилка 404 - токен невалідний, вимикаємо бота
             if (err.code === 'ETELEGRAM' && err.response?.statusCode === 404) {
               logger.warn(
-                '⚠️ Telegram токен невалідний або бот не знайдено. Telegram бот вимкнено.'
+                '⚠️ <b>Telegram токен невалідний або бот не знайдено.</b> Telegram бот вимкнено.'
               );
               this.bot = null;
               this.isInitialized = false;
@@ -254,9 +258,9 @@ class TelegramService {
             }
             logger.error('Помилка polling:', err);
           });
-          logger.info('✅ Telegram бот запущено у режимі polling');
+          logger.info('✅ <b>Telegram бот запущено у режимі polling</b>');
         } else {
-          logger.info('✅ Telegram бот запущено у режимі webhook');
+          logger.info('✅ <b>Telegram бот запущено у режимі webhook</b>');
         }
         this.isInitialized = true;
         this._initializing = false;
@@ -320,7 +324,8 @@ class TelegramService {
   sendRegistrationApprovedNotification(chatId) {
     return this.sendMessage(
       chatId,
-      '✅ Ваш запит на реєстрацію схвалено! Тепер ви можете створювати тікети.'
+      '✅ <b>Ваш запит на реєстрацію схвалено!</b> Тепер ви можете створювати тікети.',
+      { parse_mode: 'HTML' }
     );
   }
 
@@ -333,7 +338,8 @@ class TelegramService {
   sendRegistrationRejectedNotification(chatId, reason) {
     return this.sendMessage(
       chatId,
-      `❌ Ваш запит на реєстрацію відхилено.\nПричина: ${reason || 'не вказана'}`
+      `❌ <b>Ваш запит на реєстрацію відхилено.</b>\nПричина: ${TelegramUtils.escapeHtml(reason || 'не вказана')}`,
+      { parse_mode: 'HTML' }
     );
   }
 
@@ -355,7 +361,7 @@ class TelegramService {
       return;
     }
     // Завжди надсилати пуш-сповіщення (disable_notification в кінці, щоб ніхто не вимкнув)
-    const defaultOptions = { parse_mode: 'Markdown', ...options, disable_notification: false };
+    const defaultOptions = { parse_mode: 'HTML', ...options, disable_notification: false };
     const maxAttempts = 3;
     let attempt = 0;
     let lastError = null;
@@ -379,19 +385,19 @@ class TelegramService {
 
         return result;
       } catch (error) {
-        // Якщо помилка пов'язана з парсингом Markdown, спробуємо відправити як звичайний текст
+        // Якщо помилка пов'язана з парсингом HTML, спробуємо відправити як звичайний текст
         if (
           error.message?.includes("can't parse entities") ||
           error.message?.includes("Bad Request: can't parse entities")
         ) {
           logger.warn(
-            `Помилка парсингу Markdown для чату ${chatId}, спроба відправки як звичайний текст`
+            `Помилка парсингу HTML для чату ${chatId}, спроба відправки як звичайний текст`
           );
           try {
-            const noMarkdownOptions = { ...defaultOptions };
-            delete noMarkdownOptions.parse_mode;
-            const result = await this.bot.sendMessage(chatId, text, noMarkdownOptions);
-            logger.info(`Повідомлення успішно відправлено в чат ${chatId} без Markdown`);
+            const noHtmlOptions = { ...defaultOptions };
+            delete noHtmlOptions.parse_mode;
+            const result = await this.bot.sendMessage(chatId, text, noHtmlOptions);
+            logger.info(`Повідомлення успішно відправлено в чат ${chatId} без HTML`);
             return result;
           } catch (retryError) {
             lastError = retryError;
@@ -437,7 +443,7 @@ class TelegramService {
     }
     const { filename, ...restOptions } = options;
     const defaultOptions = {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       ...restOptions,
     };
 
@@ -469,7 +475,7 @@ class TelegramService {
     }
     const { filename, ...restOptions } = options;
     const defaultOptions = {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       ...restOptions,
     };
 
@@ -571,11 +577,12 @@ class TelegramService {
             this.userSessions.delete(msg.chat.id);
             if (result && result.success) {
               let text =
-                '✅ Фото доступу до ПК оновлено у вашому профілі. Адмін перегляне його в картці користувача.';
+                '✅ <b>Фото доступу до ПК оновлено у вашому профілі.</b> Адмін перегляне його в картці користувача.';
               if (result.analysis) {
-                text += `\n\n📋 Розпізнано: ${result.analysis}`;
+                text += `\n\n📋 Розпізнано: ${TelegramUtils.escapeHtml(result.analysis)}`;
               }
               await this.sendMessage(msg.chat.id, text, {
+                parse_mode: 'HTML',
                 reply_markup: {
                   inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
                 },
@@ -583,8 +590,9 @@ class TelegramService {
             } else {
               await this.sendMessage(
                 msg.chat.id,
-                'Помилка збереження фото. Спробуйте ще раз або зверніться до адміна.',
+                '❌ <b>Помилка збереження фото.</b> Спробуйте ще раз або зверніться до адміна.',
                 {
+                  parse_mode: 'HTML',
                   reply_markup: {
                     inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
                   },
@@ -739,9 +747,10 @@ class TelegramService {
           } else {
             await this.sendMessage(
               chatId,
-              `🚫 *Помилка авторизації*\n\n` +
+              `🚫 <b>Помилка авторизації</b>\n\n` +
                 `Ви не авторизовані в системі.\n\n` +
-                `🔑 Використайте /start для початку роботи.`
+                `🔑 Використайте /start для початку роботи.`,
+              { parse_mode: 'HTML' }
             );
           }
           break;
@@ -754,45 +763,49 @@ class TelegramService {
           } else {
             await this.sendMessage(
               chatId,
-              `🚫 *Помилка авторизації*\n\n` +
+              `🚫 <b>Помилка авторизації</b>\n\n` +
                 `Ви не авторизовані в системі.\n\n` +
-                `🔑 Використайте /start для початку роботи.`
+                `🔑 Використайте /start для початку роботи.`,
+              { parse_mode: 'HTML' }
             );
           }
           break;
         case '/skip':
           await this.sendMessage(
             chatId,
-            `❓ *Невідома команда*\n\n` +
+            `❓ <b>Невідома команда</b>\n\n` +
               `Команда не розпізнана системою.\n\n` +
-              `💡 Використайте /start для перегляду доступних опцій.`
+              `💡 Використайте /start для перегляду доступних опцій.`,
+            { parse_mode: 'HTML' }
           );
           break;
         default:
           if (!user) {
             await this.sendMessage(
               chatId,
-              `🚫 *Помилка авторизації*\n\n` +
+              `🚫 <b>Помилка авторизації</b>\n\n` +
                 `Ви не авторизовані в системі.\n\n` +
-                `🔑 Використайте /start для початку роботи.`
+                `🔑 Використайте /start для початку роботи.`,
+              { parse_mode: 'HTML' }
             );
             return;
           }
           await this.sendMessage(
             chatId,
-            `❓ *Невідома команда*\n\n` +
+            `❓ <b>Невідома команда</b>\n\n` +
               `Команда не розпізнана системою.\n\n` +
-              `💡 Використайте /start для перегляду доступних опцій.`
+              `💡 Використайте /start для перегляду доступних опцій.`,
+            { parse_mode: 'HTML' }
           );
       }
     } catch (error) {
       logger.error('Помилка обробки команди:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Системна помилка*\n\n` +
+        `❌ <b>Системна помилка</b>\n\n` +
           `Виникла помилка при обробці команди.\n\n` +
-          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`,
+        { parse_mode: 'HTML' }
       );
     }
   }
@@ -998,10 +1011,10 @@ class TelegramService {
         if (!user.isActive) {
           await this.sendMessage(
             chatId,
-            `🚫 *Доступ обмежено*\n\n` +
+            `🚫 <b>Доступ обмежено</b>\n\n` +
               `Ваш обліковий запис поки не активований.\n\n` +
-              `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
-            { parse_mode: 'Markdown' }
+              `📞 Зверніться до адміністратора для активації: <a href="https://t.me/Kultup">@Kultup</a>`,
+            { parse_mode: 'HTML' }
           );
           return;
         }
@@ -1127,10 +1140,10 @@ class TelegramService {
           if (!user.isActive) {
             await this.sendMessage(
               chatId,
-              `🚫 *Доступ обмежено*\n\n` +
+              `🚫 <b>Доступ обмежено</b>\n\n` +
                 `Ваш обліковий запис поки не активований.\n\n` +
-                `📞 Зверніться до адміністратора для активації: [@Kultup](https://t.me/Kultup)`,
-              { parse_mode: 'Markdown' }
+                `📞 Зверніться до адміністратора для активації: <a href="https://t.me/Kultup">@Kultup</a>`,
+              { parse_mode: 'HTML' }
             );
             return;
           }
@@ -1144,7 +1157,7 @@ class TelegramService {
               `Для використання бота потрібно зареєструватися.\n` +
               `📞 Адміністратор: [@Kultup](https://t.me/Kultup)`,
             {
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -1412,7 +1425,7 @@ class TelegramService {
                 };
                 const msg = `✅ *Перевірте, чи все правильно*\n\n📌 *Заголовок:*\n${summary.title}\n\n📝 *Опис:*\n${summary.description}\n\n📊 *Категорія:* ${summary.category}\n⚡ *Пріоритет:* ${summary.priority}\n\nВсе правильно?`;
                 await this.sendMessage(chatId, msg, {
-                  parse_mode: 'Markdown',
+                  parse_mode: 'HTML',
                   reply_markup: {
                     inline_keyboard: [
                       [{ text: '✅ Так, створити тікет', callback_data: 'confirm_create_ticket' }],
@@ -1692,7 +1705,7 @@ class TelegramService {
                     { text: '❌ Скасувати', callback_data: 'cancel_info_gathering' },
                   ]),
                 },
-                parse_mode: 'Markdown',
+                parse_mode: 'HTML',
               }
             );
           }
@@ -1718,7 +1731,7 @@ class TelegramService {
                   { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
                 ]),
               },
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
             });
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -1790,10 +1803,10 @@ class TelegramService {
           // Функція відповіді на тікет через Telegram вимкнена
           await this.sendMessage(
             chatId,
-            `ℹ️ *Відповідь на тікет через Telegram недоступна*\n\n` +
+            `ℹ️ <b>Відповідь на тікет через Telegram недоступна</b>\n\n` +
               `Будь ласка, використовуйте веб-панель для додавання коментарів до тікету.\n\n` +
               `Натисніть /menu для повернення до головного меню.`,
-            { parse_mode: 'Markdown' }
+            { parse_mode: 'HTML' }
           );
           await this.answerCallbackQuery(callbackQuery.id);
         } else {
@@ -2245,10 +2258,11 @@ class TelegramService {
           return;
         }
 
+        const escapedFileName = TelegramUtils.escapeHtml(fileName);
         await this.sendMessage(
           chatId,
-          `📥 Виявлено інвентарний файл: *${fileName}*\nПочинаю обробку...`,
-          { parse_mode: 'Markdown' }
+          `📥 Виявлено інвентарний файл: <b>${escapedFileName}</b>\nПочинаю обробку...`,
+          { parse_mode: 'HTML' }
         );
 
         const fileInfo = await this.bot.getFile(msg.document.file_id);
@@ -2256,16 +2270,20 @@ class TelegramService {
 
         const results = await equipmentService.importEquipment(localPath, user);
 
-        let resultMsg = `✅ *Імпорт завершено*\n`;
-        resultMsg += `📄 Файл: \`${fileName}\`\n`;
+        let resultMsg = `✅ <b>Імпорт завершено</b>\n`;
+        resultMsg += `📄 Файл: <code>${escapedFileName}</code>\n`;
         resultMsg += `🟢 Успішно: ${results.success}\n`;
         resultMsg += `🔴 Помилок: ${results.failed}`;
 
         if (results.errors.length > 0) {
-          resultMsg += `\n\n⚠️ *Деталі помилок (перші 5):*\n${results.errors.slice(0, 5).join('\n')}`;
+          const escapedErrors = results.errors
+            .slice(0, 5)
+            .map(err => TelegramUtils.escapeHtml(err))
+            .join('\n');
+          resultMsg += `\n\n⚠️ <b>Деталі помилок (перші 5):</b>\n${escapedErrors}`;
         }
 
-        await this.sendMessage(chatId, resultMsg, { parse_mode: 'Markdown' });
+        await this.sendMessage(chatId, resultMsg, { parse_mode: 'HTML' });
 
         // Сповіщаємо адмінів
         await this.notificationService.notifyAdminsAboutInventoryImport(fileName, user, results);
@@ -2273,7 +2291,8 @@ class TelegramService {
         return;
       } catch (error) {
         logger.error('Помилка автоматичного імпорту обладнання з Telegram:', error);
-        await this.sendMessage(chatId, `❌ Помилка при обробці файлу: ${error.message}`);
+        const escapedError = TelegramUtils.escapeHtml(error.message);
+        await this.sendMessage(chatId, `❌ Помилка при обробці файлу: ${escapedError}`);
         return;
       }
     }
@@ -2396,7 +2415,7 @@ class TelegramService {
 
   downloadTelegramFile(filePath) {
     return new Promise((resolve, reject) => {
-      const token = process.env.TELEGRAM_BOT_TOKEN;
+      const token = this.token || process.env.TELEGRAM_BOT_TOKEN;
       const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
 
       // Папка створюється при старті в app.js; перевірка на випадок ручного видалення
@@ -2555,43 +2574,43 @@ class TelegramService {
         reply_markup: {
           inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
         },
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     } catch (error) {
       logger.error('Помилка отримання статистики:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка завантаження статистики*\n\n` +
+        `❌ <b>Помилка завантаження статистики</b>\n\n` +
           `Не вдалося завантажити дані статистики.\n\n` +
-          `🔄 Спробуйте ще раз або зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`,
-        { parse_mode: 'Markdown' }
+          `🔄 Спробуйте ще раз або зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`,
+        { parse_mode: 'HTML' }
       );
     }
   }
 
   async handleHelpCommand(chatId, _user) {
     const helpText =
-      `📖 *Довідка по командам*\n\n` +
-      `*Основні команди:*\n` +
-      `🔹 /start - Головне меню\n` +
-      `🔹 /menu - Повернутися до головного меню\n` +
-      `🔹 /help - Показати цю довідку\n` +
-      `🔹 /status - Швидкий перегляд статусів тікетів\n\n` +
-      `*Функції бота:*\n` +
-      `📝 *Створити тікет* - Надішліть опис проблеми текстом\n` +
-      `📋 *Мої тікети* - Перегляд всіх ваших тікетів\n` +
-      `📜 *Історія тікетів* - Перегляд закритих тікетів\n` +
-      `📊 *Статистика* - Ваша статистика по тікетам\n\n` +
-      `*Додаткові можливості:*\n` +
+      `📖 <b>Довідка по командам</b>\n\n` +
+      `<b>Основні команди:</b>\n` +
+      `🔹 /start — Головне меню\n` +
+      `🔹 /menu — Повернутися до головного меню\n` +
+      `🔹 /help — Показати цю довідку\n` +
+      `🔹 /status — Швидкий перегляд статусів тікетів\n\n` +
+      `<b>Функції бота:</b>\n` +
+      `📝 <b>Створити тікет</b> — Надішліть опис проблеми текстом\n` +
+      `📋 <b>Мої тікети</b> — Перегляд всіх ваших тікетів\n` +
+      `📜 <b>Історія тікетів</b> — Перегляд закритих тікетів\n` +
+      `📊 <b>Статистика</b> — Ваша статистика по тікетам\n\n` +
+      `<b>Додаткові можливості:</b>\n` +
       `📸 Можна додавати фото до тікетів\n\n` +
-      `*Підтримка:*\n` +
-      `Якщо виникли питання, зверніться до адміністратора: [@Kultup](https://t.me/Kultup)`;
+      `<b>Підтримка:</b>\n` +
+      `Якщо виникли питання, зверніться до адміністратора: <a href="https://t.me/Kultup">@Kultup</a>`;
 
     await this.sendMessage(chatId, helpText, {
       reply_markup: {
         inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back' }]],
       },
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
     });
   }
 
@@ -2615,28 +2634,28 @@ class TelegramService {
         .select('title status createdAt')
         .lean();
 
-      let text = `⚡ *Швидкий статус тікетів*\n\n`;
+      let text = `⚡ <b>Швидкий статус тікетів</b>\n\n`;
 
       if (openTickets.length > 0) {
-        text += `🔓 *Відкриті тікети (${openTickets.length}):*\n`;
+        text += `🔓 <b>Відкриті тікети (${openTickets.length}):</b>\n`;
         openTickets.forEach((ticket, index) => {
           const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', {
             day: '2-digit',
             month: '2-digit',
           });
-          text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
+          text += `${index + 1}. ${TelegramUtils.escapeHtml(this.truncateButtonText(ticket.title, 40))} — <code>${date}</code>\n`;
         });
         text += `\n`;
       }
 
       if (inProgressTickets.length > 0) {
-        text += `⚙️ *У роботі (${inProgressTickets.length}):*\n`;
+        text += `⚙️ <b>У роботі (${inProgressTickets.length}):</b>\n`;
         inProgressTickets.forEach((ticket, index) => {
           const date = new Date(ticket.createdAt).toLocaleDateString('uk-UA', {
             day: '2-digit',
             month: '2-digit',
           });
-          text += `${index + 1}. ${this.truncateButtonText(ticket.title, 40)} - \`${date}\`\n`;
+          text += `${index + 1}. ${TelegramUtils.escapeHtml(this.truncateButtonText(ticket.title, 40))} — <code>${date}</code>\n`;
         });
         text += `\n`;
       }
@@ -2645,7 +2664,7 @@ class TelegramService {
         text += `✅ У вас немає активних тікетів!\n\n`;
         text += `💡 Створіть новий тікет, якщо потрібна допомога.`;
       } else {
-        text += `💡 Використайте "Мої тікети" для повного списку.`;
+        text += `💡 Використайте «Мої тікети» для повного списку.`;
       }
 
       await this.sendMessage(chatId, text, {
@@ -2658,16 +2677,16 @@ class TelegramService {
             [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
           ],
         },
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
     } catch (error) {
       logger.error('Помилка отримання статусу тікетів:', error);
       await this.sendMessage(
         chatId,
-        `❌ *Помилка завантаження статусу*\n\n` +
+        `❌ <b>Помилка завантаження статусу</b>\n\n` +
           `Не вдалося завантажити інформацію про тікети.\n\n` +
           `🔄 Спробуйте ще раз.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'HTML' }
       );
     }
   }

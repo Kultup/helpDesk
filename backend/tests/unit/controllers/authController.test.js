@@ -1,19 +1,23 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, generateAuthToken } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+} = require('../../helpers/testHelpers');
 const authController = require('../../../controllers/authController');
 const User = require('../../../models/User');
 
 // Моки (emailService та telegramService тепер глобальні в setup.js)
 jest.mock('express-validator', () => ({
-  validationResult: jest.fn()
+  validationResult: jest.fn(),
 }));
 
 describe('AuthController', () => {
   let mockReq;
   let mockRes;
-  let mockNext;
 
   beforeAll(async () => {
     await connectDB();
@@ -26,48 +30,46 @@ describe('AuthController', () => {
 
   beforeEach(async () => {
     await clearDatabase();
-    
+
     // Скидаємо моки
     validationResult.mockClear();
-    
+
     mockReq = {
       body: {},
       headers: {},
-      user: null
+      user: null,
     };
-    
+
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
       cookie: jest.fn().mockReturnThis(),
-      clearCookie: jest.fn().mockReturnThis()
+      clearCookie: jest.fn().mockReturnThis(),
     };
-    
-    mockNext = jest.fn();
   });
 
   describe('login', () => {
     it('should login user with valid credentials', async () => {
       const password = 'password123';
       const testEmail = `test-${Date.now()}@example.com`.toLowerCase();
-      
+
       // Створюємо користувача з незахешованим паролем (модель сама захешує)
       const user = await createTestUser({
         email: testEmail,
         password: password, // Передаємо незахешований пароль
         isActive: true,
-        registrationStatus: 'approved'
+        registrationStatus: 'approved',
       });
 
       // Мокаємо validationResult
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = {
         email: testEmail,
-        password: password
+        password: password,
       };
       mockReq.ip = '127.0.0.1';
       mockReq.get = jest.fn().mockReturnValue('test-user-agent');
@@ -80,7 +82,9 @@ describe('AuthController', () => {
       expect(savedUser.email.toLowerCase()).toBe(testEmail.toLowerCase());
 
       // Перевіряємо що користувач знаходиться через findOne
-      const foundUser = await User.findOne({ email: testEmail.toLowerCase() }).select('+password').populate('position city');
+      const foundUser = await User.findOne({ email: testEmail.toLowerCase() })
+        .select('+password')
+        .populate('position city');
       expect(foundUser).toBeDefined();
       if (foundUser) {
         expect(foundUser._id.toString()).toBe(user._id.toString());
@@ -98,12 +102,14 @@ describe('AuthController', () => {
 
       // Контролер використовує res.json() без res.status(200), тому перевіряємо json
       expect(mockRes.json).toHaveBeenCalled();
-      
+
       // Перевіряємо, що не було помилки
       if (mockRes.status.mock.calls.length > 0) {
         const statusCode = mockRes.status.mock.calls[0][0];
         if (statusCode !== 200) {
-          const errorResponse = mockRes.json.mock.calls[0] ? mockRes.json.mock.calls[0][0] : 'No response';
+          const errorResponse = mockRes.json.mock.calls[0]
+            ? mockRes.json.mock.calls[0][0]
+            : 'No response';
           console.error(`Login failed with ${statusCode}:`, errorResponse);
           const errorMsg = errorResponse?.error || errorResponse?.message || 'Unknown error';
           throw new Error(`Login failed with ${statusCode}: ${JSON.stringify(errorMsg)}`);
@@ -120,12 +126,12 @@ describe('AuthController', () => {
     it('should reject login with invalid email', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = {
         email: 'nonexistent@example.com',
-        password: 'password123'
+        password: 'password123',
       };
       mockReq.ip = '127.0.0.1';
       mockReq.get = jest.fn().mockReturnValue('test-user-agent');
@@ -135,7 +141,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Невірний email або пароль')
+          message: expect.stringContaining('Невірний email або пароль'),
         })
       );
     });
@@ -143,20 +149,20 @@ describe('AuthController', () => {
     it('should reject login with invalid password', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       await clearDatabase(); // Очищаємо перед цим тестом
-      const user = await createTestUser({
+      await createTestUser({
         email: 'test@example.com',
         password: await bcrypt.hash('correctpassword', 10),
         isActive: true,
-        registrationStatus: 'approved'
+        registrationStatus: 'approved',
       });
 
       mockReq.body = {
         email: 'test@example.com',
-        password: 'wrongpassword'
+        password: 'wrongpassword',
       };
       mockReq.ip = '127.0.0.1';
       mockReq.get = jest.fn().mockReturnValue('test-user-agent');
@@ -169,7 +175,7 @@ describe('AuthController', () => {
     it('should reject login for inactive user', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const password = 'password123';
@@ -177,12 +183,12 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: await bcrypt.hash(password, 10),
         isActive: false,
-        registrationStatus: 'approved'
+        registrationStatus: 'approved',
       });
 
       mockReq.body = {
         email: 'test@example.com',
-        password: password
+        password: password,
       };
       mockReq.ip = '127.0.0.1';
       mockReq.get = jest.fn().mockReturnValue('test-user-agent');
@@ -192,7 +198,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('деактивований')
+          message: expect.stringContaining('деактивований'),
         })
       );
     });
@@ -204,17 +210,17 @@ describe('AuthController', () => {
         email: testEmail,
         password: await bcrypt.hash(password, 10),
         isActive: true,
-        registrationStatus: 'pending'
+        registrationStatus: 'pending',
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = {
         email: testEmail,
-        password: password
+        password: password,
       };
       mockReq.ip = '127.0.0.1';
       mockReq.get = jest.fn().mockReturnValue('test-user-agent');
@@ -229,13 +235,15 @@ describe('AuthController', () => {
     it('should logout user successfully', async () => {
       const user = await createTestUser();
       const refreshToken = 'test-refresh-token';
-      
+
       // Додаємо refresh token до користувача
-      user.refreshTokens = [{
-        token: refreshToken,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      }];
+      user.refreshTokens = [
+        {
+          token: refreshToken,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      ];
       await user.save();
 
       mockReq.user = { userId: user._id.toString(), email: user.email };
@@ -252,7 +260,7 @@ describe('AuthController', () => {
 
     it('should logout without refresh token', async () => {
       const user = await createTestUser();
-      
+
       mockReq.user = { userId: user._id.toString(), email: user.email };
       mockReq.cookies = {};
       mockReq.ip = '127.0.0.1';
@@ -273,11 +281,13 @@ describe('AuthController', () => {
         { expiresIn: '7d' }
       );
 
-      user.refreshTokens = [{
-        token: refreshToken,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      }];
+      user.refreshTokens = [
+        {
+          token: refreshToken,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      ];
       await user.save();
 
       mockReq.cookies = { refreshToken };
@@ -298,7 +308,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Refresh token не знайдено')
+          message: expect.stringContaining('Refresh token не знайдено'),
         })
       );
     });
@@ -318,12 +328,12 @@ describe('AuthController', () => {
       const password = 'oldpassword123';
       const newPassword = 'newpassword123';
       const user = await createTestUser({
-        password: password
+        password: password,
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       // Мокаємо User.findById щоб повертав користувача з паролем
@@ -334,7 +344,7 @@ describe('AuthController', () => {
       mockReq.user = { userId: user._id.toString() };
       mockReq.body = {
         currentPassword: password,
-        newPassword: newPassword
+        newPassword: newPassword,
       };
       mockReq.cookies = {};
       mockReq.ip = '127.0.0.1';
@@ -344,7 +354,7 @@ describe('AuthController', () => {
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
       expect(response).toHaveProperty('message');
-      
+
       // Відновлюємо оригінальний метод
       User.findById = originalFindById;
     });
@@ -352,12 +362,12 @@ describe('AuthController', () => {
     it('should reject change password with wrong current password', async () => {
       const password = 'correctpassword';
       const user = await createTestUser({
-        password: password
+        password: password,
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       // Мокаємо User.findById щоб повертав користувача з паролем
@@ -368,7 +378,7 @@ describe('AuthController', () => {
       mockReq.user = { userId: user._id.toString() };
       mockReq.body = {
         currentPassword: 'wrongpassword',
-        newPassword: 'newpassword123'
+        newPassword: 'newpassword123',
       };
 
       await authController.changePassword(mockReq, mockRes);
@@ -376,10 +386,10 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Невірний поточний пароль')
+          message: expect.stringContaining('Невірний поточний пароль'),
         })
       );
-      
+
       // Відновлюємо оригінальний метод
       User.findById = originalFindById;
     });
@@ -387,12 +397,12 @@ describe('AuthController', () => {
     it('should reject change password if new password same as current', async () => {
       const password = 'password123';
       const user = await createTestUser({
-        password: password
+        password: password,
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       // Мокаємо User.findById щоб повертав користувача з паролем
@@ -403,7 +413,7 @@ describe('AuthController', () => {
       mockReq.user = { userId: user._id.toString() };
       mockReq.body = {
         currentPassword: password,
-        newPassword: password
+        newPassword: password,
       };
 
       await authController.changePassword(mockReq, mockRes);
@@ -411,10 +421,10 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('відрізнятися від поточного')
+          message: expect.stringContaining('відрізнятися від поточного'),
         })
       );
-      
+
       // Відновлюємо оригінальний метод
       User.findById = originalFindById;
     });
@@ -424,12 +434,12 @@ describe('AuthController', () => {
     it('should send password reset email for existing user', async () => {
       const testEmail = `test-forgot-${Date.now()}@example.com`.toLowerCase();
       const user = await createTestUser({
-        email: testEmail
+        email: testEmail,
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = { email: testEmail };
@@ -460,7 +470,7 @@ describe('AuthController', () => {
     it('should return success message even for non-existent user', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = { email: 'nonexistent@example.com' };
@@ -479,7 +489,7 @@ describe('AuthController', () => {
       const crypto = require('crypto');
       const resetToken = crypto.randomBytes(32).toString('hex');
       const user = await createTestUser({
-        password: 'oldpassword'
+        password: 'oldpassword',
       });
 
       user.passwordResetToken = resetToken;
@@ -488,12 +498,12 @@ describe('AuthController', () => {
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = {
         token: resetToken,
-        newPassword: 'newpassword123'
+        newPassword: 'newpassword123',
       };
       mockReq.ip = '127.0.0.1';
 
@@ -512,12 +522,12 @@ describe('AuthController', () => {
     it('should reject reset password with invalid token', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.body = {
         token: 'invalid-token',
-        newPassword: 'newpassword123'
+        newPassword: 'newpassword123',
       };
 
       await authController.resetPassword(mockReq, mockRes);
@@ -525,7 +535,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Невірний або прострочений токен')
+          message: expect.stringContaining('Невірний або прострочений токен'),
         })
       );
     });
@@ -563,7 +573,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Токен підтвердження обов\'язковий')
+          message: expect.stringContaining("Токен підтвердження обов'язковий"),
         })
       );
     });
@@ -576,7 +586,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('Невірний або прострочений токен')
+          message: expect.stringContaining('Невірний або прострочений токен'),
         })
       );
     });
@@ -585,10 +595,18 @@ describe('AuthController', () => {
   describe('logoutAll', () => {
     it('should logout from all devices successfully', async () => {
       const user = await createTestUser();
-      
+
       user.refreshTokens = [
-        { token: 'token1', createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-        { token: 'token2', createdAt: new Date(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) }
+        {
+          token: 'token1',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+        {
+          token: 'token2',
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
       ];
       await user.save();
 
@@ -611,7 +629,7 @@ describe('AuthController', () => {
   describe('checkAuth', () => {
     it('should return authenticated status for valid user', async () => {
       const user = await createTestUser();
-      
+
       mockReq.user = { userId: user._id.toString() };
 
       await authController.checkAuth(mockReq, mockRes);
@@ -633,7 +651,7 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('не авторизований')
+          message: expect.stringContaining('не авторизований'),
         })
       );
     });
@@ -642,7 +660,7 @@ describe('AuthController', () => {
   describe('getMe', () => {
     it('should return current user info', async () => {
       const user = await createTestUser();
-      
+
       mockReq.user = { userId: user._id.toString() };
 
       await authController.getMe(mockReq, mockRes);
@@ -676,13 +694,12 @@ describe('AuthController', () => {
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: expect.stringContaining('не знайдений')
+          message: expect.stringContaining('не знайдений'),
         })
       );
-      
+
       // Відновлюємо оригінальний метод
       User.findById = originalFindById;
     });
   });
 });
-

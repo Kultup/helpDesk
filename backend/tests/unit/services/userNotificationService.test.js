@@ -1,9 +1,14 @@
 // Відключаємо глобальний мок для цього тесту
 jest.unmock('../../../services/userNotificationService');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, createTestAdmin } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  createTestAdmin,
+} = require('../../helpers/testHelpers');
 const userNotificationService = require('../../../services/userNotificationService');
 const Notification = require('../../../models/Notification');
-const User = require('../../../models/User');
 
 // telegramServiceInstance вже замокований глобально в setup.js
 
@@ -24,18 +29,18 @@ describe('UserNotificationService', () => {
     await clearDatabase();
     testUser = await createTestUser({
       email: `user-${Date.now()}@example.com`,
-      telegramId: '123456789' // Додаємо telegramId для тестів
+      telegramId: '123456789', // Додаємо telegramId для тестів
     });
     testAdmin = await createTestAdmin({
       email: `admin-${Date.now()}@example.com`,
-      telegramId: '987654321'
+      telegramId: '987654321',
     });
   });
 
   describe('shouldSendNotification', () => {
     it('should return true for user with default settings', () => {
       const statusChanges = {
-        isActive: { old: false, new: true }
+        isActive: { old: false, new: true },
       };
 
       const shouldSend = userNotificationService.shouldSendNotification(testUser, statusChanges);
@@ -47,16 +52,19 @@ describe('UserNotificationService', () => {
         ...testUser.toObject(),
         telegramSettings: {
           notifications: {
-            statusUpdates: false
-          }
-        }
+            statusUpdates: false,
+          },
+        },
       };
 
       const statusChanges = {
-        isActive: { old: false, new: true }
+        isActive: { old: false, new: true },
       };
 
-      const shouldSend = userNotificationService.shouldSendNotification(userWithSettings, statusChanges);
+      const shouldSend = userNotificationService.shouldSendNotification(
+        userWithSettings,
+        statusChanges
+      );
       expect(shouldSend).toBe(false);
     });
   });
@@ -65,7 +73,7 @@ describe('UserNotificationService', () => {
     it('should format active status message', () => {
       const change = { old: false, new: true };
       const message = userNotificationService.formatActiveStatusMessage('Test User', change);
-      
+
       expect(message).toContain('активований');
       expect(message).toContain('Test User');
     });
@@ -73,7 +81,7 @@ describe('UserNotificationService', () => {
     it('should format role change message', () => {
       const change = { old: 'user', new: 'admin' };
       const message = userNotificationService.formatRoleChangeMessage('Test User', change);
-      
+
       expect(message).toContain('Test User');
       // Повідомлення містить перекладені назви ролей
       expect(message).toContain('Користувач'); // Переклад user
@@ -83,7 +91,7 @@ describe('UserNotificationService', () => {
     it('should format registration status message', () => {
       const change = { old: 'pending', new: 'approved' };
       const message = userNotificationService.formatRegistrationStatusMessage('Test User', change);
-      
+
       expect(message).toContain('Test User');
       // Повідомлення може містити перекладений текст замість оригінального
       expect(message).toContain('Очікує підтвердження'); // Переклад pending
@@ -111,7 +119,7 @@ describe('UserNotificationService', () => {
   describe('saveNotificationToDatabase', () => {
     it('should save notification to database', async () => {
       const change = { old: false, new: true };
-      
+
       await userNotificationService.saveNotificationToDatabase(
         testUser,
         'isActive',
@@ -121,13 +129,10 @@ describe('UserNotificationService', () => {
 
       // Перевіряємо що сповіщення збережено
       // Модель використовує recipient, але контролер може використовувати userId
-      const notification = await Notification.findOne({ 
-        $or: [
-          { recipient: testUser._id },
-          { userId: testUser._id }
-        ]
+      const notification = await Notification.findOne({
+        $or: [{ recipient: testUser._id }, { userId: testUser._id }],
       });
-      
+
       if (notification) {
         expect(notification.type).toBe('user_status_change');
         expect(notification.title).toBe('Зміна статусу користувача');
@@ -150,9 +155,9 @@ describe('UserNotificationService', () => {
         ...testAdmin.toObject(),
         telegramSettings: {
           notifications: {
-            statusUpdates: false
-          }
-        }
+            statusUpdates: false,
+          },
+        },
       };
 
       const shouldSend = userNotificationService.shouldSendAdminNotification(adminWithSettings);
@@ -180,19 +185,21 @@ describe('UserNotificationService', () => {
     it('should handle user without telegramId', async () => {
       const userWithoutTelegram = await createTestUser({
         email: `user-no-telegram-${Date.now()}@example.com`,
-        telegramId: null
+        telegramId: null,
       });
 
       const statusChanges = {
-        isActive: { old: false, new: true }
+        isActive: { old: false, new: true },
       };
 
       // Не повинно викинути помилку - метод просто повертається якщо немає telegramId
-      await userNotificationService.sendUserStatusChangeNotification(userWithoutTelegram, statusChanges);
-      
+      await userNotificationService.sendUserStatusChangeNotification(
+        userWithoutTelegram,
+        statusChanges
+      );
+
       // Перевіряємо що метод виконався без помилок
       expect(true).toBe(true);
     });
   });
 });
-

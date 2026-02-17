@@ -1,5 +1,6 @@
 const Ticket = require('../models/Ticket');
 const logger = require('../utils/logger');
+const TelegramUtils = require('../services/telegramUtils');
 
 /**
  * Cron job для автоматичного закриття тікетів
@@ -57,12 +58,12 @@ async function autoCloseResolvedTickets() {
             if (ticket.createdBy?.telegramId) {
               await telegramService.sendMessage(
                 ticket.createdBy.telegramId,
-                `🔒 *Тікет автоматично закрито*\n\n` +
-                  `📋 ${ticket.title}\n` +
-                  `🆔 \`${ticket._id}\`\n\n` +
+                `🔒 <b>Тікет автоматично закрито</b>\n\n` +
+                  `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+                  `🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n\n` +
                   `Тікет був у статусі "Вирішено" більше ${DAYS_BEFORE_AUTO_CLOSE} днів.\n` +
                   `Якщо проблема повернулася - створіть новий тікет.`,
-                { parse_mode: 'Markdown' }
+                { parse_mode: 'HTML' }
               );
             }
           } catch (notifyError) {

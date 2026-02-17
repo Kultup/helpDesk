@@ -1,7 +1,6 @@
 const { validationResult } = require('express-validator');
 const Institution = require('../models/Institution');
 const City = require('../models/City');
-const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const mongoose = require('mongoose');
 const csv = require('json2csv').parse;
@@ -24,17 +23,25 @@ const getAllInstitutions = async (req, res) => {
       withStatistics = false,
       lat,
       lng,
-      radius = 10
+      radius = 10,
     } = req.query;
 
     // Побудова фільтрів
     const filters = { isActive: true };
-    
-    if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
-    if (isVerified !== undefined) filters.isVerified = isVerified === 'true';
-    if (isPublic !== undefined) filters.isPublic = isPublic === 'true';
-    
+
+    if (type) {
+      filters.type = type;
+    }
+    if (city) {
+      filters['address.city'] = city;
+    }
+    if (isVerified !== undefined) {
+      filters.isVerified = isVerified === 'true';
+    }
+    if (isPublic !== undefined) {
+      filters.isPublic = isPublic === 'true';
+    }
+
     // Пошук по назві закладу
     if (search) {
       filters.$or = [
@@ -42,7 +49,7 @@ const getAllInstitutions = async (req, res) => {
         { nameEn: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { 'address.street': { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
+        { tags: { $in: [new RegExp(search, 'i')] } },
       ];
     }
 
@@ -53,29 +60,27 @@ const getAllInstitutions = async (req, res) => {
       populate: [
         { path: 'address.city', select: 'name nameEn region' },
         { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'lastModifiedBy', select: 'firstName lastName email' }
-      ]
+        { path: 'lastModifiedBy', select: 'firstName lastName email' },
+      ],
     };
-
-    let institutions;
 
     // Якщо вказані координати, використовуємо геопошук
     if (lat && lng) {
       const nearbyInstitutions = await Institution.findNearby(
-        parseFloat(lat), 
-        parseFloat(lng), 
+        parseFloat(lat),
+        parseFloat(lng),
         parseFloat(radius)
       );
-      
+
       const institutionIds = nearbyInstitutions.map(inst => inst._id);
       filters._id = { $in: institutionIds };
     }
 
-    institutions = await Institution.paginate(filters, options);
+    const institutions = await Institution.paginate(filters, options);
 
     // Додаємо статистику якщо потрібно
     if (withStatistics === 'true') {
-      for (let institution of institutions.docs) {
+      for (const institution of institutions.docs) {
         await institution.updateStatistics();
       }
     }
@@ -89,16 +94,15 @@ const getAllInstitutions = async (req, res) => {
         totalItems: institutions.totalDocs,
         itemsPerPage: institutions.limit,
         hasNextPage: institutions.hasNextPage,
-        hasPrevPage: institutions.hasPrevPage
-      }
+        hasPrevPage: institutions.hasPrevPage,
+      },
     });
-
   } catch (error) {
     logger.error('Error fetching institutions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -109,9 +113,15 @@ const exportInstitutions = async (req, res) => {
     const { format = 'csv', type, city, isVerified } = req.query;
 
     const filters = { isActive: true };
-    if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
-    if (isVerified !== undefined) filters.isVerified = isVerified === 'true';
+    if (type) {
+      filters.type = type;
+    }
+    if (city) {
+      filters['address.city'] = city;
+    }
+    if (isVerified !== undefined) {
+      filters.isVerified = isVerified === 'true';
+    }
 
     const institutions = await Institution.find(filters)
       .populate('address.city', 'name region')
@@ -133,7 +143,7 @@ const exportInstitutions = async (req, res) => {
         { header: 'Веб-сайт', key: 'website', width: 30 },
         { header: 'Рейтинг', key: 'rating', width: 10 },
         { header: 'Верифіковано', key: 'verified', width: 15 },
-        { header: 'Створено', key: 'createdAt', width: 20 }
+        { header: 'Створено', key: 'createdAt', width: 20 },
       ];
 
       // Дані
@@ -148,29 +158,31 @@ const exportInstitutions = async (req, res) => {
           website: institution.contact?.website || '',
           rating: institution.rating?.average || 0,
           verified: institution.isVerified ? 'Так' : 'Ні',
-          createdAt: new Date(institution.createdAt).toLocaleDateString('uk-UA')
+          createdAt: new Date(institution.createdAt).toLocaleDateString('uk-UA'),
         });
       });
 
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
       res.setHeader('Content-Disposition', 'attachment; filename=institutions.xlsx');
 
       await workbook.xlsx.write(res);
       res.end();
-
     } else {
       // CSV формат
       const csvData = institutions.map(institution => ({
-        'Назва': institution.name,
-        'Тип': institution.type,
-        'Адреса': institution.address.street,
-        'Місто': institution.address.city?.name || '',
-        'Телефон': institution.contact?.phone || '',
-        'Email': institution.contact?.email || '',
+        Назва: institution.name,
+        Тип: institution.type,
+        Адреса: institution.address.street,
+        Місто: institution.address.city?.name || '',
+        Телефон: institution.contact?.phone || '',
+        Email: institution.contact?.email || '',
         'Веб-сайт': institution.contact?.website || '',
-        'Рейтинг': institution.rating?.average || 0,
-        'Верифіковано': institution.isVerified ? 'Так' : 'Ні',
-        'Створено': new Date(institution.createdAt).toLocaleDateString('uk-UA')
+        Рейтинг: institution.rating?.average || 0,
+        Верифіковано: institution.isVerified ? 'Так' : 'Ні',
+        Створено: new Date(institution.createdAt).toLocaleDateString('uk-UA'),
       }));
 
       const csvString = csv(csvData);
@@ -179,13 +191,12 @@ const exportInstitutions = async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename=institutions.csv');
       res.send('\uFEFF' + csvString); // BOM для правильного відображення українських символів
     }
-
   } catch (error) {
     logger.error('Error exporting institutions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при експорті закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -199,7 +210,7 @@ const getInstitutionById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID закладу'
+        message: 'Невірний ID закладу',
       });
     }
 
@@ -211,7 +222,7 @@ const getInstitutionById = async (req, res) => {
     if (!institution) {
       return res.status(404).json({
         success: false,
-        message: 'Заклад не знайдено'
+        message: 'Заклад не знайдено',
       });
     }
 
@@ -221,15 +232,14 @@ const getInstitutionById = async (req, res) => {
 
     res.json({
       success: true,
-      data: institution
+      data: institution,
     });
-
   } catch (error) {
     logger.error('Error fetching institution by ID:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні закладу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -242,13 +252,13 @@ const createInstitution = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     const institutionData = {
       ...req.body,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     };
 
     // Перевіряємо чи існує місто
@@ -257,21 +267,21 @@ const createInstitution = async (req, res) => {
       if (!city) {
         return res.status(400).json({
           success: false,
-          message: 'Вказане місто не існує'
+          message: 'Вказане місто не існує',
         });
       }
     }
 
     // Перевіряємо унікальність назви
-    const existingInstitution = await Institution.findOne({ 
+    const existingInstitution = await Institution.findOne({
       name: institutionData.name,
-      isActive: true 
+      isActive: true,
     });
 
     if (existingInstitution) {
       return res.status(400).json({
         success: false,
-        message: 'Заклад з такою назвою вже існує'
+        message: 'Заклад з такою назвою вже існує',
       });
     }
 
@@ -280,7 +290,7 @@ const createInstitution = async (req, res) => {
 
     await institution.populate([
       { path: 'address.city', select: 'name nameEn region' },
-      { path: 'createdBy', select: 'firstName lastName email' }
+      { path: 'createdBy', select: 'firstName lastName email' },
     ]);
 
     logger.info(`Institution created: ${institution.name} by user ${req.user.id}`);
@@ -288,23 +298,22 @@ const createInstitution = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Заклад успішно створено',
-      data: institution
+      data: institution,
     });
-
   } catch (error) {
     logger.error('Error creating institution:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Заклад з такою назвою вже існує'
+        message: 'Заклад з такою назвою вже існує',
       });
     }
 
     res.status(500).json({
       success: false,
       message: 'Помилка при створенні закладу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -319,14 +328,14 @@ const updateInstitution = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID закладу'
+        message: 'Невірний ID закладу',
       });
     }
 
@@ -334,70 +343,73 @@ const updateInstitution = async (req, res) => {
     if (!institution) {
       return res.status(404).json({
         success: false,
-        message: 'Заклад не знайдено'
+        message: 'Заклад не знайдено',
       });
     }
 
     // Перевіряємо чи існує місто якщо воно оновлюється
-    if (req.body.address?.city && req.body.address.city !== null && req.body.address.city !== undefined) {
+    if (
+      req.body.address?.city &&
+      req.body.address.city !== null &&
+      req.body.address.city !== undefined
+    ) {
       const city = await City.findById(req.body.address.city);
       if (!city) {
         return res.status(400).json({
           success: false,
-          message: 'Вказане місто не існує'
+          message: 'Вказане місто не існує',
         });
       }
     }
-    
+
     // Якщо передається address, але не всі поля, зберігаємо існуючі значення
     if (req.body.address && institution.address) {
       req.body.address = {
         ...institution.address.toObject(),
-        ...req.body.address
+        ...req.body.address,
       };
       // Якщо city передається як undefined, видаляємо його
       if (req.body.address.city === undefined || req.body.address.city === null) {
         req.body.address.city = null;
       }
     }
-    
+
     // Якщо передається coordinates, але не всі поля, зберігаємо існуючі значення
     if (req.body.coordinates && institution.coordinates) {
       req.body.coordinates = {
         ...institution.coordinates.toObject(),
-        ...req.body.coordinates
+        ...req.body.coordinates,
       };
     }
 
     // Перевіряємо унікальність назви якщо вона змінюється
     if (req.body.name && req.body.name !== institution.name) {
-      const existingInstitution = await Institution.findOne({ 
+      const existingInstitution = await Institution.findOne({
         name: req.body.name,
         _id: { $ne: id },
-        isActive: true 
+        isActive: true,
       });
 
       if (existingInstitution) {
         return res.status(400).json({
           success: false,
-          message: 'Заклад з такою назвою вже існує'
+          message: 'Заклад з такою назвою вже існує',
         });
       }
     }
 
     const updateData = {
       ...req.body,
-      lastModifiedBy: req.user.id
+      lastModifiedBy: req.user.id,
     };
 
-    const updatedInstitution = await Institution.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate([
+    const updatedInstitution = await Institution.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate([
       { path: 'address.city', select: 'name nameEn region' },
       { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'lastModifiedBy', select: 'firstName lastName email' }
+      { path: 'lastModifiedBy', select: 'firstName lastName email' },
     ]);
 
     logger.info(`Institution updated: ${updatedInstitution.name} by user ${req.user.id}`);
@@ -405,23 +417,22 @@ const updateInstitution = async (req, res) => {
     res.json({
       success: true,
       message: 'Заклад успішно оновлено',
-      data: updatedInstitution
+      data: updatedInstitution,
     });
-
   } catch (error) {
     logger.error('Error updating institution:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Заклад з такою назвою вже існує'
+        message: 'Заклад з такою назвою вже існує',
       });
     }
 
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні закладу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -434,7 +445,7 @@ const deleteInstitution = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID закладу'
+        message: 'Невірний ID закладу',
       });
     }
 
@@ -442,7 +453,7 @@ const deleteInstitution = async (req, res) => {
     if (!institution) {
       return res.status(404).json({
         success: false,
-        message: 'Заклад не знайдено'
+        message: 'Заклад не знайдено',
       });
     }
 
@@ -451,7 +462,7 @@ const deleteInstitution = async (req, res) => {
     if (relatedTickets > 0) {
       return res.status(400).json({
         success: false,
-        message: `Неможливо видалити заклад. З ним пов'язано ${relatedTickets} тікетів. Спочатку деактивуйте заклад.`
+        message: `Неможливо видалити заклад. З ним пов'язано ${relatedTickets} тікетів. Спочатку деактивуйте заклад.`,
       });
     }
 
@@ -461,15 +472,14 @@ const deleteInstitution = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Заклад успішно видалено'
+      message: 'Заклад успішно видалено',
     });
-
   } catch (error) {
     logger.error('Error deleting institution:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні закладу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -478,18 +488,17 @@ const deleteInstitution = async (req, res) => {
 const getInstitutionTypes = async (req, res) => {
   try {
     const types = await Institution.getTypes();
-    
+
     res.json({
       success: true,
-      data: types
+      data: types,
     });
-
   } catch (error) {
     logger.error('Error fetching institution types:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні типів закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -497,20 +506,12 @@ const getInstitutionTypes = async (req, res) => {
 // Пошук закладів
 const searchInstitutions = async (req, res) => {
   try {
-    const { 
-      query, 
-      type, 
-      city, 
-      limit = 10,
-      lat,
-      lng,
-      radius = 5
-    } = req.query;
+    const { query, type, city, limit = 10, lat, lng, radius = 5 } = req.query;
 
     if (!query || query.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Пошуковий запит повинен містити принаймні 2 символи'
+        message: 'Пошуковий запит повинен містити принаймні 2 символи',
       });
     }
 
@@ -521,30 +522,35 @@ const searchInstitutions = async (req, res) => {
         { nameEn: { $regex: query, $options: 'i' } },
         { description: { $regex: query, $options: 'i' } },
         { 'address.street': { $regex: query, $options: 'i' } },
-        { tags: { $in: [new RegExp(query, 'i')] } }
-      ]
+        { tags: { $in: [new RegExp(query, 'i')] } },
+      ],
     };
 
-    if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
+    if (type) {
+      filters.type = type;
+    }
+    if (city) {
+      filters['address.city'] = city;
+    }
 
     let institutions;
 
     if (lat && lng) {
       // Геопошук
       institutions = await Institution.findNearby(
-        parseFloat(lat), 
-        parseFloat(lng), 
+        parseFloat(lat),
+        parseFloat(lng),
         parseFloat(radius)
       );
-      
+
       // Фільтруємо результати геопошуку за текстовим запитом
-      institutions = institutions.filter(inst => 
-        inst.name.toLowerCase().includes(query.toLowerCase()) ||
-        (inst.nameEn && inst.nameEn.toLowerCase().includes(query.toLowerCase())) ||
-        (inst.description && inst.description.toLowerCase().includes(query.toLowerCase()))
+      institutions = institutions.filter(
+        inst =>
+          inst.name.toLowerCase().includes(query.toLowerCase()) ||
+          (inst.nameEn && inst.nameEn.toLowerCase().includes(query.toLowerCase())) ||
+          (inst.description && inst.description.toLowerCase().includes(query.toLowerCase()))
       );
-      
+
       institutions = institutions.slice(0, parseInt(limit));
     } else {
       institutions = await Institution.find(filters)
@@ -555,15 +561,14 @@ const searchInstitutions = async (req, res) => {
 
     res.json({
       success: true,
-      data: institutions
+      data: institutions,
     });
-
   } catch (error) {
     logger.error('Error searching institutions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при пошуку закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -576,13 +581,13 @@ const getNearbyInstitutions = async (req, res) => {
     if (!lat || !lng) {
       return res.status(400).json({
         success: false,
-        message: 'Координати (lat, lng) є обов\'язковими'
+        message: "Координати (lat, lng) є обов'язковими",
       });
     }
 
     let institutions = await Institution.findNearby(
-      parseFloat(lat), 
-      parseFloat(lng), 
+      parseFloat(lat),
+      parseFloat(lng),
       parseFloat(radius)
     );
 
@@ -595,20 +600,19 @@ const getNearbyInstitutions = async (req, res) => {
     // Додаємо інформацію про місто
     await Institution.populate(institutions, {
       path: 'address.city',
-      select: 'name nameEn region'
+      select: 'name nameEn region',
     });
 
     res.json({
       success: true,
-      data: institutions
+      data: institutions,
     });
-
   } catch (error) {
     logger.error('Error fetching nearby institutions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні закладів поблизу',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -619,8 +623,12 @@ const getInstitutionStatistics = async (req, res) => {
     const { type, city, period = '30' } = req.query;
 
     const filters = { isActive: true };
-    if (type) filters.type = type;
-    if (city) filters['address.city'] = city;
+    if (type) {
+      filters.type = type;
+    }
+    if (city) {
+      filters['address.city'] = city;
+    }
 
     // Загальна статистика
     const generalStats = await Institution.getStatistics();
@@ -633,10 +641,10 @@ const getInstitutionStatistics = async (req, res) => {
           _id: '$type',
           count: { $sum: 1 },
           averageRating: { $avg: '$rating.average' },
-          totalTickets: { $sum: '$statistics.totalTickets' }
-        }
+          totalTickets: { $sum: '$statistics.totalTickets' },
+        },
       },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     // Статистика по містах
@@ -647,8 +655,8 @@ const getInstitutionStatistics = async (req, res) => {
           from: 'cities',
           localField: 'address.city',
           foreignField: '_id',
-          as: 'cityInfo'
-        }
+          as: 'cityInfo',
+        },
       },
       { $unwind: '$cityInfo' },
       {
@@ -656,11 +664,11 @@ const getInstitutionStatistics = async (req, res) => {
           _id: '$cityInfo._id',
           cityName: { $first: '$cityInfo.name' },
           count: { $sum: 1 },
-          averageRating: { $avg: '$rating.average' }
-        }
+          averageRating: { $avg: '$rating.average' },
+        },
       },
       { $sort: { count: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     // Статистика за період
@@ -668,21 +676,21 @@ const getInstitutionStatistics = async (req, res) => {
     periodDate.setDate(periodDate.getDate() - parseInt(period));
 
     const periodStats = await Institution.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           ...filters,
-          createdAt: { $gte: periodDate }
-        }
+          createdAt: { $gte: periodDate },
+        },
       },
       {
         $group: {
           _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.json({
@@ -691,16 +699,15 @@ const getInstitutionStatistics = async (req, res) => {
         general: generalStats[0] || {},
         byType: typeStats,
         byCity: cityStats,
-        byPeriod: periodStats
-      }
+        byPeriod: periodStats,
+      },
     });
-
   } catch (error) {
     logger.error('Error fetching institution statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -713,7 +720,7 @@ const bulkDeleteInstitutions = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -725,40 +732,41 @@ const bulkDeleteInstitutions = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Деякі ID закладів невірні',
-        invalidIds
+        invalidIds,
       });
     }
 
     // Перевіряємо чи є пов'язані тікети
-    const relatedTickets = await Ticket.countDocuments({ 
-      institution: { $in: institutionIds } 
+    const relatedTickets = await Ticket.countDocuments({
+      institution: { $in: institutionIds },
     });
 
     if (relatedTickets > 0) {
       return res.status(400).json({
         success: false,
-        message: `Неможливо видалити заклади. З ними пов'язано ${relatedTickets} тікетів.`
+        message: `Неможливо видалити заклади. З ними пов'язано ${relatedTickets} тікетів.`,
       });
     }
 
-    const result = await Institution.deleteMany({ 
-      _id: { $in: institutionIds } 
+    const result = await Institution.deleteMany({
+      _id: { $in: institutionIds },
     });
 
-    logger.info(`Bulk delete institutions: ${result.deletedCount} institutions deleted by user ${req.user.id}`);
+    logger.info(
+      `Bulk delete institutions: ${result.deletedCount} institutions deleted by user ${req.user.id}`
+    );
 
     res.json({
       success: true,
       message: `Успішно видалено ${result.deletedCount} закладів`,
-      deletedCount: result.deletedCount
+      deletedCount: result.deletedCount,
     });
-
   } catch (error) {
     logger.error('Error bulk deleting institutions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при масовому видаленні закладів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -772,7 +780,7 @@ const addService = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID закладу'
+        message: 'Невірний ID закладу',
       });
     }
 
@@ -780,7 +788,7 @@ const addService = async (req, res) => {
     if (!institution) {
       return res.status(404).json({
         success: false,
-        message: 'Заклад не знайдено'
+        message: 'Заклад не знайдено',
       });
     }
 
@@ -789,15 +797,14 @@ const addService = async (req, res) => {
     res.json({
       success: true,
       message: 'Послугу успішно додано',
-      data: institution
+      data: institution,
     });
-
   } catch (error) {
     logger.error('Error adding service:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при додаванні послуги',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -810,7 +817,7 @@ const removeService = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(serviceId)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID закладу або послуги'
+        message: 'Невірний ID закладу або послуги',
       });
     }
 
@@ -818,7 +825,7 @@ const removeService = async (req, res) => {
     if (!institution) {
       return res.status(404).json({
         success: false,
-        message: 'Заклад не знайдено'
+        message: 'Заклад не знайдено',
       });
     }
 
@@ -827,15 +834,14 @@ const removeService = async (req, res) => {
     res.json({
       success: true,
       message: 'Послугу успішно видалено',
-      data: institution
+      data: institution,
     });
-
   } catch (error) {
     logger.error('Error removing service:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні послуги',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -853,5 +859,5 @@ module.exports = {
   exportInstitutions,
   bulkDeleteInstitutions,
   addService,
-  removeService
+  removeService,
 };

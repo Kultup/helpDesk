@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const database = require('../config/database');
 const KnowledgeBase = require('../models/KnowledgeBase');

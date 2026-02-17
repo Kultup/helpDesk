@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const CannedResponse = require('../models/CannedResponse');
 const logger = require('../utils/logger');
 
@@ -7,28 +6,28 @@ const logger = require('../utils/logger');
  * Запускається один раз при ініціалізації системи
  */
 async function seedCannedResponses() {
-    try {
-        // Перевіряємо чи вже є шаблони
-        const existingCount = await CannedResponse.countDocuments();
-        if (existingCount > 0) {
-            logger.info(`✅ Шаблони відповідей вже існують (${existingCount} шт.)`);
-            return;
-        }
+  try {
+    // Перевіряємо чи вже є шаблони
+    const existingCount = await CannedResponse.countDocuments();
+    if (existingCount > 0) {
+      logger.info(`✅ Шаблони відповідей вже існують (${existingCount} шт.)`);
+      return;
+    }
 
-        // Знаходимо першого адміна для createdBy
-        const User = require('../models/User');
-        const admin = await User.findOne({ role: 'admin' });
+    // Знаходимо першого адміна для createdBy
+    const User = require('../models/User');
+    const admin = await User.findOne({ role: 'admin' });
 
-        if (!admin) {
-            logger.warn('⚠️ Не знайдено адміністратора для створення шаблонів');
-            return;
-        }
+    if (!admin) {
+      logger.warn('⚠️ Не знайдено адміністратора для створення шаблонів');
+      return;
+    }
 
-        const templates = [
-            // Hardware - Принтер
-            {
-                title: 'Перезавантаження принтера',
-                content: `Спробуйте виконати наступні кроки:
+    const templates = [
+      // Hardware - Принтер
+      {
+        title: 'Перезавантаження принтера',
+        content: `Спробуйте виконати наступні кроки:
 
 1. Вимкніть принтер з розетки
 2. Зачекайте 30 секунд
@@ -37,14 +36,14 @@ async function seedCannedResponses() {
 5. Спробуйте надрукувати тестову сторінку
 
 Якщо проблема залишається, повідомте мене.`,
-                category: 'Hardware',
-                tags: ['принтер', 'друк', 'перезавантаження'],
-                shortcuts: ['/printer-restart', '/пр'],
-                language: 'uk'
-            },
-            {
-                title: 'Застряг папір у принтері',
-                content: `Для видалення застряглого паперу:
+        category: 'Hardware',
+        tags: ['принтер', 'друк', 'перезавантаження'],
+        shortcuts: ['/printer-restart', '/пр'],
+        language: 'uk',
+      },
+      {
+        title: 'Застряг папір у принтері',
+        content: `Для видалення застряглого паперу:
 
 1. Вимкніть принтер
 2. Відкрийте всі кришки принтера
@@ -54,14 +53,14 @@ async function seedCannedResponses() {
 6. Увімкніть принтер
 
 Якщо не вдається витягнути - не застосовуйте силу, зв'яжіться зі мною.`,
-                category: 'Hardware',
-                tags: ['принтер', 'папір', 'застряг'],
-                shortcuts: ['/paper-jam', '/папір'],
-                language: 'uk'
-            },
-            {
-                title: 'Принтер не друкує - перевірка підключення',
-                content: `Перевірте підключення принтера:
+        category: 'Hardware',
+        tags: ['принтер', 'папір', 'застряг'],
+        shortcuts: ['/paper-jam', '/папір'],
+        language: 'uk',
+      },
+      {
+        title: 'Принтер не друкує - перевірка підключення',
+        content: `Перевірте підключення принтера:
 
 1. Переконайтеся що принтер увімкнений (горить зелений індикатор)
 2. Перевірте USB кабель (якщо локальний принтер)
@@ -69,16 +68,16 @@ async function seedCannedResponses() {
 4. Спробуйте роздрукувати тестову сторінку з самого принтера
 
 Якщо все підключено правильно, але не друкує - повідомте мене.`,
-                category: 'Hardware',
-                tags: ['принтер', 'підключення', 'мережа'],
-                shortcuts: ['/printer-connection', '/пп'],
-                language: 'uk'
-            },
+        category: 'Hardware',
+        tags: ['принтер', 'підключення', 'мережа'],
+        shortcuts: ['/printer-connection', '/пп'],
+        language: 'uk',
+      },
 
-            // Hardware - Комп'ютер
-            {
-                title: 'Комп\'ютер повільно працює',
-                content: `Спробуйте наступне для покращення швидкості:
+      // Hardware - Комп'ютер
+      {
+        title: "Комп'ютер повільно працює",
+        content: `Спробуйте наступне для покращення швидкості:
 
 1. Закрийте непотрібні програми (особливо браузер з багатьма вкладками)
 2. Перезавантажте комп'ютер
@@ -86,14 +85,14 @@ async function seedCannedResponses() {
 4. Закрийте програми в автозавантаженні (Ctrl+Shift+Esc → Автозавантаження)
 
 Якщо не допомагає - створю заявку на діагностику.`,
-                category: 'Hardware',
-                tags: ['комп\'ютер', 'повільно', 'продуктивність'],
-                shortcuts: ['/slow-pc', '/повільно'],
-                language: 'uk'
-            },
-            {
-                title: 'Комп\'ютер не вмикається',
-                content: `Перевірте наступне:
+        category: 'Hardware',
+        tags: ["комп'ютер", 'повільно', 'продуктивність'],
+        shortcuts: ['/slow-pc', '/повільно'],
+        language: 'uk',
+      },
+      {
+        title: "Комп'ютер не вмикається",
+        content: `Перевірте наступне:
 
 1. Чи підключений кабель живлення до розетки?
 2. Чи увімкнена розетка/подовжувач?
@@ -102,16 +101,16 @@ async function seedCannedResponses() {
 5. Якщо ноутбук - підключіть зарядку
 
 Якщо нічого не допомагає - зв'яжіться зі мною терміново.`,
-                category: 'Hardware',
-                tags: ['комп\'ютер', 'не вмикається', 'живлення'],
-                shortcuts: ['/no-power', '/не-вмикається'],
-                language: 'uk'
-            },
+        category: 'Hardware',
+        tags: ["комп'ютер", 'не вмикається', 'живлення'],
+        shortcuts: ['/no-power', '/не-вмикається'],
+        language: 'uk',
+      },
 
-            // Software - Office
-            {
-                title: 'Скидання пароля Outlook',
-                content: `Для скидання пароля Outlook:
+      // Software - Office
+      {
+        title: 'Скидання пароля Outlook',
+        content: `Для скидання пароля Outlook:
 
 1. Перейдіть на сторінку: https://account.microsoft.com
 2. Натисніть "Забули пароль?"
@@ -120,14 +119,14 @@ async function seedCannedResponses() {
 5. Створіть новий пароль
 
 Якщо не маєте доступу до резервних методів - створю заявку на скидання через адміністратора.`,
-                category: 'Software',
-                tags: ['outlook', 'пароль', 'пошта'],
-                shortcuts: ['/outlook-password', '/пароль-outlook'],
-                language: 'uk'
-            },
-            {
-                title: 'Outlook не відправляє пошту',
-                content: `Спробуйте наступне:
+        category: 'Software',
+        tags: ['outlook', 'пароль', 'пошта'],
+        shortcuts: ['/outlook-password', '/пароль-outlook'],
+        language: 'uk',
+      },
+      {
+        title: 'Outlook не відправляє пошту',
+        content: `Спробуйте наступне:
 
 1. Перевірте підключення до інтернету
 2. Перезапустіть Outlook (закрийте повністю та відкрийте знову)
@@ -135,14 +134,14 @@ async function seedCannedResponses() {
 4. Спробуйте відправити тестовий лист самому собі
 
 Якщо не допомагає - повідомте мене, перевірю налаштування.`,
-                category: 'Software',
-                tags: ['outlook', 'пошта', 'відправка'],
-                shortcuts: ['/outlook-send', '/не-відправляє'],
-                language: 'uk'
-            },
-            {
-                title: 'Excel/Word не відкривається',
-                content: `Спробуйте виправити Office:
+        category: 'Software',
+        tags: ['outlook', 'пошта', 'відправка'],
+        shortcuts: ['/outlook-send', '/не-відправляє'],
+        language: 'uk',
+      },
+      {
+        title: 'Excel/Word не відкривається',
+        content: `Спробуйте виправити Office:
 
 1. Закрийте всі програми Office
 2. Відкрийте "Панель керування" → "Програми та компоненти"
@@ -151,16 +150,16 @@ async function seedCannedResponses() {
 5. Зачекайте завершення та перезавантажте комп'ютер
 
 Якщо не допомагає - створю заявку на переустановку Office.`,
-                category: 'Software',
-                tags: ['office', 'excel', 'word', 'не відкривається'],
-                shortcuts: ['/office-repair', '/офіс'],
-                language: 'uk'
-            },
+        category: 'Software',
+        tags: ['office', 'excel', 'word', 'не відкривається'],
+        shortcuts: ['/office-repair', '/офіс'],
+        language: 'uk',
+      },
 
-            // Network
-            {
-                title: 'Немає інтернету - перевірка підключення',
-                content: `Перевірте підключення до мережі:
+      // Network
+      {
+        title: 'Немає інтернету - перевірка підключення',
+        content: `Перевірте підключення до мережі:
 
 1. Подивіться на значок мережі в правому нижньому куті
 2. Якщо червоний хрестик - перевірте мережевий кабель
@@ -169,14 +168,14 @@ async function seedCannedResponses() {
 5. Якщо Wi-Fi - спробуйте перепідключитися до мережі
 
 Якщо не допомагає - повідомте мене, перевірю налаштування.`,
-                category: 'Network',
-                tags: ['інтернет', 'мережа', 'підключення'],
-                shortcuts: ['/no-internet', '/немає-інтернету'],
-                language: 'uk'
-            },
-            {
-                title: 'Повільний інтернет',
-                content: `Для покращення швидкості інтернету:
+        category: 'Network',
+        tags: ['інтернет', 'мережа', 'підключення'],
+        shortcuts: ['/no-internet', '/немає-інтернету'],
+        language: 'uk',
+      },
+      {
+        title: 'Повільний інтернет',
+        content: `Для покращення швидкості інтернету:
 
 1. Закрийте програми що використовують інтернет (торенти, завантаження)
 2. Перезавантажте роутер (вимкніть на 30 сек та увімкніть)
@@ -184,16 +183,16 @@ async function seedCannedResponses() {
 4. Перевірте скорість на сайті: https://www.speedtest.net
 
 Якщо швидкість менше 10 Мбіт/с - повідомте мене.`,
-                category: 'Network',
-                tags: ['інтернет', 'швидкість', 'повільно'],
-                shortcuts: ['/slow-internet', '/повільний-інтернет'],
-                language: 'uk'
-            },
+        category: 'Network',
+        tags: ['інтернет', 'швидкість', 'повільно'],
+        shortcuts: ['/slow-internet', '/повільний-інтернет'],
+        language: 'uk',
+      },
 
-            // Access
-            {
-                title: 'Не можу увійти в 1С',
-                content: `Спробуйте наступне:
+      // Access
+      {
+        title: 'Не можу увійти в 1С',
+        content: `Спробуйте наступне:
 
 1. Перевірте чи правильно вводите логін та пароль (Caps Lock вимкнений?)
 2. Спробуйте скинути пароль через адміністратора 1С
@@ -201,14 +200,14 @@ async function seedCannedResponses() {
 4. Перезапустіть програму 1С
 
 Якщо не допомагає - створю заявку на перевірку доступу.`,
-                category: 'Access',
-                tags: ['1с', 'доступ', 'пароль'],
-                shortcuts: ['/1c-access', '/1с'],
-                language: 'uk'
-            },
-            {
-                title: 'Немає доступу до мережевої папки',
-                content: `Перевірте доступ до мережевої папки:
+        category: 'Access',
+        tags: ['1с', 'доступ', 'пароль'],
+        shortcuts: ['/1c-access', '/1с'],
+        language: 'uk',
+      },
+      {
+        title: 'Немає доступу до мережевої папки',
+        content: `Перевірте доступ до мережевої папки:
 
 1. Спробуйте відкрити папку через "Провідник" → "Мережа"
 2. Перевірте чи правильний шлях до папки (\\\\server\\folder)
@@ -216,40 +215,40 @@ async function seedCannedResponses() {
 4. Перевірте чи є підключення до мережі
 
 Якщо не допомагає - повідомте мене, надам доступ.`,
-                category: 'Access',
-                tags: ['доступ', 'мережева папка', 'права'],
-                shortcuts: ['/folder-access', '/папка'],
-                language: 'uk'
-            },
+        category: 'Access',
+        tags: ['доступ', 'мережева папка', 'права'],
+        shortcuts: ['/folder-access', '/папка'],
+        language: 'uk',
+      },
 
-            // Other
-            {
-                title: 'Дякую за звернення',
-                content: `Дякую за звернення! Ваша заявка прийнята в роботу.
+      // Other
+      {
+        title: 'Дякую за звернення',
+        content: `Дякую за звернення! Ваша заявка прийнята в роботу.
 
 Я зв'яжуся з вами найближчим часом для вирішення проблеми.
 
 Якщо виникнуть додаткові питання - пишіть у цей тікет.`,
-                category: 'Other',
-                tags: ['дякую', 'звернення'],
-                shortcuts: ['/thanks', '/дякую'],
-                language: 'uk'
-            },
-            {
-                title: 'Проблему вирішено',
-                content: `✅ Проблему вирішено!
+        category: 'Other',
+        tags: ['дякую', 'звернення'],
+        shortcuts: ['/thanks', '/дякую'],
+        language: 'uk',
+      },
+      {
+        title: 'Проблему вирішено',
+        content: `✅ Проблему вирішено!
 
 Якщо виникнуть додаткові питання або проблема повториться - створюйте нову заявку.
 
 Дякую за звернення!`,
-                category: 'Other',
-                tags: ['вирішено', 'закрито'],
-                shortcuts: ['/resolved', '/вирішено'],
-                language: 'uk'
-            },
-            {
-                title: 'Потрібна додаткова інформація',
-                content: `Для вирішення вашої проблеми мені потрібна додаткова інформація:
+        category: 'Other',
+        tags: ['вирішено', 'закрито'],
+        shortcuts: ['/resolved', '/вирішено'],
+        language: 'uk',
+      },
+      {
+        title: 'Потрібна додаткова інформація',
+        content: `Для вирішення вашої проблеми мені потрібна додаткова інформація:
 
 1. Коли саме виникла проблема?
 2. Чи була якась помилка? Якщо так - скріншот або текст помилки
@@ -257,25 +256,25 @@ async function seedCannedResponses() {
 4. Чи пробували ви щось робити самостійно?
 
 Будь ласка, надайте цю інформацію для швидшого вирішення.`,
-                category: 'Other',
-                tags: ['інформація', 'деталі'],
-                shortcuts: ['/need-info', '/інфо'],
-                language: 'uk'
-            }
-        ];
+        category: 'Other',
+        tags: ['інформація', 'деталі'],
+        shortcuts: ['/need-info', '/інфо'],
+        language: 'uk',
+      },
+    ];
 
-        // Створюємо всі шаблони
-        const created = await CannedResponse.insertMany(
-            templates.map(t => ({ ...t, createdBy: admin._id }))
-        );
+    // Створюємо всі шаблони
+    const created = await CannedResponse.insertMany(
+      templates.map(t => ({ ...t, createdBy: admin._id }))
+    );
 
-        logger.info(`✅ Створено ${created.length} базових шаблонів відповідей`);
+    logger.info(`✅ Створено ${created.length} базових шаблонів відповідей`);
 
-        return created;
-    } catch (error) {
-        logger.error('❌ Помилка створення базових шаблонів:', error);
-        throw error;
-    }
+    return created;
+  } catch (error) {
+    logger.error('❌ Помилка створення базових шаблонів:', error);
+    throw error;
+  }
 }
 
 module.exports = { seedCannedResponses };

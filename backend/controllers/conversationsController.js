@@ -14,7 +14,9 @@ exports.list = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (userId) filter.user = userId;
+    if (userId) {
+      filter.user = userId;
+    }
 
     const [conversations, total] = await Promise.all([
       BotConversation.find(filter)
@@ -24,7 +26,7 @@ exports.list = async (req, res) => {
         .populate('user', 'firstName lastName email')
         .populate('ticket', 'ticketNumber title status')
         .lean(),
-      BotConversation.countDocuments(filter)
+      BotConversation.countDocuments(filter),
     ]);
 
     res.json({
@@ -34,12 +36,14 @@ exports.list = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (err) {
     logger.error('conversationsController.list', err);
-    res.status(500).json({ success: false, message: 'Помилка отримання списку розмов', error: err.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Помилка отримання списку розмов', error: err.message });
   }
 };
 
@@ -66,11 +70,13 @@ exports.getById = async (req, res) => {
       success: true,
       data: {
         ...conversation,
-        messages
-      }
+        messages,
+      },
     });
   } catch (err) {
     logger.error('conversationsController.getById', err);
-    res.status(500).json({ success: false, message: 'Помилка отримання розмови', error: err.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Помилка отримання розмови', error: err.message });
   }
 };

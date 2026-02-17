@@ -1,7 +1,11 @@
-const jwt = require('jsonwebtoken');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, generateAuthToken } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  generateAuthToken,
+} = require('../../helpers/testHelpers');
 const { authenticateToken } = require('../../../middleware/auth');
-const User = require('../../../models/User');
 
 describe('authenticateToken middleware', () => {
   let mockReq;
@@ -19,24 +23,24 @@ describe('authenticateToken middleware', () => {
 
   beforeEach(async () => {
     await clearDatabase();
-    
+
     mockReq = {
       headers: {},
-      user: null
+      user: null,
     };
-    
+
     mockRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
-    
+
     mockNext = jest.fn();
   });
 
   it('should authenticate user with valid token', async () => {
     const user = await createTestUser({
       isActive: true,
-      registrationStatus: 'approved'
+      registrationStatus: 'approved',
     });
     const token = generateAuthToken(user);
 
@@ -56,7 +60,7 @@ describe('authenticateToken middleware', () => {
     expect(mockRes.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: expect.stringContaining('не надано')
+        message: expect.stringContaining('не надано'),
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
@@ -74,7 +78,7 @@ describe('authenticateToken middleware', () => {
   it('should reject request for inactive user', async () => {
     const user = await createTestUser({
       isActive: false,
-      registrationStatus: 'approved'
+      registrationStatus: 'approved',
     });
     const token = generateAuthToken(user);
 
@@ -85,7 +89,7 @@ describe('authenticateToken middleware', () => {
     expect(mockRes.status).toHaveBeenCalledWith(401);
     expect(mockRes.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: expect.stringContaining('деактивовано')
+        message: expect.stringContaining('деактивовано'),
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
@@ -94,7 +98,7 @@ describe('authenticateToken middleware', () => {
   it('should reject request for pending registration', async () => {
     const user = await createTestUser({
       isActive: true,
-      registrationStatus: 'pending'
+      registrationStatus: 'pending',
     });
     const token = generateAuthToken(user);
 
@@ -109,7 +113,7 @@ describe('authenticateToken middleware', () => {
   it('should reject token without Bearer prefix', async () => {
     const user = await createTestUser({
       isActive: true,
-      registrationStatus: 'approved'
+      registrationStatus: 'approved',
     });
     const token = generateAuthToken(user);
 
@@ -122,4 +126,3 @@ describe('authenticateToken middleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 });
-

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
+const TelegramUtils = require('../services/telegramUtils');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -556,13 +557,13 @@ router.put('/:id', authenticateToken, logUserAction('оновив тикет'), 
               const statusText = value.status === 'resolved' ? 'Вирішено' : 'Закрито';
               const statusEmoji = value.status === 'resolved' ? '✅' : '🔒';
               const message =
-                `${statusEmoji} *Тікет ${statusText.toLowerCase()}*\n` +
-                `📋 ${ticket.title}\n` +
-                `🆔 \`${ticket._id}\`\n` +
-                `\n${statusEmoji} *${statusText}*`;
+                `${statusEmoji} <b>Тікет ${statusText.toLowerCase()}</b>\n` +
+                `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+                `🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n` +
+                `\n${statusEmoji} <b>${TelegramUtils.escapeHtml(statusText)}</b>`;
 
               await telegramService.sendMessage(ticket.createdBy.telegramId, message, {
-                parse_mode: 'Markdown',
+                parse_mode: 'HTML',
               });
               logger.info('✅ Telegram сповіщення про закриття тікету відправлено користувачу');
             } catch (error) {
@@ -1159,18 +1160,18 @@ router.post(
 
                 const ticketNumber = ticket.ticketNumber || ticket._id.toString().substring(0, 8);
                 const message =
-                  `💬 *Новий коментар до тікету*\n\n` +
-                  `📋 *Тікет:* ${ticket.title}\n` +
-                  `🆔 \`${ticketNumber}\`\n\n` +
-                  `${roleLabel}: *${authorName}*\n\n` +
-                  `💭 *Коментар:*\n${value.content}\n\n` +
+                  `💬 <b>Новий коментар до тікету</b>\n\n` +
+                  `📋 <b>Тікет:</b> ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+                  `🆔 <code>${TelegramUtils.escapeHtml(ticketNumber)}</code>\n\n` +
+                  `${TelegramUtils.escapeHtml(roleLabel)}: <b>${TelegramUtils.escapeHtml(authorName)}</b>\n\n` +
+                  `💭 <b>Коментар:</b>\n${TelegramUtils.escapeHtml(value.content)}\n\n` +
                   `---\n` +
                   `💡 Ви можете відповісти на цей коментар, надіславши повідомлення в цьому чаті.\n` +
                   `Або надішліть /menu для виходу.`;
 
                 try {
                   await telegramService.sendMessage(telegramId, message, {
-                    parse_mode: 'Markdown',
+                    parse_mode: 'HTML',
                   });
 
                   logger.info(
@@ -1401,16 +1402,16 @@ router.post(
 
       // Відправляємо повідомлення через Telegram
       const chatId = user.telegramChatId || user.telegramId;
-      const telegramHeader = `💬 *Повідомлення від адміністратора*\n📋 *Тікет:* ${ticket.title}\n🆔 \`${ticket._id}\`\n\n`;
+      const telegramHeader = `💬 <b>Повідомлення від адміністратора</b>\n📋 <b>Тікет:</b> ${TelegramUtils.escapeHtml(ticket.title)}\n🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n\n`;
       const telegramFooter = `\n\n💡 Ви можете відповісти на це повідомлення, і ваша відповідь буде додана як коментар до тікету.`;
 
-      const fullText = messageContent ? messageContent.trim() : '';
+      const fullText = messageContent ? TelegramUtils.escapeHtml(messageContent.trim()) : '';
       const telegramMessage = telegramHeader + fullText + telegramFooter;
 
       try {
         let result;
         const sendOptions = {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           pin: String(pin) === 'true' || pin === true,
         };
 

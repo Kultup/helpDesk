@@ -15,7 +15,7 @@ class AppError extends Error {
 }
 
 // Обробка помилок MongoDB
-const handleMongoError = (err) => {
+const handleMongoError = err => {
   if (err.name === 'CastError') {
     return new AppError(`Невірний ${err.path}: ${err.value}`, 400);
   }
@@ -49,7 +49,7 @@ const sendErrorDev = (err, res) => {
     success: false,
     error: err,
     message: err.message,
-    stack: err.stack
+    stack: err.stack,
   });
 };
 
@@ -59,7 +59,7 @@ const sendErrorProd = (err, res) => {
   if (err.isOperational) {
     res.status(err.statusCode).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   } else {
     // Програмні помилки: не розкриваємо деталі
@@ -67,18 +67,18 @@ const sendErrorProd = (err, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Щось пішло не так!'
+      message: 'Щось пішло не так!',
     });
   }
 };
 
 // Головний middleware для обробки помилок
-const globalErrorHandler = (err, req, res, next) => {
+const globalErrorHandler = (err, req, res, _next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
   // Логуємо помилку
-  errorLogger(err, req, res, () => { });
+  errorLogger(err, req, res, () => {});
 
   // Відправляємо помилку через WebSocket для відображення на frontend
   try {
@@ -129,7 +129,7 @@ const unhandledRejectionHandler = () => {
 
 // Middleware для обробки необроблених винятків
 const uncaughtExceptionHandler = () => {
-  process.on('uncaughtException', (err) => {
+  process.on('uncaughtException', err => {
     logger.error('💥 Необроблений виняток:', err.name, err.message);
     logger.error(err.stack);
 
@@ -139,8 +139,8 @@ const uncaughtExceptionHandler = () => {
 };
 
 // Middleware для graceful shutdown
-const gracefulShutdownHandler = (server) => {
-  const shutdown = async (signal) => {
+const gracefulShutdownHandler = server => {
+  const shutdown = async signal => {
     logger.info(`\n🛑 Отримано сигнал ${signal}. Закриваємо сервер...`);
 
     // Встановлюємо таймаут для примусового закриття
@@ -152,7 +152,7 @@ const gracefulShutdownHandler = (server) => {
     try {
       // 1. Зупиняємо прийом нових з'єднань
       server.close(() => {
-        logger.info('✅ HTTP сервер закрито (нові з\'єднання не приймаються)');
+        logger.info("✅ HTTP сервер закрито (нові з'єднання не приймаються)");
       });
 
       // 2. Зберігаємо метрики перед закриттям
@@ -180,7 +180,7 @@ const gracefulShutdownHandler = (server) => {
         const mongoose = require('mongoose');
         if (mongoose.connection.readyState === 1) {
           await mongoose.connection.close();
-          logger.info('✅ MongoDB з\'єднання закрито');
+          logger.info("✅ MongoDB з'єднання закрито");
         }
       } catch (err) {
         logger.warn('⚠️ Помилка закриття MongoDB:', err.message);
@@ -191,7 +191,7 @@ const gracefulShutdownHandler = (server) => {
         const cacheService = require('../services/cacheService');
         if (cacheService && typeof cacheService.disconnect === 'function') {
           await cacheService.disconnect();
-          logger.info('✅ Redis з\'єднання закрито');
+          logger.info("✅ Redis з'єднання закрито");
         }
       } catch (err) {
         // Redis може не бути налаштований
@@ -217,9 +217,14 @@ const gracefulShutdownHandler = (server) => {
 };
 
 // Middleware для перехоплення асинхронних помилок
-const catchAsync = (fn) => {
+const catchAsync = fn => {
   return (req, res, next) => {
-    const safeNext = typeof next === 'function' ? next : (err) => { throw err; };
+    const safeNext =
+      typeof next === 'function'
+        ? next
+        : err => {
+            throw err;
+          };
 
     return Promise.resolve(fn(req, res, safeNext)).catch(safeNext);
   };
@@ -270,5 +275,5 @@ module.exports = {
   gracefulShutdownHandler,
   catchAsync,
   validateResourceExists,
-  checkResourceAccess
+  checkResourceAccess,
 };

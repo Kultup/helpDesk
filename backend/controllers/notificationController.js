@@ -1,7 +1,6 @@
 const Notification = require('../models/Notification');
 const NotificationTemplate = require('../models/NotificationTemplate');
 const User = require('../models/User');
-const Ticket = require('../models/Ticket');
 const telegramService = require('../services/telegramServiceInstance');
 const logger = require('../utils/logger');
 const { validationResult } = require('express-validator');
@@ -14,8 +13,12 @@ exports.getNotifications = async (req, res) => {
 
     // Фільтри
     const filter = { userId };
-    if (type) filter.type = type;
-    if (read !== undefined) filter.read = read === 'true';
+    if (type) {
+      filter.type = type;
+    }
+    if (read !== undefined) {
+      filter.read = read === 'true';
+    }
 
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
@@ -25,9 +28,9 @@ exports.getNotifications = async (req, res) => {
       .lean();
 
     const total = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({ 
-      userId, 
-      read: false 
+    const unreadCount = await Notification.countDocuments({
+      userId,
+      read: false,
     });
 
     res.json({
@@ -38,22 +41,22 @@ exports.getNotifications = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
+          pages: Math.ceil(total / limit),
         },
-        unreadCount
-      }
+        unreadCount,
+      },
     });
   } catch (error) {
     logger.error('Помилка отримання сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні сповіщень'
+      message: 'Помилка сервера при отриманні сповіщень',
     });
   }
 };
 
 // Сумісність з маршрутизатором: альтернативне ім'я
-exports.getUserNotifications = async (req, res) => {
+exports.getUserNotifications = (req, res) => {
   return exports.getNotifications(req, res);
 };
 
@@ -65,18 +68,18 @@ exports.createNotification = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const { 
-      userId, 
-      type, 
-      title, 
-      message, 
+    const {
+      userId,
+      type,
+      title,
+      message,
       relatedTicket,
       priority = 'medium',
-      sendTelegram = false 
+      sendTelegram = false,
     } = req.body;
 
     // Перевіряємо чи існує користувач
@@ -84,7 +87,7 @@ exports.createNotification = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -95,7 +98,7 @@ exports.createNotification = async (req, res) => {
       message,
       relatedTicket,
       priority,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     });
 
     await notification.save();
@@ -106,7 +109,7 @@ exports.createNotification = async (req, res) => {
         await telegramService.sendNotification(user.telegramId, {
           title,
           message,
-          type
+          type,
         });
         notification.sentToTelegram = true;
         await notification.save();
@@ -120,13 +123,13 @@ exports.createNotification = async (req, res) => {
     res.status(201).json({
       success: true,
       data: notification,
-      message: 'Сповіщення створено успішно'
+      message: 'Сповіщення створено успішно',
     });
   } catch (error) {
     logger.error('Помилка створення сповіщення:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при створенні сповіщення'
+      message: 'Помилка сервера при створенні сповіщення',
     });
   }
 };
@@ -139,18 +142,18 @@ exports.createBulkNotifications = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const { 
-      userIds, 
-      type, 
-      title, 
-      message, 
+    const {
+      userIds,
+      type,
+      title,
+      message,
       relatedTicket,
       priority = 'medium',
-      sendTelegram = false 
+      sendTelegram = false,
     } = req.body;
 
     // Перевіряємо користувачів
@@ -158,7 +161,7 @@ exports.createBulkNotifications = async (req, res) => {
     if (users.length !== userIds.length) {
       return res.status(400).json({
         success: false,
-        message: 'Деякі користувачі не знайдені'
+        message: 'Деякі користувачі не знайдені',
       });
     }
 
@@ -169,7 +172,7 @@ exports.createBulkNotifications = async (req, res) => {
       message,
       relatedTicket,
       priority,
-      createdBy: req.user.id
+      createdBy: req.user.id,
     }));
 
     const createdNotifications = await Notification.insertMany(notifications);
@@ -178,12 +181,12 @@ exports.createBulkNotifications = async (req, res) => {
     if (sendTelegram) {
       const telegramPromises = users
         .filter(user => user.telegramId)
-        .map(async (user) => {
+        .map(async user => {
           try {
             await telegramService.sendNotification(user.telegramId, {
               title,
               message,
-              type
+              type,
             });
             return user._id;
           } catch (error) {
@@ -198,10 +201,10 @@ exports.createBulkNotifications = async (req, res) => {
       // Оновлюємо статус відправки
       if (successfulSends.length > 0) {
         await Notification.updateMany(
-          { 
+          {
             userId: { $in: successfulSends },
             createdBy: req.user.id,
-            createdAt: { $gte: new Date(Date.now() - 1000) } // останні секунди
+            createdAt: { $gte: new Date(Date.now() - 1000) }, // останні секунди
           },
           { sentToTelegram: true }
         );
@@ -212,15 +215,15 @@ exports.createBulkNotifications = async (req, res) => {
       success: true,
       data: {
         created: createdNotifications.length,
-        notifications: createdNotifications
+        notifications: createdNotifications,
       },
-      message: `Створено ${createdNotifications.length} сповіщень`
+      message: `Створено ${createdNotifications.length} сповіщень`,
     });
   } catch (error) {
     logger.error('Помилка масового створення сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при створенні сповіщень'
+      message: 'Помилка сервера при створенні сповіщень',
     });
   }
 };
@@ -240,20 +243,20 @@ exports.markAsRead = async (req, res) => {
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: 'Сповіщення не знайдено'
+        message: 'Сповіщення не знайдено',
       });
     }
 
     res.json({
       success: true,
       data: notification,
-      message: 'Сповіщення позначено як прочитане'
+      message: 'Сповіщення позначено як прочитане',
     });
   } catch (error) {
     logger.error('Помилка позначення сповіщення як прочитаного:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оновленні сповіщення'
+      message: 'Помилка сервера при оновленні сповіщення',
     });
   }
 };
@@ -294,15 +297,15 @@ exports.markAllAsRead = async (req, res) => {
     res.json({
       success: true,
       data: {
-        modifiedCount: result.modifiedCount
+        modifiedCount: result.modifiedCount,
       },
-      message: `Позначено ${result.modifiedCount} сповіщень як прочитані`
+      message: `Позначено ${result.modifiedCount} сповіщень як прочитані`,
     });
   } catch (error) {
     logger.error('Помилка позначення всіх сповіщень як прочитаних:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оновленні сповіщень'
+      message: 'Помилка сервера при оновленні сповіщень',
     });
   }
 };
@@ -318,19 +321,19 @@ exports.deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: 'Сповіщення не знайдено'
+        message: 'Сповіщення не знайдено',
       });
     }
 
     res.json({
       success: true,
-      message: 'Сповіщення видалено успішно'
+      message: 'Сповіщення видалено успішно',
     });
   } catch (error) {
     logger.error('Помилка видалення сповіщення:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при видаленні сповіщення'
+      message: 'Помилка сервера при видаленні сповіщення',
     });
   }
 };
@@ -342,8 +345,12 @@ exports.getUnreadCount = async (req, res) => {
     const { type, priority } = req.query;
 
     const filter = { userId, read: false };
-    if (type) filter.type = type;
-    if (priority) filter.priority = priority;
+    if (type) {
+      filter.type = type;
+    }
+    if (priority) {
+      filter.priority = priority;
+    }
 
     const count = await Notification.countDocuments(filter);
     res.json({ success: true, data: { unreadCount: count } });
@@ -378,7 +385,9 @@ exports.updateNotification = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: 'Помилки валідації', errors: errors.array() });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Помилки валідації', errors: errors.array() });
     }
 
     const { id } = req.params;
@@ -386,7 +395,9 @@ exports.updateNotification = async (req, res) => {
     const allowed = ['title', 'message', 'type', 'priority', 'scheduledAt', 'expiresAt', 'status'];
     const update = {};
     for (const key of allowed) {
-      if (req.body[key] !== undefined) update[key] = req.body[key];
+      if (req.body[key] !== undefined) {
+        update[key] = req.body[key];
+      }
     }
 
     const notification = await Notification.findOneAndUpdate(
@@ -410,13 +421,13 @@ exports.updateNotification = async (req, res) => {
 exports.getNotificationSettings = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const user = await User.findById(userId).select('notificationSettings');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -429,19 +440,19 @@ exports.getNotificationSettings = async (req, res) => {
         ticket_assigned: true,
         ticket_resolved: true,
         comment_added: true,
-        system: true
-      }
+        system: true,
+      },
     };
 
     res.json({
       success: true,
-      data: user.notificationSettings || defaultSettings
+      data: user.notificationSettings || defaultSettings,
     });
   } catch (error) {
     logger.error('Помилка отримання налаштувань сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні налаштувань'
+      message: 'Помилка сервера при отриманні налаштувань',
     });
   }
 };
@@ -454,7 +465,7 @@ exports.updateNotificationSettings = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -470,26 +481,26 @@ exports.updateNotificationSettings = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
     res.json({
       success: true,
       data: user.notificationSettings,
-      message: 'Налаштування сповіщень оновлено'
+      message: 'Налаштування сповіщень оновлено',
     });
   } catch (error) {
     logger.error('Помилка оновлення налаштувань сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при оновленні налаштувань'
+      message: 'Помилка сервера при оновленні налаштувань',
     });
   }
 };
 
 // Скинути налаштування сповіщень
-exports.resetNotificationSettings = async (req, res) => {
+exports.resetNotificationSettings = (req, res) => {
   try {
     // Це місце для логіки скидання до значень за замовчуванням
     res.json({ success: true, message: 'Налаштування сповіщень скинуто (псевдо-реалізація)' });
@@ -509,7 +520,7 @@ exports.sendTestNotification = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Користувача не знайдено'
+        message: 'Користувача не знайдено',
       });
     }
 
@@ -517,7 +528,7 @@ exports.sendTestNotification = async (req, res) => {
       if (!user.telegramId) {
         return res.status(400).json({
           success: false,
-          message: 'Telegram не підключений до акаунту'
+          message: 'Telegram не підключений до акаунту',
         });
       }
 
@@ -525,45 +536,45 @@ exports.sendTestNotification = async (req, res) => {
         await telegramService.sendNotification(user.telegramId, {
           title: 'Тестове сповіщення',
           message: 'Це тестове сповіщення для перевірки роботи системи',
-          type: 'info'
+          type: 'info',
         });
 
         res.json({
           success: true,
-          message: 'Тестове сповіщення відправлено в Telegram'
+          message: 'Тестове сповіщення відправлено в Telegram',
         });
       } catch (telegramError) {
         logger.error('Помилка відправки тестового сповіщення в Telegram:', telegramError);
         res.status(500).json({
           success: false,
-          message: 'Помилка відправки в Telegram'
+          message: 'Помилка відправки в Telegram',
         });
       }
     } else {
       res.status(400).json({
         success: false,
-        message: 'Невідомий тип тестового сповіщення'
+        message: 'Невідомий тип тестового сповіщення',
       });
     }
   } catch (error) {
     logger.error('Помилка відправки тестового сповіщення:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при відправці тестового сповіщення'
+      message: 'Помилка сервера при відправці тестового сповіщення',
     });
   }
 };
 
 // Тестові сповіщення для конкретних каналів (псевдо-реалізації)
-exports.testEmailNotification = async (req, res) => {
+exports.testEmailNotification = (req, res) => {
   res.json({ success: true, message: 'Тестове email сповіщення надіслано (псевдо-реалізація)' });
 };
 
-exports.testTelegramNotification = async (req, res) => {
+exports.testTelegramNotification = (req, res) => {
   res.json({ success: true, message: 'Тестове Telegram сповіщення надіслано (псевдо-реалізація)' });
 };
 
-exports.testWebNotification = async (req, res) => {
+exports.testWebNotification = (req, res) => {
   res.json({ success: true, message: 'Тестове веб-сповіщення надіслано (псевдо-реалізація)' });
 };
 
@@ -575,21 +586,21 @@ exports.cleanupOldNotifications = async (req, res) => {
 
     const result = await Notification.deleteMany({
       createdAt: { $lt: cutoffDate },
-      read: true
+      read: true,
     });
 
     res.json({
       success: true,
       data: {
-        deletedCount: result.deletedCount
+        deletedCount: result.deletedCount,
       },
-      message: `Видалено ${result.deletedCount} старих сповіщень`
+      message: `Видалено ${result.deletedCount} старих сповіщень`,
     });
   } catch (error) {
     logger.error('Помилка очищення старих сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при очищенні сповіщень'
+      message: 'Помилка сервера при очищенні сповіщень',
     });
   }
 };
@@ -605,7 +616,11 @@ exports.cleanupReadNotifications = async (req, res) => {
     const count = await Notification.countDocuments(filter);
 
     if (dryRun) {
-      return res.json({ success: true, data: { toDelete: count }, message: 'Режим dryRun: нічого не видалено' });
+      return res.json({
+        success: true,
+        data: { toDelete: count },
+        message: 'Режим dryRun: нічого не видалено',
+      });
     }
 
     const result = await Notification.deleteMany(filter);
@@ -628,16 +643,16 @@ exports.getNotificationStats = async (req, res) => {
           _id: null,
           total: { $sum: 1 },
           unread: {
-            $sum: { $cond: [{ $eq: ['$read', false] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ['$read', false] }, 1, 0] },
           },
           byType: {
             $push: {
               type: '$type',
-              read: '$read'
-            }
-          }
-        }
-      }
+              read: '$read',
+            },
+          },
+        },
+      },
     ]);
 
     const typeStats = {};
@@ -658,37 +673,37 @@ exports.getNotificationStats = async (req, res) => {
       data: {
         total: stats[0]?.total || 0,
         unread: stats[0]?.unread || 0,
-        byType: typeStats
-      }
+        byType: typeStats,
+      },
     });
   } catch (error) {
     logger.error('Помилка отримання статистики сповіщень:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні статистики'
+      message: 'Помилка сервера при отриманні статистики',
     });
   }
 };
 
 // Аналітика (псевдо-реалізації)
-exports.getNotificationAnalytics = async (req, res) => {
+exports.getNotificationAnalytics = (req, res) => {
   res.json({ success: true, data: {}, message: 'Аналітика сповіщень (псевдо-реалізація)' });
 };
 
-exports.getDeliveryAnalytics = async (req, res) => {
+exports.getDeliveryAnalytics = (req, res) => {
   res.json({ success: true, data: {}, message: 'Аналітика доставки (псевдо-реалізація)' });
 };
 
-exports.getEngagementAnalytics = async (req, res) => {
+exports.getEngagementAnalytics = (req, res) => {
   res.json({ success: true, data: {}, message: 'Аналітика залучення (псевдо-реалізація)' });
 };
 
 // Експорт (псевдо-реалізації)
-exports.exportNotifications = async (req, res) => {
+exports.exportNotifications = (req, res) => {
   res.json({ success: true, data: {}, message: 'Експорт сповіщень (псевдо-реалізація)' });
 };
 
-exports.exportAnalytics = async (req, res) => {
+exports.exportAnalytics = (req, res) => {
   res.json({ success: true, data: {}, message: 'Експорт аналітики (псевдо-реалізація)' });
 };
 
@@ -721,8 +736,11 @@ exports.bulkMarkAsRead = async (req, res) => {
 };
 
 // Реальний час (псевдо-реалізація)
-exports.connectRealtime = async (req, res) => {
-  res.json({ success: true, message: 'З’єднання для реального часу встановлено (псевдо-реалізація)' });
+exports.connectRealtime = (req, res) => {
+  res.json({
+    success: true,
+    message: 'З’єднання для реального часу встановлено (псевдо-реалізація)',
+  });
 };
 
 // ===== Шаблони сповіщень =====
@@ -730,8 +748,12 @@ exports.getNotificationTemplates = async (req, res) => {
   try {
     const { type, category } = req.query;
     const filter = {};
-    if (type) filter.type = type;
-    if (category) filter.category = category;
+    if (type) {
+      filter.type = type;
+    }
+    if (category) {
+      filter.category = category;
+    }
 
     const templates = await NotificationTemplate.find(filter)
       .sort({ updatedAt: -1, name: 1 })
@@ -775,7 +797,7 @@ exports.createNotificationTemplate = async (req, res) => {
       content,
       variables,
       createdBy: req.user.id,
-      updatedBy: req.user.id
+      updatedBy: req.user.id,
     });
 
     res.status(201).json({ success: true, data: template, message: 'Шаблон створено успішно' });

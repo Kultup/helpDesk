@@ -12,58 +12,54 @@ const createUserValidation = [
   body('firstName')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Ім\'я повинно містити від 2 до 50 символів')
+    .withMessage("Ім'я повинно містити від 2 до 50 символів")
     .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s]+$/)
-    .withMessage('Ім\'я може містити тільки літери та пробіли'),
+    .withMessage("Ім'я може містити тільки літери та пробіли"),
   body('lastName')
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('Прізвище повинно містити від 2 до 50 символів')
     .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s]+$/)
     .withMessage('Прізвище може містити тільки літери та пробіли'),
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Невірний формат email'),
+  body('email').isEmail().normalizeEmail().withMessage('Невірний формат email'),
   body('password')
     .isLength({ min: 6, max: 100 })
     .withMessage('Пароль повинен містити від 6 до 100 символів')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Пароль повинен містити мінімум одну велику літеру, одну малу літеру та одну цифру'),
-  body('role')
-    .optional()
-    .isIn(['admin', 'user'])
-    .withMessage('Роль повинна бути admin або user'),
+    .withMessage(
+      'Пароль повинен містити мінімум одну велику літеру, одну малу літеру та одну цифру'
+    ),
+  body('role').optional().isIn(['admin', 'user']).withMessage('Роль повинна бути admin або user'),
   body('department')
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Відділ повинен містити від 2 до 100 символів'),
-  body('position')
-    .isMongoId()
-    .withMessage('Невірний ID посади'),
-  body('city')
-    .isMongoId()
-    .withMessage('Невірний ID міста'),
-  body('telegramId')
-    .custom((value, { req }) => {
-      // Якщо значення відсутнє, null, undefined або порожній рядок - пропускаємо валідацію
-      if (value === undefined || value === null || value === '' || (typeof value === 'string' && value.trim() === '')) {
-        delete req.body.telegramId; // Видаляємо поле з req.body
-        return true;
-      }
-      
-      // Перевіряємо формат для непорожніх значень
-      const trimmedValue = value.trim();
-      if (!/^@?[a-zA-Z0-9_]{5,32}$/.test(trimmedValue)) {
-        throw new Error('Невірний формат Telegram ID');
-      }
-      
+  body('position').isMongoId().withMessage('Невірний ID посади'),
+  body('city').isMongoId().withMessage('Невірний ID міста'),
+  body('telegramId').custom((value, { req }) => {
+    // Якщо значення відсутнє, null, undefined або порожній рядок - пропускаємо валідацію
+    if (
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      (typeof value === 'string' && value.trim() === '')
+    ) {
+      delete req.body.telegramId; // Видаляємо поле з req.body
       return true;
-    }),
+    }
+
+    // Перевіряємо формат для непорожніх значень
+    const trimmedValue = value.trim();
+    if (!/^@?[a-zA-Z0-9_]{5,32}$/.test(trimmedValue)) {
+      throw new Error('Невірний формат Telegram ID');
+    }
+
+    return true;
+  }),
   body('phone')
     .optional()
     .matches(/^\+?[1-9]\d{1,14}$/)
-    .withMessage('Невірний формат номера телефону')
+    .withMessage('Невірний формат номера телефону'),
 ];
 
 // Валідація для оновлення користувача
@@ -72,9 +68,9 @@ const updateUserValidation = [
     .optional()
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Ім\'я повинно містити від 2 до 50 символів')
+    .withMessage("Ім'я повинно містити від 2 до 50 символів")
     .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s]+$/)
-    .withMessage('Ім\'я може містити тільки літери та пробіли'),
+    .withMessage("Ім'я може містити тільки літери та пробіли"),
   body('lastName')
     .optional()
     .trim()
@@ -82,32 +78,19 @@ const updateUserValidation = [
     .withMessage('Прізвище повинно містити від 2 до 50 символів')
     .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s]+$/)
     .withMessage('Прізвище може містити тільки літери та пробіли'),
-  body('email')
-    .optional()
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Невірний формат email'),
-  body('role')
-    .optional()
-    .isIn(['admin', 'user'])
-    .withMessage('Роль повинна бути admin або user'),
-  body('position')
-    .optional()
-    .isMongoId()
-    .withMessage('Невірний ID посади'),
-  body('city')
-    .optional()
-    .isMongoId()
-    .withMessage('Невірний ID міста'),
+  body('email').optional().isEmail().normalizeEmail().withMessage('Невірний формат email'),
+  body('role').optional().isIn(['admin', 'user']).withMessage('Роль повинна бути admin або user'),
+  body('position').optional().isMongoId().withMessage('Невірний ID посади'),
+  body('city').optional().isMongoId().withMessage('Невірний ID міста'),
   body('telegramId')
     .optional()
-    .custom((value, { req }) => {
+    .custom(value => {
       // Якщо значення відсутнє, null, undefined або порожній рядок - пропускаємо валідацію
       // НЕ видаляємо поле з req.body, щоб контролер міг обробити порожнє значення
       if (value === undefined || value === null || value === '') {
         return true;
       }
-      
+
       // Якщо це рядок, перевіряємо формат
       if (typeof value === 'string') {
         const trimmedValue = value.trim();
@@ -117,41 +100,39 @@ const updateUserValidation = [
         }
         // Перевіряємо формат: може бути username (@username або username) або числовий ID
         if (!/^@?[a-zA-Z0-9_]{5,32}$/.test(trimmedValue) && !/^\d+$/.test(trimmedValue)) {
-          throw new Error('Невірний формат Telegram ID. Може бути username (@username) або числовий ID');
+          throw new Error(
+            'Невірний формат Telegram ID. Може бути username (@username) або числовий ID'
+          );
         }
       } else if (typeof value !== 'string' && typeof value !== 'number') {
         throw new Error('Telegram ID повинен бути рядком або числом');
       }
-      
+
       return true;
     }),
   body('phone')
     .optional()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Невірний формат номера телефону'),
-  body('isActive')
-    .optional()
-    .isBoolean()
-    .withMessage('isActive повинен бути boolean')
+  body('isActive').optional().isBoolean().withMessage('isActive повинен бути boolean'),
 ];
 
 // Валідація для зміни пароля
 const changePasswordValidation = [
-  body('currentPassword')
-    .notEmpty()
-    .withMessage('Поточний пароль обов\'язковий'),
+  body('currentPassword').notEmpty().withMessage("Поточний пароль обов'язковий"),
   body('newPassword')
     .isLength({ min: 6, max: 100 })
     .withMessage('Новий пароль повинен містити від 6 до 100 символів')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Новий пароль повинен містити мінімум одну велику літеру, одну малу літеру та одну цифру'),
-  body('confirmPassword')
-    .custom((value, { req }) => {
-      if (value !== req.body.newPassword) {
-        throw new Error('Підтвердження пароля не співпадає');
-      }
-      return true;
-    })
+    .withMessage(
+      'Новий пароль повинен містити мінімум одну велику літеру, одну малу літеру та одну цифру'
+    ),
+  body('confirmPassword').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Підтвердження пароля не співпадає');
+    }
+    return true;
+  }),
 ];
 
 // Валідація для оновлення профілю
@@ -160,9 +141,9 @@ const updateProfileValidation = [
     .optional()
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Ім\'я повинно містити від 2 до 50 символів')
+    .withMessage("Ім'я повинно містити від 2 до 50 символів")
     .matches(/^[a-zA-Zа-яА-ЯіІїЇєЄ\s]+$/)
-    .withMessage('Ім\'я може містити тільки літери та пробіли'),
+    .withMessage("Ім'я може містити тільки літери та пробіли"),
   body('lastName')
     .optional()
     .trim()
@@ -174,10 +155,7 @@ const updateProfileValidation = [
     .optional()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Невірний формат номера телефону'),
-  body('telegramId')
-    .optional()
-    .isNumeric()
-    .withMessage('Telegram ID повинен бути числом'),
+  body('telegramId').optional().isNumeric().withMessage('Telegram ID повинен бути числом'),
   body('bio')
     .optional()
     .trim()
@@ -187,10 +165,7 @@ const updateProfileValidation = [
 
 // Валідація параметрів запиту
 const queryValidation = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Сторінка повинна бути позитивним числом'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Сторінка повинна бути позитивним числом'),
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
@@ -203,18 +178,11 @@ const queryValidation = [
     .optional()
     .isIn(['asc', 'desc'])
     .withMessage('Порядок сортування повинен бути asc або desc'),
-  query('isActive')
-    .optional()
-    .isBoolean()
-    .withMessage('isActive повинен бути boolean')
+  query('isActive').optional().isBoolean().withMessage('isActive повинен бути boolean'),
 ];
 
 // Валідація ID параметрів
-const idValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID користувача')
-];
+const idValidation = [param('id').isMongoId().withMessage('Невірний ID користувача')];
 
 // ОСНОВНІ МАРШРУТИ ДЛЯ КОРИСТУВАЧІВ
 
@@ -226,41 +194,81 @@ router.get('/admins', authenticateToken, userController.getAdmins);
 
 // УПРАВЛІННЯ РЕЄСТРАЦІЯМИ (має бути перед /:id)
 // Отримати список користувачів з pending статусом (тільки адміни)
-router.get('/pending-registrations', authenticateToken, adminAuth, userController.getPendingRegistrations);
+router.get(
+  '/pending-registrations',
+  authenticateToken,
+  adminAuth,
+  userController.getPendingRegistrations
+);
 
 // Отримати користувача за ID
 router.get('/:id', authenticateToken, idValidation, userController.getUserById);
 
 // Створити нового користувача (тільки адміни)
-router.post('/', authenticateToken, adminAuth, createUserValidation, handleValidationErrors, userController.createUser);
+router.post(
+  '/',
+  authenticateToken,
+  adminAuth,
+  createUserValidation,
+  handleValidationErrors,
+  userController.createUser
+);
 
 // Оновити користувача (тільки адміни)
-router.put('/:id', authenticateToken, adminAuth, idValidation, updateUserValidation, userController.updateUser);
+router.put(
+  '/:id',
+  authenticateToken,
+  adminAuth,
+  idValidation,
+  updateUserValidation,
+  userController.updateUser
+);
 
 // Масова зміна статусу користувачів (тільки адміни) - ВАЖЛИВО: має бути перед /:id/toggle-active
-router.patch('/bulk/toggle-active', authenticateToken, adminAuth, [
-  body('userIds')
-    .isArray({ min: 1 })
-    .withMessage('Необхідно вказати масив ID користувачів')
-    .custom((userIds) => {
-      if (!userIds.every(id => typeof id === 'string' && id.match(/^[0-9a-fA-F]{24}$/))) {
-        throw new Error('Всі ID користувачів повинні бути валідними ObjectId');
-      }
-      return true;
-    }),
-  body('action')
-    .isIn(['activate', 'deactivate'])
-    .withMessage('Дія повинна бути "activate" або "deactivate"')
-], handleValidationErrors, userController.bulkToggleUsers);
+router.patch(
+  '/bulk/toggle-active',
+  authenticateToken,
+  adminAuth,
+  [
+    body('userIds')
+      .isArray({ min: 1 })
+      .withMessage('Необхідно вказати масив ID користувачів')
+      .custom(userIds => {
+        if (!userIds.every(id => typeof id === 'string' && id.match(/^[0-9a-fA-F]{24}$/))) {
+          throw new Error('Всі ID користувачів повинні бути валідними ObjectId');
+        }
+        return true;
+      }),
+    body('action')
+      .isIn(['activate', 'deactivate'])
+      .withMessage('Дія повинна бути "activate" або "deactivate"'),
+  ],
+  handleValidationErrors,
+  userController.bulkToggleUsers
+);
 
 // Деактивувати/активувати користувача (тільки адміни)
-router.patch('/:id/toggle-active', authenticateToken, adminAuth, idValidation, handleValidationErrors, userController.toggleUserActive);
+router.patch(
+  '/:id/toggle-active',
+  authenticateToken,
+  adminAuth,
+  idValidation,
+  handleValidationErrors,
+  userController.toggleUserActive
+);
 
 // Видалити користувача (тільки адміни) - залишаємо для сумісності
 router.delete('/:id', authenticateToken, adminAuth, idValidation, userController.deleteUser);
 
 // Повне видалення користувача (тільки адміни)
-router.delete('/:id/force', authenticateToken, adminAuth, idValidation, handleValidationErrors, userController.forceDeleteUser);
+router.delete(
+  '/:id/force',
+  authenticateToken,
+  adminAuth,
+  idValidation,
+  handleValidationErrors,
+  userController.forceDeleteUser
+);
 
 // МАРШРУТИ ДЛЯ ПРОФІЛЮ
 
@@ -271,16 +279,22 @@ router.get('/profile/me', authenticateToken, userController.getProfile);
 router.put('/profile/me', authenticateToken, updateProfileValidation, userController.updateProfile);
 
 // Змінити пароль
-router.put('/profile/change-password', authenticateToken, changePasswordValidation, userController.changePassword);
+router.put(
+  '/profile/change-password',
+  authenticateToken,
+  changePasswordValidation,
+  userController.changePassword
+);
 
 // МАРШРУТИ ДЛЯ КОМЕНТАРІВ КОРИСТУВАЧА
 
 // Отримати коментарі користувача
-router.get('/:userId/comments', authenticateToken, [
-  param('userId').isMongoId().withMessage('Невірний ID користувача'),
-  ...queryValidation
-], commentController.getUserComments);
-
+router.get(
+  '/:userId/comments',
+  authenticateToken,
+  [param('userId').isMongoId().withMessage('Невірний ID користувача'), ...queryValidation],
+  commentController.getUserComments
+);
 
 // ДОДАТКОВІ МАРШРУТИ (ЗАКОМЕНТОВАНО ДО РЕАЛІЗАЦІЇ МЕТОДІВ)
 // Завантажити аватар користувача
@@ -309,27 +323,34 @@ router.get('/:userId/comments', authenticateToken, [
 // ], userController.sendMessageToUser);
 
 // Підтвердити реєстрацію користувача (тільки адміни)
-router.patch('/:id/approve-registration', 
-  authenticateToken, 
-  adminAuth, 
+router.patch(
+  '/:id/approve-registration',
+  authenticateToken,
+  adminAuth,
   param('id').isMongoId().withMessage('Невірний ID користувача'),
   handleValidationErrors,
   userController.approveRegistration
 );
 
 // Відхилити реєстрацію користувача (тільки адміни)
-router.patch('/:id/reject-registration', 
-  authenticateToken, 
-  adminAuth, 
+router.patch(
+  '/:id/reject-registration',
+  authenticateToken,
+  adminAuth,
   param('id').isMongoId().withMessage('Невірний ID користувача'),
-  body('reason').optional().trim().isLength({ max: 500 }).withMessage('Причина не може перевищувати 500 символів'),
+  body('reason')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Причина не може перевищувати 500 символів'),
   handleValidationErrors,
   userController.rejectRegistration
 );
 
 // Очистити застарілі реєстрації (тільки адміни)
-router.post('/cleanup-registrations', 
-  authenticateToken, 
+router.post(
+  '/cleanup-registrations',
+  authenticateToken,
   adminAuth,
   userController.cleanupRegistrations
 );

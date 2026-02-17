@@ -17,12 +17,12 @@ const generateToken = (length = 32) => {
  * @param {string} originalName - оригінальне ім'я файлу
  * @returns {string} - унікальне ім'я файлу
  */
-const generateUniqueFileName = (originalName) => {
+const generateUniqueFileName = originalName => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2);
   const extension = path.extname(originalName);
   const baseName = path.basename(originalName, extension);
-  
+
   return `${baseName}_${timestamp}_${random}${extension}`;
 };
 
@@ -42,13 +42,15 @@ const isAllowedFileType = (fileName, allowedTypes = []) => {
  * @param {number} bytes - розмір в байтах
  * @returns {string} - відформатований розмір
  */
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  
+const formatFileSize = bytes => {
+  if (bytes === 0) {
+    return '0 Bytes';
+  }
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
@@ -56,7 +58,7 @@ const formatFileSize = (bytes) => {
  * Створення директорії якщо вона не існує
  * @param {string} dirPath - шлях до директорії
  */
-const ensureDirectoryExists = async (dirPath) => {
+const ensureDirectoryExists = async dirPath => {
   try {
     await fs.access(dirPath);
   } catch (error) {
@@ -68,7 +70,7 @@ const ensureDirectoryExists = async (dirPath) => {
  * Видалення файлу
  * @param {string} filePath - шлях до файлу
  */
-const deleteFile = async (filePath) => {
+const deleteFile = async filePath => {
   try {
     await fs.unlink(filePath);
   } catch (error) {
@@ -86,14 +88,14 @@ const deleteFile = async (filePath) => {
  */
 const paginate = async (query, page = 1, limit = 10) => {
   const skip = (page - 1) * limit;
-  
+
   const [results, total] = await Promise.all([
     query.skip(skip).limit(limit),
-    query.model.countDocuments(query.getQuery())
+    query.model.countDocuments(query.getQuery()),
   ]);
-  
+
   const totalPages = Math.ceil(total / limit);
-  
+
   return {
     data: results,
     pagination: {
@@ -102,8 +104,8 @@ const paginate = async (query, page = 1, limit = 10) => {
       totalItems: total,
       itemsPerPage: limit,
       hasNextPage: page < totalPages,
-      hasPrevPage: page > 1
-    }
+      hasPrevPage: page > 1,
+    },
   };
 };
 
@@ -119,7 +121,7 @@ const formatDate = (date, locale = 'uk-UA') => {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   }).format(new Date(date));
 };
 
@@ -134,17 +136,18 @@ const calculateDuration = (startDate, endDate = new Date()) => {
   const diffMinutes = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
-  
+
   return {
     milliseconds: diffMs,
     minutes: diffMinutes,
     hours: diffHours,
     days: diffDays,
-    formatted: diffDays > 0 
-      ? `${diffDays} дн. ${diffHours % 24} год.`
-      : diffHours > 0 
-        ? `${diffHours} год. ${diffMinutes % 60} хв.`
-        : `${diffMinutes} хв.`
+    formatted:
+      diffDays > 0
+        ? `${diffDays} дн. ${diffHours % 24} год.`
+        : diffHours > 0
+          ? `${diffHours} год. ${diffMinutes % 60} хв.`
+          : `${diffMinutes} хв.`,
   };
 };
 
@@ -153,9 +156,11 @@ const calculateDuration = (startDate, endDate = new Date()) => {
  * @param {string} html - HTML рядок
  * @returns {string} - очищений HTML
  */
-const sanitizeHtml = (html) => {
-  if (!html) return '';
-  
+const sanitizeHtml = html => {
+  if (!html) {
+    return '';
+  }
+
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
@@ -168,7 +173,7 @@ const sanitizeHtml = (html) => {
  * @param {string} text - текст
  * @returns {string} - slug
  */
-const generateSlug = (text) => {
+const generateSlug = text => {
   return text
     .toLowerCase()
     .replace(/[^\w\s-]/g, '')
@@ -181,10 +186,13 @@ const generateSlug = (text) => {
  * @param {Object} obj - об'єкт
  * @returns {boolean} - чи порожній об'єкт
  */
-const isEmpty = (obj) => {
-  return obj === null || obj === undefined || 
+const isEmpty = obj => {
+  return (
+    obj === null ||
+    obj === undefined ||
     (typeof obj === 'object' && Object.keys(obj).length === 0) ||
-    (typeof obj === 'string' && obj.trim().length === 0);
+    (typeof obj === 'string' && obj.trim().length === 0)
+  );
 };
 
 /**
@@ -192,14 +200,20 @@ const isEmpty = (obj) => {
  * @param {any} obj - об'єкт для клонування
  * @returns {any} - клонований об'єкт
  */
-const deepClone = (obj) => {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (obj instanceof Date) return new Date(obj.getTime());
-  if (obj instanceof Array) return obj.map(item => deepClone(item));
+const deepClone = obj => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (obj instanceof Date) {
+    return new Date(obj.getTime());
+  }
+  if (obj instanceof Array) {
+    return obj.map(item => deepClone(item));
+  }
   if (typeof obj === 'object') {
     const clonedObj = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         clonedObj[key] = deepClone(obj[key]);
       }
     }
@@ -212,7 +226,7 @@ const deepClone = (obj) => {
  * @param {number} ms - мілісекунди
  * @returns {Promise} - проміс з затримкою
  */
-const delay = (ms) => {
+const delay = ms => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
@@ -225,17 +239,17 @@ const delay = (ms) => {
  */
 const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
   let lastError;
-  
+
   for (let i = 0; i <= maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
-      
+
       if (i === maxRetries) {
         throw lastError;
       }
-      
+
       const delayTime = baseDelay * Math.pow(2, i);
       await delay(delayTime);
     }
@@ -252,7 +266,7 @@ const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
  */
 const generateUniqueLogin = async (email, username, fallbackId, checkExists) => {
   let login = '';
-  
+
   // Генеруємо логін на основі email
   if (email) {
     login = email.split('@')[0].toLowerCase();
@@ -264,10 +278,10 @@ const generateUniqueLogin = async (email, username, fallbackId, checkExists) => 
     // Якщо немає жодних даних, генеруємо випадковий логін
     login = `user_${Date.now().toString(36)}`;
   }
-  
+
   // Очищаємо логін від спеціальних символів (залишаємо тільки літери, цифри та підкреслення)
   login = login.replace(/[^a-zA-Z0-9_]/g, '');
-  
+
   // Якщо після очищення логін порожній або занадто короткий, створюємо з fallback
   if (!login || login.length < 3) {
     if (fallbackId) {
@@ -276,7 +290,7 @@ const generateUniqueLogin = async (email, username, fallbackId, checkExists) => 
       login = `user_${Date.now().toString(36)}`;
     }
   }
-  
+
   // Перевіряємо, чи такий логін вже існує
   if (checkExists) {
     const exists = await checkExists(login);
@@ -291,7 +305,7 @@ const generateUniqueLogin = async (email, username, fallbackId, checkExists) => 
       login = newLogin;
     }
   }
-  
+
   return login;
 };
 
@@ -311,5 +325,5 @@ module.exports = {
   deepClone,
   delay,
   retryWithBackoff,
-  generateUniqueLogin
+  generateUniqueLogin,
 };

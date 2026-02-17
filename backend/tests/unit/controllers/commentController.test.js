@@ -1,20 +1,25 @@
 const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, createTestAdmin, createTestTicket, createTestCategory } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  createTestAdmin,
+  createTestTicket,
+} = require('../../helpers/testHelpers');
 const commentController = require('../../../controllers/commentController');
 const Comment = require('../../../models/Comment');
 const Ticket = require('../../../models/Ticket');
-const User = require('../../../models/User');
 
 // Моки (telegramServiceInstance та ticketWebSocketService тепер глобальні в setup.js)
 jest.mock('express-validator', () => ({
-  validationResult: jest.fn()
+  validationResult: jest.fn(),
 }));
 
 describe('CommentController', () => {
   let mockReq;
   let mockRes;
-  let mockNext;
   let testUser;
   let testAdmin;
   let testTicket;
@@ -33,12 +38,12 @@ describe('CommentController', () => {
 
     testUser = await createTestUser({
       email: `user-${Date.now()}@example.com`,
-      role: 'user'
+      role: 'user',
     });
 
     testAdmin = await createTestAdmin({
       email: `admin-${Date.now()}@example.com`,
-      role: 'admin'
+      role: 'admin',
     });
 
     testTicket = await createTestTicket(testUser);
@@ -48,15 +53,13 @@ describe('CommentController', () => {
       params: {},
       query: {},
       user: testUser,
-      ip: '127.0.0.1'
+      ip: '127.0.0.1',
     };
 
     mockRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      json: jest.fn().mockReturnThis(),
     };
-
-    mockNext = jest.fn();
   });
 
   describe('getTicketComments', () => {
@@ -64,12 +67,12 @@ describe('CommentController', () => {
       // Перевіряємо що тикет існує перед створенням коментаря
       const ticketExists = await Ticket.findById(testTicket._id);
       expect(ticketExists).toBeDefined();
-      
+
       // Створюємо коментар
       const comment = await Comment.create({
         content: 'Test comment',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       // Перевіряємо що коментар створено
@@ -78,7 +81,7 @@ describe('CommentController', () => {
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.ticketId = testTicket._id.toString();
       mockReq.query = { page: 1, limit: 10 };
@@ -87,7 +90,7 @@ describe('CommentController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getTicketComments failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -102,7 +105,7 @@ describe('CommentController', () => {
     it('should return empty array for ticket without comments', async () => {
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role
+        role: testUser.role,
       };
       mockReq.params.ticketId = testTicket._id.toString();
       mockReq.query = { page: 1, limit: 10 };
@@ -111,7 +114,7 @@ describe('CommentController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getTicketComments failed:', response);
         // Може бути помилка з правами доступу
@@ -130,13 +133,13 @@ describe('CommentController', () => {
     it('should create a new comment', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.user = testUser;
       mockReq.body = {
         content: 'New comment',
-        ticket: testTicket._id.toString()
+        ticket: testTicket._id.toString(),
       };
       mockReq.params.ticketId = testTicket._id.toString();
 
@@ -157,12 +160,12 @@ describe('CommentController', () => {
     it('should return 400 with missing content', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => false,
-        array: () => [{ msg: 'Content is required' }]
+        array: () => [{ msg: 'Content is required' }],
       });
 
       mockReq.user = testUser;
       mockReq.body = {
-        ticket: testTicket._id.toString()
+        ticket: testTicket._id.toString(),
       };
       mockReq.params.ticketId = testTicket._id.toString();
 
@@ -177,7 +180,7 @@ describe('CommentController', () => {
       const comment = await Comment.create({
         content: 'Test comment',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       mockReq.params.id = comment._id.toString();
@@ -204,29 +207,29 @@ describe('CommentController', () => {
     it('should update comment by author', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const comment = await Comment.create({
         content: 'Original comment',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role
+        role: testUser.role,
       };
       mockReq.params.id = comment._id.toString();
       mockReq.body = {
-        content: 'Updated comment'
+        content: 'Updated comment',
       };
 
       await commentController.updateComment(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('updateComment failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -243,18 +246,18 @@ describe('CommentController', () => {
       const comment = await Comment.create({
         content: 'Original comment',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.user = otherUser;
       mockReq.params.id = comment._id.toString();
       mockReq.body = {
-        content: 'Updated comment'
+        content: 'Updated comment',
       };
 
       await commentController.updateComment(mockReq, mockRes);
@@ -268,7 +271,7 @@ describe('CommentController', () => {
       const comment = await Comment.create({
         content: 'Comment to delete',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       mockReq.user = testUser;
@@ -289,7 +292,7 @@ describe('CommentController', () => {
       const comment = await Comment.create({
         content: 'Comment to delete',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       mockReq.user = testAdmin;
@@ -308,13 +311,13 @@ describe('CommentController', () => {
       await Comment.create({
         content: 'Comment 1',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       await Comment.create({
         content: 'Comment 2',
         ticket: testTicket._id,
-        author: testUser._id
+        author: testUser._id,
       });
 
       mockReq.query = { page: 1, limit: 10 };
@@ -323,7 +326,7 @@ describe('CommentController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getAllComments failed:', response);
         // Може бути помилка з правами або інше
@@ -336,4 +339,3 @@ describe('CommentController', () => {
     });
   });
 });
-

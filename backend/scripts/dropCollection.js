@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -23,9 +24,12 @@ async function main() {
   await mongoose.disconnect();
 }
 
-main().catch(async (err) => {
+main().catch(async err => {
   console.error('Error:', err && err.message ? err.message : err);
-  try { await mongoose.disconnect(); } catch {}
+  try {
+    await mongoose.disconnect();
+  } catch (e) {
+    /* ignore */
+  }
   process.exit(1);
 });
-

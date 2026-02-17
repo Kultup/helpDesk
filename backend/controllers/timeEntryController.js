@@ -1,5 +1,4 @@
 const { TimeEntry, Ticket } = require('../models');
-const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 // Почати відстеження часу
@@ -14,7 +13,7 @@ const startTimeTracking = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тікет не знайдено'
+        message: 'Тікет не знайдено',
       });
     }
 
@@ -24,7 +23,7 @@ const startTimeTracking = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'У вас вже є активна сесія відстеження часу для цього тікету',
-        activeSession: existingActiveSession
+        activeSession: existingActiveSession,
       });
     }
 
@@ -35,7 +34,7 @@ const startTimeTracking = async (req, res) => {
       startTime: new Date(),
       description: description || '',
       isActive: true,
-      createdBy: userId
+      createdBy: userId,
     });
 
     await timeEntry.save();
@@ -48,15 +47,14 @@ const startTimeTracking = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Відстеження часу розпочато',
-      data: populatedTimeEntry
+      data: populatedTimeEntry,
     });
-
   } catch (error) {
     logger.error('Помилка при початку відстеження часу:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -72,7 +70,7 @@ const stopTimeTracking = async (req, res) => {
     if (!activeSession) {
       return res.status(404).json({
         success: false,
-        message: 'Активна сесія відстеження часу не знайдена'
+        message: 'Активна сесія відстеження часу не знайдена',
       });
     }
 
@@ -89,15 +87,14 @@ const stopTimeTracking = async (req, res) => {
     res.json({
       success: true,
       message: 'Відстеження часу зупинено',
-      data: populatedTimeEntry
+      data: populatedTimeEntry,
     });
-
   } catch (error) {
     logger.error('Помилка при зупинці відстеження часу:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -113,7 +110,7 @@ const getTimeEntries = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тікет не знайдено'
+        message: 'Тікет не знайдено',
       });
     }
 
@@ -148,19 +145,18 @@ const getTimeEntries = async (req, res) => {
           current: parseInt(page),
           pages: Math.ceil(total / limit),
           total,
-          limit: parseInt(limit)
+          limit: parseInt(limit),
         },
         totalTime,
-        totalTimeFormatted: formatDuration(totalTime)
-      }
+        totalTimeFormatted: formatDuration(totalTime),
+      },
     });
-
   } catch (error) {
     logger.error('Помилка при отриманні записів часу:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -177,21 +173,20 @@ const getActiveSession = async (req, res) => {
       return res.json({
         success: true,
         data: null,
-        message: 'Активна сесія не знайдена'
+        message: 'Активна сесія не знайдена',
       });
     }
 
     res.json({
       success: true,
-      data: activeSession
+      data: activeSession,
     });
-
   } catch (error) {
     logger.error('Помилка при отриманні активної сесії:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -204,13 +199,13 @@ const deleteTimeEntry = async (req, res) => {
 
     const timeEntry = await TimeEntry.findOne({
       _id: entryId,
-      ticket: ticketId
+      ticket: ticketId,
     });
 
     if (!timeEntry) {
       return res.status(404).json({
         success: false,
-        message: 'Запис часу не знайдено'
+        message: 'Запис часу не знайдено',
       });
     }
 
@@ -218,7 +213,7 @@ const deleteTimeEntry = async (req, res) => {
     if (timeEntry.user.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для видалення цього запису'
+        message: 'Недостатньо прав для видалення цього запису',
       });
     }
 
@@ -226,7 +221,7 @@ const deleteTimeEntry = async (req, res) => {
     if (timeEntry.isActive) {
       return res.status(400).json({
         success: false,
-        message: 'Неможливо видалити активну сесію. Спочатку зупиніть відстеження часу.'
+        message: 'Неможливо видалити активну сесію. Спочатку зупиніть відстеження часу.',
       });
     }
 
@@ -234,15 +229,14 @@ const deleteTimeEntry = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Запис часу видалено'
+      message: 'Запис часу видалено',
     });
-
   } catch (error) {
     logger.error('Помилка при видаленні запису часу:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -256,13 +250,13 @@ const updateTimeEntry = async (req, res) => {
 
     const timeEntry = await TimeEntry.findOne({
       _id: entryId,
-      ticket: ticketId
+      ticket: ticketId,
     });
 
     if (!timeEntry) {
       return res.status(404).json({
         success: false,
-        message: 'Запис часу не знайдено'
+        message: 'Запис часу не знайдено',
       });
     }
 
@@ -270,7 +264,7 @@ const updateTimeEntry = async (req, res) => {
     if (timeEntry.user.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для редагування цього запису'
+        message: 'Недостатньо прав для редагування цього запису',
       });
     }
 
@@ -286,21 +280,20 @@ const updateTimeEntry = async (req, res) => {
     res.json({
       success: true,
       message: 'Запис часу оновлено',
-      data: populatedTimeEntry
+      data: populatedTimeEntry,
     });
-
   } catch (error) {
     logger.error('Помилка при оновленні запису часу:', error);
     res.status(500).json({
       success: false,
       message: 'Внутрішня помилка сервера',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
 
 // Допоміжна функція для форматування тривалості
-const formatDuration = (seconds) => {
+const formatDuration = seconds => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}г ${minutes}хв`;
@@ -312,5 +305,5 @@ module.exports = {
   getTimeEntries,
   getActiveSession,
   deleteTimeEntry,
-  updateTimeEntry
+  updateTimeEntry,
 };

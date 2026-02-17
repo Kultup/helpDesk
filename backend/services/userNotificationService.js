@@ -34,15 +34,25 @@ class UserNotificationService {
           } catch (error) {
             logger.error(`Помилка відображення меню після активації для ${user.email}:`, error);
           }
-          
+
           // Зберігаємо факт зміни статусу в базу, але без відправки повідомлення
-          await this.saveNotificationToDatabase(user, field, change, this.getNotificationType(field));
+          await this.saveNotificationToDatabase(
+            user,
+            field,
+            change,
+            this.getNotificationType(field)
+          );
           continue;
         }
 
         // Пропускаємо сповіщення про підтвердження реєстрації, оскільки воно відправляється окремо
         if (field === 'registrationStatus' && change.new === 'approved') {
-          await this.saveNotificationToDatabase(user, field, change, this.getNotificationType(field));
+          await this.saveNotificationToDatabase(
+            user,
+            field,
+            change,
+            this.getNotificationType(field)
+          );
           continue;
         }
 
@@ -81,13 +91,19 @@ class UserNotificationService {
     for (const field of Object.keys(statusChanges)) {
       switch (field) {
         case 'isActive':
-          if (telegramNotifications.statusUpdates !== false) return true;
+          if (telegramNotifications.statusUpdates !== false) {
+            return true;
+          }
           break;
         case 'role':
-          if (telegramNotifications.statusUpdates !== false) return true;
+          if (telegramNotifications.statusUpdates !== false) {
+            return true;
+          }
           break;
         case 'registrationStatus':
-          if (telegramNotifications.statusUpdates !== false) return true;
+          if (telegramNotifications.statusUpdates !== false) {
+            return true;
+          }
           break;
         default:
           return true;
@@ -106,7 +122,7 @@ class UserNotificationService {
    */
   formatStatusChangeMessage(user, field, change) {
     const userName = `${user.firstName} ${user.lastName}`;
-    
+
     switch (field) {
       case 'isActive':
         return this.formatActiveStatusMessage(userName, change);
@@ -115,11 +131,13 @@ class UserNotificationService {
       case 'registrationStatus':
         return this.formatRegistrationStatusMessage(userName, change);
       default:
-        return `🔔 *Зміна статусу користувача*\n\n` +
-               `Користувач: *${userName}*\n` +
-               `Поле: ${field}\n` +
-               `Було: ${change.old}\n` +
-               `Стало: ${change.new}`;
+        return (
+          `🔔 *Зміна статусу користувача*\n\n` +
+          `Користувач: *${userName}*\n` +
+          `Поле: ${field}\n` +
+          `Було: ${change.old}\n` +
+          `Стало: ${change.new}`
+        );
     }
   }
 
@@ -129,10 +147,12 @@ class UserNotificationService {
   formatActiveStatusMessage(userName, change) {
     const statusText = change.new ? 'активований' : 'деактивований';
     const emoji = change.new ? '✅' : '❌';
-    
-    return `${emoji} *Зміна статусу активності*\n\n` +
-           `Користувач *${userName}* був ${statusText}.\n\n` +
-           `Новий статус: ${change.new ? 'Активний' : 'Неактивний'}`;
+
+    return (
+      `${emoji} *Зміна статусу активності*\n\n` +
+      `Користувач *${userName}* був ${statusText}.\n\n` +
+      `Новий статус: ${change.new ? 'Активний' : 'Неактивний'}`
+    );
   }
 
   /**
@@ -140,14 +160,16 @@ class UserNotificationService {
    */
   formatRoleChangeMessage(userName, change) {
     const roleNames = {
-      'admin': 'Адміністратор',
-      'user': 'Користувач'
+      admin: 'Адміністратор',
+      user: 'Користувач',
     };
 
-    return `👤 *Зміна ролі користувача*\n\n` +
-           `Користувач: *${userName}*\n` +
-           `Попередня роль: ${roleNames[change.old] || change.old}\n` +
-           `Нова роль: ${roleNames[change.new] || change.new}`;
+    return (
+      `👤 *Зміна ролі користувача*\n\n` +
+      `Користувач: *${userName}*\n` +
+      `Попередня роль: ${roleNames[change.old] || change.old}\n` +
+      `Нова роль: ${roleNames[change.new] || change.new}`
+    );
   }
 
   /**
@@ -155,18 +177,19 @@ class UserNotificationService {
    */
   formatRegistrationStatusMessage(userName, change) {
     const statusNames = {
-      'pending': 'Очікує підтвердження',
-      'approved': 'Підтверджено',
-      'rejected': 'Відхилено'
+      pending: 'Очікує підтвердження',
+      approved: 'Підтверджено',
+      rejected: 'Відхилено',
     };
 
-    const emoji = change.new === 'approved' ? '✅' : 
-                  change.new === 'rejected' ? '❌' : '⏳';
+    const emoji = change.new === 'approved' ? '✅' : change.new === 'rejected' ? '❌' : '⏳';
 
-    return `${emoji} *Зміна статусу реєстрації*\n\n` +
-           `Користувач: *${userName}*\n` +
-           `Попередній статус: ${statusNames[change.old] || change.old}\n` +
-           `Новий статус: ${statusNames[change.new] || change.new}`;
+    return (
+      `${emoji} *Зміна статусу реєстрації*\n\n` +
+      `Користувач: *${userName}*\n` +
+      `Попередній статус: ${statusNames[change.old] || change.old}\n` +
+      `Новий статус: ${statusNames[change.new] || change.new}`
+    );
   }
 
   /**
@@ -198,7 +221,7 @@ class UserNotificationService {
       await telegramService.sendNotification(user.telegramId, {
         title: 'Зміна статусу користувача',
         message: message,
-        type: type
+        type: type,
       });
 
       logger.info(`Telegram сповіщення відправлено користувачу ${user.email}`);
@@ -224,14 +247,17 @@ class UserNotificationService {
           field: field,
           oldValue: change.old,
           newValue: change.new,
-          userEmail: user.email
-        }
+          userEmail: user.email,
+        },
       });
 
       await notification.save();
       logger.info(`Сповіщення збережено в базі даних для користувача ${user.email}`);
     } catch (error) {
-      logger.error(`Помилка збереження сповіщення в базі даних для користувача ${user.email}:`, error);
+      logger.error(
+        `Помилка збереження сповіщення в базі даних для користувача ${user.email}:`,
+        error
+      );
       // Не кидаємо помилку, щоб не зупиняти процес
     }
   }
@@ -242,12 +268,12 @@ class UserNotificationService {
   async notifyAdminsAboutUserStatusChange(user, statusChanges) {
     try {
       const User = require('../models/User');
-      
+
       // Отримуємо всіх активних адміністраторів з Telegram ID
       const admins = await User.find({
         role: 'admin',
         isActive: true,
-        telegramId: { $exists: true, $ne: null }
+        telegramId: { $exists: true, $ne: null },
       });
 
       if (admins.length === 0) {
@@ -256,7 +282,7 @@ class UserNotificationService {
       }
 
       const userName = `${user.firstName} ${user.lastName}`;
-      
+
       for (const admin of admins) {
         // Перевіряємо налаштування адміністратора
         if (!this.shouldSendAdminNotification(admin)) {
@@ -265,12 +291,12 @@ class UserNotificationService {
 
         for (const [field, change] of Object.entries(statusChanges)) {
           const message = this.formatAdminNotificationMessage(userName, user.email, field, change);
-          
+
           try {
             await telegramService.sendNotification(admin.telegramId, {
               title: 'Зміна статусу користувача (Адмін)',
               message: message,
-              type: 'admin_user_status_change'
+              type: 'admin_user_status_change',
             });
 
             // Зберігаємо сповіщення для адміністратора
@@ -281,7 +307,9 @@ class UserNotificationService {
         }
       }
 
-      logger.info(`Сповіщення про зміну статусу користувача ${user.email} відправлені адміністраторам`);
+      logger.info(
+        `Сповіщення про зміну статусу користувача ${user.email} відправлені адміністраторам`
+      );
     } catch (error) {
       logger.error('Помилка відправки сповіщень адміністраторам:', error);
     }
@@ -303,18 +331,20 @@ class UserNotificationService {
    */
   formatAdminNotificationMessage(userName, userEmail, field, change) {
     const fieldNames = {
-      'isActive': 'Активність',
-      'role': 'Роль',
-      'registrationStatus': 'Статус реєстрації'
+      isActive: 'Активність',
+      role: 'Роль',
+      registrationStatus: 'Статус реєстрації',
     };
 
-    return `🔧 *Адмін сповіщення*\n\n` +
-           `Змінено статус користувача:\n` +
-           `👤 *${userName}* (${userEmail})\n\n` +
-           `📋 Поле: ${fieldNames[field] || field}\n` +
-           `📤 Було: ${change.old}\n` +
-           `📥 Стало: ${change.new}\n\n` +
-           `⏰ Час: ${new Date().toLocaleString('uk-UA')}`;
+    return (
+      `🔧 *Адмін сповіщення*\n\n` +
+      `Змінено статус користувача:\n` +
+      `👤 *${userName}* (${userEmail})\n\n` +
+      `📋 Поле: ${fieldNames[field] || field}\n` +
+      `📤 Було: ${change.old}\n` +
+      `📥 Стало: ${change.new}\n\n` +
+      `⏰ Час: ${new Date().toLocaleString('uk-UA')}`
+    );
   }
 
   /**
@@ -339,8 +369,8 @@ class UserNotificationService {
           targetUserEmail: user.email,
           field: field,
           oldValue: change.old,
-          newValue: change.new
-        }
+          newValue: change.new,
+        },
       });
 
       await notification.save();

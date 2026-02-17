@@ -61,9 +61,10 @@ class ErrorNotificationService {
       details = 'Спробуйте пізніше';
     } else if (error.statusCode >= 500) {
       userMessage = 'Помилка сервера';
-      details = process.env.NODE_ENV === 'development' 
-        ? (error.message || 'Внутрішня помилка сервера')
-        : 'Спробуйте пізніше або зверніться до адміністратора';
+      details =
+        process.env.NODE_ENV === 'development'
+          ? error.message || 'Внутрішня помилка сервера'
+          : 'Спробуйте пізніше або зверніться до адміністратора';
     } else if (error.message) {
       userMessage = error.message;
     }
@@ -83,8 +84,8 @@ class ErrorNotificationService {
       error: {
         name: error.name,
         statusCode: error.statusCode || 500,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      }
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
     };
   }
 
@@ -92,8 +93,12 @@ class ErrorNotificationService {
    * Визначає тип помилки для відображення
    */
   getErrorType(statusCode) {
-    if (statusCode >= 500) return 'error';
-    if (statusCode >= 400) return 'warning';
+    if (statusCode >= 500) {
+      return 'error';
+    }
+    if (statusCode >= 400) {
+      return 'warning';
+    }
     return 'info';
   }
 
@@ -120,7 +125,7 @@ class ErrorNotificationService {
     logger.info('Error notification sent:', {
       title: formattedError.title,
       type: formattedError.type,
-      statusCode: formattedError.error.statusCode
+      statusCode: formattedError.error.statusCode,
     });
   }
 
@@ -143,4 +148,3 @@ class ErrorNotificationService {
 const errorNotificationService = new ErrorNotificationService();
 
 module.exports = errorNotificationService;
-

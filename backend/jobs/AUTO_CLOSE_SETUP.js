@@ -1,7 +1,7 @@
 /**
  * Інструкція для ініціалізації Auto-Close Job
- * 
- * Auto-Close Job автоматично закриває тікети у статусі "resolved" 
+ *
+ * Auto-Close Job автоматично закриває тікети у статусі "resolved"
  * після певної кількості днів (за замовчуванням 7 днів).
  */
 
@@ -11,8 +11,8 @@
 
 // Додайте наступні рядки в backend/.env:
 
-AUTO_CLOSE_DAYS = 7
-NOTIFY_AUTO_CLOSE = true
+// AUTO_CLOSE_DAYS = 7
+// NOTIFY_AUTO_CLOSE = true
 
 // ============================================
 // КРОК 2: Встановити залежність node-cron

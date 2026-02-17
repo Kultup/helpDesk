@@ -1,12 +1,13 @@
+/* eslint-disable no-console */
 /**
  * Скрипт для видалення користувача з бази даних
- * 
+ *
  * Використання:
  *   node backend/scripts/deleteUser.js --id <userId>                    - видалити за ID
  *   node backend/scripts/deleteUser.js --telegramId <telegramId>       - видалити за telegramId
  *   node backend/scripts/deleteUser.js --email <email>                 - видалити за email
  *   node backend/scripts/deleteUser.js --login <login>                 - видалити за login
- * 
+ *
  * Опції:
  *   --force          - примусове видалення (навіть якщо є активні тікети)
  *   --soft           - м'яке видалення (тільки деактивація)
@@ -25,7 +26,7 @@ async function deleteUser(options) {
     // Підключення до MongoDB
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/helpdesk', {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
     });
 
     console.log('✅ Підключено до бази даних');
@@ -45,8 +46,8 @@ async function deleteUser(options) {
           { telegramId: String(options.telegramId) },
           { telegramId: options.telegramId },
           { telegramChatId: String(options.telegramId) },
-          { telegramChatId: String(options.telegramId) }
-        ]
+          { telegramChatId: String(options.telegramId) },
+        ],
       });
     } else if (options.email) {
       user = await User.findOne({ email: options.email.toLowerCase() });
@@ -54,7 +55,9 @@ async function deleteUser(options) {
       user = await User.findOne({ login: options.login.toLowerCase() });
     } else {
       console.error('❌ Помилка: Не вказано параметр для пошуку користувача');
-      console.log('Використання: node backend/scripts/deleteUser.js --id <userId> | --telegramId <telegramId> | --email <email> | --login <login>');
+      console.log(
+        'Використання: node backend/scripts/deleteUser.js --id <userId> | --telegramId <telegramId> | --email <email> | --login <login>'
+      );
       process.exit(1);
     }
 
@@ -65,7 +68,7 @@ async function deleteUser(options) {
 
     console.log('📋 Знайдено користувача:');
     console.log('   ID:', user._id);
-    console.log('   Ім\'я:', user.firstName, user.lastName);
+    console.log("   Ім'я:", user.firstName, user.lastName);
     console.log('   Email:', user.email);
     console.log('   Login:', user.login);
     console.log('   Telegram ID:', user.telegramId);
@@ -76,18 +79,12 @@ async function deleteUser(options) {
 
     // Перевіряємо активні тікети
     const activeTicketsCount = await Ticket.countDocuments({
-      $or: [
-        { createdBy: user._id },
-        { assignedTo: user._id }
-      ],
-      status: { $in: ['open', 'in_progress'] }
+      $or: [{ createdBy: user._id }, { assignedTo: user._id }],
+      status: { $in: ['open', 'in_progress'] },
     });
 
     const allTicketsCount = await Ticket.countDocuments({
-      $or: [
-        { createdBy: user._id },
-        { assignedTo: user._id }
-      ]
+      $or: [{ createdBy: user._id }, { assignedTo: user._id }],
     });
 
     console.log('\n📊 Статистика тікетів:');
@@ -96,16 +93,18 @@ async function deleteUser(options) {
 
     // М'яке видалення
     if (options.soft) {
-      console.log('\n🔄 Виконується м\'яке видалення (деактивація)...');
+      console.log("\n🔄 Виконується м'яке видалення (деактивація)...");
       user.isActive = false;
       user.deletedAt = new Date();
       await user.save();
       console.log('✅ Користувача деактивовано');
-    } 
+    }
     // Повне видалення
     else if (options.force || activeTicketsCount === 0) {
       if (activeTicketsCount > 0 && !options.force) {
-        console.log('\n⚠️  У користувача є активні тікети. Використайте --force для примусового видалення.');
+        console.log(
+          '\n⚠️  У користувача є активні тікети. Використайте --force для примусового видалення.'
+        );
         process.exit(1);
       }
 
@@ -113,10 +112,7 @@ async function deleteUser(options) {
 
       // Видаляємо PendingRegistration
       const pendingReg = await PendingRegistration.findOne({
-        $or: [
-          { telegramId: user.telegramId },
-          { telegramChatId: user.telegramChatId }
-        ]
+        $or: [{ telegramId: user.telegramId }, { telegramChatId: user.telegramChatId }],
       });
       if (pendingReg) {
         await PendingRegistration.deleteOne({ _id: pendingReg._id });
@@ -126,7 +122,7 @@ async function deleteUser(options) {
       // Видаляємо PositionRequest
       if (user.telegramId) {
         const positionRequests = await PositionRequest.find({
-          telegramId: user.telegramId
+          telegramId: user.telegramId,
         });
         if (positionRequests.length > 0) {
           await PositionRequest.deleteMany({ telegramId: user.telegramId });
@@ -139,7 +135,9 @@ async function deleteUser(options) {
       console.log('   ✅ Користувача видалено з бази даних');
       console.log('\n✅ Повне видалення завершено!');
     } else {
-      console.log('\n⚠️  У користувача є активні тікети. Використайте --force для примусового видалення або --soft для деактивації.');
+      console.log(
+        '\n⚠️  У користувача є активні тікети. Використайте --force для примусового видалення або --soft для деактивації.'
+      );
       process.exit(1);
     }
 
@@ -157,7 +155,7 @@ async function deleteUser(options) {
 const args = process.argv.slice(2);
 const options = {
   force: args.includes('--force'),
-  soft: args.includes('--soft')
+  soft: args.includes('--soft'),
 };
 
 // Знаходимо параметри
@@ -177,4 +175,3 @@ if (idIndex !== -1 && args[idIndex + 1]) {
 }
 
 deleteUser(options);
-

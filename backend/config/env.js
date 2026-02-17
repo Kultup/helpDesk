@@ -1,11 +1,10 @@
+/* eslint-disable no-console */
 const Joi = require('joi');
 
 // Схема валідації environment variables
 const envSchema = Joi.object({
   // Node Environment
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
 
   // Server
   PORT: Joi.number().default(5000),
@@ -31,7 +30,6 @@ const envSchema = Joi.object({
   TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
   TELEGRAM_CHAT_ID: Joi.string().allow('').optional(),
 
-
   // File Upload
   UPLOAD_DIR: Joi.string().default('./uploads'),
   MAX_FILE_SIZE: Joi.number().default(10485760), // 10MB
@@ -41,11 +39,8 @@ const envSchema = Joi.object({
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
 
   // Logging
-  LOG_LEVEL: Joi.string()
-    .valid('error', 'warn', 'info', 'debug')
-    .default('info'),
+  LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
   LOG_DIR: Joi.string().default('./logs'),
-
 }).unknown();
 
 /**
@@ -58,7 +53,7 @@ const validateEnv = () => {
   if (cleanedEnv.ZABBIX_POLL_INTERVAL === '') {
     delete cleanedEnv.ZABBIX_POLL_INTERVAL;
   }
-  
+
   const { error, value } = envSchema.validate(cleanedEnv, {
     abortEarly: false,
     stripUnknown: true,
@@ -66,7 +61,7 @@ const validateEnv = () => {
 
   if (error) {
     const errorMessages = error.details
-      .map((detail) => `${detail.path.join('.')}: ${detail.message}`)
+      .map(detail => `${detail.path.join('.')}: ${detail.message}`)
       .join('\n');
 
     throw new Error(
@@ -76,7 +71,7 @@ const validateEnv = () => {
   }
 
   // Встановлюємо валідовані значення назад в process.env
-  Object.keys(value).forEach((key) => {
+  Object.keys(value).forEach(key => {
     process.env[key] = value[key];
   });
 
@@ -90,7 +85,7 @@ const validateEnv = () => {
     ];
 
     const missing = requiredInProduction.filter(
-      (key) => !process.env[key] || process.env[key] === ''
+      key => !process.env[key] || process.env[key] === ''
     );
 
     if (missing.length > 0) {
@@ -101,15 +96,11 @@ const validateEnv = () => {
 
     // Перевірка безпеки для production
     if (process.env.JWT_SECRET.length < 32) {
-      throw new Error(
-        '❌ JWT_SECRET must be at least 32 characters long in production'
-      );
+      throw new Error('❌ JWT_SECRET must be at least 32 characters long in production');
     }
 
     if (process.env.JWT_REFRESH_SECRET.length < 32) {
-      throw new Error(
-        '❌ JWT_REFRESH_SECRET must be at least 32 characters long in production'
-      );
+      throw new Error('❌ JWT_REFRESH_SECRET must be at least 32 characters long in production');
     }
   }
 
@@ -118,4 +109,3 @@ const validateEnv = () => {
 };
 
 module.exports = { validateEnv };
-

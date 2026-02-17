@@ -1,56 +1,66 @@
 const express = require('express');
 const router = express.Router();
-const { body, query, param } = require('express-validator');
+const { body, param } = require('express-validator');
 const Joi = require('joi');
 const Position = require('../models/Position');
 const positionController = require('../controllers/positionController');
-const { authenticateToken, requirePermission, logUserAction, isAdminRole } = require('../middleware/auth');
-const adminAuth = require('../middleware/adminAuth');
+const {
+  authenticateToken,
+  requirePermission,
+  logUserAction,
+  isAdminRole,
+} = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // Схеми валідації
 const createPositionSchema = Joi.object({
   title: Joi.string().max(100).required().messages({
     'string.max': 'Назва посади не може перевищувати 100 символів',
-    'any.required': 'Назва посади є обов\'язковою'
+    'any.required': "Назва посади є обов'язковою",
   }),
   titleEn: Joi.string().max(100).allow('').optional(),
   description: Joi.string().max(500).allow('').optional(),
   department: Joi.string().max(100).required().messages({
     'string.max': 'Назва відділу не може перевищувати 100 символів',
-    'any.required': 'Відділ є обов\'язковим'
+    'any.required': "Відділ є обов'язковим",
   }),
   departmentEn: Joi.string().max(100).allow('').optional(),
   level: Joi.string().optional(),
   category: Joi.string().optional(),
-  permissions: Joi.array().items(
-    Joi.object({
-      module: Joi.string().required(),
-      actions: Joi.array().items(Joi.string()).required()
-    })
-  ).optional(),
+  permissions: Joi.array()
+    .items(
+      Joi.object({
+        module: Joi.string().required(),
+        actions: Joi.array().items(Joi.string()).required(),
+      })
+    )
+    .optional(),
   responsibilities: Joi.array().items(Joi.string()).optional(),
   requirements: Joi.array().items(Joi.string()).optional(),
-  skills: Joi.array().items(
-    Joi.object({
-      name: Joi.string().required(),
-      level: Joi.string().valid('basic', 'intermediate', 'advanced', 'expert').required(),
-      required: Joi.boolean().required()
-    })
-  ).optional(),
+  skills: Joi.array()
+    .items(
+      Joi.object({
+        name: Joi.string().required(),
+        level: Joi.string().valid('basic', 'intermediate', 'advanced', 'expert').required(),
+        required: Joi.boolean().required(),
+      })
+    )
+    .optional(),
   salary: Joi.object({
     min: Joi.number().min(0).optional(),
     max: Joi.number().min(0).optional(),
-    currency: Joi.string().valid('UAH', 'USD', 'EUR').default('UAH')
+    currency: Joi.string().valid('UAH', 'USD', 'EUR').default('UAH'),
   }).optional(),
   workSchedule: Joi.object({
     type: Joi.string().valid('full-time', 'part-time', 'contract', 'remote', 'hybrid').required(),
-    hoursPerWeek: Joi.number().min(1).max(168).required()
+    hoursPerWeek: Joi.number().min(1).max(168).required(),
   }).optional(),
   reportingTo: Joi.string().allow('').optional(),
   isActive: Joi.boolean().optional(),
   isPublic: Joi.boolean().optional(),
-  institutions: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional()
+  institutions: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .optional(),
 }).unknown(false);
 
 const updatePositionSchema = Joi.object({
@@ -61,34 +71,40 @@ const updatePositionSchema = Joi.object({
   departmentEn: Joi.string().max(100).allow('').optional(),
   level: Joi.string().optional(),
   category: Joi.string().optional(),
-  permissions: Joi.array().items(
-    Joi.object({
-      module: Joi.string().required(),
-      actions: Joi.array().items(Joi.string()).required()
-    })
-  ).optional(),
+  permissions: Joi.array()
+    .items(
+      Joi.object({
+        module: Joi.string().required(),
+        actions: Joi.array().items(Joi.string()).required(),
+      })
+    )
+    .optional(),
   responsibilities: Joi.array().items(Joi.string()).optional(),
   requirements: Joi.array().items(Joi.string()).optional(),
-  skills: Joi.array().items(
-    Joi.object({
-      name: Joi.string().required(),
-      level: Joi.string().valid('basic', 'intermediate', 'advanced', 'expert').required(),
-      required: Joi.boolean().required()
-    })
-  ).optional(),
+  skills: Joi.array()
+    .items(
+      Joi.object({
+        name: Joi.string().required(),
+        level: Joi.string().valid('basic', 'intermediate', 'advanced', 'expert').required(),
+        required: Joi.boolean().required(),
+      })
+    )
+    .optional(),
   salary: Joi.object({
     min: Joi.number().min(0).optional(),
     max: Joi.number().min(0).optional(),
-    currency: Joi.string().valid('UAH', 'USD', 'EUR').optional()
+    currency: Joi.string().valid('UAH', 'USD', 'EUR').optional(),
   }).optional(),
   workSchedule: Joi.object({
     type: Joi.string().valid('full-time', 'part-time', 'contract', 'remote', 'hybrid').required(),
-    hoursPerWeek: Joi.number().min(1).max(168).required()
+    hoursPerWeek: Joi.number().min(1).max(168).required(),
   }).optional(),
   reportingTo: Joi.string().allow('').optional(),
   isActive: Joi.boolean().optional(),
   isPublic: Joi.boolean().optional(),
-  institutions: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional()
+  institutions: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .optional(),
 }).unknown(false);
 
 // @route   GET /api/positions
@@ -103,15 +119,17 @@ router.get('/', authenticateToken, async (req, res) => {
       search,
       isActive,
       sortBy = 'title',
-      sortOrder = 'asc'
+      sortOrder = 'asc',
     } = req.query;
 
     // Побудова фільтрів
     const filters = {};
-    
+
     logger.info('Query params:', { page, limit, department, search, isActive, sortBy, sortOrder });
-    
-    if (department) filters.department = department;
+
+    if (department) {
+      filters.department = department;
+    }
     // Якщо isActive не передано, показуємо тільки активні посади
     // Якщо передано 'false', показуємо неактивні
     // Якщо передано 'true' або 'all', показуємо відповідно
@@ -121,9 +139,9 @@ router.get('/', authenticateToken, async (req, res) => {
       filters.isActive = false;
     }
     // Якщо isActive === 'all', не додаємо фільтр
-    
+
     logger.info('Filters:', filters);
-    
+
     // Пошук по назві посади
     if (search) {
       filters.title = { $regex: search, $options: 'i' };
@@ -137,16 +155,16 @@ router.get('/', authenticateToken, async (req, res) => {
       filters.$and.push({
         title: {
           $not: {
-            $regex: /адміністратор системи|администратор системы|system administrator/i
-          }
-        }
+            $regex: /адміністратор системи|администратор системы|system administrator/i,
+          },
+        },
       });
     }
 
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
+      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
     };
 
     let positions = await Position.find(filters)
@@ -158,9 +176,11 @@ router.get('/', authenticateToken, async (req, res) => {
     if (!isAdminRole(req.user.role)) {
       positions = positions.filter(position => {
         const titleLower = position.title.toLowerCase();
-        return !titleLower.includes('адміністратор системи') && 
-               !titleLower.includes('администратор системы') &&
-               !titleLower.includes('system administrator');
+        return (
+          !titleLower.includes('адміністратор системи') &&
+          !titleLower.includes('администратор системы') &&
+          !titleLower.includes('system administrator')
+        );
       });
     }
 
@@ -174,16 +194,15 @@ router.get('/', authenticateToken, async (req, res) => {
           page: options.page,
           limit: options.limit,
           total,
-          pages: Math.ceil(total / options.limit)
-        }
-      }
+          pages: Math.ceil(total / options.limit),
+        },
+      },
     });
-
   } catch (error) {
     logger.error('Помилка отримання посад:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -194,39 +213,39 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const position = await Position.findById(req.params.id);
-    
+
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посада не знайдена'
+        message: 'Посада не знайдена',
       });
     }
-    
+
     // Перевірка доступу до посади "адміністратор системи"
     if (!isAdminRole(req.user.role)) {
       const titleLower = position.title.toLowerCase();
-      const isAdminPosition = titleLower.includes('адміністратор системи') || 
-                             titleLower.includes('администратор системы') ||
-                             titleLower.includes('system administrator');
-      
+      const isAdminPosition =
+        titleLower.includes('адміністратор системи') ||
+        titleLower.includes('администратор системы') ||
+        titleLower.includes('system administrator');
+
       if (isAdminPosition) {
         return res.status(403).json({
           success: false,
-          message: 'Доступ заборонено'
+          message: 'Доступ заборонено',
         });
       }
     }
 
     res.json({
       success: true,
-      data: position
+      data: position,
     });
-
   } catch (error) {
     logger.error('Помилка отримання посади:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -241,7 +260,7 @@ router.get('/:id/statistics', authenticateToken, async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
@@ -253,17 +272,16 @@ router.get('/:id/statistics', authenticateToken, async (req, res) => {
         position: {
           _id: position._id,
           title: position.title,
-          department: position.department
+          department: position.department,
         },
-        statistics
-      }
+        statistics,
+      },
     });
-
   } catch (error) {
     logger.error('Помилка отримання статистики посади:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -271,7 +289,8 @@ router.get('/:id/statistics', authenticateToken, async (req, res) => {
 // @route   POST /api/positions
 // @desc    Створення нової посади
 // @access  Private (Admin only)
-router.post('/', 
+router.post(
+  '/',
   authenticateToken,
   requirePermission('manage_positions'),
   logUserAction('створив посаду'),
@@ -282,7 +301,7 @@ router.post('/',
       if (error) {
         return res.status(400).json({
           success: false,
-          message: error.details[0].message
+          message: error.details[0].message,
         });
       }
 
@@ -291,20 +310,21 @@ router.post('/',
       if (existingPosition) {
         return res.status(400).json({
           success: false,
-          message: 'Посада з такою назвою вже існує'
+          message: 'Посада з такою назвою вже існує',
         });
       }
 
       // Детальне логування для діагностики
       logger.debug('🔍 Оригінальні дані запиту:', JSON.stringify(req.body, null, 2));
-    logger.debug('🔍 Валідовані дані:', JSON.stringify(value, null, 2));
-    logger.debug('🔍 reportingTo значення:', value.reportingTo);
-    logger.debug('🔍 reportingTo тип:', typeof value.reportingTo);
+      logger.debug('🔍 Валідовані дані:', JSON.stringify(value, null, 2));
+      logger.debug('🔍 reportingTo значення:', value.reportingTo);
+      logger.debug('🔍 reportingTo тип:', typeof value.reportingTo);
 
       // Обробка reportingTo - якщо порожній рядок, встановлюємо null
       const processedValue = {
         ...value,
-        reportingTo: value.reportingTo && value.reportingTo.trim() !== '' ? value.reportingTo : null
+        reportingTo:
+          value.reportingTo && value.reportingTo.trim() !== '' ? value.reportingTo : null,
       };
 
       logger.debug('🔍 Оброблені дані:', JSON.stringify(processedValue, null, 2));
@@ -312,21 +332,20 @@ router.post('/',
       // Створення посади
       const position = new Position({
         ...processedValue,
-        createdBy: req.user._id
+        createdBy: req.user._id,
       });
       await position.save();
 
       res.status(201).json({
         success: true,
         message: 'Посаду успішно створено',
-        data: position
+        data: position,
       });
-
     } catch (error) {
       logger.error('Помилка створення посади:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
@@ -335,7 +354,8 @@ router.post('/',
 // @route   PUT /api/positions/:id
 // @desc    Оновлення посади
 // @access  Private (Admin only)
-router.put('/:id', 
+router.put(
+  '/:id',
   authenticateToken,
   requirePermission('manage_positions'),
   logUserAction('оновив посаду'),
@@ -346,7 +366,7 @@ router.put('/:id',
       if (error) {
         return res.status(400).json({
           success: false,
-          message: error.details[0].message
+          message: error.details[0].message,
         });
       }
 
@@ -354,7 +374,7 @@ router.put('/:id',
       if (!position) {
         return res.status(404).json({
           success: false,
-          message: 'Посаду не знайдено'
+          message: 'Посаду не знайдено',
         });
       }
 
@@ -364,7 +384,7 @@ router.put('/:id',
         if (existingPosition) {
           return res.status(400).json({
             success: false,
-            message: 'Посада з такою назвою вже існує'
+            message: 'Посада з такою назвою вже існує',
           });
         }
       }
@@ -372,9 +392,12 @@ router.put('/:id',
       // Обробка reportingTo - якщо порожній рядок, встановлюємо null
       const processedValue = {
         ...value,
-        reportingTo: value.reportingTo !== undefined ? 
-          (value.reportingTo && value.reportingTo.trim() !== '' ? value.reportingTo : null) : 
-          undefined
+        reportingTo:
+          value.reportingTo !== undefined
+            ? value.reportingTo && value.reportingTo.trim() !== ''
+              ? value.reportingTo
+              : null
+            : undefined,
       };
 
       // Оновлення посади
@@ -384,14 +407,13 @@ router.put('/:id',
       res.json({
         success: true,
         message: 'Посаду успішно оновлено',
-        data: position
+        data: position,
       });
-
     } catch (error) {
       logger.error('Помилка оновлення посади:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
@@ -400,7 +422,8 @@ router.put('/:id',
 // @route   DELETE /api/positions/:id
 // @desc    Видалення посади
 // @access  Private (Admin only)
-router.delete('/:id', 
+router.delete(
+  '/:id',
   authenticateToken,
   requirePermission('manage_positions'),
   logUserAction('видалив посаду'),
@@ -410,7 +433,7 @@ router.delete('/:id',
       if (!position) {
         return res.status(404).json({
           success: false,
-          message: 'Посаду не знайдено'
+          message: 'Посаду не знайдено',
         });
       }
 
@@ -421,7 +444,7 @@ router.delete('/:id',
       if (userCount > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Неможливо видалити посаду, оскільки з нею пов\'язані користувачі'
+          message: "Неможливо видалити посаду, оскільки з нею пов'язані користувачі",
         });
       }
 
@@ -429,28 +452,24 @@ router.delete('/:id',
 
       res.json({
         success: true,
-        message: 'Посаду успішно видалено'
+        message: 'Посаду успішно видалено',
       });
-
     } catch (error) {
       logger.error('Помилка видалення посади:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера'
+        message: 'Помилка сервера',
       });
     }
   }
 );
 
 // Активувати позицію
-router.patch('/:id/activate', 
+router.patch(
+  '/:id/activate',
   authenticateToken,
   requirePermission('manage_positions'),
-  [
-    param('id')
-      .isMongoId()
-      .withMessage('ID позиції повинен бути валідним')
-  ],
+  [param('id').isMongoId().withMessage('ID позиції повинен бути валідним')],
   logUserAction('активував позицію'),
   async (req, res) => {
     try {
@@ -460,7 +479,7 @@ router.patch('/:id/activate',
       if (!position) {
         return res.status(404).json({
           success: false,
-          message: 'Позицію не знайдено'
+          message: 'Позицію не знайдено',
         });
       }
 
@@ -471,13 +490,13 @@ router.patch('/:id/activate',
       res.json({
         success: true,
         message: 'Позицію успішно активовано',
-        data: position
+        data: position,
       });
     } catch (error) {
       logger.error('Помилка активації позиції:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера при активації позиції'
+        message: 'Помилка сервера при активації позиції',
       });
     }
   }
@@ -489,17 +508,16 @@ router.patch('/:id/activate',
 router.get('/departments/list', authenticateToken, async (req, res) => {
   try {
     const departments = await Position.distinct('department', { isActive: true });
-    
+
     res.json({
       success: true,
-      data: departments.sort()
+      data: departments.sort(),
     });
-
   } catch (error) {
     logger.error('Помилка отримання відділів:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера'
+      message: 'Помилка сервера',
     });
   }
 });
@@ -507,16 +525,15 @@ router.get('/departments/list', authenticateToken, async (req, res) => {
 // @route   DELETE /api/positions/bulk/delete
 // @desc    Масове видалення посад
 // @access  Private (Admin only)
-router.delete('/bulk/delete', 
+router.delete(
+  '/bulk/delete',
   authenticateToken,
   requirePermission('manage_positions'),
   [
     body('positionIds')
       .isArray({ min: 1 })
       .withMessage('positionIds повинен бути непустим масивом'),
-    body('positionIds.*')
-      .isMongoId()
-      .withMessage('Кожен ID посади повинен бути валідним')
+    body('positionIds.*').isMongoId().withMessage('Кожен ID посади повинен бути валідним'),
   ],
   logUserAction('масово видалив посади'),
   positionController.bulkDeletePositions
@@ -525,39 +542,40 @@ router.delete('/bulk/delete',
 // @route   GET /api/positions/permissions/list
 // @desc    Отримання списку доступних дозволів
 // @access  Private (Admin only)
-router.get('/permissions/list', 
+router.get(
+  '/permissions/list',
   authenticateToken,
   requirePermission('manage_positions'),
-  async (req, res) => {
+  (req, res) => {
     try {
       const permissions = [
         {
           module: 'tickets',
-          actions: ['create', 'read', 'update', 'delete', 'assign', 'close']
+          actions: ['create', 'read', 'update', 'delete', 'assign', 'close'],
         },
         {
           module: 'users',
-          actions: ['create', 'read', 'update', 'delete', 'manage_roles']
+          actions: ['create', 'read', 'update', 'delete', 'manage_roles'],
         },
         {
           module: 'positions',
-          actions: ['create', 'read', 'update', 'delete', 'manage_permissions']
+          actions: ['create', 'read', 'update', 'delete', 'manage_permissions'],
         },
         {
           module: 'analytics',
-          actions: ['read', 'export']
-        }
+          actions: ['read', 'export'],
+        },
       ];
 
       res.json({
         success: true,
-        data: permissions
+        data: permissions,
       });
     } catch (error) {
       logger.error('Помилка отримання списку дозволів:', error);
       res.status(500).json({
         success: false,
-        message: 'Помилка сервера при отриманні списку дозволів'
+        message: 'Помилка сервера при отриманні списку дозволів',
       });
     }
   }
@@ -567,13 +585,13 @@ router.get('/permissions/list',
 router.get('/simple/list', async (req, res) => {
   try {
     // Виключаємо посаду "адміністратор системи"
-    const positions = await Position.find({ 
+    const positions = await Position.find({
       isActive: { $ne: false },
       title: {
         $not: {
-          $regex: /адміністратор системи|администратор системы|system administrator/i
-        }
-      }
+          $regex: /адміністратор системи|администратор системы|system administrator/i,
+        },
+      },
     })
       .select('_id title department')
       .sort({ title: 1 })
@@ -584,14 +602,14 @@ router.get('/simple/list', async (req, res) => {
       data: positions.map(pos => ({
         id: pos._id,
         title: pos.title,
-        department: pos.department
-      }))
+        department: pos.department,
+      })),
     });
   } catch (error) {
     logger.error('Помилка отримання списку посад:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка сервера при отриманні списку посад'
+      message: 'Помилка сервера при отриманні списку посад',
     });
   }
 });

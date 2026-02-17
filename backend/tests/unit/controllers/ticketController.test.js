@@ -1,6 +1,13 @@
-const mongoose = require('mongoose');
 const { validationResult } = require('express-validator');
-const { connectDB, disconnectDB, clearDatabase, createTestUser, createTestAdmin, createTestCategory, createTestTicket } = require('../../helpers/testHelpers');
+const {
+  connectDB,
+  disconnectDB,
+  clearDatabase,
+  createTestUser,
+  createTestAdmin,
+  createTestCategory,
+  createTestTicket,
+} = require('../../helpers/testHelpers');
 const ticketController = require('../../../controllers/ticketController');
 const Ticket = require('../../../models/Ticket');
 const Comment = require('../../../models/Comment');
@@ -8,13 +15,12 @@ const Attachment = require('../../../models/Attachment');
 
 // Моки (telegramServiceInstance та ticketWebSocketService тепер глобальні в setup.js)
 jest.mock('express-validator', () => ({
-  validationResult: jest.fn()
+  validationResult: jest.fn(),
 }));
 
 describe('TicketController', () => {
   let mockReq;
   let mockRes;
-  let mockNext;
   let testUser;
   let testAdmin;
   let testCategory;
@@ -30,18 +36,18 @@ describe('TicketController', () => {
 
   beforeEach(async () => {
     await clearDatabase();
-    
+
     testUser = await createTestUser();
     testAdmin = await createTestAdmin();
     testCategory = await createTestCategory(testUser);
-    
+
     mockReq = {
       body: {},
       query: {},
       params: {},
-      user: testUser
+      user: testUser,
     };
-    
+
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
@@ -49,10 +55,8 @@ describe('TicketController', () => {
       setHeader: jest.fn().mockReturnThis(),
       send: jest.fn().mockReturnThis(),
       write: jest.fn().mockReturnThis(),
-      end: jest.fn().mockReturnThis()
+      end: jest.fn().mockReturnThis(),
     };
-    
-    mockNext = jest.fn();
   });
 
   describe('getTickets', () => {
@@ -132,7 +136,7 @@ describe('TicketController', () => {
       // Мокаємо validationResult для успішної валідації
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       // Перевіряємо що category існує
@@ -141,13 +145,13 @@ describe('TicketController', () => {
 
       // Отримуємо city з користувача
       const cityId = testUser.city._id || testUser.city;
-      
+
       mockReq.body = {
         title: 'New Test Ticket',
         description: 'Test description',
         priority: 'high',
         category: testCategory._id.toString(),
-        city: cityId.toString()
+        city: cityId.toString(),
       };
       mockReq.user = { _id: testUser._id };
       mockReq.ip = '127.0.0.1';
@@ -174,11 +178,11 @@ describe('TicketController', () => {
       // Мокаємо validationResult для помилки валідації
       validationResult.mockReturnValue({
         isEmpty: () => false,
-        array: () => [{ msg: 'Description is required', param: 'description' }]
+        array: () => [{ msg: 'Description is required', param: 'description' }],
       });
 
       mockReq.body = {
-        title: 'Incomplete Ticket'
+        title: 'Incomplete Ticket',
         // missing description and category
       };
 
@@ -191,7 +195,7 @@ describe('TicketController', () => {
   describe('getTicketById', () => {
     it('should return ticket by id', async () => {
       const ticket = await createTestTicket(testUser);
-      
+
       // Перевіряємо що ticket має правильний createdBy
       const ticketDoc = await Ticket.findById(ticket._id);
       expect(ticketDoc.createdBy.toString()).toBe(testUser._id.toString());
@@ -204,7 +208,7 @@ describe('TicketController', () => {
       // Використовуємо mongoose.Types.ObjectId для консистентності
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
 
@@ -212,13 +216,13 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       // Перевіряємо успішну відповідь
       expect(response).toHaveProperty('success', true);
       expect(response.data).toHaveProperty('_id');
       // Порівнюємо як рядки, оскільки toObject() конвертує ObjectId в рядок
       expect(response.data._id.toString()).toBe(ticket._id.toString());
-      
+
       // Відновлюємо spy
       commentSpy.mockRestore();
       attachmentSpy.mockRestore();
@@ -230,7 +234,7 @@ describe('TicketController', () => {
       mockReq.params.id = fakeId.toString();
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
 
       await ticketController.getTicketById(mockReq, mockRes);
@@ -243,27 +247,27 @@ describe('TicketController', () => {
     it('should update ticket by owner', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const ticket = await createTestTicket(testUser);
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
         title: 'Updated Title',
         description: 'Updated description',
-        priority: 'high'
+        priority: 'high',
       };
 
       await ticketController.updateTicket(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('updateTicket failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -276,7 +280,7 @@ describe('TicketController', () => {
     it('should allow admin to update any ticket', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const ticket = await createTestTicket(testUser);
@@ -285,14 +289,14 @@ describe('TicketController', () => {
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
         title: 'Admin Updated Title',
-        priority: 'urgent'
+        priority: 'urgent',
       };
 
       await ticketController.updateTicket(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('updateTicket failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -304,7 +308,7 @@ describe('TicketController', () => {
     it('should return 403 for unauthorized user', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const otherUser = await createTestUser({ email: 'other@example.com' });
@@ -312,11 +316,11 @@ describe('TicketController', () => {
 
       mockReq.user = {
         _id: otherUser._id,
-        role: 'user'
+        role: 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
-        title: 'Unauthorized Update'
+        title: 'Unauthorized Update',
       };
 
       await ticketController.updateTicket(mockReq, mockRes);
@@ -327,7 +331,7 @@ describe('TicketController', () => {
     it('should return 400 for invalid ticket id', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       mockReq.params.id = 'invalid-id';
@@ -349,7 +353,7 @@ describe('TicketController', () => {
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
 
@@ -357,7 +361,7 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('deleteTicket failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -380,7 +384,7 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('deleteTicket failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -401,24 +405,24 @@ describe('TicketController', () => {
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
-        userId: watcher._id.toString()
+        userId: watcher._id.toString(),
       };
 
       await ticketController.addWatcher(mockReq, mockRes);
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('addWatcher failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
       } else {
         expect(response).toHaveProperty('success', true);
-        
+
         // Перевіряємо що watcher додано
         const updatedTicket = await Ticket.findById(ticket._id);
         if (updatedTicket) {
@@ -432,14 +436,14 @@ describe('TicketController', () => {
     it('should remove watcher from ticket', async () => {
       const watcher = await createTestUser({ email: 'watcher@example.com' });
       const ticket = await createTestTicket(testUser);
-      
+
       // Додаємо watcher спочатку
       ticket.watchers.push(watcher._id);
       await ticket.save();
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.params.userId = watcher._id.toString(); // removeWatcher використовує params.userId
@@ -448,16 +452,18 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('removeWatcher failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
       } else {
         expect(response).toHaveProperty('success', true);
-        
+
         // Перевіряємо що watcher видалено
         const updatedTicket = await Ticket.findById(ticket._id);
-        expect(updatedTicket.watchers.map(id => id.toString())).not.toContain(watcher._id.toString());
+        expect(updatedTicket.watchers.map(id => id.toString())).not.toContain(
+          watcher._id.toString()
+        );
       }
     });
   });
@@ -475,7 +481,7 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       if (response.success === false) {
         console.error('getTicketStatistics failed:', response);
         expect(mockRes.status).toHaveBeenCalled();
@@ -492,7 +498,7 @@ describe('TicketController', () => {
 
       mockReq.user = {
         _id: testUser._id,
-        role: 'user'
+        role: 'user',
       };
       mockReq.query = {};
 
@@ -500,7 +506,7 @@ describe('TicketController', () => {
 
       expect(mockRes.json).toHaveBeenCalled();
       const response = mockRes.json.mock.calls[0][0];
-      
+
       // Не-адміни отримують статистику тільки для своїх тикетів
       if (response.success === false) {
         console.error('getTicketStatistics failed:', response);
@@ -526,10 +532,11 @@ describe('TicketController', () => {
 
       // exportTickets використовує res.setHeader та res.end для файлу
       // Перевіряємо що хоча б один з методів був викликаний
-      const wasCalled = mockRes.setHeader.mock.calls.length > 0 || 
-                       mockRes.end.mock.calls.length > 0 ||
-                       mockRes.write.mock.calls.length > 0;
-      
+      const wasCalled =
+        mockRes.setHeader.mock.calls.length > 0 ||
+        mockRes.end.mock.calls.length > 0 ||
+        mockRes.write.mock.calls.length > 0;
+
       if (!wasCalled) {
         // Може бути помилка - перевіряємо
         if (mockRes.status.mock.calls.length > 0) {
@@ -540,7 +547,7 @@ describe('TicketController', () => {
           }
         }
       }
-      
+
       // Якщо немає помилки, перевіряємо що експорт виконався
       if (mockRes.status.mock.calls.length === 0 || mockRes.status.mock.calls[0][0] !== 500) {
         expect(wasCalled || mockRes.json.mock.calls.length > 0).toBe(true);
@@ -556,9 +563,9 @@ describe('TicketController', () => {
       await ticketController.exportTickets(mockReq, mockRes);
 
       // exportTickets використовує res.setHeader та res.end для файлу
-      const wasCalled = mockRes.setHeader.mock.calls.length > 0 || 
-                       mockRes.end.mock.calls.length > 0;
-      
+      const wasCalled =
+        mockRes.setHeader.mock.calls.length > 0 || mockRes.end.mock.calls.length > 0;
+
       // Якщо немає помилки, перевіряємо що експорт виконався
       if (mockRes.status.mock.calls.length === 0 || mockRes.status.mock.calls[0][0] !== 500) {
         expect(wasCalled || mockRes.json.mock.calls.length > 0).toBe(true);
@@ -575,10 +582,11 @@ describe('TicketController', () => {
       await ticketController.exportTickets(mockReq, mockRes);
 
       // Експорт має бути успішним
-      const wasCalled = mockRes.setHeader.mock.calls.length > 0 || 
-                       mockRes.end.mock.calls.length > 0 ||
-                       mockRes.write.mock.calls.length > 0;
-      
+      const wasCalled =
+        mockRes.setHeader.mock.calls.length > 0 ||
+        mockRes.end.mock.calls.length > 0 ||
+        mockRes.write.mock.calls.length > 0;
+
       // Якщо немає помилки, перевіряємо що експорт виконався
       if (mockRes.status.mock.calls.length === 0 || mockRes.status.mock.calls[0][0] !== 500) {
         expect(wasCalled || mockRes.json.mock.calls.length > 0).toBe(true);
@@ -654,18 +662,18 @@ describe('TicketController', () => {
     it('should update ticket status to resolved', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const ticket = await createTestTicket(testUser, { status: 'open' });
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
-        status: 'resolved'
+        status: 'resolved',
       };
 
       await ticketController.updateTicket(mockReq, mockRes);
@@ -684,18 +692,18 @@ describe('TicketController', () => {
     it('should update ticket status to closed', async () => {
       validationResult.mockReturnValue({
         isEmpty: () => true,
-        array: () => []
+        array: () => [],
       });
 
       const ticket = await createTestTicket(testUser, { status: 'open' });
 
       mockReq.user = {
         _id: testUser._id,
-        role: testUser.role || 'user'
+        role: testUser.role || 'user',
       };
       mockReq.params.id = ticket._id.toString();
       mockReq.body = {
-        status: 'closed'
+        status: 'closed',
       };
 
       await ticketController.updateTicket(mockReq, mockRes);
@@ -712,4 +720,3 @@ describe('TicketController', () => {
     });
   });
 });
-

@@ -1,7 +1,6 @@
 const Note = require('../models/Note');
 const Ticket = require('../models/Ticket');
 const { validationResult } = require('express-validator');
-const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 // Отримати всі нотатки для тикету
@@ -15,21 +14,21 @@ const getNotesByTicket = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тикет не знайдено'
+        message: 'Тикет не знайдено',
       });
     }
 
     // Будуємо фільтр
-    let filter = { ticket: ticketId };
-    
+    const filter = { ticket: ticketId };
+
     if (!includeDeleted) {
       filter.isDeleted = false;
     }
-    
+
     if (type) {
       filter.type = type;
     }
-    
+
     if (author) {
       filter.author = author;
     }
@@ -42,15 +41,14 @@ const getNotesByTicket = async (req, res) => {
     res.json({
       success: true,
       data: notes,
-      count: notes.length
+      count: notes.length,
     });
-
   } catch (error) {
     logger.error('Error fetching notes:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні нотаток',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -68,28 +66,27 @@ const getNoteById = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
     if (note.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку видалено'
+        message: 'Нотатку видалено',
       });
     }
 
     res.json({
       success: true,
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error fetching note:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні нотатки',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -102,7 +99,7 @@ const createNote = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -114,7 +111,7 @@ const createNote = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Тикет не знайдено'
+        message: 'Тикет не знайдено',
       });
     }
 
@@ -130,8 +127,8 @@ const createNote = async (req, res) => {
       metadata: {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
-        source: 'web'
-      }
+        source: 'web',
+      },
     };
 
     const note = new Note(noteData);
@@ -143,15 +140,14 @@ const createNote = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Нотатку створено успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error creating note:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при створенні нотатки',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -164,7 +160,7 @@ const updateNote = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -175,14 +171,14 @@ const updateNote = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
     if (note.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку видалено'
+        message: 'Нотатку видалено',
       });
     }
 
@@ -190,17 +186,29 @@ const updateNote = async (req, res) => {
     if (note.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для редагування цієї нотатки'
+        message: 'Недостатньо прав для редагування цієї нотатки',
       });
     }
 
     // Оновлюємо поля
-    if (content !== undefined) note.content = content;
-    if (type !== undefined) note.type = type;
-    if (isPrivate !== undefined) note.isPrivate = isPrivate;
-    if (priority !== undefined) note.priority = priority;
-    if (tags !== undefined) note.tags = tags;
-    if (reminderDate !== undefined) note.reminderDate = reminderDate;
+    if (content !== undefined) {
+      note.content = content;
+    }
+    if (type !== undefined) {
+      note.type = type;
+    }
+    if (isPrivate !== undefined) {
+      note.isPrivate = isPrivate;
+    }
+    if (priority !== undefined) {
+      note.priority = priority;
+    }
+    if (tags !== undefined) {
+      note.tags = tags;
+    }
+    if (reminderDate !== undefined) {
+      note.reminderDate = reminderDate;
+    }
 
     note.editedBy = req.user.id;
     note.editedAt = new Date();
@@ -213,15 +221,14 @@ const updateNote = async (req, res) => {
     res.json({
       success: true,
       message: 'Нотатку оновлено успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error updating note:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні нотатки',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -235,14 +242,14 @@ const deleteNote = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
     if (note.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку вже видалено'
+        message: 'Нотатку вже видалено',
       });
     }
 
@@ -250,7 +257,7 @@ const deleteNote = async (req, res) => {
     if (note.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для видалення цієї нотатки'
+        message: 'Недостатньо прав для видалення цієї нотатки',
       });
     }
 
@@ -258,15 +265,14 @@ const deleteNote = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Нотатку видалено успішно'
+      message: 'Нотатку видалено успішно',
     });
-
   } catch (error) {
     logger.error('Error deleting note:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні нотатки',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -280,14 +286,14 @@ const restoreNote = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
     if (!note.isDeleted) {
       return res.status(400).json({
         success: false,
-        message: 'Нотатка не видалена'
+        message: 'Нотатка не видалена',
       });
     }
 
@@ -295,7 +301,7 @@ const restoreNote = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для відновлення нотатки'
+        message: 'Недостатньо прав для відновлення нотатки',
       });
     }
 
@@ -305,15 +311,14 @@ const restoreNote = async (req, res) => {
     res.json({
       success: true,
       message: 'Нотатку відновлено успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error restoring note:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при відновленні нотатки',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -327,7 +332,7 @@ const addTag = async (req, res) => {
     if (!tag || typeof tag !== 'string') {
       return res.status(400).json({
         success: false,
-        message: 'Тег є обов\'язковим і має бути рядком'
+        message: "Тег є обов'язковим і має бути рядком",
       });
     }
 
@@ -335,7 +340,7 @@ const addTag = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -343,7 +348,7 @@ const addTag = async (req, res) => {
     if (note.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для редагування цієї нотатки'
+        message: 'Недостатньо прав для редагування цієї нотатки',
       });
     }
 
@@ -353,15 +358,14 @@ const addTag = async (req, res) => {
     res.json({
       success: true,
       message: 'Тег додано успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error adding tag:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при додаванні тегу',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -375,7 +379,7 @@ const removeTag = async (req, res) => {
     if (!tag || typeof tag !== 'string') {
       return res.status(400).json({
         success: false,
-        message: 'Тег є обов\'язковим і має бути рядком'
+        message: "Тег є обов'язковим і має бути рядком",
       });
     }
 
@@ -383,7 +387,7 @@ const removeTag = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -391,7 +395,7 @@ const removeTag = async (req, res) => {
     if (note.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для редагування цієї нотатки'
+        message: 'Недостатньо прав для редагування цієї нотатки',
       });
     }
 
@@ -401,15 +405,14 @@ const removeTag = async (req, res) => {
     res.json({
       success: true,
       message: 'Тег видалено успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error removing tag:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні тегу',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -423,7 +426,7 @@ const setReminder = async (req, res) => {
     if (!reminderDate) {
       return res.status(400).json({
         success: false,
-        message: 'Дата нагадування є обов\'язковою'
+        message: "Дата нагадування є обов'язковою",
       });
     }
 
@@ -431,7 +434,7 @@ const setReminder = async (req, res) => {
     if (!note) {
       return res.status(404).json({
         success: false,
-        message: 'Нотатку не знайдено'
+        message: 'Нотатку не знайдено',
       });
     }
 
@@ -439,7 +442,7 @@ const setReminder = async (req, res) => {
     if (note.author.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Недостатньо прав для редагування цієї нотатки'
+        message: 'Недостатньо прав для редагування цієї нотатки',
       });
     }
 
@@ -449,15 +452,14 @@ const setReminder = async (req, res) => {
     res.json({
       success: true,
       message: 'Нагадування встановлено успішно',
-      data: note
+      data: note,
     });
-
   } catch (error) {
     logger.error('Error setting reminder:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при встановленні нагадування',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -473,7 +475,7 @@ const getNotesStatistics = async (req, res) => {
       if (!ticket) {
         return res.status(404).json({
           success: false,
-          message: 'Тикет не знайдено'
+          message: 'Тикет не знайдено',
         });
       }
     }
@@ -486,16 +488,15 @@ const getNotesStatistics = async (req, res) => {
         total: 0,
         byType: [],
         byAuthor: [],
-        recent: 0
-      }
+        recent: 0,
+      },
     });
-
   } catch (error) {
     logger.error('Error fetching statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -510,5 +511,5 @@ module.exports = {
   addTag,
   removeTag,
   setReminder,
-  getNotesStatistics
+  getNotesStatistics,
 };

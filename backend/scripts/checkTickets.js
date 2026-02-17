@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -11,13 +12,15 @@ async function checkTickets() {
 
     const Ticket = require('../models/Ticket');
     const tickets = await Ticket.find().populate('createdBy', 'name email').limit(5);
-    
+
     console.log('\n📋 Існуючі тікети:');
     if (tickets.length === 0) {
       console.log('Тікетів не знайдено');
     } else {
       tickets.forEach(t => {
-        console.log(`ID: ${t._id}, Назва: ${t.title}, Статус: ${t.status}, Автор: ${t.createdBy?.email || 'N/A'}`);
+        console.log(
+          `ID: ${t._id}, Назва: ${t.title}, Статус: ${t.status}, Автор: ${t.createdBy?.email || 'N/A'}`
+        );
       });
     }
 

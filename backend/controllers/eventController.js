@@ -7,18 +7,17 @@ const logger = require('../utils/logger');
 const getEvents = async (req, res) => {
   try {
     const { startDate, endDate, dateFrom, dateTo, type, status, limit = 50, skip = 0 } = req.query;
-    const userId = req.user.id;
 
-    let filter = { isDeleted: false };
+    const filter = { isDeleted: false };
 
     // Фільтр по даті (підтримуємо обидва формати параметрів)
     const fromDate = dateFrom || startDate;
     const toDate = dateTo || endDate;
-    
+
     if (fromDate && toDate) {
       filter.date = {
         $gte: new Date(fromDate),
-        $lte: new Date(toDate)
+        $lte: new Date(toDate),
       };
     } else if (fromDate) {
       filter.date = { $gte: new Date(fromDate) };
@@ -46,14 +45,13 @@ const getEvents = async (req, res) => {
     res.json({
       success: true,
       data: events,
-      count: events.length
+      count: events.length,
     });
-
   } catch (error) {
     logger.error('Error fetching events:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні подій'
+      message: 'Помилка при отриманні подій',
     });
   }
 };
@@ -67,14 +65,14 @@ const getEventById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID події'
+        message: 'Невірний ID події',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     })
       .populate('author', 'name email')
       .populate('attendees', 'name email');
@@ -82,20 +80,19 @@ const getEventById = async (req, res) => {
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
     res.json({
       success: true,
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error fetching event:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні події'
+      message: 'Помилка при отриманні події',
     });
   }
 };
@@ -108,94 +105,7 @@ const createEvent = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
-      });
-    }
-
-    const {
-      title,
-      description,
-      date,
-      type,
-      priority,
-      isAllDay,
-      startTime,
-      endTime,
-      location,
-      attendees,
-      reminderMinutes,
-      tags
-    } = req.body;
-
-    const event = new Event({
-      title,
-      description,
-      date: new Date(date),
-      type,
-      priority,
-      author: req.user.id,
-      isAllDay,
-      startTime,
-      endTime,
-      location,
-      attendees: attendees || [],
-      reminderMinutes: reminderMinutes || 0,
-      tags: tags || []
-    });
-
-    await event.save();
-    await event.populate('author', 'name email');
-    await event.populate('attendees', 'name email');
-
-    logger.info(`Event created: ${event._id} by user ${req.user.id}`);
-
-    res.status(201).json({
-      success: true,
-      message: 'Подію успішно створено',
-      data: event
-    });
-
-  } catch (error) {
-    logger.error('Error creating event:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Помилка при створенні події'
-    });
-  }
-};
-
-// Оновити подію
-const updateEvent = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Помилки валідації',
-        errors: errors.array()
-      });
-    }
-
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Невірний ID події'
-      });
-    }
-
-    const event = await Event.findOne({
-      _id: id,
-      author: userId,
-      isDeleted: false
-    });
-
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Подію не знайдено'
+        errors: errors.array(),
       });
     }
 
@@ -212,23 +122,135 @@ const updateEvent = async (req, res) => {
       attendees,
       reminderMinutes,
       tags,
-      status
+    } = req.body;
+
+    const event = new Event({
+      title,
+      description,
+      date: new Date(date),
+      type,
+      priority,
+      author: req.user.id,
+      isAllDay,
+      startTime,
+      endTime,
+      location,
+      attendees: attendees || [],
+      reminderMinutes: reminderMinutes || 0,
+      tags: tags || [],
+    });
+
+    await event.save();
+    await event.populate('author', 'name email');
+    await event.populate('attendees', 'name email');
+
+    logger.info(`Event created: ${event._id} by user ${req.user.id}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Подію успішно створено',
+      data: event,
+    });
+  } catch (error) {
+    logger.error('Error creating event:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Помилка при створенні події',
+    });
+  }
+};
+
+// Оновити подію
+const updateEvent = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Помилки валідації',
+        errors: errors.array(),
+      });
+    }
+
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Невірний ID події',
+      });
+    }
+
+    const event = await Event.findOne({
+      _id: id,
+      author: userId,
+      isDeleted: false,
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Подію не знайдено',
+      });
+    }
+
+    const {
+      title,
+      description,
+      date,
+      type,
+      priority,
+      isAllDay,
+      startTime,
+      endTime,
+      location,
+      attendees,
+      reminderMinutes,
+      tags,
+      status,
     } = req.body;
 
     // Оновлюємо поля
-    if (title !== undefined) event.title = title;
-    if (description !== undefined) event.description = description;
-    if (date !== undefined) event.date = new Date(date);
-    if (type !== undefined) event.type = type;
-    if (priority !== undefined) event.priority = priority;
-    if (isAllDay !== undefined) event.isAllDay = isAllDay;
-    if (startTime !== undefined) event.startTime = startTime;
-    if (endTime !== undefined) event.endTime = endTime;
-    if (location !== undefined) event.location = location;
-    if (attendees !== undefined) event.attendees = attendees;
-    if (reminderMinutes !== undefined) event.reminderMinutes = reminderMinutes;
-    if (tags !== undefined) event.tags = tags;
-    if (status !== undefined) event.status = status;
+    if (title !== undefined) {
+      event.title = title;
+    }
+    if (description !== undefined) {
+      event.description = description;
+    }
+    if (date !== undefined) {
+      event.date = new Date(date);
+    }
+    if (type !== undefined) {
+      event.type = type;
+    }
+    if (priority !== undefined) {
+      event.priority = priority;
+    }
+    if (isAllDay !== undefined) {
+      event.isAllDay = isAllDay;
+    }
+    if (startTime !== undefined) {
+      event.startTime = startTime;
+    }
+    if (endTime !== undefined) {
+      event.endTime = endTime;
+    }
+    if (location !== undefined) {
+      event.location = location;
+    }
+    if (attendees !== undefined) {
+      event.attendees = attendees;
+    }
+    if (reminderMinutes !== undefined) {
+      event.reminderMinutes = reminderMinutes;
+    }
+    if (tags !== undefined) {
+      event.tags = tags;
+    }
+    if (status !== undefined) {
+      event.status = status;
+    }
 
     // Скидаємо нагадування якщо дата змінилась
     if (date !== undefined) {
@@ -244,14 +266,13 @@ const updateEvent = async (req, res) => {
     res.json({
       success: true,
       message: 'Подію успішно оновлено',
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error updating event:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при оновленні події'
+      message: 'Помилка при оновленні події',
     });
   }
 };
@@ -265,20 +286,20 @@ const deleteEvent = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID події'
+        message: 'Невірний ID події',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
@@ -288,14 +309,13 @@ const deleteEvent = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Подію успішно видалено'
+      message: 'Подію успішно видалено',
     });
-
   } catch (error) {
     logger.error('Error deleting event:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при видаленні події'
+      message: 'Помилка при видаленні події',
     });
   }
 };
@@ -311,14 +331,13 @@ const getUpcomingEvents = async (req, res) => {
     res.json({
       success: true,
       data: events,
-      count: events.length
+      count: events.length,
     });
-
   } catch (error) {
     logger.error('Error fetching upcoming events:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при отриманні майбутніх подій'
+      message: 'Помилка при отриманні майбутніх подій',
     });
   }
 };
@@ -333,20 +352,20 @@ const addAttendee = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(attendeeId)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID'
+        message: 'Невірний ID',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
@@ -356,14 +375,13 @@ const addAttendee = async (req, res) => {
     res.json({
       success: true,
       message: 'Учасника додано',
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error adding attendee:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при додаванні учасника'
+      message: 'Помилка при додаванні учасника',
     });
   }
 };
@@ -377,20 +395,20 @@ const removeAttendee = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(attendeeId)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID'
+        message: 'Невірний ID',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
@@ -400,14 +418,13 @@ const removeAttendee = async (req, res) => {
     res.json({
       success: true,
       message: 'Учасника видалено',
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error removing attendee:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при видаленні учасника'
+      message: 'Помилка при видаленні учасника',
     });
   }
 };
@@ -421,20 +438,20 @@ const markCompleted = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID події'
+        message: 'Невірний ID події',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
@@ -443,14 +460,13 @@ const markCompleted = async (req, res) => {
     res.json({
       success: true,
       message: 'Подію позначено як завершену',
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error marking event as completed:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при позначенні події як завершеної'
+      message: 'Помилка при позначенні події як завершеної',
     });
   }
 };
@@ -464,20 +480,20 @@ const cancelEvent = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID події'
+        message: 'Невірний ID події',
       });
     }
 
     const event = await Event.findOne({
       _id: id,
       author: userId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     if (!event) {
       return res.status(404).json({
         success: false,
-        message: 'Подію не знайдено'
+        message: 'Подію не знайдено',
       });
     }
 
@@ -486,14 +502,13 @@ const cancelEvent = async (req, res) => {
     res.json({
       success: true,
       message: 'Подію скасовано',
-      data: event
+      data: event,
     });
-
   } catch (error) {
     logger.error('Error cancelling event:', error);
     res.status(500).json({
       success: false,
-      message: 'Помилка при скасуванні події'
+      message: 'Помилка при скасуванні події',
     });
   }
 };
@@ -508,5 +523,5 @@ module.exports = {
   addAttendee,
   removeAttendee,
   markAsCompleted: markCompleted,
-  cancelEvent
+  cancelEvent,
 };

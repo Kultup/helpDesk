@@ -42,12 +42,12 @@ class TelegramNotificationService {
 
       let formattedMessage = '';
       if (title) {
-        formattedMessage += `*${title}*\n\n`;
+        formattedMessage += `<b>${TelegramUtils.escapeHtml(title)}</b>\n\n`;
       }
-      formattedMessage += message;
+      formattedMessage += TelegramUtils.escapeHtml(message);
 
       await this.sendMessage(String(telegramId), formattedMessage, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
 
       logger.info(`✅ Сповіщення відправлено користувачу ${telegramId}`, {
@@ -93,16 +93,17 @@ class TelegramNotificationService {
         return;
       }
 
-      const userName =
-        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || user.login;
+      const userName = TelegramUtils.escapeHtml(
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || user.login
+      );
       const message =
-        `✅ *Реєстрацію підтверджено!*\n\n` +
+        `✅ <b>Реєстрацію підтверджено!</b>\n\n` +
         `🎉 Вітаємо, ${userName}!\n\n` +
         `Ваш обліковий запис успішно активовано адміністратором.\n` +
         `Тепер ви можете використовувати всі функції Telegram бота.\n\n` +
         `💡 Надішліть /start або /menu для доступу до меню.`;
 
-      await this.sendMessage(String(user.telegramId), message, { parse_mode: 'Markdown' });
+      await this.sendMessage(String(user.telegramId), message, { parse_mode: 'HTML' });
 
       logger.info(
         `✅ Сповіщення про підтвердження реєстрації відправлено користувачу ${user.email} (${user.telegramId})`
@@ -150,20 +151,24 @@ class TelegramNotificationService {
         return;
       }
 
-      const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+      const userName = TelegramUtils.escapeHtml(
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+      );
+      const escapedEmail = TelegramUtils.escapeHtml(user.email);
 
-      let message = `❌ *Реєстрацію відхилено*\n` + `👤 ${userName} | 📧 \`${user.email}\`\n`;
+      let message =
+        `❌ <b>Реєстрацію відхилено</b>\n` + `👤 ${userName} | 📧 <code>${escapedEmail}</code>\n`;
 
       if (reason && reason.trim()) {
-        message += `📝 *Причина:* ${reason}\n`;
+        message += `📝 <b>Причина:</b> ${TelegramUtils.escapeHtml(reason)}\n`;
       }
 
       message +=
-        `\nЯкщо це помилка, зверніться: [@Kultup](https://t.me/Kultup)\n` +
+        `\nЯкщо це помилка, зверніться: <a href="https://t.me/Kultup">@Kultup</a>\n` +
         `Використайте /start для перегляду опцій.`;
 
       await this.sendMessage(String(user.telegramId), message, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       });
 
       logger.info(
@@ -196,13 +201,14 @@ class TelegramNotificationService {
         return;
       }
 
+      const escapedTitle = TelegramUtils.escapeHtml(position.title);
       const message =
-        `✅ *Посаду додано!*\n\n` +
-        `💼 *Посада:* ${position.title}\n\n` +
+        `✅ <b>Посаду додано!</b>\n\n` +
+        `💼 <b>Посада:</b> ${escapedTitle}\n\n` +
         `Ваш запит на додавання посади було підтверджено.\n` +
         `Тепер ви можете продовжити реєстрацію.`;
 
-      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      await this.sendMessage(chatId, message, { parse_mode: 'HTML' });
       logger.info('✅ Сповіщення про підтвердження посади відправлено користувачу', {
         chatId,
         positionId: position._id,
@@ -238,14 +244,14 @@ class TelegramNotificationService {
       const userId = positionRequest.telegramId;
 
       let message =
-        `❌ *Запит на посаду відхилено*\n\n` +
-        `💼 *Посада:* ${TelegramUtils.escapeMarkdown(positionRequest.title)}\n\n`;
+        `❌ <b>Запит на посаду відхилено</b>\n\n` +
+        `💼 <b>Посада:</b> ${TelegramUtils.escapeHtml(positionRequest.title)}\n\n`;
 
       if (reason) {
-        message += `📝 *Причина:* ${TelegramUtils.escapeMarkdown(reason)}\n\n`;
+        message += `📝 <b>Причина:</b> ${TelegramUtils.escapeHtml(reason)}\n\n`;
       }
 
-      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      await this.sendMessage(chatId, message, { parse_mode: 'HTML' });
 
       if (positionRequest.pendingRegistrationId && userId) {
         const pendingRegistration = await PendingRegistration.findById(
@@ -274,7 +280,7 @@ class TelegramNotificationService {
       }
 
       message = `Будь ласка, оберіть іншу посаду зі списку або зверніться до адміністратора.`;
-      await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      await this.sendMessage(chatId, message, { parse_mode: 'HTML' });
 
       logger.info('✅ Сповіщення про відхилення посади відправлено користувачу', {
         chatId,
@@ -376,18 +382,18 @@ class TelegramNotificationService {
         logger.info(`📤 Відправка сповіщення про запит на посаду ${admins.length} адміністраторам`);
 
         const message =
-          `📝 *Новий запит на додавання посади*\n\n` +
-          `💼 *Посада:* ${TelegramUtils.escapeMarkdown(positionName)}\n` +
-          `👤 *Telegram ID:* \`${telegramId}\`\n` +
-          `🆔 *ID запиту:* \`${requestId}\`\n\n` +
+          `📝 <b>Новий запит на додавання посади</b>\n\n` +
+          `💼 <b>Посада:</b> ${TelegramUtils.escapeHtml(positionName)}\n` +
+          `👤 <b>Telegram ID:</b> <code>${TelegramUtils.escapeHtml(telegramId)}</code>\n` +
+          `🆔 <b>ID запиту:</b> <code>${TelegramUtils.escapeHtml(requestId)}</code>\n\n` +
           `Ви можете підтвердити або відхилити цей запит, використовуючи команди:\n` +
-          `/approve\\_position \\_${requestId}\n` +
-          `/reject\\_position \\_${requestId}`;
+          `/approve_position _${requestId}\n` +
+          `/reject_position _${requestId}`;
 
         for (const admin of admins) {
           try {
             await this.sendMessage(admin.telegramId, message, {
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -450,19 +456,19 @@ class TelegramNotificationService {
       ]);
 
       const message =
-        `🎫 *Новий тікет створено*\n` +
-        `📋 ${ticket.title}\n` +
-        `🏙️ ${ticket.city?.name || 'Не вказано'} | 🆔 \`${ticket._id}\``;
+        `🎫 <b>Новий тікет створено</b>\n` +
+        `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+        `🏙️ ${TelegramUtils.escapeHtml(ticket.city?.name || 'Не вказано')} | 🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>`;
 
       logger.info('📤 Відправка повідомлення в групу...', { groupChatId });
 
       try {
-        await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+        await this.sendMessage(groupChatId, message, { parse_mode: 'HTML' });
         logger.info('✅ Сповіщення про новий тікет відправлено в групу Telegram');
       } catch (sendError) {
         logger.error('❌ Помилка відправки повідомлення в групу:', sendError.message);
         if (sendError.message && sendError.message.includes('parse')) {
-          const plainMessage = message.replace(/\*/g, '').replace(/`/g, '');
+          const plainMessage = message.replace(/<[^>]+>/g, '');
           await this.sendMessage(groupChatId, plainMessage);
         } else {
           throw sendError;
@@ -503,11 +509,11 @@ class TelegramNotificationService {
 
       if (newStatus === 'closed' || newStatus === 'resolved') {
         const message =
-          `🎫 *Тікет виконаний*\n` +
-          `📋 ${ticket.title}\n` +
-          `🏙️ ${ticket.city?.name || 'Не вказано'} | 🆔 \`${ticket._id}\``;
+          `🎫 <b>Тікет виконаний</b>\n` +
+          `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+          `🏙️ ${TelegramUtils.escapeHtml(ticket.city?.name || 'Не вказано')} | 🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>`;
 
-        await this.sendMessage(groupChatId, message, { parse_mode: 'Markdown' });
+        await this.sendMessage(groupChatId, message, { parse_mode: 'HTML' });
         logger.info('✅ Сповіщення про закриття тікету відправлено в групу Telegram');
       }
     } catch (error) {
@@ -553,15 +559,15 @@ class TelegramNotificationService {
       let message = '';
       if (type === 'updated') {
         message =
-          `🔄 *Статус тікету змінено*\n` +
-          `📋 ${ticket.title}\n` +
-          `🆔 \`${ticket._id}\`\n` +
-          `\n${statusEmoji} *${statusText}*\n` +
-          `⚡ ${TelegramUtils.getPriorityText(ticket.priority)}`;
+          `🔄 <b>Статус тікету змінено</b>\n` +
+          `📋 ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+          `🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n` +
+          `\n${statusEmoji} <b>${TelegramUtils.escapeHtml(statusText)}</b>\n` +
+          `⚡ ${TelegramUtils.escapeHtml(TelegramUtils.getPriorityText(ticket.priority))}`;
       }
 
       if (message) {
-        await this.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+        await this.sendMessage(chatId, message, { parse_mode: 'HTML' });
         logger.info(`✅ Сповіщення про зміну статусу тікету відправлено користувачу ${user.email}`);
       }
     } catch (error) {
@@ -643,18 +649,18 @@ class TelegramNotificationService {
         }[ticket.priority] || '⚪';
 
       const message =
-        `⏱️ *Ваш тікет взято в роботу!*\n\n` +
-        `📋 *Тікет:* ${ticket.title}\n` +
-        `🆔 \`${ticket._id}\`\n\n` +
-        `${priorityEmoji} *Пріоритет:* ${TelegramUtils.getPriorityText(ticket.priority)}\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
-        `⏰ *Очікуваний час виконання:* ${timeText}\n` +
-        `📅 *Планова дата виконання:* ${deadlineFormatted}\n\n` +
+        `⏱️ <b>Ваш тікет взято в роботу!</b>\n\n` +
+        `📋 <b>Тікет:</b> ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+        `🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n\n` +
+        `${priorityEmoji} <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(TelegramUtils.getPriorityText(ticket.priority))}\n` +
+        `🏙️ <b>Місто:</b> ${TelegramUtils.escapeHtml(ticket.city?.name || 'Не вказано')}\n\n` +
+        `⏰ <b>Очікуваний час виконання:</b> ${TelegramUtils.escapeHtml(timeText)}\n` +
+        `📅 <b>Планова дата виконання:</b> ${TelegramUtils.escapeHtml(deadlineFormatted)}\n\n` +
         `💡 Ми докладемо всіх зусиль для вирішення вашої проблеми в зазначений термін.\n` +
         `\nВи отримаєте сповіщення про зміну статусу.`;
 
       await this.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [[{ text: '📋 Мої тікети', callback_data: 'my_tickets' }]],
         },
@@ -732,16 +738,16 @@ class TelegramNotificationService {
       }
 
       const message =
-        `⏰ *Попередження про дедлайн!*\n\n` +
-        `📋 *Тікет:* ${ticket.title}\n` +
-        `🆔 \`${ticket._id}\`\n` +
-        `🏙️ *Місто:* ${ticket.city?.name || 'Не вказано'}\n\n` +
-        `⚠️ *Залишилось часу:* ${timeText}\n` +
-        `📅 *Дедлайн:* ${deadlineFormatted}\n\n` +
+        `⏰ <b>Попередження про дедлайн!</b>\n\n` +
+        `📋 <b>Тікет:</b> ${TelegramUtils.escapeHtml(ticket.title)}\n` +
+        `🆔 <code>${TelegramUtils.escapeHtml(ticket._id)}</code>\n` +
+        `🏙️ <b>Місто:</b> ${TelegramUtils.escapeHtml(ticket.city?.name || 'Не вказано')}\n\n` +
+        `⚠️ <b>Залишилось часу:</b> ${TelegramUtils.escapeHtml(timeText)}\n` +
+        `📅 <b>Дедлайн:</b> ${TelegramUtils.escapeHtml(deadlineFormatted)}\n\n` +
         `💡 Наближається кінцевий термін виконання тікету. Якщо проблема ще не вирішена, зверніться до адміністратора.`;
 
       await this.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '📋 Мої тікети', callback_data: 'my_tickets' }],

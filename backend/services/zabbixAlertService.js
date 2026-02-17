@@ -4,6 +4,7 @@ const ZabbixConfig = require('../models/ZabbixConfig');
 const zabbixService = require('./zabbixService');
 const telegramService = require('./telegramServiceInstance');
 const TelegramBot = require('node-telegram-bot-api');
+const TelegramUtils = require('./telegramUtils');
 const logger = require('../utils/logger');
 
 /**
@@ -509,18 +510,18 @@ class ZabbixAlertService {
     const message = alert.message || '';
     const triggerDescription = alert.triggerDescription || alert.trigger?.comments || '';
 
-    let formattedMessage = `${emoji} *Zabbix Alert: ${severityLabel}*\n\n`;
-    formattedMessage += `🏷️ *Host:* ${host}\n`;
-    formattedMessage += `⚙️ *Trigger:* ${triggerName}\n`;
-    formattedMessage += `📊 *Status:* ${status}\n`;
-    formattedMessage += `⏰ *Time:* ${eventTime}\n`;
+    let formattedMessage = `${emoji} <b>Zabbix Alert: ${TelegramUtils.escapeHtml(severityLabel)}</b>\n\n`;
+    formattedMessage += `🏷️ <b>Host:</b> ${TelegramUtils.escapeHtml(host)}\n`;
+    formattedMessage += `⚙️ <b>Trigger:</b> ${TelegramUtils.escapeHtml(triggerName)}\n`;
+    formattedMessage += `📊 <b>Status:</b> ${TelegramUtils.escapeHtml(status)}\n`;
+    formattedMessage += `⏰ <b>Time:</b> ${TelegramUtils.escapeHtml(eventTime)}\n`;
 
     if (message) {
-      formattedMessage += `\n📝 *Message:* ${message}`;
+      formattedMessage += `\n📝 <b>Message:</b> ${TelegramUtils.escapeHtml(message)}`;
     }
 
     if (triggerDescription) {
-      formattedMessage += `\n\n📄 *Description:* ${triggerDescription}`;
+      formattedMessage += `\n\n📄 <b>Description:</b> ${TelegramUtils.escapeHtml(triggerDescription)}`;
     }
 
     return formattedMessage;
@@ -606,20 +607,20 @@ class ZabbixAlertService {
     const impactEmojis = { critical: '🔥', high: '🔴', medium: '🟡', low: '🟢' };
     const impactEmoji = impactEmojis[aiAnalysis.impactAssessment] || '❓';
 
-    let msg = `${emoji} *Zabbix: ${severityLabel}*\n\n`;
-    msg += `🏷️ *Host:* ${alert.host}\n`;
-    msg += `⚙️ *Trigger:* ${alert.triggerName}\n`;
-    msg += `⏰ *Час:* ${eventTime}\n`;
-    msg += `${impactEmoji} *Вплив:* ${aiAnalysis.impactAssessment}\n`;
+    let msg = `${emoji} <b>Zabbix: ${TelegramUtils.escapeHtml(severityLabel)}</b>\n\n`;
+    msg += `🏷️ <b>Host:</b> ${TelegramUtils.escapeHtml(alert.host)}\n`;
+    msg += `⚙️ <b>Trigger:</b> ${TelegramUtils.escapeHtml(alert.triggerName)}\n`;
+    msg += `⏰ <b>Час:</b> ${TelegramUtils.escapeHtml(eventTime)}\n`;
+    msg += `${impactEmoji} <b>Вплив:</b> ${TelegramUtils.escapeHtml(aiAnalysis.impactAssessment)}\n`;
 
     if (aiAnalysis.isRecurring) {
-      msg += `\n⚠️ *ПОВТОРЮВАНИЙ АЛЕРТ*\n`;
+      msg += `\n⚠️ <b>ПОВТОРЮВАНИЙ АЛЕРТ</b>\n`;
     }
 
-    msg += `\n💡 *AI аналіз:*\n${aiAnalysis.telegramSummary}\n`;
+    msg += `\n💡 <b>AI аналіз:</b>\n${TelegramUtils.escapeHtml(aiAnalysis.telegramSummary)}\n`;
 
     if (aiAnalysis.isDuplicate && aiAnalysis.duplicateAlertId) {
-      msg += `\n📋 *Дублікат алерту:* #${aiAnalysis.duplicateAlertId} (нотифікація повторна)`;
+      msg += `\n📋 <b>Дублікат алерту:</b> #${TelegramUtils.escapeHtml(aiAnalysis.duplicateAlertId)} (нотифікація повторна)`;
     }
 
     return msg;
@@ -679,11 +680,11 @@ class ZabbixAlertService {
         botUsername: bot.options?.username || 'unknown',
       });
 
-      // Спробуємо відправити з Markdown форматуванням
+      // Спробуємо відправити з HTML форматуванням
       try {
-        logger.info(`📨 Sending message with Markdown formatting to group ${groupId}`);
+        logger.info(`📨 Sending message with HTML formatting to group ${groupId}`);
         const result = await bot.sendMessage(String(groupId), message, {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
         });
 
         logger.info(`✅ Message successfully sent to Telegram group ${groupId}`, {
@@ -693,39 +694,25 @@ class ZabbixAlertService {
         });
 
         return { success: true, messageId: result.message_id };
-      } catch (markdownError) {
-        // Якщо помилка пов'язана з форматуванням Markdown, спробуємо відправити без форматування
+      } catch (htmlError) {
+        // Якщо помилка пов'язана з форматуванням HTML, спробуємо відправити як звичайний текст
         if (
-          markdownError.message &&
-          (markdownError.message.includes('parse') ||
-            markdownError.message.includes('Markdown') ||
-            markdownError.code === 400)
+          htmlError.message &&
+          (htmlError.message.includes('parse') ||
+            htmlError.message.includes("can't parse entities") ||
+            htmlError.code === 400)
         ) {
-          logger.warn('Markdown formatting error, trying to send without Markdown', {
+          logger.warn('HTML formatting error, trying to send as plain text', {
             groupId,
-            error: markdownError.message,
+            error: htmlError.message,
           });
 
-          try {
-            // Відправляємо без Markdown форматування
-            const result = await bot.sendMessage(groupId, message, {
-              parse_mode: 'HTML',
-            });
-            return { success: true, messageId: result.message_id, fallback: 'HTML' };
-          } catch (htmlError) {
-            // Якщо і HTML не працює, відправляємо як звичайний текст
-            logger.warn('HTML formatting error, trying to send as plain text', {
-              groupId,
-              error: htmlError.message,
-            });
-
-            // Відправляємо як звичайний текст без форматування
-            const plainMessage = message.replace(/\*/g, '').replace(/_/g, '').replace(/`/g, '');
-            const result = await bot.sendMessage(groupId, plainMessage);
-            return { success: true, messageId: result.message_id, fallback: 'plain' };
-          }
+          // Відправляємо як звичайний текст без форматування
+          const plainMessage = message.replace(/<[^>]*>/g, '');
+          const result = await bot.sendMessage(groupId, plainMessage);
+          return { success: true, messageId: result.message_id, fallback: 'plain' };
         } else {
-          throw markdownError;
+          throw htmlError;
         }
       }
     } catch (error) {

@@ -13,82 +13,64 @@ const createNotificationValidation = [
     .trim()
     .isLength({ min: 5, max: 200 })
     .withMessage('Заголовок повинен містити від 5 до 200 символів'),
-  
+
   body('message')
     .trim()
     .isLength({ min: 10, max: 1000 })
     .withMessage('Повідомлення повинно містити від 10 до 1000 символів'),
-  
+
   body('type')
     .isIn(['info', 'success', 'warning', 'error', 'system'])
     .withMessage('Тип повинен бути одним з: info, success, warning, error, system'),
-  
+
   body('priority')
     .optional()
     .isIn(['low', 'medium', 'high', 'urgent'])
     .withMessage('Пріоритет повинен бути одним з: low, medium, high, urgent'),
-  
-  body('recipients')
-    .optional()
-    .isArray()
-    .withMessage('Отримувачі повинні бути масивом'),
-  
-  body('recipients.*')
-    .optional()
-    .isMongoId()
-    .withMessage('Невірний ID отримувача'),
-  
-  body('channels')
-    .optional()
-    .isArray()
-    .withMessage('Канали повинні бути масивом'),
-  
+
+  body('recipients').optional().isArray().withMessage('Отримувачі повинні бути масивом'),
+
+  body('recipients.*').optional().isMongoId().withMessage('Невірний ID отримувача'),
+
+  body('channels').optional().isArray().withMessage('Канали повинні бути масивом'),
+
   body('channels.*')
     .optional()
     .isIn(['web', 'email', 'telegram', 'sms'])
     .withMessage('Канал повинен бути одним з: web, email, telegram, sms'),
-  
+
   body('scheduledAt')
     .optional()
     .isISO8601()
     .withMessage('Дата планування повинна бути в форматі ISO 8601'),
-  
+
   body('expiresAt')
     .optional()
     .isISO8601()
     .withMessage('Дата закінчення повинна бути в форматі ISO 8601'),
-  
-  body('metadata')
-    .optional()
-    .isObject()
-    .withMessage('Метадані повинні бути об\'єктом'),
-  
-  body('actionUrl')
-    .optional()
-    .isURL()
-    .withMessage('URL дії повинен бути валідним URL'),
-  
+
+  body('metadata').optional().isObject().withMessage("Метадані повинні бути об'єктом"),
+
+  body('actionUrl').optional().isURL().withMessage('URL дії повинен бути валідним URL'),
+
   body('actionText')
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('Текст дії повинен містити від 1 до 50 символів'),
-  
+
   body('category')
     .optional()
     .isIn(['ticket', 'user', 'system', 'security', 'maintenance'])
     .withMessage('Категорія повинна бути однією з: ticket, user, system, security, maintenance'),
-  
-  body('tags')
-    .optional()
-    .isArray()
-    .withMessage('Теги повинні бути масивом'),
-  
+
+  body('tags').optional().isArray().withMessage('Теги повинні бути масивом'),
+
   body('tags.*')
     .optional()
     .trim()
     .isLength({ min: 1, max: 30 })
-    .withMessage('Кожен тег повинен містити від 1 до 30 символів')
+    .withMessage('Кожен тег повинен містити від 1 до 30 символів'),
 ];
 
 // Валідація для оновлення сповіщення
@@ -98,37 +80,37 @@ const updateNotificationValidation = [
     .trim()
     .isLength({ min: 5, max: 200 })
     .withMessage('Заголовок повинен містити від 5 до 200 символів'),
-  
+
   body('message')
     .optional()
     .trim()
     .isLength({ min: 10, max: 1000 })
     .withMessage('Повідомлення повинно містити від 10 до 1000 символів'),
-  
+
   body('type')
     .optional()
     .isIn(['info', 'success', 'warning', 'error', 'system'])
     .withMessage('Тип повинен бути одним з: info, success, warning, error, system'),
-  
+
   body('priority')
     .optional()
     .isIn(['low', 'medium', 'high', 'urgent'])
     .withMessage('Пріоритет повинен бути одним з: low, medium, high, urgent'),
-  
+
   body('status')
     .optional()
     .isIn(['draft', 'scheduled', 'sent', 'failed', 'cancelled'])
     .withMessage('Статус повинен бути одним з: draft, scheduled, sent, failed, cancelled'),
-  
+
   body('scheduledAt')
     .optional()
     .isISO8601()
     .withMessage('Дата планування повинна бути в форматі ISO 8601'),
-  
+
   body('expiresAt')
     .optional()
     .isISO8601()
-    .withMessage('Дата закінчення повинна бути в форматі ISO 8601')
+    .withMessage('Дата закінчення повинна бути в форматі ISO 8601'),
 ];
 
 // Валідація для налаштувань сповіщень
@@ -137,92 +119,99 @@ const notificationSettingsValidation = [
     .optional()
     .isBoolean()
     .withMessage('Налаштування email повинно бути boolean'),
-  
-  body('email.types')
-    .optional()
-    .isArray()
-    .withMessage('Типи email сповіщень повинні бути масивом'),
-  
+
+  body('email.types').optional().isArray().withMessage('Типи email сповіщень повинні бути масивом'),
+
   body('email.types.*')
     .optional()
-    .isIn(['ticket_created', 'ticket_updated', 'ticket_assigned', 'ticket_resolved', 'system_maintenance', 'user_status_change', 'user_role_change', 'user_registration_status_change'])
+    .isIn([
+      'ticket_created',
+      'ticket_updated',
+      'ticket_assigned',
+      'ticket_resolved',
+      'system_maintenance',
+      'user_status_change',
+      'user_role_change',
+      'user_registration_status_change',
+    ])
     .withMessage('Невірний тип email сповіщення'),
-  
+
   body('telegram.enabled')
     .optional()
     .isBoolean()
     .withMessage('Налаштування Telegram повинно бути boolean'),
-  
+
   body('telegram.types')
     .optional()
     .isArray()
     .withMessage('Типи Telegram сповіщень повинні бути масивом'),
-  
+
   body('telegram.types.*')
     .optional()
-    .isIn(['ticket_created', 'ticket_updated', 'ticket_assigned', 'ticket_resolved', 'urgent_notifications', 'user_status_change', 'user_role_change', 'user_registration_status_change'])
+    .isIn([
+      'ticket_created',
+      'ticket_updated',
+      'ticket_assigned',
+      'ticket_resolved',
+      'urgent_notifications',
+      'user_status_change',
+      'user_role_change',
+      'user_registration_status_change',
+    ])
     .withMessage('Невірний тип Telegram сповіщення'),
-  
+
   body('web.enabled')
     .optional()
     .isBoolean()
     .withMessage('Налаштування веб-сповіщень повинно бути boolean'),
-  
-  body('web.types')
-    .optional()
-    .isArray()
-    .withMessage('Типи веб-сповіщень повинні бути масивом'),
-  
+
+  body('web.types').optional().isArray().withMessage('Типи веб-сповіщень повинні бути масивом'),
+
   body('web.types.*')
     .optional()
     .isIn(['all', 'ticket_related', 'system_only', 'urgent_only'])
     .withMessage('Невірний тип веб-сповіщення'),
-  
-  body('sms.enabled')
-    .optional()
-    .isBoolean()
-    .withMessage('Налаштування SMS повинно бути boolean'),
-  
-  body('sms.types')
-    .optional()
-    .isArray()
-    .withMessage('Типи SMS сповіщень повинні бути масивом'),
-  
+
+  body('sms.enabled').optional().isBoolean().withMessage('Налаштування SMS повинно бути boolean'),
+
+  body('sms.types').optional().isArray().withMessage('Типи SMS сповіщень повинні бути масивом'),
+
   body('sms.types.*')
     .optional()
     .isIn(['urgent_only', 'security_alerts'])
     .withMessage('Невірний тип SMS сповіщення'),
-  
+
   body('quietHours.enabled')
     .optional()
     .isBoolean()
     .withMessage('Налаштування тихих годин повинно бути boolean'),
-  
+
   body('quietHours.start')
     .optional()
     .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
     .withMessage('Час початку повинен бути в форматі HH:MM'),
-  
+
   body('quietHours.end')
     .optional()
     .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)
     .withMessage('Час закінчення повинен бути в форматі HH:MM'),
-  
+
   body('frequency.digest')
     .optional()
     .isIn(['never', 'daily', 'weekly'])
     .withMessage('Частота дайджесту повинна бути: never, daily, weekly'),
-  
+
   body('frequency.immediate')
     .optional()
     .isBoolean()
-    .withMessage('Налаштування миттєвих сповіщень повинно бути boolean')
+    .withMessage('Налаштування миттєвих сповіщень повинно бути boolean'),
 ];
 
 // МАРШРУТИ
 
 // Отримати всі сповіщення користувача
-router.get('/', 
+router.get(
+  '/',
   authenticateToken,
   query('page')
     .optional()
@@ -244,18 +233,12 @@ router.get('/',
     .optional()
     .isIn(['ticket', 'user', 'system', 'security', 'maintenance'])
     .withMessage('Категорія повинна бути однією з: ticket, user, system, security, maintenance'),
-  query('read')
-    .optional()
-    .isBoolean()
-    .withMessage('read повинно бути boolean значенням'),
+  query('read').optional().isBoolean().withMessage('read повинно бути boolean значенням'),
   query('startDate')
     .optional()
     .isISO8601()
     .withMessage('Дата початку повинна бути в форматі ISO 8601'),
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Дата кінця повинна бути в форматі ISO 8601'),
+  query('endDate').optional().isISO8601().withMessage('Дата кінця повинна бути в форматі ISO 8601'),
   query('search')
     .optional()
     .trim()
@@ -266,7 +249,8 @@ router.get('/',
 );
 
 // Отримати кількість непрочитаних сповіщень
-router.get('/unread-count', 
+router.get(
+  '/unread-count',
   authenticateToken,
   query('type')
     .optional()
@@ -281,17 +265,17 @@ router.get('/unread-count',
 );
 
 // Отримати конкретне сповіщення
-router.get('/:id', 
+router.get(
+  '/:id',
   authenticateToken,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('get_notification'),
   notificationController.getNotification
 );
 
 // Створити нове сповіщення (тільки для адмінів)
-router.post('/', 
+router.post(
+  '/',
   authenticateToken,
   adminAuth,
   createNotificationValidation,
@@ -300,60 +284,56 @@ router.post('/',
 );
 
 // Оновити сповіщення (тільки для адмінів)
-router.put('/:id', 
+router.put(
+  '/:id',
   authenticateToken,
   adminAuth,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   updateNotificationValidation,
   logAction('update_notification'),
   notificationController.updateNotification
 );
 
 // Видалити сповіщення (тільки для адмінів)
-router.delete('/:id', 
+router.delete(
+  '/:id',
   authenticateToken,
   adminAuth,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('delete_notification'),
   notificationController.deleteNotification
 );
 
 // Позначити сповіщення як прочитане
-router.patch('/:id/read', 
+router.patch(
+  '/:id/read',
   authenticateToken,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('mark_notification_read'),
   notificationController.markAsRead
 );
 
 // Позначити сповіщення як прочитане (PUT alias for compatibility)
-router.put('/:id/read', 
+router.put(
+  '/:id/read',
   authenticateToken,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('mark_notification_read'),
   notificationController.markAsRead
 );
 
 // Позначити сповіщення як непрочитане
-router.patch('/:id/unread', 
+router.patch(
+  '/:id/unread',
   authenticateToken,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  param('id').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('mark_notification_unread'),
   notificationController.markAsUnread
 );
 
 // Позначити всі сповіщення як прочитані
-router.patch('/mark-all/read', 
+router.patch(
+  '/mark-all/read',
   authenticateToken,
   body('type')
     .optional()
@@ -363,36 +343,31 @@ router.patch('/mark-all/read',
     .optional()
     .isIn(['ticket', 'user', 'system', 'security', 'maintenance'])
     .withMessage('Категорія повинна бути однією з: ticket, user, system, security, maintenance'),
-  body('olderThan')
-    .optional()
-    .isISO8601()
-    .withMessage('Дата повинна бути в форматі ISO 8601'),
+  body('olderThan').optional().isISO8601().withMessage('Дата повинна бути в форматі ISO 8601'),
   logAction('mark_all_notifications_read'),
   notificationController.markAllAsRead
 );
 
 // Масове видалення сповіщень
-router.delete('/bulk/delete', 
+router.delete(
+  '/bulk/delete',
   authenticateToken,
   body('notificationIds')
     .isArray({ min: 1, max: 100 })
     .withMessage('Повинен бути масив з 1-100 ID сповіщень'),
-  body('notificationIds.*')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  body('notificationIds.*').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('bulk_delete_notifications'),
   notificationController.bulkDeleteNotifications
 );
 
 // Масове позначення як прочитані
-router.patch('/bulk/read', 
+router.patch(
+  '/bulk/read',
   authenticateToken,
   body('notificationIds')
     .isArray({ min: 1, max: 100 })
     .withMessage('Повинен бути масив з 1-100 ID сповіщень'),
-  body('notificationIds.*')
-    .isMongoId()
-    .withMessage('Невірний ID сповіщення'),
+  body('notificationIds.*').isMongoId().withMessage('Невірний ID сповіщення'),
   logAction('bulk_mark_read'),
   notificationController.bulkMarkAsRead
 );
@@ -400,14 +375,16 @@ router.patch('/bulk/read',
 // Налаштування сповіщень користувача
 
 // Отримати налаштування сповіщень
-router.get('/settings/preferences', 
+router.get(
+  '/settings/preferences',
   authenticateToken,
   logAction('get_notification_settings'),
   notificationController.getNotificationSettings
 );
 
 // Оновити налаштування сповіщень
-router.put('/settings/preferences', 
+router.put(
+  '/settings/preferences',
   authenticateToken,
   notificationSettingsValidation,
   logAction('update_notification_settings'),
@@ -415,7 +392,8 @@ router.put('/settings/preferences',
 );
 
 // Скинути налаштування до значень за замовчуванням
-router.post('/settings/reset', 
+router.post(
+  '/settings/reset',
   authenticateToken,
   logAction('reset_notification_settings'),
   notificationController.resetNotificationSettings
@@ -424,12 +402,10 @@ router.post('/settings/reset',
 // Тестування сповіщень
 
 // Тест email сповіщення
-router.post('/test/email', 
+router.post(
+  '/test/email',
   authenticateToken,
-  body('email')
-    .optional()
-    .isEmail()
-    .withMessage('Невірний email адрес'),
+  body('email').optional().isEmail().withMessage('Невірний email адрес'),
   body('type')
     .optional()
     .isIn(['ticket_created', 'ticket_updated', 'system_maintenance'])
@@ -439,7 +415,8 @@ router.post('/test/email',
 );
 
 // Тест Telegram сповіщення
-router.post('/test/telegram', 
+router.post(
+  '/test/telegram',
   authenticateToken,
   body('message')
     .optional()
@@ -451,7 +428,8 @@ router.post('/test/telegram',
 );
 
 // Тест веб-сповіщення
-router.post('/test/web', 
+router.post(
+  '/test/web',
   authenticateToken,
   body('type')
     .optional()
@@ -464,7 +442,8 @@ router.post('/test/web',
 // Шаблони сповіщень (тільки для адмінів)
 
 // Отримати всі шаблони
-router.get('/templates/list', 
+router.get(
+  '/templates/list',
   authenticateToken,
   adminAuth,
   query('type')
@@ -480,18 +459,18 @@ router.get('/templates/list',
 );
 
 // Отримати конкретний шаблон
-router.get('/templates/:id', 
+router.get(
+  '/templates/:id',
   authenticateToken,
   adminAuth,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID шаблону'),
+  param('id').isMongoId().withMessage('Невірний ID шаблону'),
   logAction('get_notification_template'),
   notificationController.getNotificationTemplate
 );
 
 // Створити новий шаблон
-router.post('/templates', 
+router.post(
+  '/templates',
   authenticateToken,
   adminAuth,
   body('name')
@@ -513,10 +492,7 @@ router.post('/templates',
     .trim()
     .isLength({ min: 10, max: 5000 })
     .withMessage('Вміст повинен містити від 10 до 5000 символів'),
-  body('variables')
-    .optional()
-    .isArray()
-    .withMessage('Змінні повинні бути масивом'),
+  body('variables').optional().isArray().withMessage('Змінні повинні бути масивом'),
   body('variables.*')
     .optional()
     .trim()
@@ -527,12 +503,11 @@ router.post('/templates',
 );
 
 // Оновити шаблон
-router.put('/templates/:id', 
+router.put(
+  '/templates/:id',
   authenticateToken,
   adminAuth,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID шаблону'),
+  param('id').isMongoId().withMessage('Невірний ID шаблону'),
   body('name')
     .optional()
     .trim()
@@ -553,12 +528,11 @@ router.put('/templates/:id',
 );
 
 // Видалити шаблон
-router.delete('/templates/:id', 
+router.delete(
+  '/templates/:id',
   authenticateToken,
   adminAuth,
-  param('id')
-    .isMongoId()
-    .withMessage('Невірний ID шаблону'),
+  param('id').isMongoId().withMessage('Невірний ID шаблону'),
   logAction('delete_notification_template'),
   notificationController.deleteNotificationTemplate
 );
@@ -566,7 +540,8 @@ router.delete('/templates/:id',
 // Статистика сповіщень (тільки для адмінів)
 
 // Загальна статистика
-router.get('/analytics/overview', 
+router.get(
+  '/analytics/overview',
   authenticateToken,
   adminAuth,
   query('period')
@@ -577,16 +552,14 @@ router.get('/analytics/overview',
     .optional()
     .isISO8601()
     .withMessage('Дата початку повинна бути в форматі ISO 8601'),
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Дата кінця повинна бути в форматі ISO 8601'),
+  query('endDate').optional().isISO8601().withMessage('Дата кінця повинна бути в форматі ISO 8601'),
   logAction('get_notification_analytics'),
   notificationController.getNotificationAnalytics
 );
 
 // Статистика доставки
-router.get('/analytics/delivery', 
+router.get(
+  '/analytics/delivery',
   authenticateToken,
   adminAuth,
   query('channel')
@@ -602,7 +575,8 @@ router.get('/analytics/delivery',
 );
 
 // Статистика взаємодії користувачів
-router.get('/analytics/engagement', 
+router.get(
+  '/analytics/engagement',
   authenticateToken,
   adminAuth,
   query('period')
@@ -616,7 +590,8 @@ router.get('/analytics/engagement',
 // Експорт даних
 
 // Експорт сповіщень
-router.get('/export/notifications', 
+router.get(
+  '/export/notifications',
   authenticateToken,
   adminAuth,
   query('format')
@@ -627,10 +602,7 @@ router.get('/export/notifications',
     .optional()
     .isISO8601()
     .withMessage('Дата початку повинна бути в форматі ISO 8601'),
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Дата кінця повинна бути в форматі ISO 8601'),
+  query('endDate').optional().isISO8601().withMessage('Дата кінця повинна бути в форматі ISO 8601'),
   query('type')
     .optional()
     .isIn(['info', 'success', 'warning', 'error', 'system'])
@@ -640,7 +612,8 @@ router.get('/export/notifications',
 );
 
 // Експорт статистики
-router.get('/export/analytics', 
+router.get(
+  '/export/analytics',
   authenticateToken,
   adminAuth,
   query('format')
@@ -658,22 +631,21 @@ router.get('/export/analytics',
 // Очищення старих сповіщень
 
 // Очистити прочитані сповіщення
-router.delete('/cleanup/read', 
+router.delete(
+  '/cleanup/read',
   authenticateToken,
   adminAuth,
   body('olderThanDays')
     .isInt({ min: 1, max: 365 })
     .withMessage('Кількість днів повинна бути від 1 до 365'),
-  body('dryRun')
-    .optional()
-    .isBoolean()
-    .withMessage('dryRun повинно бути boolean значенням'),
+  body('dryRun').optional().isBoolean().withMessage('dryRun повинно бути boolean значенням'),
   logAction('cleanup_read_notifications'),
   notificationController.cleanupReadNotifications
 );
 
 // Очистити всі старі сповіщення
-router.delete('/cleanup/old', 
+router.delete(
+  '/cleanup/old',
   authenticateToken,
   adminAuth,
   body('olderThanDays')
@@ -683,60 +655,58 @@ router.delete('/cleanup/old',
     .optional()
     .isBoolean()
     .withMessage('keepImportant повинно бути boolean значенням'),
-  body('dryRun')
-    .optional()
-    .isBoolean()
-    .withMessage('dryRun повинно бути boolean значенням'),
+  body('dryRun').optional().isBoolean().withMessage('dryRun повинно бути boolean значенням'),
   logAction('cleanup_old_notifications'),
   notificationController.cleanupOldNotifications
 );
 
 // WebSocket підключення для реального часу
-router.get('/realtime/connect', 
+router.get(
+  '/realtime/connect',
   authenticateToken,
   logAction('connect_realtime_notifications'),
   notificationController.connectRealtime
 );
 
 // Обробка помилок
-router.use((error, req, res, next) => {
+router.use((error, _req, res, _next) => {
   logger.error('Помилка в маршрутах сповіщень:', error);
-  
+
   if (error.name === 'ValidationError') {
     return res.status(400).json({
       message: 'Помилка валідації',
-      errors: Object.values(error.errors).map(err => err.message)
+      errors: Object.values(error.errors).map(err => err.message),
     });
   }
-  
+
   if (error.name === 'NotificationError') {
     return res.status(400).json({
       message: 'Помилка сповіщення',
-      error: error.message
+      error: error.message,
     });
   }
-  
+
   if (error.message.includes('Template not found')) {
     return res.status(404).json({
-      message: 'Шаблон сповіщення не знайдено'
+      message: 'Шаблон сповіщення не знайдено',
     });
   }
-  
+
   if (error.message.includes('Notification not found')) {
     return res.status(404).json({
-      message: 'Сповіщення не знайдено'
+      message: 'Сповіщення не знайдено',
     });
   }
-  
+
   if (error.message.includes('Permission denied')) {
     return res.status(403).json({
-      message: 'Недостатньо прав для виконання операції'
+      message: 'Недостатньо прав для виконання операції',
     });
   }
-  
+
   res.status(500).json({
     message: 'Внутрішня помилка сервера',
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Щось пішло не так'
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Щось пішло не так',
   });
 });
 

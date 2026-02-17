@@ -14,10 +14,10 @@ async function updateSLAStatus() {
     const tickets = await Ticket.find({
       status: 'in_progress',
       'sla.startTime': { $ne: null },
-      'sla.deadline': { $ne: null }
+      'sla.deadline': { $ne: null },
     })
-    .populate('createdBy', 'firstName lastName email telegramId telegramChatId')
-    .populate('city', 'name');
+      .populate('createdBy', 'firstName lastName email telegramId telegramChatId')
+      .populate('city', 'name');
 
     logger.info(`📊 Знайдено ${tickets.length} тікетів з активним SLA`);
 
@@ -28,11 +28,10 @@ async function updateSLAStatus() {
 
     for (const ticket of tickets) {
       const oldStatus = ticket.sla.status;
-      const oldRemainingHours = ticket.sla.remainingHours;
-      
+
       // Оновлюємо SLA статус
       ticket.updateSLAStatus();
-      
+
       // Перевірка для сповіщення про 20% залишку часу
       const now = new Date();
       const deadline = new Date(ticket.sla.deadline);
@@ -40,48 +39,57 @@ async function updateSLAStatus() {
       const totalMs = deadline - startTime;
       const elapsedMs = now - startTime;
       const percentageElapsed = (elapsedMs / totalMs) * 100;
-      
+
       // Відправляємо сповіщення якщо залишилось <= 20% часу і ще не відправляли
       if (percentageElapsed >= 80 && !ticket.sla.deadlineWarningNotified) {
         try {
           const telegramService = require('../services/telegramServiceInstance');
           await telegramService.sendSLADeadlineWarning(ticket);
-          
+
           ticket.sla.deadlineWarningNotified = true;
           deadlineWarnings++;
-          
-          logger.info(`⏰ Відправлено попередження про дедлайн для тікету ${ticket._id} (${ticket.sla.remainingHours}h залишилось)`);
+
+          logger.info(
+            `⏰ Відправлено попередження про дедлайн для тікету ${ticket._id} (${ticket.sla.remainingHours}h залишилось)`
+          );
         } catch (notificationError) {
-          logger.error(`Помилка відправки попередження про дедлайн для тікету ${ticket._id}:`, notificationError);
+          logger.error(
+            `Помилка відправки попередження про дедлайн для тікету ${ticket._id}:`,
+            notificationError
+          );
         }
       }
-      
+
       // Зберігаємо якщо статус змінився або відправлено попередження
       if (oldStatus !== ticket.sla.status || ticket.sla.deadlineWarningNotified) {
         await ticket.save();
-        
+
         if (oldStatus !== ticket.sla.status) {
           updated++;
-          
+
           if (ticket.sla.status === 'breached') {
             breached++;
             logger.warn(`🚨 SLA порушено для тікету ${ticket._id}: ${ticket.title}`);
           } else if (ticket.sla.status === 'at_risk') {
             atRisk++;
-            logger.warn(`⚠️ SLA під ризиком для тікету ${ticket._id}: ${ticket.title} (${ticket.sla.remainingHours}h залишилось)`);
+            logger.warn(
+              `⚠️ SLA під ризиком для тікету ${ticket._id}: ${ticket.title} (${ticket.sla.remainingHours}h залишилось)`
+            );
           }
         }
       }
     }
 
-    logger.info(`✅ Оновлення SLA завершено: ${updated} змінено, ${breached} порушено, ${atRisk} під ризиком, ${deadlineWarnings} попереджень про дедлайн`);
+    logger.info(
+      `✅ Оновлення SLA завершено: ${updated} змінено, ${breached} порушено, ${atRisk} під ризиком, ${deadlineWarnings} попереджень про дедлайн`
+    );
 
     return {
       total: tickets.length,
       updated,
       breached,
       atRisk,
-      deadlineWarnings
+      deadlineWarnings,
     };
   } catch (error) {
     logger.error('❌ Помилка оновлення SLA статусів:', error);
@@ -96,17 +104,18 @@ module.exports = { updateSLAStatus };
 if (require.main === module) {
   // Підключення до MongoDB
   require('dotenv').config();
-  
-  mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  })
+
+  mongoose
+    .connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
     .then(async () => {
-      logger.info('✅ З\'єднано з MongoDB для оновлення SLA');
+      logger.info("✅ З'єднано з MongoDB для оновлення SLA");
       await updateSLAStatus();
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       logger.error('❌ Помилка підключення до MongoDB:', error);
       process.exit(1);
     });

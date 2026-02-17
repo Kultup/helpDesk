@@ -20,31 +20,39 @@ const getAllPositions = async (req, res) => {
       sortBy = 'title',
       sortOrder = 'asc',
       withStatistics = false,
-      isPublic
+      isPublic,
     } = req.query;
 
     // Побудова фільтрів
     const filters = { isActive: true };
-    
-    if (department) filters.department = department;
-    if (level) filters.level = level;
-    if (category) filters.category = category;
-    if (isPublic !== undefined) filters.isPublic = isPublic === 'true';
-    
+
+    if (department) {
+      filters.department = department;
+    }
+    if (level) {
+      filters.level = level;
+    }
+    if (category) {
+      filters.category = category;
+    }
+    if (isPublic !== undefined) {
+      filters.isPublic = isPublic === 'true';
+    }
+
     // Пошук по назві посади
     if (search) {
       filters.$or = [
         { title: { $regex: search, $options: 'i' } },
         { titleEn: { $regex: search, $options: 'i' } },
         { department: { $regex: search, $options: 'i' } },
-        { departmentEn: { $regex: search, $options: 'i' } }
+        { departmentEn: { $regex: search, $options: 'i' } },
       ];
     }
 
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
-      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
+      sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
     };
 
     const positions = await Position.paginate(filters, options);
@@ -56,20 +64,20 @@ const getAllPositions = async (req, res) => {
 
     // Додати статистику якщо потрібно
     if (withStatistics === 'true') {
-      for (let position of positions.docs) {
+      for (const position of positions.docs) {
         const [userCount, ticketCount] = await Promise.all([
           User.countDocuments({ position: position._id, isActive: true }),
-          Ticket.countDocuments({ 
+          Ticket.countDocuments({
             $or: [
-              { 'createdBy': { $in: await User.find({ position: position._id }).distinct('_id') } },
-              { 'assignedTo': { $in: await User.find({ position: position._id }).distinct('_id') } }
-            ]
-          })
+              { createdBy: { $in: await User.find({ position: position._id }).distinct('_id') } },
+              { assignedTo: { $in: await User.find({ position: position._id }).distinct('_id') } },
+            ],
+          }),
         ]);
-        
+
         position._doc.statistics = {
           userCount,
-          ticketCount
+          ticketCount,
         };
       }
     }
@@ -82,15 +90,15 @@ const getAllPositions = async (req, res) => {
         totalPages: positions.totalPages,
         totalItems: positions.totalDocs,
         hasNext: positions.hasNextPage,
-        hasPrev: positions.hasPrevPage
-      }
+        hasPrev: positions.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching positions:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні посад',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -102,19 +110,21 @@ const exportPositions = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         message: 'Помилка валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const { 
-      format = 'csv', 
-      includeInactive = false, 
+    const {
+      format = 'csv',
+      includeInactive = false,
       includeStatistics = false,
-      includeEmployees = false 
+      includeEmployees = false,
     } = req.query;
 
     const filter = {};
-    if (!includeInactive) filter.isActive = true;
+    if (!includeInactive) {
+      filter.isActive = true;
+    }
 
     let positions = await Position.find(filter)
       .populate('parentPosition', 'title department')
@@ -124,16 +134,17 @@ const exportPositions = async (req, res) => {
     // Додаємо додаткову інформацію якщо потрібно
     if (includeStatistics || includeEmployees) {
       positions = await Promise.all(
-        positions.map(async (pos) => {
+        positions.map(async pos => {
           const positionData = pos.toObject();
-          
+
           if (includeEmployees) {
-            const employees = await User.find({ position: pos._id, isActive: true })
-              .select('firstName lastName email');
+            const employees = await User.find({ position: pos._id, isActive: true }).select(
+              'firstName lastName email'
+            );
             positionData.employees = employees;
             positionData.employeeCount = employees.length;
           }
-          
+
           if (includeStatistics) {
             const ticketStats = await Ticket.aggregate([
               {
@@ -141,28 +152,28 @@ const exportPositions = async (req, res) => {
                   from: 'users',
                   localField: 'assignedTo',
                   foreignField: '_id',
-                  as: 'assignedUser'
-                }
+                  as: 'assignedUser',
+                },
               },
               {
                 $match: {
-                  'assignedUser.position': pos._id
-                }
+                  'assignedUser.position': pos._id,
+                },
               },
               {
                 $group: {
                   _id: '$status',
-                  count: { $sum: 1 }
-                }
-              }
+                  count: { $sum: 1 },
+                },
+              },
             ]);
-            
+
             positionData.ticketStats = ticketStats.reduce((acc, stat) => {
               acc[stat._id] = stat.count;
               return acc;
             }, {});
           }
-          
+
           return positionData;
         })
       );
@@ -174,9 +185,21 @@ const exportPositions = async (req, res) => {
 
       // Заголовки
       const headers = [
-        'ID', 'Назва', 'Департамент', 'Рівень', 'Опис', 'Тип роботи', 'Графік роботи',
-        'Мін. зарплата', 'Макс. зарплата', 'Валюта', 'Макс. співробітників', 
-        'Активна', 'Батьківська посада', 'Створено', 'Оновлено'
+        'ID',
+        'Назва',
+        'Департамент',
+        'Рівень',
+        'Опис',
+        'Тип роботи',
+        'Графік роботи',
+        'Мін. зарплата',
+        'Макс. зарплата',
+        'Валюта',
+        'Макс. співробітників',
+        'Активна',
+        'Батьківська посада',
+        'Створено',
+        'Оновлено',
       ];
 
       if (includeEmployees) {
@@ -206,13 +229,15 @@ const exportPositions = async (req, res) => {
           pos.isActive ? 'Так' : 'Ні',
           pos.parentPosition?.title || '',
           pos.createdAt?.toLocaleDateString('uk-UA') || '',
-          pos.updatedAt?.toLocaleDateString('uk-UA') || ''
+          pos.updatedAt?.toLocaleDateString('uk-UA') || '',
         ];
 
         if (includeEmployees) {
           row.push(
             pos.employeeCount || 0,
-            pos.employees?.map(emp => `${emp.firstName} ${emp.lastName} (${emp.email})`).join('; ') || ''
+            pos.employees
+              ?.map(emp => `${emp.firstName} ${emp.lastName} (${emp.email})`)
+              .join('; ') || ''
           );
         }
 
@@ -233,11 +258,17 @@ const exportPositions = async (req, res) => {
       worksheet.getRow(1).fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFE0E0E0' }
+        fgColor: { argb: 'FFE0E0E0' },
       };
 
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=positions_${new Date().toISOString().split('T')[0]}.xlsx`);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=positions_${new Date().toISOString().split('T')[0]}.xlsx`
+      );
 
       await workbook.xlsx.write(res);
       res.end();
@@ -259,12 +290,15 @@ const exportPositions = async (req, res) => {
           isActive: pos.isActive ? 'Так' : 'Ні',
           parentPosition: pos.parentPosition?.title || '',
           createdAt: pos.createdAt?.toLocaleDateString('uk-UA') || '',
-          updatedAt: pos.updatedAt?.toLocaleDateString('uk-UA') || ''
+          updatedAt: pos.updatedAt?.toLocaleDateString('uk-UA') || '',
         };
 
         if (includeEmployees) {
           data.employeeCount = pos.employeeCount || 0;
-          data.employees = pos.employees?.map(emp => `${emp.firstName} ${emp.lastName} (${emp.email})`).join('; ') || '';
+          data.employees =
+            pos.employees
+              ?.map(emp => `${emp.firstName} ${emp.lastName} (${emp.email})`)
+              .join('; ') || '';
         }
 
         if (includeStatistics) {
@@ -280,15 +314,18 @@ const exportPositions = async (req, res) => {
       const csvString = csv(csvData);
 
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename=positions_${new Date().toISOString().split('T')[0]}.csv`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename=positions_${new Date().toISOString().split('T')[0]}.csv`
+      );
       res.write('\uFEFF'); // BOM для правильного відображення українських символів
       res.end(csvString);
     }
   } catch (error) {
     logger.error('Помилка при експорті посад:', error);
-    res.status(500).json({ 
-      message: 'Помилка сервера при експорті посад', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Помилка сервера при експорті посад',
+      error: error.message,
     });
   }
 };
@@ -301,7 +338,7 @@ const getPositionById = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID посади'
+        message: 'Невірний ID посади',
       });
     }
 
@@ -310,7 +347,7 @@ const getPositionById = async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
@@ -321,32 +358,29 @@ const getPositionById = async (req, res) => {
 
     const [userCount, ticketCount, subordinates] = await Promise.all([
       User.countDocuments({ position: id, isActive: true }),
-      Ticket.countDocuments({ 
+      Ticket.countDocuments({
         $or: [
-          { 'createdBy': { $in: await User.find({ position: id }).distinct('_id') } },
-          { 'assignedTo': { $in: await User.find({ position: id }).distinct('_id') } }
-        ]
+          { createdBy: { $in: await User.find({ position: id }).distinct('_id') } },
+          { assignedTo: { $in: await User.find({ position: id }).distinct('_id') } },
+        ],
       }),
-      position.getSubordinates()
+      position.getSubordinates(),
     ]);
 
     // Статистика по тикетах користувачів цієї посади
     const userIds = await User.find({ position: id }).distinct('_id');
     const ticketStatusStats = await Ticket.aggregate([
-      { 
-        $match: { 
-          $or: [
-            { createdBy: { $in: userIds } },
-            { assignedTo: { $in: userIds } }
-          ]
-        }
+      {
+        $match: {
+          $or: [{ createdBy: { $in: userIds } }, { assignedTo: { $in: userIds } }],
+        },
       },
       {
         $group: {
           _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     res.json({
@@ -361,16 +395,16 @@ const getPositionById = async (req, res) => {
             return acc;
           }, {}),
           users: users.slice(0, 5), // Показати тільки перших 5 користувачів
-          subordinatePositions: subordinates.length
-        }
-      }
+          subordinatePositions: subordinates.length,
+        },
+      },
     });
   } catch (error) {
     logger.error('Error fetching position:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні посади',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -383,7 +417,7 @@ const createPosition = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -391,7 +425,7 @@ const createPosition = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для створення посад'
+        message: 'Немає прав для створення посад',
       });
     }
 
@@ -411,19 +445,19 @@ const createPosition = async (req, res) => {
       permissions,
       isPublic,
       description,
-      institutions
+      institutions,
     } = req.body;
 
     // Перевірка унікальності назви посади в межах департаменту
-    const existingPosition = await Position.findOne({ 
+    const existingPosition = await Position.findOne({
       title: { $regex: new RegExp(`^${title}$`, 'i') },
-      department: { $regex: new RegExp(`^${department}$`, 'i') }
+      department: { $regex: new RegExp(`^${department}$`, 'i') },
     });
-    
+
     if (existingPosition) {
       return res.status(400).json({
         success: false,
-        message: 'Посада з такою назвою вже існує в цьому департаменті'
+        message: 'Посада з такою назвою вже існує в цьому департаменті',
       });
     }
 
@@ -433,7 +467,7 @@ const createPosition = async (req, res) => {
       if (!managerPosition) {
         return res.status(400).json({
           success: false,
-          message: 'Вказана керівна посада не існує'
+          message: 'Вказана керівна посада не існує',
         });
       }
     }
@@ -446,13 +480,13 @@ const createPosition = async (req, res) => {
       const Institution = require('../models/Institution');
       const validInstitutions = await Institution.find({
         _id: { $in: institutions },
-        isActive: true
+        isActive: true,
       });
-      
+
       if (validInstitutions.length !== institutions.length) {
         return res.status(400).json({
           success: false,
-          message: 'Один або більше закладів не знайдено або неактивні'
+          message: 'Один або більше закладів не знайдено або неактивні',
         });
       }
     }
@@ -474,7 +508,7 @@ const createPosition = async (req, res) => {
       isPublic: isPublic !== undefined ? isPublic : true,
       description,
       institutions: institutions || [],
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
     await position.save();
@@ -482,14 +516,14 @@ const createPosition = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Посаду успішно створено',
-      data: position
+      data: position,
     });
   } catch (error) {
     logger.error('Error creating position:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при створенні посади',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -499,19 +533,19 @@ const updatePosition = async (req, res) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
-    
+
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID посади'
+        message: 'Невірний ID посади',
       });
     }
 
@@ -519,7 +553,7 @@ const updatePosition = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для редагування посад'
+        message: 'Немає прав для редагування посад',
       });
     }
 
@@ -527,7 +561,7 @@ const updatePosition = async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
@@ -548,36 +582,39 @@ const updatePosition = async (req, res) => {
       isPublic,
       isActive,
       description,
-      institutions
+      institutions,
     } = req.body;
 
     // Перевірка унікальності назви посади (якщо змінюється)
     if ((title && title !== position.title) || (department && department !== position.department)) {
-      const existingPosition = await Position.findOne({ 
+      const existingPosition = await Position.findOne({
         title: { $regex: new RegExp(`^${title || position.title}$`, 'i') },
         department: { $regex: new RegExp(`^${department || position.department}$`, 'i') },
-        _id: { $ne: id }
+        _id: { $ne: id },
       });
-      
+
       if (existingPosition) {
         return res.status(400).json({
           success: false,
-          message: 'Посада з такою назвою вже існує в цьому департаменті'
+          message: 'Посада з такою назвою вже існує в цьому департаменті',
         });
       }
     }
 
     // Обробка reportingTo - якщо порожній рядок, встановлюємо null
-    const processedReportingTo = reportingTo !== undefined ? 
-      (reportingTo && reportingTo.trim() !== '' ? reportingTo : null) : 
-      undefined;
+    const processedReportingTo =
+      reportingTo !== undefined
+        ? reportingTo && reportingTo.trim() !== ''
+          ? reportingTo
+          : null
+        : undefined;
 
     // Перевірка існування керівної посади
     if (processedReportingTo && processedReportingTo !== position.reportingTo?.toString()) {
       if (processedReportingTo === id) {
         return res.status(400).json({
           success: false,
-          message: 'Посада не може звітувати сама собі'
+          message: 'Посада не може звітувати сама собі',
         });
       }
 
@@ -585,7 +622,7 @@ const updatePosition = async (req, res) => {
       if (!managerPosition) {
         return res.status(400).json({
           success: false,
-          message: 'Вказана керівна посада не існує'
+          message: 'Вказана керівна посада не існує',
         });
       }
     }
@@ -596,13 +633,13 @@ const updatePosition = async (req, res) => {
         const Institution = require('../models/Institution');
         const validInstitutions = await Institution.find({
           _id: { $in: institutions },
-          isActive: true
+          isActive: true,
         });
-        
+
         if (validInstitutions.length !== institutions.length) {
           return res.status(400).json({
             success: false,
-            message: 'Один або більше закладів не знайдено або неактивні'
+            message: 'Один або більше закладів не знайдено або неактивні',
           });
         }
       }
@@ -610,22 +647,54 @@ const updatePosition = async (req, res) => {
     }
 
     // Оновлення полів
-    if (title !== undefined) position.title = title;
-    if (titleEn !== undefined) position.titleEn = titleEn;
-    if (department !== undefined) position.department = department;
-    if (departmentEn !== undefined) position.departmentEn = departmentEn;
-    if (level !== undefined) position.level = level;
-    if (category !== undefined) position.category = category;
-    if (responsibilities !== undefined) position.responsibilities = responsibilities;
-    if (requirements !== undefined) position.requirements = requirements;
-    if (skills !== undefined) position.skills = skills;
-    if (salary !== undefined) position.salary = salary;
-    if (workSchedule !== undefined) position.workSchedule = workSchedule;
-    if (processedReportingTo !== undefined) position.reportingTo = processedReportingTo;
-    if (permissions !== undefined) position.permissions = permissions;
-    if (isPublic !== undefined) position.isPublic = isPublic;
-    if (isActive !== undefined) position.isActive = isActive;
-    if (description !== undefined) position.description = description;
+    if (title !== undefined) {
+      position.title = title;
+    }
+    if (titleEn !== undefined) {
+      position.titleEn = titleEn;
+    }
+    if (department !== undefined) {
+      position.department = department;
+    }
+    if (departmentEn !== undefined) {
+      position.departmentEn = departmentEn;
+    }
+    if (level !== undefined) {
+      position.level = level;
+    }
+    if (category !== undefined) {
+      position.category = category;
+    }
+    if (responsibilities !== undefined) {
+      position.responsibilities = responsibilities;
+    }
+    if (requirements !== undefined) {
+      position.requirements = requirements;
+    }
+    if (skills !== undefined) {
+      position.skills = skills;
+    }
+    if (salary !== undefined) {
+      position.salary = salary;
+    }
+    if (workSchedule !== undefined) {
+      position.workSchedule = workSchedule;
+    }
+    if (processedReportingTo !== undefined) {
+      position.reportingTo = processedReportingTo;
+    }
+    if (permissions !== undefined) {
+      position.permissions = permissions;
+    }
+    if (isPublic !== undefined) {
+      position.isPublic = isPublic;
+    }
+    if (isActive !== undefined) {
+      position.isActive = isActive;
+    }
+    if (description !== undefined) {
+      position.description = description;
+    }
 
     position.lastModifiedBy = req.user._id;
     await position.save();
@@ -633,14 +702,14 @@ const updatePosition = async (req, res) => {
     res.json({
       success: true,
       message: 'Посаду успішно оновлено',
-      data: position
+      data: position,
     });
   } catch (error) {
     logger.error('Error updating position:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при оновленні посади',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -653,7 +722,7 @@ const deletePosition = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID посади'
+        message: 'Невірний ID посади',
       });
     }
 
@@ -661,7 +730,7 @@ const deletePosition = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для видалення посад'
+        message: 'Немає прав для видалення посад',
       });
     }
 
@@ -669,7 +738,7 @@ const deletePosition = async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
@@ -678,7 +747,7 @@ const deletePosition = async (req, res) => {
     if (userCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Не можна видалити посаду. З нею пов'язано ${userCount} користувачів. Спочатку деактивуйте посаду.`
+        message: `Не можна видалити посаду. З нею пов'язано ${userCount} користувачів. Спочатку деактивуйте посаду.`,
       });
     }
 
@@ -687,7 +756,7 @@ const deletePosition = async (req, res) => {
     if (subordinateCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Не можна видалити посаду. Вона має ${subordinateCount} підлеглих посад. Спочатку змініть їх керівництво.`
+        message: `Не можна видалити посаду. Вона має ${subordinateCount} підлеглих посад. Спочатку змініть їх керівництво.`,
       });
     }
 
@@ -695,14 +764,14 @@ const deletePosition = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Посаду успішно видалено'
+      message: 'Посаду успішно видалено',
     });
   } catch (error) {
     logger.error('Error deleting position:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при видаленні посади',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -711,17 +780,17 @@ const deletePosition = async (req, res) => {
 const getDepartments = async (req, res) => {
   try {
     const departments = await Position.getDepartments();
-    
+
     res.json({
       success: true,
-      data: departments
+      data: departments,
     });
   } catch (error) {
     logger.error('Error fetching departments:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні департаментів',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -733,7 +802,7 @@ const searchPositions = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         message: 'Помилка валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -745,12 +814,16 @@ const searchPositions = async (req, res) => {
         { department: new RegExp(q, 'i') },
         { description: new RegExp(q, 'i') },
         { requirements: { $in: [new RegExp(q, 'i')] } },
-        { responsibilities: { $in: [new RegExp(q, 'i')] } }
-      ]
+        { responsibilities: { $in: [new RegExp(q, 'i')] } },
+      ],
     };
 
-    if (department) filter.department = new RegExp(department, 'i');
-    if (level) filter.level = level;
+    if (department) {
+      filter.department = new RegExp(department, 'i');
+    }
+    if (level) {
+      filter.level = level;
+    }
 
     const positions = await Position.find(filter)
       .populate('parentPosition', 'title department')
@@ -764,13 +837,13 @@ const searchPositions = async (req, res) => {
       positions,
       total,
       totalPages: Math.ceil(total / limit),
-      currentPage: parseInt(page)
+      currentPage: parseInt(page),
     });
   } catch (error) {
     logger.error('Помилка при пошуку посад:', error);
-    res.status(500).json({ 
-      message: 'Помилка сервера при пошуку посад', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Помилка сервера при пошуку посад',
+      error: error.message,
     });
   }
 };
@@ -779,19 +852,19 @@ const searchPositions = async (req, res) => {
 const getPositionHierarchy = async (req, res) => {
   try {
     const { department } = req.query;
-    
+
     const hierarchy = await Position.getHierarchy(department);
-    
+
     res.json({
       success: true,
-      data: hierarchy
+      data: hierarchy,
     });
   } catch (error) {
     logger.error('Error fetching position hierarchy:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні ієрархії посад',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -804,7 +877,7 @@ const getSubordinates = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID посади'
+        message: 'Невірний ID посади',
       });
     }
 
@@ -812,22 +885,22 @@ const getSubordinates = async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
     const subordinates = await position.getSubordinates();
-    
+
     res.json({
       success: true,
-      data: subordinates
+      data: subordinates,
     });
   } catch (error) {
     logger.error('Error fetching subordinates:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні підлеглих посад',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -841,7 +914,7 @@ const getPositionEmployees = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: 'Невірний ID посади'
+        message: 'Невірний ID посади',
       });
     }
 
@@ -849,7 +922,7 @@ const getPositionEmployees = async (req, res) => {
     if (!position) {
       return res.status(404).json({
         success: false,
-        message: 'Посаду не знайдено'
+        message: 'Посаду не знайдено',
       });
     }
 
@@ -857,17 +930,12 @@ const getPositionEmployees = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { firstName: 1 },
-      populate: [
-        { path: 'city', select: 'name region' }
-      ],
-      select: '-password -emailVerificationToken -passwordResetToken'
+      populate: [{ path: 'city', select: 'name region' }],
+      select: '-password -emailVerificationToken -passwordResetToken',
     };
 
-    const employees = await User.paginate(
-      { position: id, isActive: true }, 
-      options
-    );
-    
+    const employees = await User.paginate({ position: id, isActive: true }, options);
+
     res.json({
       success: true,
       data: employees.docs,
@@ -876,15 +944,15 @@ const getPositionEmployees = async (req, res) => {
         totalPages: employees.totalPages,
         totalItems: employees.totalDocs,
         hasNext: employees.hasNextPage,
-        hasPrev: employees.hasPrevPage
-      }
+        hasPrev: employees.hasPrevPage,
+      },
     });
   } catch (error) {
     logger.error('Error fetching position employees:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні співробітників посади',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -896,7 +964,7 @@ const getPositionStatistics = async (req, res) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Немає прав для перегляду статистики посад'
+        message: 'Немає прав для перегляду статистики посад',
       });
     }
 
@@ -911,9 +979,9 @@ const getPositionStatistics = async (req, res) => {
           totalPositions: { $sum: 1 },
           publicPositions: { $sum: { $cond: ['$isPublic', 1, 0] } },
           avgSalaryMin: { $avg: '$salary.min' },
-          avgSalaryMax: { $avg: '$salary.max' }
-        }
-      }
+          avgSalaryMax: { $avg: '$salary.max' },
+        },
+      },
     ]);
 
     // Статистика по департаментах
@@ -924,10 +992,10 @@ const getPositionStatistics = async (req, res) => {
           _id: '$department',
           positionCount: { $sum: 1 },
           avgSalaryMin: { $avg: '$salary.min' },
-          avgSalaryMax: { $avg: '$salary.max' }
-        }
+          avgSalaryMax: { $avg: '$salary.max' },
+        },
       },
-      { $sort: { positionCount: -1 } }
+      { $sort: { positionCount: -1 } },
     ]);
 
     // Статистика по рівнях
@@ -938,10 +1006,10 @@ const getPositionStatistics = async (req, res) => {
           _id: '$level',
           positionCount: { $sum: 1 },
           avgSalaryMin: { $avg: '$salary.min' },
-          avgSalaryMax: { $avg: '$salary.max' }
-        }
+          avgSalaryMax: { $avg: '$salary.max' },
+        },
       },
-      { $sort: { positionCount: -1 } }
+      { $sort: { positionCount: -1 } },
     ]);
 
     // Топ посад за кількістю співробітників
@@ -952,8 +1020,8 @@ const getPositionStatistics = async (req, res) => {
           from: 'positions',
           localField: 'position',
           foreignField: '_id',
-          as: 'positionInfo'
-        }
+          as: 'positionInfo',
+        },
       },
       { $unwind: '$positionInfo' },
       ...(department ? [{ $match: { 'positionInfo.department': department } }] : []),
@@ -965,18 +1033,18 @@ const getPositionStatistics = async (req, res) => {
           positionTitle: { $first: '$positionInfo.title' },
           department: { $first: '$positionInfo.department' },
           level: { $first: '$positionInfo.level' },
-          employeeCount: { $sum: 1 }
-        }
+          employeeCount: { $sum: 1 },
+        },
       },
       { $sort: { employeeCount: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]);
 
     const stats = generalStats[0] || {
       totalPositions: 0,
       publicPositions: 0,
       avgSalaryMin: 0,
-      avgSalaryMax: 0
+      avgSalaryMax: 0,
     };
 
     res.json({
@@ -986,15 +1054,15 @@ const getPositionStatistics = async (req, res) => {
         byDepartment: departmentStats,
         byLevel: levelStats,
         topPositionsByEmployees: positionEmployeeStats,
-        generatedAt: new Date()
-      }
+        generatedAt: new Date(),
+      },
     });
   } catch (error) {
     logger.error('Error fetching position statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка при отриманні статистики посад',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1007,7 +1075,7 @@ const bulkDeletePositions = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Помилки валідації',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -1018,7 +1086,7 @@ const bulkDeletePositions = async (req, res) => {
     if (positions.length !== positionIds.length) {
       return res.status(404).json({
         success: false,
-        message: 'Деякі посади не знайдено'
+        message: 'Деякі посади не знайдено',
       });
     }
 
@@ -1027,7 +1095,7 @@ const bulkDeletePositions = async (req, res) => {
     if (userCount > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Неможливо видалити посади, оскільки з ними пов\'язані користувачі'
+        message: "Неможливо видалити посади, оскільки з ними пов'язані користувачі",
       });
     }
 
@@ -1038,16 +1106,15 @@ const bulkDeletePositions = async (req, res) => {
       success: true,
       message: `Успішно видалено ${result.deletedCount} посад`,
       data: {
-        deletedCount: result.deletedCount
-      }
+        deletedCount: result.deletedCount,
+      },
     });
-
   } catch (error) {
     logger.error('Помилка масового видалення посад:', error);
     res.status(500).json({
       success: false,
       message: 'Помилка сервера при масовому видаленні',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1065,5 +1132,5 @@ module.exports = {
   getPositionEmployees,
   getPositionStatistics,
   exportPositions,
-  bulkDeletePositions
+  bulkDeletePositions,
 };
