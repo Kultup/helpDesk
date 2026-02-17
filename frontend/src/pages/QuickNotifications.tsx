@@ -528,14 +528,22 @@ const QuickNotifications: React.FC = () => {
               </h3>
             </div>
 
-            <div className={`rounded-lg border-2 p-4 ${typeColors[type]}`}>
+            <div
+              className={`rounded-lg border-2 p-4 ${typeColors[type]} transition-all duration-300`}
+            >
               <div className="flex items-center gap-2 mb-2">
-                {React.createElement(typeIcons[type], { className: 'h-5 w-5' })}
+                <span className="text-xl">{typeEmoji[type]}</span>
                 <span className="font-semibold">{t('quickNotifications.helpdeskMessage')}</span>
               </div>
-              <div className="whitespace-pre-line text-sm">
+              <div className="whitespace-pre-line text-sm min-h-[1.25rem]">
                 {message || t('quickNotifications.previewPlaceholder')}
               </div>
+              {attachment && (
+                <div className="mt-3 pt-3 border-t border-current border-opacity-20 flex items-center gap-2 text-xs font-medium">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span className="truncate">{attachment.name}</span>
+                </div>
+              )}
             </div>
 
             <div className="text-sm text-muted-foreground space-y-1">

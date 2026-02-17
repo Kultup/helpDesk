@@ -318,11 +318,15 @@ router.post(
           if (attachment.mimetype.startsWith('image/')) {
             result = await telegramService.sendPhoto(groupChatId, fileStream, {
               caption: formattedMessage,
+              filename: attachment.originalname,
+              contentType: attachment.mimetype,
               ...sendOptions,
             });
           } else {
             result = await telegramService.sendDocument(groupChatId, fileStream, {
               caption: formattedMessage,
+              filename: attachment.originalname,
+              contentType: attachment.mimetype,
               ...sendOptions,
             });
           }

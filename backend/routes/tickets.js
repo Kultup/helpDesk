@@ -1421,11 +1421,15 @@ router.post(
           if (attachment.mimetype.startsWith('image/')) {
             result = await telegramService.sendPhoto(chatId, fileStream, {
               caption: telegramMessage,
+              filename: attachment.originalname,
+              contentType: attachment.mimetype,
               ...sendOptions,
             });
           } else {
             result = await telegramService.sendDocument(chatId, fileStream, {
               caption: telegramMessage,
+              filename: attachment.originalname,
+              contentType: attachment.mimetype,
               ...sendOptions,
             });
           }

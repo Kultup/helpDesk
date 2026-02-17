@@ -434,9 +434,17 @@ class TelegramService {
       logger.error('Telegram бот не ініціалізовано');
       return;
     }
-    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    const { filename, ...restOptions } = options;
+    const defaultOptions = {
+      parse_mode: 'Markdown',
+      ...restOptions,
+    };
+
+    // Якщо передано filename, використовуємо структуру для передачі назви файлу в node-telegram-bot-api
+    const fileOptions = filename ? { filename, contentType: options.contentType } : {};
+
     try {
-      const result = await this.bot.sendPhoto(chatId, photo, defaultOptions);
+      const result = await this.bot.sendPhoto(chatId, photo, defaultOptions, fileOptions);
 
       if (options.pin && result.message_id) {
         try {
@@ -458,9 +466,17 @@ class TelegramService {
       logger.error('Telegram бот не ініціалізовано');
       return;
     }
-    const defaultOptions = { parse_mode: 'Markdown', ...options };
+    const { filename, ...restOptions } = options;
+    const defaultOptions = {
+      parse_mode: 'Markdown',
+      ...restOptions,
+    };
+
+    // Налаштування для збереження оригінальної назви файлу
+    const fileOptions = filename ? { filename, contentType: options.contentType } : {};
+
     try {
-      const result = await this.bot.sendDocument(chatId, document, defaultOptions);
+      const result = await this.bot.sendDocument(chatId, document, defaultOptions, fileOptions);
 
       if (options.pin && result.message_id) {
         try {
