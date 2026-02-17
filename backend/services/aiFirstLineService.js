@@ -179,6 +179,9 @@ function formatUserContext(userContext) {
   if (userContext.userEquipmentSummary) {
     parts.push(`💻 Обладнання: ${userContext.userEquipmentSummary}`);
   }
+  if (userContext.detectedHardware) {
+    parts.push(`🔍 Розпізнано на фото: ${userContext.detectedHardware}`);
+  }
   return parts.length ? parts.join(', ') : '(немає)';
 }
 
@@ -878,7 +881,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
   if (dialogHistory.length > 0) {
     const lastMsg = dialogHistory[dialogHistory.length - 1];
     if (lastMsg && lastMsg.role === 'user') {
-      const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content);
+      const fastTrack = aiEnhancedService.findQuickSolution(lastMsg.content, userContext || {});
       if (fastTrack && fastTrack.hasQuickFix) {
         if (fastTrack.informationalOnly) {
           logger.info(`⚡ AI Fast-Track (informational): ${fastTrack.problemType}`);

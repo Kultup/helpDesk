@@ -1509,7 +1509,7 @@ class TelegramAIService {
     // Fallback: якщо немає quickSolution але є needsMoreInfo — спробувати Fast-Track для типових проблем (принтер, інтернет)
     if (!quickSolutionText && result.needsMoreInfo && text) {
       const aiEnhancedService = require('./aiEnhancedService');
-      const fastTrack = aiEnhancedService.findQuickSolution(text);
+      const fastTrack = aiEnhancedService.findQuickSolution(text, session.userContext || {});
       if (fastTrack && fastTrack.hasQuickFix && fastTrack.solution) {
         quickSolutionText = fastTrack.solution;
         if (quickSolutionText) {
@@ -1741,9 +1741,21 @@ class TelegramAIService {
     if (analysisResult?.metadata) {
       photoMetadata = analysisResult.metadata;
       session.photoMetadata = photoMetadata;
+
+      // Оновлюємо контекст обладнання, якщо розпізнано модель
+      if (photoMetadata.hardwareDetected) {
+        if (!session.userContext) {
+          session.userContext = {};
+        }
+        session.userContext.detectedHardware = photoMetadata.hardwareDetected;
+        // Також додаємо в summary для промптів, щоб AI бачив це як "вже відоме"
+        session.userContext.userEquipmentSummary = photoMetadata.hardwareDetected;
+      }
+
       logger.info('AI: Photo metadata saved to session', {
         errorType: photoMetadata.errorType,
         softwareDetected: photoMetadata.softwareDetected,
+        hardwareDetected: photoMetadata.hardwareDetected,
         actionRequired: photoMetadata.actionRequired,
       });
     }

@@ -382,9 +382,10 @@ class AIEnhancedService {
   /**
    * Пошук швидкого рішення для проблеми
    * @param {string} problemText - Текст проблеми
+   * @param {Object} [userContext] - Контекст користувача (для пропуску вже відомої інфи)
    * @returns {Object|null} Швидке рішення або null
    */
-  findQuickSolution(problemText) {
+  findQuickSolution(problemText, userContext = {}) {
     if (!problemText) {
       return null;
     }
@@ -397,14 +398,33 @@ class AIEnhancedService {
 
       if (hasKeyword) {
         logger.info(`💡 Знайдено швидке рішення: ${key}`);
+
+        let finalSolution = solution.solution;
+        let finalMissingInfo = [...(solution.missingInfo || [])];
+
+        // Специальна логіка для нового принтера: якщо модель уже відома (з фото або контексту)
+        if (key === 'налаштування нового принтера') {
+          const modelKnown =
+            userContext.detectedHardware ||
+            userContext.userEquipmentSummary ||
+            / (g\d{4}|l\d{4}|laserjet|canon|hp|epson|brother|pantum) /i.test(text);
+
+          if (modelKnown) {
+            const detectedModel =
+              userContext.detectedHardware || userContext.userEquipmentSummary || 'принтера';
+            finalSolution = `Дякую, модель ${detectedModel} зафіксовано! 🖨️\n\nОстаннє уточнення: як плануєте підключити принтер — через **USB кабель** чи по **Wi-Fi**?\n\nТільки-но відповісте — я створю заявку.`;
+            finalMissingInfo = ['тип підключення (USB/WiFi)'];
+          }
+        }
+
         const result = {
           problemType: key,
-          solution: solution.solution,
+          solution: finalSolution,
           category: solution.category,
           estimatedTime: solution.estimatedTime,
           hasQuickFix: true,
-          needsMoreInfo: solution.needsMoreInfo,
-          missingInfo: solution.missingInfo || [],
+          needsMoreInfo: finalMissingInfo.length > 0,
+          missingInfo: finalMissingInfo,
           autoTicket: solution.autoTicket,
         };
         if (solution.informationalOnly) {
