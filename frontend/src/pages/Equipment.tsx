@@ -25,7 +25,7 @@ import {
   Select,
   Divider,
   Alert,
-  Grid
+  Grid,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -36,7 +36,9 @@ import {
   InfoOutlined as InfoIcon,
   PlaceOutlined as PlaceIcon,
   TagOutlined as TagIcon,
-  NotesOutlined as NotesIcon
+  NotesOutlined as NotesIcon,
+  Download as DownloadIcon,
+  UploadFile as UploadFileIcon,
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
@@ -72,21 +74,21 @@ interface Equipment {
 }
 
 const equipmentTypes = [
-  { value: 'computer', label: 'Комп\'ютер' },
+  { value: 'computer', label: "Комп'ютер" },
   { value: 'printer', label: 'Принтер' },
   { value: 'phone', label: 'Телефон' },
   { value: 'monitor', label: 'Монітор' },
   { value: 'router', label: 'Роутер' },
   { value: 'switch', label: 'Свіч' },
   { value: 'ups', label: 'ДБЖ' },
-  { value: 'other', label: 'Інше' }
+  { value: 'other', label: 'Інше' },
 ];
 
 const statusTypes = [
   { value: 'working', label: 'В роботі', color: 'success' as const },
   { value: 'not_working', label: 'Не працює', color: 'error' as const },
   { value: 'new', label: 'Новий', color: 'info' as const },
-  { value: 'used', label: 'Б/У', color: 'default' as const }
+  { value: 'used', label: 'Б/У', color: 'default' as const },
 ];
 
 const Equipment: React.FC = () => {
@@ -96,7 +98,7 @@ const Equipment: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [total, setTotal] = useState(0);
-  
+
   // Фільтри
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -121,13 +123,66 @@ const Equipment: React.FC = () => {
     purchaseDate: '',
     warrantyExpiry: '',
     location: '',
-    notes: ''
+    notes: '',
   });
 
   // Список міст та закладів для форми та фільтрів
   const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
-  const [institutions, setInstitutions] = useState<Array<{ _id: string; name: string; address?: { city?: string } }>>([]);
-  const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>([]);
+  const [institutions, setInstitutions] = useState<
+    Array<{ _id: string; name: string; address?: { city?: string } }>
+  >([]);
+  const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>(
+    []
+  );
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const response = (await api.get('/equipment/template', { responseType: 'blob' })) as any;
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'equipment_import_template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Помилка завантаження шаблону:', error);
+      alert('Помилка завантаження шаблону');
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setLoading(true);
+      const response: any = await api.post('/equipment/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Import response:', response);
+      alert(response.data?.message || 'Імпорт завершено');
+      loadEquipment();
+    } catch (error: any) {
+      console.error('Помилка імпорту:', error);
+      alert(error.response?.data?.message || 'Помилка імпорту');
+    } finally {
+      setLoading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     loadEquipment();
@@ -153,7 +208,7 @@ const Equipment: React.FC = () => {
       setLoading(true);
       const params: any = {
         page: page + 1,
-        limit: rowsPerPage
+        limit: rowsPerPage,
       };
 
       if (searchQuery) params.search = searchQuery;
@@ -162,7 +217,7 @@ const Equipment: React.FC = () => {
       if (cityFilter) params.city = cityFilter;
       if (institutionFilter) params.institution = institutionFilter;
 
-      const response = await api.get('/equipment', { params }) as any;
+      const response = (await api.get('/equipment', { params })) as any;
       setEquipment(response.data.equipment);
       setTotal(response.data.pagination.total);
     } catch (error) {
@@ -174,10 +229,13 @@ const Equipment: React.FC = () => {
 
   const loadCities = async () => {
     try {
-      const response = await api.get('/cities') as any;
+      const response = (await api.get('/cities')) as any;
       console.log('🌍 Cities API response:', response.data);
       const citiesList = response.data || [];
-      console.log(`📍 Завантажено ${citiesList.length} міст:`, citiesList.map((c: any) => ({ id: c._id, name: c.name })));
+      console.log(
+        `📍 Завантажено ${citiesList.length} міст:`,
+        citiesList.map((c: any) => ({ id: c._id, name: c.name }))
+      );
       setCities(citiesList);
     } catch (error) {
       console.error('❌ Помилка завантаження міст:', error);
@@ -187,10 +245,10 @@ const Equipment: React.FC = () => {
   const loadInstitutions = async () => {
     try {
       // Використовуємо публічний endpoint який не вимагає автентифікації
-      const response = await api.get('/institutions/public', { params: { limit: 500 } }) as any;
+      const response = (await api.get('/institutions/public', { params: { limit: 500 } })) as any;
       console.log('🏢 All Institutions API response:', response);
       console.log('🏢 response.data:', response.data);
-      
+
       // Перевіряємо різні можливі структури відповіді
       let list = [];
       if (Array.isArray(response.data)) {
@@ -200,7 +258,7 @@ const Equipment: React.FC = () => {
       } else if (response.data?.success && Array.isArray(response.data?.institutions)) {
         list = response.data.institutions;
       }
-      
+
       console.log('🏢 All Institutions list:', list);
       setInstitutions(list);
     } catch (error) {
@@ -212,21 +270,25 @@ const Equipment: React.FC = () => {
     try {
       console.log('🔍 Завантаження закладів для міста ID:', cityId);
       // Завантажуємо заклади для конкретного міста
-      const response = await api.get('/institutions/public', { 
-        params: { 
+      const response = (await api.get('/institutions/public', {
+        params: {
           city: cityId,
-          limit: 500 
-        } 
-      }) as any;
+          limit: 500,
+        },
+      })) as any;
       console.log('📦 Institutions API response (full):', response);
-      console.log('📦 response.data type:', typeof response.data, Array.isArray(response.data) ? 'Array' : 'Object');
+      console.log(
+        '📦 response.data type:',
+        typeof response.data,
+        Array.isArray(response.data) ? 'Array' : 'Object'
+      );
       console.log('📦 response.data:', response.data);
       console.log('📦 response.data.data:', response.data?.data);
       console.log('📦 response.data.success:', response.data?.success);
-      
+
       // Визначаємо структуру відповіді
       let list = [];
-      
+
       // Варіант 1: response.data.data є масивом (стандартна структура API)
       if (response.data?.data && Array.isArray(response.data.data)) {
         list = response.data.data;
@@ -241,18 +303,17 @@ const Equipment: React.FC = () => {
       else if (response.data?.institutions && Array.isArray(response.data.institutions)) {
         list = response.data.institutions;
         console.log('✅ Використовуємо response.data.institutions');
-      }
-      else {
+      } else {
         console.warn('⚠️ Невідома структура відповіді:', response.data);
       }
-      
+
       console.log('✅ Filtered institutions list:', list);
       console.log(`📊 Знайдено ${list.length} закладів для міста`);
-      
+
       if (list.length === 0) {
         console.warn('⚠️ Заклади не знайдені для міста:', cityId);
       }
-      
+
       setInstitutions(list);
     } catch (error) {
       console.error('❌ Помилка завантаження закладів для міста:', error);
@@ -262,7 +323,7 @@ const Equipment: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await api.get('/users') as any;
+      const response = (await api.get('/users')) as any;
       setUsers(response.data.users || response.data);
     } catch (error) {
       console.error('Помилка завантаження користувачів:', error);
@@ -286,7 +347,7 @@ const Equipment: React.FC = () => {
         purchaseDate: equipment.purchaseDate ? equipment.purchaseDate.split('T')[0] : '',
         warrantyExpiry: equipment.warrantyExpiry ? equipment.warrantyExpiry.split('T')[0] : '',
         location: equipment.location || '',
-        notes: equipment.notes || ''
+        notes: equipment.notes || '',
       });
     } else {
       setEditingEquipment(null);
@@ -304,7 +365,7 @@ const Equipment: React.FC = () => {
         purchaseDate: '',
         warrantyExpiry: '',
         location: '',
-        notes: ''
+        notes: '',
       });
     }
     setDialogOpen(true);
@@ -319,7 +380,7 @@ const Equipment: React.FC = () => {
     try {
       console.log('Saving equipment with data:', formData);
       console.log('Institutions available:', institutions);
-      
+
       if (editingEquipment) {
         await api.put(`/equipment/${editingEquipment._id}`, formData);
       } else {
@@ -384,13 +445,28 @@ const Equipment: React.FC = () => {
           <Typography variant="h5" component="h1">
             Інвентарне обладнання
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
-          >
-            Додати обладнання
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadTemplate}
+            >
+              Шаблон
+            </Button>
+            <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={handleImportClick}>
+              Імпорт
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileChange}
+            />
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+              Додати обладнання
+            </Button>
+          </Box>
         </Box>
 
         {/* Фільтри */}
@@ -402,10 +478,10 @@ const Equipment: React.FC = () => {
               variant="outlined"
               size="small"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               placeholder="Назва, модель, серійний номер..."
               InputProps={{
-                endAdornment: <SearchIcon />
+                endAdornment: <SearchIcon />,
               }}
             />
           </Grid>
@@ -416,14 +492,14 @@ const Equipment: React.FC = () => {
               size="small"
               label="Тип"
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTypeFilter(e.target.value)}
               InputLabelProps={{ shrink: true }}
               SelectProps={{
-                displayEmpty: true
+                displayEmpty: true,
               }}
             >
               <MenuItem value="">Всі типи</MenuItem>
-              {equipmentTypes.map((type) => (
+              {equipmentTypes.map(type => (
                 <MenuItem key={type.value} value={type.value}>
                   {type.label}
                 </MenuItem>
@@ -437,14 +513,14 @@ const Equipment: React.FC = () => {
               size="small"
               label="Статус"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStatusFilter(e.target.value)}
               InputLabelProps={{ shrink: true }}
               SelectProps={{
-                displayEmpty: true
+                displayEmpty: true,
               }}
             >
               <MenuItem value="">Всі статуси</MenuItem>
-              {statusTypes.map((status) => (
+              {statusTypes.map(status => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>
@@ -458,14 +534,14 @@ const Equipment: React.FC = () => {
               size="small"
               label="Місто"
               value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCityFilter(e.target.value)}
               InputLabelProps={{ shrink: true }}
               SelectProps={{
-                displayEmpty: true
+                displayEmpty: true,
               }}
             >
               <MenuItem value="">Всі міста</MenuItem>
-              {cities.map((city) => (
+              {cities.map(city => (
                 <MenuItem key={city._id} value={city._id}>
                   {city.name}
                 </MenuItem>
@@ -479,14 +555,16 @@ const Equipment: React.FC = () => {
               size="small"
               label="Заклад"
               value={institutionFilter}
-              onChange={(e) => setInstitutionFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setInstitutionFilter(e.target.value)
+              }
               InputLabelProps={{ shrink: true }}
               SelectProps={{
-                displayEmpty: true
+                displayEmpty: true,
               }}
             >
               <MenuItem value="">Всі заклади</MenuItem>
-              {institutions.map((inst) => (
+              {institutions.map(inst => (
                 <MenuItem key={inst._id} value={inst._id}>
                   {inst.name}
                 </MenuItem>
@@ -522,12 +600,14 @@ const Equipment: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {equipment.map((item) => (
+              {equipment.map(item => (
                 <TableRow key={item._id}>
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{getTypeLabel(item.type)}</TableCell>
                   <TableCell>
-                    {item.brand && item.model ? `${item.brand} ${item.model}` : item.brand || item.model || '-'}
+                    {item.brand && item.model
+                      ? `${item.brand} ${item.model}`
+                      : item.brand || item.model || '-'}
                   </TableCell>
                   <TableCell>{item.inventoryNumber || '-'}</TableCell>
                   <TableCell>{item.city?.name || '-'}</TableCell>
@@ -539,17 +619,10 @@ const Equipment: React.FC = () => {
                       : '-'}
                   </TableCell>
                   <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(item)}
-                    >
+                    <IconButton size="small" onClick={() => handleOpenDialog(item)}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(item._id)}
-                    >
+                    <IconButton size="small" color="error" onClick={() => handleDelete(item._id)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -575,7 +648,9 @@ const Equipment: React.FC = () => {
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
           labelRowsPerPage="Рядків на сторінці:"
-          labelDisplayedRows={({ from, to, count }) => `${from}-${to} з ${count}`}
+          labelDisplayedRows={({ from, to, count }: { from: number; to: number; count: number }) =>
+            `${from}-${to} з ${count}`
+          }
         />
       </Paper>
 
@@ -588,8 +663,8 @@ const Equipment: React.FC = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
-          }
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          },
         }}
       >
         <DialogTitle sx={{ pb: 1, fontSize: '1.25rem', fontWeight: 600 }}>
@@ -612,7 +687,9 @@ const Equipment: React.FC = () => {
                     required
                     label="Назва обладнання"
                     value={formData.name}
-                    onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="Dell Latitude E7450"
                     size="small"
                   />
@@ -628,7 +705,7 @@ const Equipment: React.FC = () => {
                     size="small"
                     InputLabelProps={{ shrink: true }}
                   >
-                    {equipmentTypes.map((type) => (
+                    {equipmentTypes.map(type => (
                       <MenuItem key={type.value} value={type.value}>
                         {type.label}
                       </MenuItem>
@@ -669,7 +746,12 @@ const Equipment: React.FC = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="label"
+                      sx={{ display: 'block', mb: 0.5 }}
+                    >
                       Місто
                     </Typography>
                     <TextField
@@ -681,10 +763,10 @@ const Equipment: React.FC = () => {
                         const selectedCity = cities.find(c => c._id === selectedCityId);
                         console.log('🏙️ Вибране місто:', selectedCity?.name, 'ID:', selectedCityId);
                         // При зміні міста скидаємо заклад
-                        setFormData({ 
-                          ...formData, 
+                        setFormData({
+                          ...formData,
                           city: selectedCityId,
-                          institution: '' 
+                          institution: '',
                         });
                       }}
                       size="small"
@@ -692,7 +774,7 @@ const Equipment: React.FC = () => {
                       SelectProps={{ displayEmpty: true }}
                     >
                       <MenuItem value="">Оберіть місто</MenuItem>
-                      {cities.map((city) => (
+                      {cities.map(city => (
                         <MenuItem key={city._id} value={city._id}>
                           {city.name}
                         </MenuItem>
@@ -702,7 +784,12 @@ const Equipment: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="label"
+                      sx={{ display: 'block', mb: 0.5 }}
+                    >
                       Заклад *
                     </Typography>
                     <TextField
@@ -710,17 +797,19 @@ const Equipment: React.FC = () => {
                       fullWidth
                       required
                       value={formData.institution}
-                      onChange={(e: any) => setFormData({ ...formData, institution: e.target.value })}
+                      onChange={(e: any) =>
+                        setFormData({ ...formData, institution: e.target.value })
+                      }
                       size="small"
                       variant="outlined"
                       disabled={!formData.city}
                       SelectProps={{ displayEmpty: true }}
-                      helperText={!formData.city ? "Спочатку оберіть місто" : ""}
+                      helperText={!formData.city ? 'Спочатку оберіть місто' : ''}
                     >
                       <MenuItem value="">
-                        {!formData.city ? "Спочатку оберіть місто" : "Оберіть заклад"}
+                        {!formData.city ? 'Спочатку оберіть місто' : 'Оберіть заклад'}
                       </MenuItem>
-                      {institutions.map((inst) => (
+                      {institutions.map(inst => (
                         <MenuItem key={inst._id} value={inst._id}>
                           {inst.name}
                         </MenuItem>
@@ -755,7 +844,9 @@ const Equipment: React.FC = () => {
                     fullWidth
                     label="Серійний номер"
                     value={formData.serialNumber}
-                    onChange={(e: any) => setFormData({ ...formData, serialNumber: e.target.value })}
+                    onChange={(e: any) =>
+                      setFormData({ ...formData, serialNumber: e.target.value })
+                    }
                     placeholder="S/N з корпусу"
                     size="small"
                   />
@@ -773,7 +864,12 @@ const Equipment: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary" component="label" sx={{ display: 'block', mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="label"
+                      sx={{ display: 'block', mb: 0.5 }}
+                    >
                       Статус обладнання
                     </Typography>
                     <TextField
@@ -788,7 +884,7 @@ const Equipment: React.FC = () => {
                       SelectProps={{ displayEmpty: true }}
                     >
                       <MenuItem value="">Оберіть статус</MenuItem>
-                      {statusTypes.map((status) => (
+                      {statusTypes.map(status => (
                         <MenuItem key={status.value} value={status.value}>
                           {status.label}
                         </MenuItem>

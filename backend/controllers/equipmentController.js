@@ -2,31 +2,284 @@ const mongoose = require('mongoose');
 const Equipment = require('../models/Equipment');
 const { sendSuccess, sendError } = require('../utils/response');
 const logger = require('../utils/logger');
+const ExcelJS = require('exceljs');
+const City = require('../models/City');
+const Institution = require('../models/Institution');
+
+// ... (existing code)
+
+/**
+ * Завантажити шаблон для масового імпорту
+ */
+exports.getEquipmentTemplate = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Шаблон імпорту');
+
+    // Налаштування колонок
+    worksheet.columns = [
+      { header: 'Назва *', key: 'name', width: 30 },
+      { header: 'Тип *', key: 'type', width: 15 },
+      { header: 'Бренд', key: 'brand', width: 15 },
+      { header: 'Модель', key: 'model', width: 20 },
+      { header: 'Серійний номер', key: 'serialNumber', width: 20 },
+      { header: 'Інвентарний номер', key: 'inventoryNumber', width: 20 },
+      { header: 'Місто', key: 'city', width: 20 },
+      { header: 'Заклад', key: 'institution', width: 30 },
+      { header: 'Локація', key: 'location', width: 20 },
+      { header: 'Статус *', key: 'status', width: 15 },
+      { header: 'Дата покупки', key: 'purchaseDate', width: 15 },
+      { header: 'Примітки', key: 'notes', width: 30 },
+    ];
+
+    // Стилізація заголовка
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF E0E0E0' },
+    };
+
+    // Додавання підказок (як коментарі до заголовків)
+    worksheet.getCell('B1').note = 'computer, printer, phone, monitor, router, switch, ups, other';
+    worksheet.getCell('J1').note = 'working, not_working, new, used';
+    worksheet.getCell('K1').note = 'Формат: YYYY-MM-DD';
+
+    // Додання прикладу даних
+    worksheet.addRow({
+      name: 'HP ProBook 450 G8',
+      type: 'computer',
+      brand: 'HP',
+      model: 'ProBook 450 G8',
+      serialNumber: '5CD1234567',
+      inventoryNumber: '', // Залишити пустим для автогенерації
+      city: 'Київ',
+      institution: 'Головний офіс',
+      location: 'IT відділ',
+      status: 'working',
+      purchaseDate: '2023-01-15',
+      notes: 'Видано новому співробітнику',
+    });
+
+    // Налаштування відповіді
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=' + 'equipment_import_template.xlsx'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error('Помилка генерації шаблону:', error);
+    sendError(res, 'Помилка генерації шаблону', 500);
+  }
+};
+
+/**
+ * Масовий імпорт обладнання
+ */
+exports.bulkImportEquipment = async (req, res) => {
+  try {
+    if (!req.file) {
+      return sendError(res, 'Файл не завантажено', 400);
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(req.file.path);
+    const worksheet = workbook.getWorksheet(1); // Беремо перший лист
+
+    if (!worksheet) {
+      return sendError(res, 'Невірний формат файлу або пустий лист', 400);
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    const rows = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) {
+        return;
+      } // Пропускаємо заголовок
+      rows.push({ row, rowNumber });
+    });
+
+    // Отримуємо всі міста та заклади для мапінгу
+    const cities = await City.find().lean();
+    const institutions = await Institution.find().lean();
+
+    const cityMap = new Map(cities.map(c => [c.name.toLowerCase(), c._id]));
+    const institutionMap = new Map(institutions.map(i => [i.name.toLowerCase(), i._id]));
+
+    // Обробка рядків
+    for (const { row, rowNumber } of rows) {
+      try {
+        const rowData = {
+          name: row.getCell(1).text,
+          type: row.getCell(2).text,
+          brand: row.getCell(3).text,
+          model: row.getCell(4).text,
+          serialNumber: row.getCell(5).text,
+          inventoryNumber: row.getCell(6).text,
+          cityName: row.getCell(7).text,
+          institutionName: row.getCell(8).text,
+          location: row.getCell(9).text,
+          status: row.getCell(10).text,
+          purchaseDate: row.getCell(11).text,
+          notes: row.getCell(12).text,
+        };
+
+        // Валідація обов'язкових полів
+        if (!rowData.name || !rowData.type || !rowData.status) {
+          throw new Error("Відсутні обов'язкові поля (Назва, Тип, Статус)");
+        }
+
+        // Валідація типів та статусів
+        const allowedTypes = [
+          'computer',
+          'printer',
+          'phone',
+          'monitor',
+          'router',
+          'switch',
+          'ups',
+          'other',
+        ];
+        const allowedStatuses = ['working', 'not_working', 'new', 'used'];
+
+        if (!allowedTypes.includes(rowData.type)) {
+          throw new Error(`Невірний тип: ${rowData.type}. Дозволені: ${allowedTypes.join(', ')}`);
+        }
+        if (!allowedStatuses.includes(rowData.status)) {
+          throw new Error(
+            `Невірний статус: ${rowData.status}. Дозволені: ${allowedStatuses.join(', ')}`
+          );
+        }
+
+        // Мапінг міста та закладу
+        let cityId = null;
+        let institutionId = null;
+
+        if (rowData.cityName) {
+          cityId = cityMap.get(rowData.cityName.toLowerCase());
+          if (!cityId) {
+            // Можна додати логіку створення міста або кинути помилку
+            // В даному випадку ігноруємо прив'язку або кидаємо помилку?
+            // Для простоти - ігноруємо, якщо точний збіг не знайдено
+          }
+        }
+
+        if (rowData.institutionName) {
+          institutionId = institutionMap.get(rowData.institutionName.toLowerCase());
+        }
+
+        // Підготовка об'єкта для збереження
+        const equipmentData = {
+          name: rowData.name,
+          type: rowData.type,
+          brand: rowData.brand,
+          model: rowData.model,
+          serialNumber: rowData.serialNumber,
+          // inventoryNumber - якщо пустий, згенерується моделлю
+          city: cityId,
+          institution: institutionId,
+          location: rowData.location,
+          status: rowData.status,
+          notes: rowData.notes,
+          createdBy: req.user._id,
+          updatedBy: req.user._id,
+        };
+
+        if (rowData.inventoryNumber) {
+          equipmentData.inventoryNumber = rowData.inventoryNumber;
+        }
+
+        if (rowData.purchaseDate) {
+          const date = new Date(rowData.purchaseDate);
+          if (!isNaN(date.getTime())) {
+            equipmentData.purchaseDate = date;
+          }
+        }
+
+        // Очищення пустих рядків
+        Object.keys(equipmentData).forEach(key => {
+          if (
+            equipmentData[key] === '' ||
+            equipmentData[key] === null ||
+            equipmentData[key] === undefined
+          ) {
+            delete equipmentData[key];
+          }
+        });
+
+        const equipment = new Equipment(equipmentData);
+        await equipment.save();
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`Рядок ${rowNumber}: ${err.message}`);
+      }
+    }
+
+    // Видаляємо файл після обробки
+    const fs = require('fs');
+    fs.unlink(req.file.path, err => {
+      if (err) {
+        logger.error('Помилка видалення тимчасового файлу імпорту:', err);
+      }
+    });
+
+    if (results.failed > 0) {
+      // Якщо є помилки, повертаємо 207 Multi-Status або просто 200 з деталями
+      res.json({
+        success: true,
+        message: `Імпорт завершено. Успішно: ${results.success}, Помилок: ${results.failed}`,
+        data: results,
+      });
+    } else {
+      sendSuccess(res, {
+        message: `Імпорт успішно завершено. Додано: ${results.success} записів.`,
+        stats: results,
+      });
+    }
+  } catch (error) {
+    logger.error('Помилка масового імпорту:', error);
+    sendError(res, 'Помилка обробки файлу імпорту', 500);
+  }
+};
 
 /**
  * Отримати список обладнання з фільтрами та пагінацією
  */
 exports.getEquipment = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 50,
-      type,
-      status,
-      city,
-      institution,
-      assignedTo,
-      search
-    } = req.query;
+    const { page = 1, limit = 50, type, status, city, institution, assignedTo, search } = req.query;
 
     const query = {};
 
     // Фільтри
-    if (type) query.type = type;
-    if (status) query.status = status;
-    if (city) query.city = city;
-    if (institution) query.institution = institution;
-    if (assignedTo) query.assignedTo = assignedTo;
+    if (type) {
+      query.type = type;
+    }
+    if (status) {
+      query.status = status;
+    }
+    if (city) {
+      query.city = city;
+    }
+    if (institution) {
+      query.institution = institution;
+    }
+    if (assignedTo) {
+      query.assignedTo = assignedTo;
+    }
 
     // Пошук
     if (search) {
@@ -34,7 +287,7 @@ exports.getEquipment = async (req, res) => {
         { name: { $regex: search, $options: 'i' } },
         { model: { $regex: search, $options: 'i' } },
         { serialNumber: { $regex: search, $options: 'i' } },
-        { inventoryNumber: { $regex: search, $options: 'i' } }
+        { inventoryNumber: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -51,7 +304,7 @@ exports.getEquipment = async (req, res) => {
         .skip(skip)
         .limit(parseInt(limit))
         .lean(),
-      Equipment.countDocuments(query)
+      Equipment.countDocuments(query),
     ]);
 
     sendSuccess(res, {
@@ -60,8 +313,8 @@ exports.getEquipment = async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
+        pages: Math.ceil(total / parseInt(limit)),
+      },
     });
   } catch (error) {
     logger.error('Помилка отримання обладнання:', error);
@@ -85,7 +338,7 @@ exports.getEquipmentById = async (req, res) => {
       .populate({
         path: 'relatedTickets',
         select: 'title status priority createdAt',
-        options: { sort: { createdAt: -1 }, limit: 10 }
+        options: { sort: { createdAt: -1 }, limit: 10 },
       })
       .lean();
 
@@ -107,7 +360,7 @@ exports.createEquipment = async (req, res) => {
   try {
     const equipmentData = {
       ...req.body,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     };
 
     // Видаляємо inventoryNumber - він генерується автоматично
@@ -128,18 +381,20 @@ exports.createEquipment = async (req, res) => {
       { path: 'city', select: 'name' },
       { path: 'institution', select: 'name' },
       { path: 'assignedTo', select: 'firstName lastName email' },
-      { path: 'createdBy', select: 'firstName lastName' }
+      { path: 'createdBy', select: 'firstName lastName' },
     ]);
 
-    logger.info(`Створено нове обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`);
+    logger.info(
+      `Створено нове обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`
+    );
     sendSuccess(res, equipment, 201);
   } catch (error) {
     logger.error('Помилка створення обладнання:', error);
-    
+
     if (error.code === 11000) {
       return sendError(res, 'Інвентарний номер вже існує', 400);
     }
-    
+
     sendError(res, 'Помилка створення обладнання', 500);
   }
 };
@@ -152,7 +407,7 @@ exports.updateEquipment = async (req, res) => {
     const { id } = req.params;
     const updateData = {
       ...req.body,
-      updatedBy: req.user._id
+      updatedBy: req.user._id,
     };
 
     // Очищаємо порожні рядки для ObjectId полів
@@ -163,11 +418,10 @@ exports.updateEquipment = async (req, res) => {
       }
     });
 
-    const equipment = await Equipment.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    )
+    const equipment = await Equipment.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    })
       .populate('city', 'name')
       .populate('institution', 'name')
       .populate('assignedTo', 'firstName lastName email')
@@ -177,15 +431,17 @@ exports.updateEquipment = async (req, res) => {
       return sendError(res, 'Обладнання не знайдено', 404);
     }
 
-    logger.info(`Оновлено обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`);
+    logger.info(
+      `Оновлено обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`
+    );
     sendSuccess(res, equipment);
   } catch (error) {
     logger.error('Помилка оновлення обладнання:', error);
-    
+
     if (error.code === 11000) {
       return sendError(res, 'Інвентарний номер вже існує', 400);
     }
-    
+
     sendError(res, 'Помилка оновлення обладнання', 500);
   }
 };
@@ -203,7 +459,9 @@ exports.deleteEquipment = async (req, res) => {
       return sendError(res, 'Обладнання не знайдено', 404);
     }
 
-    logger.info(`Видалено обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`);
+    logger.info(
+      `Видалено обладнання: ${equipment.name} (${equipment._id}) користувачем ${req.user.email}`
+    );
     sendSuccess(res, { message: 'Обладнання видалено успішно' });
   } catch (error) {
     logger.error('Помилка видалення обладнання:', error);
@@ -229,25 +487,21 @@ exports.getEquipmentStats = async (req, res) => {
           _id: null,
           total: { $sum: 1 },
           active: {
-            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] },
           },
           repair: {
-            $sum: { $cond: [{ $eq: ['$status', 'repair'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ['$status', 'repair'] }, 1, 0] },
           },
           disposed: {
-            $sum: { $cond: [{ $eq: ['$status', 'disposed'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ['$status', 'disposed'] }, 1, 0] },
           },
           underWarranty: {
             $sum: {
-              $cond: [
-                { $gt: ['$warrantyExpiry', new Date()] },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      }
+              $cond: [{ $gt: ['$warrantyExpiry', new Date()] }, 1, 0],
+            },
+          },
+        },
+      },
     ]);
 
     sendSuccess(res, {
@@ -257,8 +511,8 @@ exports.getEquipmentStats = async (req, res) => {
         active: 0,
         repair: 0,
         disposed: 0,
-        underWarranty: 0
-      }
+        underWarranty: 0,
+      },
     });
   } catch (error) {
     logger.error('Помилка отримання статистики обладнання:', error);
@@ -275,7 +529,7 @@ exports.assignEquipment = async (req, res) => {
     const { userId } = req.body;
 
     const equipment = await Equipment.findById(id);
-    
+
     if (!equipment) {
       return sendError(res, 'Обладнання не знайдено', 404);
     }
@@ -303,7 +557,7 @@ exports.changeEquipmentStatus = async (req, res) => {
     const { status } = req.body;
 
     const equipment = await Equipment.findById(id);
-    
+
     if (!equipment) {
       return sendError(res, 'Обладнання не знайдено', 404);
     }
