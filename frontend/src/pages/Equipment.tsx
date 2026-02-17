@@ -138,14 +138,15 @@ const Equipment: React.FC = () => {
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = (await api.get('/equipment/template', { responseType: 'blob' })) as any;
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = (await api.get('/equipment/template', { responseType: 'blob' })) as any;
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', 'equipment_import_template.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Помилка завантаження шаблону:', error);
       alert('Помилка завантаження шаблону');
