@@ -42,9 +42,22 @@ exports.getEquipmentTemplate = async (req, res) => {
     };
 
     // Додавання підказок (як коментарі до заголовків)
-    worksheet.getCell('B1').note = 'computer, printer, phone, monitor, router, switch, ups, other';
-    worksheet.getCell('J1').note = 'working, not_working, new, used';
-    worksheet.getCell('K1').note = 'Формат: YYYY-MM-DD';
+    // Додавання підказок (як коментарі до заголовків)
+    worksheet.getCell('A1').note = 'Назва обладнання (наприклад: HP ProBook 450 G8)';
+    worksheet.getCell('B1').note =
+      'Тип обладнання (виберіть зі списку): computer, printer, phone, monitor, router, switch, ups, other';
+    worksheet.getCell('C1').note = 'Виробник (наприклад: HP, Dell, Lenovo)';
+    worksheet.getCell('D1').note = 'Модель (наприклад: Latitude 5420)';
+    worksheet.getCell('E1').note = 'Серійний номер (унікальний ідентифікатор)';
+    worksheet.getCell('F1').note =
+      'Інвентарний номер (якщо не вказано, буде згенеровано автоматично)';
+    worksheet.getCell('G1').note = 'Назва міста (має співпадати з назвою в системі)';
+    worksheet.getCell('H1').note = 'Назва закладу (має співпадати з назвою в системі)';
+    worksheet.getCell('I1').note = 'Конкретне місцезнаходження (наприклад: Кабінет 201)';
+    worksheet.getCell('J1').note =
+      'Статус (виберіть зі списку): working (В роботі), not_working (Не працює), new (Новий), used (Б/У)';
+    worksheet.getCell('K1').note = 'Дата покупки у форматі: YYYY-MM-DD (наприклад: 2023-12-31)';
+    worksheet.getCell('L1').note = 'Додаткові примітки або опис';
 
     // Додання прикладу даних
     worksheet.addRow({
