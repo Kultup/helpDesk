@@ -18,18 +18,18 @@ exports.getEquipmentTemplate = async (req, res) => {
 
     // Налаштування колонок
     worksheet.columns = [
-      { header: 'Назва *', key: 'name', width: 30 },
-      { header: 'Тип *', key: 'type', width: 15 },
-      { header: 'Бренд', key: 'brand', width: 15 },
-      { header: 'Модель', key: 'model', width: 20 },
-      { header: 'Серійний номер', key: 'serialNumber', width: 20 },
-      { header: 'Інвентарний номер', key: 'inventoryNumber', width: 20 },
-      { header: 'Місто', key: 'city', width: 20 },
-      { header: 'Заклад', key: 'institution', width: 30 },
-      { header: 'Локація', key: 'location', width: 20 },
+      { header: 'Назва обладнання *', key: 'name', width: 30 },
+      { header: 'Тип обладнання *', key: 'type', width: 20 },
+      { header: 'Виробник (Бренд)', key: 'brand', width: 20 },
+      { header: 'Модель пристрою', key: 'model', width: 25 },
+      { header: 'Серійний номер (S/N)', key: 'serialNumber', width: 25 },
+      { header: 'Інвентарний номер (Inv)', key: 'inventoryNumber', width: 25 },
+      { header: 'Місто (розташування)', key: 'city', width: 20 },
+      { header: 'Заклад (офіс)', key: 'institution', width: 30 },
+      { header: 'Детальна локація (кабінет)', key: 'location', width: 25 },
       { header: 'Статус *', key: 'status', width: 15 },
-      { header: 'Дата покупки', key: 'purchaseDate', width: 15 },
-      { header: 'Примітки', key: 'notes', width: 30 },
+      { header: 'Дата покупки (РРРР-ММ-ДД)', key: 'purchaseDate', width: 25 },
+      { header: 'Додаткові примітки', key: 'notes', width: 30 },
     ];
 
     // Стилізація заголовка
@@ -38,7 +38,7 @@ exports.getEquipmentTemplate = async (req, res) => {
     headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF E0E0E0' },
+      fgColor: { argb: 'FFE0E0E0' },
     };
 
     // Додавання підказок (як коментарі до заголовків)
