@@ -32,7 +32,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col h-full bg-gray-50/50 rounded-xl border border-gray-200/60 min-w-[280px]">
+    <div className="flex flex-col h-full bg-gray-50/50 rounded-xl border border-gray-200/60 min-w-[280px] min-h-[350px]">
       {/* Header */}
       <div
         className={`p-3 border-b border-gray-100 flex justify-between items-center rounded-t-xl ${
@@ -72,7 +72,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         {notes.map(note => (
           <div
             key={note._id}
-            className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
+            className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ease-out group relative cursor-pointer hover:border-blue-200"
             onClick={() => onView(note)}
           >
             {/* Action buttons (hover) */}
@@ -82,7 +82,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   e.stopPropagation();
                   onView(note);
                 }}
-                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-l-md"
+                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-l-md transition-all duration-200 hover:scale-110"
                 title={t('miniKanban.view')}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +105,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   e.stopPropagation();
                   onEdit(note);
                 }}
-                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 hover:scale-110"
               >
                 <PencilIcon className="w-3 h-3" />
               </button>
@@ -114,7 +114,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   e.stopPropagation();
                   onDelete(note._id);
                 }}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-r-md border-l border-gray-100"
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-r-md border-l border-gray-100 transition-all duration-200 hover:scale-110"
               >
                 <TrashIcon className="w-3 h-3" />
               </button>
@@ -134,37 +134,53 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 {t(`miniKanban.priorities.${note.priority}`)}
               </span>
 
-              {/* Simple Move controls */}
-              <div className="flex gap-1">
-                {status !== NoteStatus.TODO && (
-                  <button
-                    onClick={() =>
-                      onMove(
-                        note,
-                        status === NoteStatus.DONE ? NoteStatus.IN_PROGRESS : NoteStatus.TODO
-                      )
-                    }
-                    className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
-                    title={t('miniKanban.moveBack')}
-                  >
-                    ←
-                  </button>
-                )}
-                {status !== NoteStatus.DONE && (
-                  <button
-                    onClick={() =>
-                      onMove(
-                        note,
-                        status === NoteStatus.TODO ? NoteStatus.IN_PROGRESS : NoteStatus.DONE
-                      )
-                    }
-                    className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
-                    title={t('miniKanban.moveForward')}
-                  >
-                    →
-                  </button>
-                )}
-              </div>
+              {/* Date indicator */}
+              <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                {new Date(note.createdAt).toLocaleDateString('uk-UA', {
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </span>
+            </div>
+
+            {/* Simple Move controls */}
+            <div className="flex gap-1">
+              {status !== NoteStatus.TODO && (
+                <button
+                  onClick={() =>
+                    onMove(
+                      note,
+                      status === NoteStatus.DONE ? NoteStatus.IN_PROGRESS : NoteStatus.TODO
+                    )
+                  }
+                  className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
+                  title={t('miniKanban.moveBack')}
+                >
+                  ←
+                </button>
+              )}
+              {status !== NoteStatus.DONE && (
+                <button
+                  onClick={() =>
+                    onMove(
+                      note,
+                      status === NoteStatus.TODO ? NoteStatus.IN_PROGRESS : NoteStatus.DONE
+                    )
+                  }
+                  className="text-[10px] text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100"
+                  title={t('miniKanban.moveForward')}
+                >
+                  →
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -330,7 +346,7 @@ const MiniKanban: React.FC = () => {
   const doneNotes = notes.filter(n => n.status === NoteStatus.DONE);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 h-full flex flex-col">
+    <div className="bg-white rounded-xl shadow-sm border border-border p-4 lg:p-5 h-full flex flex-col min-h-[400px]">
       {/* Error display to use the variable */}
       {error && <div className="text-red-500 text-xs mb-2">{error}</div>}
 
@@ -361,7 +377,7 @@ const MiniKanban: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full min-h-[400px]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-[350px]">
         <KanbanColumn
           title={t('miniKanban.todo')}
           status={NoteStatus.TODO}
@@ -403,14 +419,14 @@ const MiniKanban: React.FC = () => {
       {/* Task Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-300 border border-gray-100">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-blue-50 rounded-t-xl">
               <h3 className="font-bold text-gray-900">
                 {editingNoteId ? t('miniKanban.editTask') : t('miniKanban.newTask')}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 hover:scale-110 transition-all duration-200"
               >
                 ✕
               </button>
@@ -429,7 +445,7 @@ const MiniKanban: React.FC = () => {
                   type="text"
                   value={formData.title}
                   onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium hover:bg-white hover:border-blue-300"
                   placeholder={t('miniKanban.titlePlaceholder')}
                   required
                 />

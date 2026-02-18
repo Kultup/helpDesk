@@ -421,7 +421,7 @@ const Dashboard: React.FC = () => {
   // ========================================
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-surface/30">
       {/* Success notification */}
       {showMessage && messageType === 'success' && (
         <div className="fixed top-6 right-6 bg-gradient-to-r from-success to-success text-white px-6 py-4 rounded-xl shadow-2xl z-50 animate-slide-in-right">
@@ -442,12 +442,12 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="p-2 sm:p-4 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="p-2 sm:p-3 lg:p-6 space-y-3 sm:space-y-4 lg:space-y-6 mx-auto max-w-7xl">
         {/* Header Section */}
-        <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
+        <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-5 lg:p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
             <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-foreground">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-foreground">
                 {t('dashboard.title')}
               </h1>
               <p className="text-xs sm:text-sm text-text-secondary font-medium">
@@ -462,7 +462,7 @@ const Dashboard: React.FC = () => {
             <Button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-primary-foreground px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 lg:py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto"
+              className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-primary-foreground px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto"
             >
               {refreshing ? (
                 <div className="flex items-center">
@@ -481,18 +481,18 @@ const Dashboard: React.FC = () => {
 
         {/* Key Metrics Section - Only for Admins */}
         {isAdmin && (
-          <div className="mb-6 sm:mb-8 lg:mb-12">
-            <div className="mb-5 sm:mb-6 flex items-center">
+          <div className="mb-4 sm:mb-6 lg:mb-8">
+            <div className="mb-4 sm:mb-5 flex items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg">
                   <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
                   {t('dashboard.keyMetrics')}
                 </h2>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {statsArray.map((stat, index) => (
                 <StatCard key={index} {...stat} />
               ))}
@@ -501,13 +501,13 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Main Content Grid */}
-        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+        <div className="space-y-4 lg:space-y-6">
           {/* Top Section - Tickets */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-h-[600px]">
             {/* Left Column - Recent Tickets */}
             <div className="lg:col-span-2">
-              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6 lg:mb-8">
+              <div className="h-full backdrop-blur-sm bg-surface/80 border border-border rounded-xl shadow-xl p-5 lg:p-6 flex flex-col">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-5 lg:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-foreground flex items-center">
                     <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-primary" />
                     {t('dashboard.recentTickets')}
@@ -520,12 +520,12 @@ const Dashboard: React.FC = () => {
                     {t('dashboard.viewAll')}
                   </Button>
                 </div>
-                <div className="space-y-3 sm:space-y-4">
+                <div className="flex-1 space-y-3 overflow-y-auto">
                   {recentTickets.length > 0 ? (
                     recentTickets.map(ticket => (
                       <div
                         key={ticket._id}
-                        className="group border border-border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
+                        className="group border border-border rounded-lg sm:rounded-xl p-3 sm:p-4 hover:shadow-lg hover:border-primary/50 transition-all duration-300 cursor-pointer backdrop-blur-sm bg-surface/50"
                         onClick={() => navigate(`${basePath}/tickets/${ticket._id}`)}
                         onKeyDown={e => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -585,11 +585,13 @@ const Dashboard: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-16">
-                      <FileText className="h-16 w-16 text-text-secondary/50 mx-auto mb-4" />
-                      <p className="text-text-secondary text-lg font-medium">
-                        {t('dashboard.noRecentTickets')}
-                      </p>
+                    <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                      <div className="text-center">
+                        <FileText className="h-16 w-16 text-text-secondary/50 mx-auto mb-4" />
+                        <p className="text-text-secondary text-lg font-medium">
+                          {t('dashboard.noRecentTickets')}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -597,17 +599,17 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Right Column - Quick Actions & Priority Tickets */}
-            <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+            <div className="space-y-4 lg:space-y-6">
               {/* Quick Actions */}
-              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+              <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl shadow-xl p-5 lg:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-5 lg:mb-6 flex items-center">
                   <Zap className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-accent" />
                   {t('dashboard.quickActions')}
                 </h2>
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-3">
                   <Button
                     onClick={() => setIsCreateTicketModalOpen(true)}
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
+                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 text-white py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
                     style={{
                       background:
                         'linear-gradient(to right, var(--color-primary), var(--color-accent))',
@@ -638,12 +640,12 @@ const Dashboard: React.FC = () => {
 
               {/* Priority Tickets - Compact - Only for Admins */}
               {isAdmin && (
-                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 flex items-center">
+                <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl shadow-xl p-5 lg:p-6 flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-5 flex items-center">
                     <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-error" />
                     {t('dashboard.priorityTickets')}
                   </h2>
-                  <div className="space-y-2 sm:space-y-3">
+                  <div className="flex-1 space-y-3">
                     {priorityTickets.length > 0 ? (
                       priorityTickets.slice(0, 3).map(ticket => (
                         <div
@@ -673,11 +675,13 @@ const Dashboard: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-6 sm:py-8">
-                        <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
-                        <p className="text-text-secondary text-xs sm:text-sm font-medium">
-                          {t('dashboard.noPriorityTickets')}
-                        </p>
+                      <div className="flex-1 flex items-center justify-center min-h-[200px]">
+                        <div className="text-center">
+                          <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-text-secondary/50 mx-auto mb-2 sm:mb-3" />
+                          <p className="text-text-secondary text-xs sm:text-sm font-medium">
+                            {t('dashboard.noPriorityTickets')}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -688,20 +692,20 @@ const Dashboard: React.FC = () => {
 
           {/* Analytics Section - Full Width - Only for Admins */}
           {isAdmin && (
-            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl shadow-xl p-5 lg:p-6">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground mb-4 sm:mb-5 lg:mb-6 flex items-center">
                 <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3 text-primary" />
                 {t('dashboard.analyticsAndReports')}
               </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-primary/10 to-primary/20 rounded-lg sm:rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl border border-primary/30 hover:shadow-lg transition-all duration-300 h-full min-h-[300px] flex items-center justify-center">
                   <WeeklyTicketsChart />
                 </div>
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-success/10 to-success/20 rounded-lg sm:rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300">
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-success/10 to-success/20 rounded-xl border border-success/30 hover:shadow-lg transition-all duration-300 h-full min-h-[300px] flex items-center justify-center">
                   <WorkloadByDayChart />
                 </div>
                 {/* Analytics & Reports Shortcut Block replaced with AD counters */}
-                <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-warning/10 to-warning/20 rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300 h-full min-h-[300px]">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
                     <h3 className="text-base sm:text-lg font-semibold text-foreground flex items-center">
                       <FileText className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-warning" />
@@ -722,7 +726,7 @@ const Dashboard: React.FC = () => {
                         size="sm"
                         className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
-                        Відкрити
+                        {t('common.open')}
                       </Button>
                     </div>
                   </div>
@@ -747,13 +751,13 @@ const Dashboard: React.FC = () => {
                         </p>
                         {adStatsLoading ? (
                           <span className="text-xs sm:text-sm text-text-secondary">
-                            Завантаження...
+                            {t('common.loading')}
                           </span>
                         ) : adStatsError ? (
                           <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
                         ) : (
-                          <p className="text-xl sm:text-2xl font-black text-foreground">
-                            {(adUsersTotal ?? 0).toLocaleString()}
+                          <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                            {adUsersTotal !== null ? adUsersTotal.toLocaleString() : '—'}
                           </p>
                         )}
                       </div>
@@ -778,7 +782,7 @@ const Dashboard: React.FC = () => {
                         </p>
                         {adStatsLoading ? (
                           <span className="text-xs sm:text-sm text-text-secondary">
-                            Завантаження...
+                            {t('common.loading')}
                           </span>
                         ) : adStatsError ? (
                           <span className="text-xs sm:text-sm text-rose-600">{adStatsError}</span>
@@ -797,13 +801,13 @@ const Dashboard: React.FC = () => {
 
           {/* Bottom Section - Admin Tools */}
           {isAdmin && (
-            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8">
-              <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-6 lg:mb-8 flex items-center">
+            <div className="backdrop-blur-sm bg-surface/80 border border-border rounded-xl shadow-xl p-5 lg:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4 sm:mb-5 lg:mb-6 flex items-center">
                 <StickyNote className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 text-warning" />
                 {t('dashboard.adminTools')}
               </h2>
               <div className="space-y-4 sm:space-y-6">
-                <div className="p-4 sm:p-6 bg-gradient-to-br from-warning/10 to-warning/20 rounded-lg sm:rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300">
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-warning/10 to-warning/20 rounded-xl border border-warning/30 hover:shadow-lg transition-all duration-300 h-full min-h-[400px]">
                   {/* Mini Trello (Admin Notes replacement) */}
                   <div className="h-full">
                     <MiniKanban />
