@@ -83,18 +83,48 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         {notes.map(note => (
           <div
             key={note._id}
-            className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition-all group relative"
+            className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
+            onClick={() => handleViewClick(note)}
           >
             {/* Action buttons (hover) */}
             <div className="absolute top-2 right-2 flex opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-md shadow-sm border border-gray-100">
               <button
-                onClick={() => onEdit(note)}
-                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-l-md"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleViewClick(note);
+                }}
+                className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-l-md"
+                title="Переглянути"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  onEdit(note);
+                }}
+                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
               >
                 <PencilIcon className="w-3 h-3" />
               </button>
               <button
-                onClick={() => onDelete(note._id)}
+                onClick={e => {
+                  e.stopPropagation();
+                  onDelete(note._id);
+                }}
                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-r-md border-l border-gray-100"
               >
                 <TrashIcon className="w-3 h-3" />
@@ -175,6 +205,7 @@ const MiniKanban: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [viewingNote, setViewingNote] = useState<AdminNote | null>(null);
 
   const [formData, setFormData] = useState<CreateNoteForm>({
     title: '',
@@ -227,6 +258,10 @@ const MiniKanban: React.FC = () => {
     });
     setEditingNoteId(note._id);
     setIsModalOpen(true);
+  };
+
+  const handleViewClick = (note: AdminNote): void => {
+    setViewingNote(note);
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -470,6 +505,99 @@ const MiniKanban: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Task Modal */}
+      {viewingNote && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
+              <h3 className="font-bold text-gray-900">{t('miniKanban.viewTask')}</h3>
+              <button
+                onClick={() => setViewingNote(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  {t('miniKanban.titleLabel')}
+                </h4>
+                <p className="text-gray-900 font-medium">{viewingNote.title}</p>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  {t('miniKanban.detailsLabel')}
+                </h4>
+                <p className="text-gray-700 whitespace-pre-wrap">{viewingNote.content}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    {t('miniKanban.priorityLabel')}
+                  </h4>
+                  <span
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium border ${getPriorityColor(
+                      viewingNote.priority
+                    )}`}
+                  >
+                    {t(`miniKanban.priorities.${viewingNote.priority}`)}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    {t('miniKanban.statusLabel')}
+                  </h4>
+                  <span
+                    className={`inline-block px-2 py-1 rounded-md text-xs font-medium ${
+                      viewingNote.status === NoteStatus.TODO
+                        ? 'bg-blue-100 text-blue-800 border-blue-200'
+                        : viewingNote.status === NoteStatus.IN_PROGRESS
+                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}
+                  >
+                    {t(`miniKanban.statuses.${viewingNote.status}`)}
+                  </span>
+                </div>
+              </div>
+
+              {viewingNote.createdAt && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    {t('miniKanban.createdAt')}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    {new Date(viewingNote.createdAt).toLocaleString('uk-UA')}
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  onClick={() => {
+                    setViewingNote(null);
+                    handleEditClick(viewingNote);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {t('miniKanban.edit')}
+                </button>
+                <button
+                  onClick={() => setViewingNote(null)}
+                  className="flex-1 px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
