@@ -10,7 +10,7 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
 } from 'chart.js';
 import axios from 'axios';
 
@@ -51,21 +51,21 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
     try {
       setLoading(true);
       setError(null);
-      
+
       // Використовуємо відносний шлях, який буде проксуватися через setupProxy
       const baseURL = '/api';
-      
+
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
-      
+
       const url = `${baseURL}/analytics/charts/weekly-tickets${params.toString() ? '?' + params.toString() : ''}`;
       const token = localStorage.getItem('token');
       const response = await axios.get(url, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
@@ -78,17 +78,20 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
             const date = new Date(item.date);
             dayNumber = date.getDay();
           }
-          
+
           return {
             date: item.date,
             dayNumber: dayNumber,
-            count: item.count || 0
+            count: item.count || 0,
           };
         });
-        
+
         setData(processedData);
         setError(null);
-      } else if (response.data.success && (!response.data.data || response.data.data.length === 0)) {
+      } else if (
+        response.data.success &&
+        (!response.data.data || response.data.data.length === 0)
+      ) {
         // Немає даних - це не помилка
         setData([]);
         setError(null);
@@ -98,7 +101,8 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
       }
     } catch (err: any) {
       console.error('Помилка завантаження тижневої статистики:', err);
-      const errorMessage = err?.response?.data?.message || err?.message || 'Помилка завантаження даних';
+      const errorMessage =
+        err?.response?.data?.message || err?.message || 'Помилка завантаження даних';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -111,13 +115,13 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
       console.error('getDayName: dayNumber is invalid:', dayNumber);
       return 'N/A';
     }
-    
+
     // Переконуємося, що dayNumber в межах 0-6
     const validDayNumber = Math.max(0, Math.min(6, Math.floor(dayNumber)));
-    
+
     const translationKey = `dashboard.charts.days.${validDayNumber}`;
     const translation = t(translationKey);
-    
+
     // Якщо переклад не знайдено, повертаємо ключ для діагностики
     if (translation === translationKey) {
       console.warn(`Translation not found for key: ${translationKey}`);
@@ -125,7 +129,7 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
       const fallbackDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       return fallbackDays[validDayNumber] || 'N/A';
     }
-    
+
     return translation;
   };
 
@@ -144,8 +148,8 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
         pointBorderColor: 'rgb(59, 130, 246)',
         pointRadius: 4,
         pointHoverRadius: 6,
-      }
-    ]
+      },
+    ],
   };
 
   const options = {
@@ -153,7 +157,7 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false
+        display: false,
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -162,10 +166,10 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 1,
         titleFont: {
-          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 11 : 12
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 11 : 12,
         },
         bodyFont: {
-          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 11
+          size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 11,
         },
         callbacks: {
           title: (context: any) => {
@@ -174,49 +178,51 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
           },
           label: (context: any) => {
             return `Тикетів: ${context.parsed.y}`;
-          }
-        }
-      }
+          },
+        },
+      },
     },
     scales: {
       x: {
         display: true,
         grid: {
-          display: false
+          display: false,
         },
         ticks: {
           color: '#6B7280',
           font: {
-            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
-          }
-        }
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12,
+          },
+        },
       },
       y: {
         display: true,
         beginAtZero: true,
         grid: {
-          color: 'rgba(107, 114, 128, 0.1)'
+          color: 'rgba(107, 114, 128, 0.1)',
         },
         ticks: {
           color: '#6B7280',
           font: {
-            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12
+            size: typeof window !== 'undefined' && window.innerWidth < 640 ? 10 : 12,
           },
-          stepSize: 1
-        }
-      }
+          stepSize: 1,
+        },
+      },
     },
     interaction: {
       intersect: false,
-      mode: 'index' as const
-    }
+      mode: 'index' as const,
+    },
   };
 
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.weeklyTickets')}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+            {t('dashboard.charts.weeklyTickets')}
+          </h3>
         </div>
         <div className="h-40 sm:h-48 flex items-center justify-center">
           <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
@@ -229,12 +235,14 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
     return (
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.weeklyTickets')}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+            {t('dashboard.charts.weeklyTickets')}
+          </h3>
         </div>
         <div className="h-40 sm:h-48 flex items-center justify-center">
           <div className="text-red-500 text-center px-2">
             <p className="text-sm sm:text-base">{error}</p>
-            <button 
+            <button
               onClick={fetchWeeklyData}
               className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
             >
@@ -250,12 +258,14 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
     return (
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.weeklyTickets')}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+            {t('dashboard.charts.weeklyTickets')}
+          </h3>
         </div>
         <div className="h-40 sm:h-48 flex items-center justify-center">
           <div className="text-gray-500 text-center px-2">
             <p className="text-sm sm:text-base">{t('dashboard.charts.noData')}</p>
-            <button 
+            <button
               onClick={fetchWeeklyData}
               className="mt-2 text-sm sm:text-base text-blue-600 hover:text-blue-800 underline"
             >
@@ -274,18 +284,32 @@ const WeeklyTicketsChart: React.FC<WeeklyTicketsChartProps> = ({ startDate, endD
     <div className="bg-white rounded-lg shadow p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">{t('dashboard.charts.weeklyTickets')}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+            {t('dashboard.charts.weeklyTickets')}
+          </h3>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
-            {t('dashboard.charts.total')}: {totalTickets} | {t('dashboard.charts.average')}: {avgTickets}{t('dashboard.charts.perDay')}
+            {t('dashboard.charts.total')}: {totalTickets} | {t('dashboard.charts.average')}:{' '}
+            {avgTickets}
+            {t('dashboard.charts.perDay')}
           </p>
         </div>
-        <button 
+        <button
           onClick={fetchWeeklyData}
           className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-          title="Оновити дані"
+          title={t('dashboard.charts.refreshData')}
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
         </button>
       </div>

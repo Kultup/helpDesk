@@ -12,7 +12,9 @@ interface KanbanColumnProps {
   onEdit: (note: AdminNote) => void;
   onDelete: (id: string) => void;
   onMove: (note: AdminNote, newStatus: NoteStatus) => void;
+  onView: (note: AdminNote) => void;
   loading: boolean;
+  getPriorityColor: (priority: NotePriority) => string;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -23,24 +25,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onEdit,
   onDelete,
   onMove,
+  onView,
   loading,
+  getPriorityColor,
 }) => {
   const { t } = useTranslation();
-
-  const getPriorityColor = (priority: NotePriority): string => {
-    switch (priority) {
-      case NotePriority.URGENT:
-        return 'bg-red-100 text-red-800 border-red-200';
-      case NotePriority.HIGH:
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case NotePriority.MEDIUM:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case NotePriority.LOW:
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   return (
     <div className="flex flex-col h-full bg-gray-50/50 rounded-xl border border-gray-200/60 min-w-[280px]">
@@ -84,17 +73,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           <div
             key={note._id}
             className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition-all group relative cursor-pointer"
-            onClick={() => handleViewClick(note)}
+            onClick={() => onView(note)}
           >
             {/* Action buttons (hover) */}
             <div className="absolute top-2 right-2 flex opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm rounded-md shadow-sm border border-gray-100">
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  handleViewClick(note);
+                  onView(note);
                 }}
                 className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-l-md"
-                title="Переглянути"
+                title={t('miniKanban.view')}
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -213,6 +202,21 @@ const MiniKanban: React.FC = () => {
     priority: NotePriority.MEDIUM,
     status: NoteStatus.TODO,
   });
+
+  const getPriorityColor = (priority: NotePriority): string => {
+    switch (priority) {
+      case NotePriority.URGENT:
+        return 'bg-red-100 text-red-800 border-red-200';
+      case NotePriority.HIGH:
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case NotePriority.MEDIUM:
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case NotePriority.LOW:
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
   useEffect(() => {
     loadNotes();
@@ -366,7 +370,9 @@ const MiniKanban: React.FC = () => {
           onEdit={handleEditClick}
           onDelete={handleDelete}
           onMove={handleMove}
+          onView={handleViewClick}
           loading={loading}
+          getPriorityColor={getPriorityColor}
         />
         <KanbanColumn
           title={t('miniKanban.inProgress')}
@@ -376,7 +382,9 @@ const MiniKanban: React.FC = () => {
           onEdit={handleEditClick}
           onDelete={handleDelete}
           onMove={handleMove}
+          onView={handleViewClick}
           loading={loading}
+          getPriorityColor={getPriorityColor}
         />
         <KanbanColumn
           title={t('miniKanban.done')}
@@ -386,7 +394,9 @@ const MiniKanban: React.FC = () => {
           onEdit={handleEditClick}
           onDelete={handleDelete}
           onMove={handleMove}
+          onView={handleViewClick}
           loading={loading}
+          getPriorityColor={getPriorityColor}
         />
       </div>
 

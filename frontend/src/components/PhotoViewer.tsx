@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { X, ZoomIn, ZoomOut, RotateCw, Download } from 'lucide-react';
 
 interface PhotoViewerProps {
@@ -8,6 +9,7 @@ interface PhotoViewerProps {
 }
 
 const PhotoViewer: React.FC<PhotoViewerProps> = ({ filename: propFilename, onClose }) => {
+  const { t } = useTranslation();
   const { filename: paramFilename } = useParams<{ filename: string }>();
   const navigate = useNavigate();
   const [zoom, setZoom] = useState(1);
@@ -97,35 +99,35 @@ const PhotoViewer: React.FC<PhotoViewerProps> = ({ filename: propFilename, onClo
         <button
           onClick={handleZoomOut}
           className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-          title="Зменшити (клавіша -)"
+          title={t('common.zoomOut')}
         >
           <ZoomOut className="w-5 h-5" />
         </button>
         <button
           onClick={handleZoomIn}
           className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-          title="Збільшити (клавіша +)"
+          title={t('common.zoomIn')}
         >
           <ZoomIn className="w-5 h-5" />
         </button>
         <button
           onClick={handleRotate}
           className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-          title="Повернути (клавіша R)"
+          title={t('common.rotate')}
         >
           <RotateCw className="w-5 h-5" />
         </button>
         <button
           onClick={handleDownload}
           className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-          title="Завантажити"
+          title={t('common.download')}
         >
           <Download className="w-5 h-5" />
         </button>
         <button
           onClick={handleClose}
           className="p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-          title="Закрити (Escape)"
+          title={t('common.close')}
         >
           <X className="w-6 h-6" />
         </button>
@@ -144,7 +146,7 @@ const PhotoViewer: React.FC<PhotoViewerProps> = ({ filename: propFilename, onClo
             <p>Завантаження...</p>
           </div>
         )}
-        
+
         {imageError && (
           <div className="text-white text-center">
             <p className="text-xl mb-4">Помилка завантаження зображення</p>
@@ -163,7 +165,7 @@ const PhotoViewer: React.FC<PhotoViewerProps> = ({ filename: propFilename, onClo
           className="max-w-full max-h-full object-contain cursor-move transition-transform duration-200"
           style={{
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            display: imageLoaded && !imageError ? 'block' : 'none'
+            display: imageLoaded && !imageError ? 'block' : 'none',
           }}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageError(true)}
