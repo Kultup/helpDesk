@@ -622,8 +622,10 @@ exports.getAiSettings = async (req, res) => {
         provider: process.env.AI_PROVIDER || 'openai',
         openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
         openaiApiKey: process.env.OPENAI_API_KEY || '',
         geminiApiKey: process.env.GEMINI_API_KEY || '',
+        groqApiKey: process.env.GROQ_API_KEY || '',
         enabled: false,
       });
       await settings.save();
@@ -634,11 +636,14 @@ exports.getAiSettings = async (req, res) => {
       ...obj,
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
       hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
+      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
       openaiApiKey: undefined,
       geminiApiKey: undefined,
+      groqApiKey: undefined,
     };
     delete safe.openaiApiKey;
     delete safe.geminiApiKey;
+    delete safe.groqApiKey;
 
     res.json({
       success: true,
@@ -663,8 +668,10 @@ exports.updateAiSettings = async (req, res) => {
       provider,
       openaiApiKey,
       geminiApiKey,
+      groqApiKey,
       openaiModel,
       geminiModel,
+      groqModel,
       enabled,
       monthlyTokenLimit,
       topUpAmount,
@@ -678,10 +685,10 @@ exports.updateAiSettings = async (req, res) => {
     }
 
     if (provider !== undefined) {
-      if (!['openai', 'gemini'].includes(provider)) {
+      if (!['openai', 'gemini', 'groq'].includes(provider)) {
         return res.status(400).json({
           success: false,
-          message: 'Провайдер має бути openai або gemini',
+          message: 'Провайдер має бути openai, gemini або groq',
         });
       }
       settings.provider = provider;
@@ -701,12 +708,22 @@ exports.updateAiSettings = async (req, res) => {
     ) {
       settings.geminiApiKey = geminiApiKey.trim();
     }
+    if (
+      typeof groqApiKey === 'string' &&
+      groqApiKey.trim() !== '' &&
+      !groqApiKey.startsWith('••')
+    ) {
+      settings.groqApiKey = groqApiKey.trim();
+    }
 
     if (openaiModel !== undefined) {
       settings.openaiModel = openaiModel.trim() || 'gpt-4o-mini';
     }
     if (geminiModel !== undefined) {
       settings.geminiModel = geminiModel.trim() || 'gemini-1.5-flash';
+    }
+    if (groqModel !== undefined) {
+      settings.groqModel = groqModel.trim() || 'llama-3.3-70b-versatile';
     }
     if (enabled !== undefined) {
       settings.enabled = !!enabled;
@@ -732,11 +749,14 @@ exports.updateAiSettings = async (req, res) => {
       ...obj,
       hasOpenaiKey: !!(obj.openaiApiKey && obj.openaiApiKey.trim()),
       hasGeminiKey: !!(obj.geminiApiKey && obj.geminiApiKey.trim()),
+      hasGroqKey: !!(obj.groqApiKey && obj.groqApiKey.trim()),
       openaiApiKey: undefined,
       geminiApiKey: undefined,
+      groqApiKey: undefined,
     };
     delete safe.openaiApiKey;
     delete safe.geminiApiKey;
+    delete safe.groqApiKey;
 
     res.json({
       success: true,
