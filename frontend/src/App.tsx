@@ -321,6 +321,14 @@ const App: React.FC = () => {
                   }
                 />
                 <Route
+                  path="admin/documents"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <Documents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="admin/project-docs"
                   element={
                     <ProtectedRoute requiredRole={UserRole.ADMIN}>
