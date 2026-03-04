@@ -23,7 +23,7 @@ const SecureDocumentView: React.FC = () => {
 
     const fetchDocument = async () => {
       try {
-        const response = await fetch(`/api/files/project-docs/secure/${token}`);
+        const response = await fetch(`/api/documents/share/${token}`);
         const data = await response.json();
 
         if (!response.ok || !data.success) {
@@ -31,8 +31,8 @@ const SecureDocumentView: React.FC = () => {
           return;
         }
 
-        setContent(data.content);
-        setTitle(data.title || 'Документ');
+        setContent(data.data.content);
+        setTitle(data.data.title || 'Документ');
       } catch (err) {
         setError('Помилка завантаження документа');
         console.error('Fetch error:', err);

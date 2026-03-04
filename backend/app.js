@@ -546,6 +546,7 @@ app.use('/api/quick-tips', require('./routes/quickTips'));
 
 app.use('/api/events', require('./routes/events')); // Календар подій
 app.use('/api/admin-notes', require('./routes/adminNotes')); // Особисті нотатки адміністратора
+app.use('/api/documents', require('./routes/documents')); // Документи (ТЗ)
 
 // Telegram webhook
 app.use('/api/conversations', require('./routes/conversations'));

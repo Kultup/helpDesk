@@ -139,6 +139,7 @@ const navGroups: NavGroup[] = [
     titleKey: 'sidebar.groups.documentation',
     adminOnly: true,
     items: [
+      { nameKey: 'sidebar.documents', href: '/documents', icon: FileText, adminOnly: true },
       { nameKey: 'sidebar.projectDocs', href: '/project-docs', icon: FileText, adminOnly: true },
     ],
   },
