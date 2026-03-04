@@ -69,11 +69,13 @@ const createDocument = async (req, res) => {
       });
     }
 
-    const document = await Document.create({
+    const document = new Document({
       title,
       content,
-      createdBy: req.user.id,
+      createdBy: req.user._id,
     });
+
+    await document.save();
 
     logger.info(`Document created: ${document._id}`);
     res.status(201).json({
