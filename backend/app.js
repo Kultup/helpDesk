@@ -58,6 +58,7 @@ const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const logger = require('./utils/logger');
+const net = require('net');
 
 // Завантаження .env з явним шляхом (для PM2)
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -313,50 +314,80 @@ mongoose
     // Запускаємо сервер тільки після успішного підключення до MongoDB
     const PORT = process.env.PORT || 5000;
 
-    server.listen(PORT, async () => {
-      logger.info(`🚀 Сервер запущено на порту ${PORT}`);
-      logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
-      const apiBase = process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
-      logger.info(`🌐 API базова адреса: ${apiBase}`);
-      logger.info(
-        `🔌 Дозволені CORS origins для WebSocket: ${
-          allowedSocketOrigins.length
-            ? allowedSocketOrigins.join(', ')
-            : 'будь-яке (DEV або не налаштовано)'
-        }`
-      );
+    // Функція перевірки чи порт вільний
+    function checkPort(port) {
+      return new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.once('error', err => {
+          if (err.code === 'EADDRINUSE') {
+            reject(new Error(`Port ${port} is in use`));
+          } else {
+            reject(err);
+          }
+        });
+        server.once('listening', () => {
+          server.close();
+          resolve();
+        });
+        server.listen(port);
+      });
+    }
 
-      // Логуємо старт сервера у щоденний audit лог (шлях з config/paths)
-      try {
-        require('./middleware/logging');
-        const fs = require('fs').promises;
+    // Перевіряємо порт перед запуском
+    checkPort(PORT)
+      .then(() => {
+        server.listen(PORT, async () => {
+          logger.info(`🚀 Сервер запущено на порту ${PORT}`);
+          logger.info(`📊 Режим: ${process.env.NODE_ENV || 'development'}`);
+          const apiBase =
+            process.env.API_BASE_URL || '(не налаштовано, використовуйте API_BASE_URL)';
+          logger.info(`🌐 API базова адреса: ${apiBase}`);
+          logger.info(
+            `🔌 Дозволені CORS origins для WebSocket: ${
+              allowedSocketOrigins.length
+                ? allowedSocketOrigins.join(', ')
+                : 'будь-яке (DEV або не налаштовано)'
+            }`
+          );
 
-        // Функція для отримання локальної дати
-        const getLocalDateString = () => {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        };
+          // Логуємо старт сервера у щоденний audit лог (шлях з config/paths)
+          try {
+            require('./middleware/logging');
+            const fs = require('fs').promises;
 
-        const auditFile = path.join(logsPath, `audit-${getLocalDateString()}.log`);
-        const startupLog = {
-          timestamp: new Date().toISOString(),
-          action: 'SERVER_START',
-          details: {
-            port: PORT,
-            nodeEnv: process.env.NODE_ENV || 'development',
-            apiBase: apiBase,
-            pid: process.pid,
-          },
-        };
-        await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
-      } catch (error) {
-        // Не критична помилка, просто логуємо
-        logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
-      }
-    });
+            // Функція для отримання локальної дати
+            const getLocalDateString = () => {
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            };
+
+            const auditFile = path.join(logsPath, `audit-${getLocalDateString()}.log`);
+            const startupLog = {
+              timestamp: new Date().toISOString(),
+              action: 'SERVER_START',
+              details: {
+                port: PORT,
+                nodeEnv: process.env.NODE_ENV || 'development',
+                apiBase: apiBase,
+                pid: process.pid,
+              },
+            };
+            await fs.appendFile(auditFile, JSON.stringify(startupLog) + '\n');
+          } catch (error) {
+            // Не критична помилка, просто логуємо
+            logger.warn('Не вдалося записати старт сервера в audit log:', error.message);
+          }
+        });
+      })
+      .catch(err => {
+        logger.error(`❌ Порт ${PORT} зайнятий: ${err.message}`);
+        logger.error('🔧 Виконайте: lsof -ti:5000 | xargs kill -9');
+        logger.error('🔧 Або: fuser -k 5000/tcp');
+        process.exit(1);
+      });
 
     // WebSocket обробка підключень
     io.on('connection', socket => {
