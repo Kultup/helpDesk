@@ -27,6 +27,7 @@ const {
   TEMPERATURES,
   INTENT_ANALYSIS_TEMPERATURE,
 } = require('../prompts/aiFirstLinePrompts');
+const aiResponseCache = require('./aiResponseCache');
 const logger = require('../utils/logger');
 const aiResponseValidator = require('../utils/aiResponseValidator');
 const kbRelevanceGuard = require('../utils/kbRelevanceGuard');
@@ -614,6 +615,20 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     };
   }
 
+  // Перевірка кешу для простих запитів
+  const lastMessage =
+    dialogHistory.length > 0 ? dialogHistory[dialogHistory.length - 1].content : '';
+
+  if (lastMessage && lastMessage.length < 50) {
+    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId || 'unknown');
+    const cached = aiResponseCache.get(cacheKey);
+
+    if (cached) {
+      logger.debug('AI: знайдено в кеші', { cacheKey: cacheKey.slice(0, 8) });
+      return cached;
+    }
+  }
+
   let apiKey;
   if (settings.provider === 'openai') {
     apiKey = settings.openaiApiKey;
@@ -1102,7 +1117,7 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
         }
       : null;
 
-  return {
+  const result = {
     requestType,
     requestTypeConfidence,
     requestTypeReason: parsed.requestTypeReason || null,
@@ -1121,6 +1136,14 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     duplicateTicketId: duplicateTicketId || undefined,
     admin_metadata: adminMetadata,
   };
+
+  // Збереження в кеш для простих запитів
+  if (lastMessage && lastMessage.length < 50) {
+    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId || 'unknown');
+    aiResponseCache.set(cacheKey, result, 3600000); // 1 година
+  }
+
+  return result;
 }
 
 /**
