@@ -6,13 +6,16 @@ const logger = require('./logger');
  */
 class AIResponseValidator {
   constructor() {
-    this.minLength = 50;
-    this.maxLength = 500;
+    this.minLength = 30;
+    this.maxLength = 450;
     this.requiredPatterns = {
       // Кроки: "1. " / "1) " або емодзі "1️⃣ " / "2️⃣ "
       steps: /\d+[.)]\s+|(?:1️⃣|2️⃣|3️⃣|4️⃣|5️⃣|6️⃣|7️⃣|8️⃣|9️⃣)\s+/,
       actionVerbs:
         /(перевірте|спробуйте|зробіть|вимкніть|увімкніть|натисніть|відкрийте|закрийте|перезавантажте|оберіть)/i,
+      // Повідомлення що вимагають дій адміна — валідні без кроків
+      adminAction:
+        /(створ[юю]\s+заявку|це для адм[іi]на|передаю адм[іi]ну|адм[іi]н\s+підключиться|адм[іi]н\s+встановить|адм[іi]н\s+займеться|потрібне\s+втручання)/i,
     };
   }
 
@@ -54,7 +57,53 @@ class AIResponseValidator {
 
     const trimmed = solution.trim();
 
-    // Перевірка довжини
+    // Уточнююче питання — мінімальна довжина 10, без вимоги кроків
+    if (trimmed.includes('?')) {
+      if (trimmed.length < 10) {
+        return { valid: false, reason: 'Question too short', fallback: true };
+      }
+      if (trimmed.length > this.maxLength) {
+        return {
+          valid: false,
+          reason: `Too long (${trimmed.length} > ${this.maxLength})`,
+          fallback: true,
+        };
+      }
+      return { valid: true };
+    }
+
+    // Відповідь що вимагає дій адміна — без вимоги кроків
+    if (this.requiredPatterns.adminAction.test(trimmed)) {
+      if (trimmed.length > this.maxLength) {
+        return {
+          valid: false,
+          reason: `Too long (${trimmed.length} > ${this.maxLength})`,
+          fallback: true,
+        };
+      }
+      return { valid: true };
+    }
+
+    // Відповідь з дієсловом дії (без нумерації) — також валідна
+    if (this.requiredPatterns.actionVerbs.test(trimmed)) {
+      if (trimmed.length < this.minLength) {
+        return {
+          valid: false,
+          reason: `Too short (${trimmed.length} < ${this.minLength})`,
+          fallback: true,
+        };
+      }
+      if (trimmed.length > this.maxLength) {
+        return {
+          valid: false,
+          reason: `Too long (${trimmed.length} > ${this.maxLength})`,
+          fallback: true,
+        };
+      }
+      return { valid: true };
+    }
+
+    // Перевірка довжини для структурованих відповідей
     if (trimmed.length < this.minLength) {
       return {
         valid: false,
@@ -69,11 +118,6 @@ class AIResponseValidator {
         reason: `Too long (${trimmed.length} > ${this.maxLength})`,
         fallback: true,
       };
-    }
-
-    // Уточнююче питання (наприклад "підкажіть, яка модель сканера?") — не вимагаємо нумерованих кроків
-    if (trimmed.includes('?')) {
-      return { valid: true };
     }
 
     // Перевірка структури (має бути кроки)
@@ -262,8 +306,9 @@ class AIResponseValidator {
       /я не можу/i,
       /я штучний інтелект/i,
       /я не маю доступу/i,
-      /\[.*?\]/, // Текст в квадратних дужках (часто placeholder)
-      /\{.*?\}/, // Текст в фігурних дужках
+      // Лише незаповнені placeholder-и: {FIELD_NAME} або [PLACEHOLDER] в ALL CAPS
+      /\{[A-Z_]{3,}\}/, // {USER_NAME}, {FIELD} — незаповнені шаблони
+      /\[[A-Z_\s]{5,}\]/, // [PLACEHOLDER], [INSERT HERE] — незаповнені шаблони
     ];
 
     for (const pattern of suspiciousPhrases) {

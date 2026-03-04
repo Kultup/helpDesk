@@ -1852,6 +1852,39 @@ class ApiService {
   async getZabbixHostGroups(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/zabbix/host-groups');
   }
+
+  // Software Requests
+  async getSoftwareRequests(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    return this.get(`/software-requests?${queryParams.toString()}`);
+  }
+
+  async getMySoftwareRequests(): Promise<ApiResponse<any>> {
+    return this.get('/software-requests/my');
+  }
+
+  async approveSoftwareRequest(id: string, adminNote?: string): Promise<ApiResponse<any>> {
+    return this.put(`/software-requests/${id}/approve`, { adminNote });
+  }
+
+  async rejectSoftwareRequest(id: string, adminNote?: string): Promise<ApiResponse<any>> {
+    return this.put(`/software-requests/${id}/reject`, { adminNote });
+  }
+
+  async markSoftwareAsInstalled(id: string): Promise<ApiResponse<any>> {
+    return this.put(`/software-requests/${id}/install`);
+  }
+
+  async getSoftwareRequestStats(): Promise<ApiResponse<any>> {
+    return this.get('/software-requests/stats');
+  }
 }
 
 // Експорт єдиного екземпляру

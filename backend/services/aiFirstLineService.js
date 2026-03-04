@@ -243,19 +243,46 @@ async function getDuplicateTicketContext(userCityId, userInstitutionId, category
       city: userCityId,
       status: { $in: ['open', 'in_progress'] },
     };
-    if (categoryHint) {
-      const cat = String(categoryHint).toLowerCase();
-      if (cat.includes('print') || cat.includes('принтер') || cat.includes('hardware')) {
+    const CATEGORY_PATTERNS = {
+      printer: {
+        hint: /print|принтер|hardware/i,
+        text: /принтер|друк/i,
+        sub: /print|принтер|hardware|друк/i,
+        title: /принтер|друк/i,
+      },
+      network: {
+        hint: /network|мереж|internet/i,
+        text: /інтернет|мереж|wifi/i,
+        sub: /network|мереж|internet|wifi/i,
+        title: /інтернет|мережа|wi-fi/i,
+      },
+      software: {
+        hint: /software|програм/i,
+        text: /програма|1с|bas|медок/i,
+        sub: /software|програм/i,
+        title: /програм|1с|bas|медок/i,
+      },
+      access: {
+        hint: /access|пароль|доступ/i,
+        text: /пароль|доступ|обліков/i,
+        sub: /access|пароль|ad|directory/i,
+        title: /пароль|доступ|обліков/i,
+      },
+    };
+
+    const cat = String(categoryHint || '').toLowerCase();
+    const txt = String(problemText || '').toLowerCase();
+
+    for (const [, patterns] of Object.entries(CATEGORY_PATTERNS)) {
+      const matchesCat = categoryHint && patterns.hint.test(cat);
+      const matchesTxt = !categoryHint && patterns.text.test(txt);
+      if (matchesCat || matchesTxt) {
         matchStage.$or = [
-          { subcategory: { $regex: /print|принтер|hardware|друк/i } },
-          { title: { $regex: /принтер|друк|друку/i } },
+          { subcategory: { $regex: patterns.sub } },
+          { title: { $regex: patterns.title } },
         ];
+        break;
       }
-    } else if (problemText && /принтер|друк/i.test(problemText)) {
-      matchStage.$or = [
-        { subcategory: { $regex: /print|принтер|hardware|друк/i } },
-        { title: { $regex: /принтер|друк|друку/i } },
-      ];
     }
     let tickets = await Ticket.find(matchStage)
       .populate('createdBy', 'city institution firstName')
@@ -943,10 +970,10 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     }
   }
 
-  const requestType =
-    parsed.requestType === 'appeal' || parsed.requestType === 'question'
-      ? parsed.requestType
-      : 'question';
+  const VALID_REQUEST_TYPES = ['appeal', 'question', 'problem', 'greeting'];
+  const requestType = VALID_REQUEST_TYPES.includes(parsed.requestType)
+    ? parsed.requestType
+    : 'question';
   const requestTypeConfidence =
     typeof parsed.requestTypeConfidence === 'number'
       ? Math.max(0, Math.min(1, parsed.requestTypeConfidence))
@@ -982,10 +1009,10 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     admin_metadata: adminMetadata,
   };
 
-  // Збереження в кеш для простих запитів
-  if (lastMessage && lastMessage.length < 50) {
-    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId || 'unknown');
-    aiResponseCache.set(cacheKey, result, 3600000); // 1 година
+  // Збереження в кеш — лише для авторизованих users без персонального контексту
+  if (lastMessage && lastMessage.length < 50 && options.userId && !hasPersonalContext) {
+    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId);
+    aiResponseCache.set(cacheKey, result, 15 * 60 * 1000); // 15 хвилин
   }
 
   return result;

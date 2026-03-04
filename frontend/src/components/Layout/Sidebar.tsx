@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Brain,
   Image,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isAdminRole } from '../../types';
@@ -131,6 +132,12 @@ const navGroups: NavGroup[] = [
         nameKey: 'sidebar.quickNotifications',
         href: '/quick-notifications',
         icon: AlertTriangle,
+        adminOnly: true,
+      },
+      {
+        nameKey: 'Software Requests',
+        href: '/software-requests',
+        icon: Download,
         adminOnly: true,
       },
     ],
