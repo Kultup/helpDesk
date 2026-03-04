@@ -146,44 +146,10 @@ const SecureDocumentView: React.FC = () => {
           {/* Document Content */}
           <main className="flex-1 min-w-0">
             <Card className="border-none shadow-premium overflow-hidden bg-white">
-              <CardContent className="p-8 lg:p-12 prose prose-slate prose-headings:font-bold prose-h2:border-b prose-h2:pb-2 prose-h2:mt-12 prose-a:text-primary-600 hover:prose-a:text-primary-700 max-w-none">
-                <ReactMarkdown
-                  rehypePlugins={[rehypeRaw]}
-                  components={{
-                    h2: ({ children, ...props }) => {
-                      const id = children
-                        ?.toString()
-                        .toLowerCase()
-                        .replace(/[^\wа-яієґ-]+/g, '-');
-                      return (
-                        <h2
-                          id={id}
-                          {...props}
-                          className="text-2xl font-bold text-gray-900 mt-10 mb-4 pb-2 border-b border-gray-100"
-                        >
-                          {children}
-                        </h2>
-                      );
-                    },
-                    h3: ({ children, ...props }) => (
-                      <h3 {...props} className="text-xl font-semibold text-gray-800 mt-8 mb-3">
-                        {children}
-                      </h3>
-                    ),
-                    p: ({ ...props }) => (
-                      <p className="text-gray-600 leading-relaxed mb-4" {...props} />
-                    ),
-                    ul: ({ ...props }) => (
-                      <ul className="list-disc pl-6 space-y-2 mb-6 text-gray-600" {...props} />
-                    ),
-                    li: ({ ...props }) => <li className="pl-1" {...props} />,
-                    strong: ({ ...props }) => (
-                      <strong className="font-bold text-gray-900" {...props} />
-                    ),
-                  }}
-                >
-                  {content}
-                </ReactMarkdown>
+              <CardContent className="p-8 lg:p-12 max-w-none">
+                <div className="prose prose-slate prose-headings:font-bold prose-h2:border-b prose-h2:pb-2 prose-h2:mt-12 prose-h2:text-2xl prose-h2:font-bold prose-h3:text-xl prose-h3:font-semibold prose-h3:mt-8 prose-h3:mb-3 prose-p:text-gray-600 prose-p:leading-relaxed prose-p:mb-4 prose-ul:list-disc prose-ul:pl-6 prose-ul:space-y-2 prose-ul:mb-6 prose-li:pl-1 prose-strong:font-bold prose-a:text-primary-600 hover:prose-a:text-primary-700 max-w-none">
+                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
+                </div>
               </CardContent>
             </Card>
 
