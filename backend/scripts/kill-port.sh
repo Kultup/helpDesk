@@ -10,19 +10,28 @@ echo "🔍 Перевіряю порт $PORT..."
 # Перевіряємо чи порт зайнятий
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
     echo "⚠️  Порт $PORT зайнятий. Завершую процеси..."
-    
+
     # Отримуємо PID процесів на порту
     PIDS=$(lsof -ti :$PORT)
-    
+
     if [ -n "$PIDS" ]; then
         echo "🔪 Знайдено процеси: $PIDS"
-        # Вбиваємо процеси
-        kill -9 $PIDS 2>/dev/null
         
-        # Чекаємо трохи
-        sleep 1
+        # Спочатку пробуємо коректно зупинити (SIGTERM)
+        echo "📴 Надсилаю SIGTERM..."
+        kill -15 $PIDS 2>/dev/null
+        
+        # Чекаємо 3 секунди
+        sleep 3
         
         # Перевіряємо чи порт звільнився
+        if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+            echo "⚠️  Порт все ще зайнятий. Вбиваю примусово (SIGKILL)..."
+            kill -9 $PIDS 2>/dev/null
+            sleep 1
+        fi
+
+        # Фінальна перевірка
         if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
             echo "❌ Не вдалося звільнити порт $PORT"
             exit 1
