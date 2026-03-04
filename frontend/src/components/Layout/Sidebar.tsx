@@ -11,6 +11,7 @@ import {
   Users,
   X,
   Server,
+  FileText,
   AlertTriangle,
   FileSearch,
   Settings,
