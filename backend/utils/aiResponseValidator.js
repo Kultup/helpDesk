@@ -202,10 +202,15 @@ class AIResponseValidator {
 
     // Перевірка пріоритету (якщо є)
     if (summary.priority) {
+      // Конвертація uppercase пріоритетів до lowercase
+      const priorityLower = summary.priority.toLowerCase();
       const validPriorities = ['low', 'medium', 'high', 'urgent'];
-      if (!validPriorities.includes(summary.priority)) {
+      if (!validPriorities.includes(priorityLower)) {
         logger.warn('Invalid priority value', { priority: summary.priority });
-        // Не критично, можна виправити пізніше
+        // Виправляємо на medium за замовчуванням
+        summary.priority = 'medium';
+      } else {
+        summary.priority = priorityLower;
       }
     }
 

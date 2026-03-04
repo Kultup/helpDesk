@@ -702,7 +702,7 @@ Return ONLY valid JSON:
   "needsMoreInfo": true|false,
   "missingInfo": ["field1", "field2"],
   "category": "Hardware|Software|Network|Access|Printing|...",
-  "priority": "urgent|high|medium|low",
+  "priority": "URGENT|HIGH|MEDIUM|LOW",
   "emotionalTone": "angry|frustrated|confused|neutral|urgent",
   "quickSolution": "string|null",
   "offTopicResponse": "string|null",
@@ -713,10 +713,12 @@ Return ONLY valid JSON:
 }
 
 CRITICAL:
-- If "терміново" detected → priority: "urgent"
-- If "знову/третій раз" → priority: "high" or "urgent"
+- If "терміново" detected → priority: "URGENT" (uppercase!)
+- If "знову/третій раз" → priority: "HIGH" or "URGENT"
 - DON'T include PC/laptop model in missingInfo!
 - Response MUST be in Ukrainian
+- promptMode: "light" ONLY for greetings (привіт, дякую, ок)
+- promptMode: "full" for ALL problems (не працює, терміново, зламалося)
 `;
 
 // ============================================================================
