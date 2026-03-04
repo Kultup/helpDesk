@@ -180,6 +180,56 @@ If user mentions ANY problem indicators ("не можу", "проблема", "�
 - DON'T ask for PC/laptop model, brand, year — NOT NEEDED!
 `;
 
+// ——— 🎯 Select Intent Prompt Mode ———
+function selectIntentPrompt({ dialogHistory, isFirstMessage }) {
+  const userMessages = dialogHistory.filter(m => m.role === 'user');
+  const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1].content : '';
+
+  // Simple messages → light mode
+  const simplePatterns = [
+    /^привіт/i,
+    /^вітаю/i,
+    /^доброго/i,
+    /^дякую/i,
+    / спасибі/i,
+    /^так$/i,
+    /^ні$/i,
+    /ок/i,
+    /добре/i,
+    /^але/i,
+    /^а/i,
+  ];
+
+  if (isFirstMessage || userMessages.length <= 1) {
+    for (const pattern of simplePatterns) {
+      if (pattern.test(lastMessage)) {
+        return 'light';
+      }
+    }
+  }
+
+  // IT problems → full mode
+  const problemIndicators = [
+    'не працює',
+    'не можу',
+    'проблема',
+    'помилка',
+    'завис',
+    'терміново',
+    'зламав',
+    'все зламалося',
+  ];
+
+  for (const indicator of problemIndicators) {
+    if (lastMessage.toLowerCase().includes(indicator)) {
+      return 'full';
+    }
+  }
+
+  // Default → full mode for safety
+  return 'full';
+}
+
 // ——— 🔧 Self-Healing Filter ———
 const SELF_HEALING_FILTER = `
 🔧 SELF-HEALING FILTER — прості рішення ПЕРЕД тікетом:
@@ -705,6 +755,9 @@ module.exports = {
 
   // Main prompt
   INTENT_ANALYSIS,
+
+  // Helper functions
+  selectIntentPrompt,
 
   // Configuration
   MAX_TOKENS: {
