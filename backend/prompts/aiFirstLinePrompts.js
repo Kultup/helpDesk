@@ -669,6 +669,13 @@ Check for emotion indicators FIRST:
 - If simple fix exists → suggest quick solution FIRST
 - If complex → create ticket immediately
 - DON'T ask for PC/laptop model — NOT NEEDED!
+- ALWAYS ask for details if problem is VAGUE ("все зламалося", "нічого не працює", "зламався"):
+  * "Що саме не працює?" (комп'ютер / інтернет / програма / принтер)
+  * "Це на одному пристрої чи у всіх?"
+  * "Яка помилка з'являється?"
+  * "Коли це почалося?"
+- Set needsMoreInfo: true when problem description is unclear/vague
+- Set missingInfo: ["що саме не працює", "яка помилка", "один пристрій чи всі"] for vague problems
 
 🎯 STEP 3: Categorization
 - Hardware: printer, monitor, PC, peripherals
@@ -710,6 +717,29 @@ Return ONLY valid JSON:
   "needMoreContext": true|false,
   "moreContextSource": "kb|tickets|web|none",
   "promptMode": "light|full"
+}
+
+EXAMPLES:
+
+Vague problem ("все зламалося", "нічого не працює"):
+{
+  "requestType": "problem",
+  "isTicketIntent": true,
+  "needsMoreInfo": true,
+  "missingInfo": ["що саме не працює", "яка помилка", "один пристрій чи всі"],
+  "priority": "URGENT",
+  "promptMode": "full",
+  "offTopicResponse": "Розумію, що це терміново! Щоб допомогти швидше, підкажіть: що саме не працює? (комп'ютер / інтернет / програма / принтер)"
+}
+
+Specific problem ("принтер не друкує"):
+{
+  "requestType": "problem",
+  "isTicketIntent": true,
+  "needsMoreInfo": false,
+  "priority": "MEDIUM",
+  "promptMode": "full",
+  "quickSolution": "Спробуйте: 1️⃣ Перевірте кабель 2️⃣ Перезавантажте принтер"
 }
 
 CRITICAL:
