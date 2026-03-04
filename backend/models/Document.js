@@ -49,9 +49,9 @@ const documentSchema = new mongoose.Schema(
   }
 );
 
-// Generate slug from title
-documentSchema.pre('save', function (next) {
-  if (this.isModified('title')) {
+// Generate slug from title before validation
+documentSchema.pre('validate', function (next) {
+  if (this.isModified('title') || !this.slug) {
     this.slug = this.title
       .toLowerCase()
       .replace(/[^\wа-яієґ-]+/g, '-')
