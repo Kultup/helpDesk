@@ -12,10 +12,8 @@ import {
   X,
   Server,
   FileText,
-  UserCheck,
   AlertTriangle,
   FileSearch,
-  Clock,
   Settings,
   Bot,
   Activity,
@@ -26,7 +24,7 @@ import {
   Image,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole, isAdminRole } from '../../types';
+import { isAdminRole } from '../../types';
 import { cn } from '../../utils';
 import Button from '../UI/Button';
 
@@ -135,6 +133,13 @@ const navGroups: NavGroup[] = [
         icon: AlertTriangle,
         adminOnly: true,
       },
+    ],
+  },
+  {
+    titleKey: 'sidebar.groups.documentation',
+    adminOnly: true,
+    items: [
+      { nameKey: 'sidebar.projectDocs', href: '/project-docs', icon: FileText, adminOnly: true },
     ],
   },
 ];

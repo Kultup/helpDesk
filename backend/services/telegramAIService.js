@@ -469,9 +469,16 @@ class TelegramAIService {
     }
   }
 
-  async handleMessageInAiMode(chatId, text, session, user) {
+  async handleMessageInAiMode(chatId, text, session, user, Transcription = null) {
     try {
-      await this._handleMessageInAiModeImpl(chatId, text, session, user);
+      if (Transcription) {
+        await this.telegramService.sendTyping(chatId);
+        const feedbackMsg = `Я прослухав ваше повідомлення: «${Transcription}». Спробую допомогти...`;
+        await this.telegramService.sendMessage(chatId, feedbackMsg);
+        await this._handleMessageInAiModeImpl(chatId, Transcription, session, user);
+      } else {
+        await this._handleMessageInAiModeImpl(chatId, text, session, user);
+      }
     } catch (err) {
       logger.error('handleMessageInAiMode: помилка', {
         chatId,
@@ -668,6 +675,9 @@ class TelegramAIService {
         /^(ні|нi|не допомогло|не вийшло|створити тікет|потрібен тікет|оформити заявку)$/.test(t) ||
         t.includes('не допомогло') ||
         t.includes('не вийшло');
+
+      let resultAfterTip;
+
       if (helped) {
         session.step = null;
         this.telegramService.userSessions.delete(chatId);
@@ -688,7 +698,6 @@ class TelegramAIService {
         session.step = 'gathering_information';
         session.afterTipNotHelped = true;
         await this.telegramService.sendTyping(chatId);
-        let resultAfterTip;
         try {
           resultAfterTip = await aiFirstLineService.analyzeIntent(
             session.dialog_history,
@@ -785,6 +794,26 @@ class TelegramAIService {
         });
         return;
       }
+
+      if (resultAfterTip.isUnsure) {
+        const unsureActions = [
+          { text: '👨‍💻 Запитати адміна', callback_data: 'create_ticket' },
+          { text: '🔍 Пошук у базі знань', callback_data: 'search_kb' },
+          { text: '❓ Інше питання', callback_data: 'back_to_menu' },
+        ];
+        await this.telegramService.sendMessage(
+          chatId,
+          resultAfterTip.offTopicResponse ||
+            'Я не зовсім впевнений, що правильно зрозумів ваше питання. Спробуйте перефразувати або я можу створити заявку для адміністратора прямо зараз.',
+          {
+            reply_markup: {
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow(unsureActions),
+            },
+          }
+        );
+        return;
+      }
+
       session.step = 'gathering_information';
       session.afterTipNotHelped = true; // Якщо користувач замість кнопок просто відповів на питання — вважаємо що тіпс не закрив питання
     }

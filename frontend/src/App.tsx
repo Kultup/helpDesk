@@ -40,6 +40,7 @@ import Equipment from './pages/Equipment';
 import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
 import KnowledgeBase from './pages/KnowledgeBase';
+import ProjectDocs from './pages/ProjectDocs';
 
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
@@ -304,6 +305,14 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute requiredRole={UserRole.ADMIN}>
                       <ZabbixSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/project-docs"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <ProjectDocs />
                     </ProtectedRoute>
                   }
                 />

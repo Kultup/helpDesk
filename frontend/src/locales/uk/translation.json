@@ -142,6 +142,7 @@
     "quickNotifications": "Швидкі сповіщення",
     "aiKnowledge": "AI Знання",
     "knowledgeBase": "База знань",
+    "projectDocs": "ТЗ (Документація)",
     "aiReports": "AI Звіти",
     "aiFAQ": "Генерація FAQ",
     "groups": {
@@ -150,6 +151,7 @@
       "ai": "Штучний інтелект та бот",
       "reference": "Довідники",
       "system": "Система та інтеграції",
+      "documentation": "Документація",
       "users": "Користувачі"
     },
     "userRoles": {
