@@ -558,6 +558,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/cities', require('./routes/cities'));
 app.use('/api/positions', require('./routes/positions'));
 app.use('/api/position-requests', require('./routes/positionRequests'));
+app.use('/api/software-requests', require('./routes/softwareRequests'));
 app.use('/api/institutions', require('./routes/institutions'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/analytics', require('./routes/analytics'));

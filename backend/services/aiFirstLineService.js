@@ -617,12 +617,13 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     };
   }
 
-  // Перевірка кешу для простих запитів
+  // Перевірка кешу для простих запитів (лише для авторизованих або без персонального контексту)
   const lastMessage =
     dialogHistory.length > 0 ? dialogHistory[dialogHistory.length - 1].content : '';
+  const hasPersonalContext = userContext?.userCity || userContext?.userInstitution;
 
-  if (lastMessage && lastMessage.length < 50) {
-    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId || 'unknown');
+  if (lastMessage && lastMessage.length < 50 && options.userId && !hasPersonalContext) {
+    const cacheKey = aiResponseCache.createKey(lastMessage, options.userId);
     const cached = aiResponseCache.get(cacheKey);
 
     if (cached) {
@@ -748,6 +749,18 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
           };
         }
         logger.info(`⚡ AI Fast-Track triggered: ${fastTrack.problemType}`);
+        const urgentKeywords = [
+          'терміново',
+          'критично',
+          'каса',
+          'клієнти чекають',
+          'все зламалося',
+          'asap',
+        ];
+        const msgLower = (lastMsg.content || '').toLowerCase();
+        const fastTrackPriority = urgentKeywords.some(k => msgLower.includes(k))
+          ? 'urgent'
+          : 'medium';
         return {
           requestType: fastTrack.autoTicket ? 'appeal' : 'question',
           requestTypeConfidence: 1.0,
@@ -756,8 +769,8 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
           category: fastTrack.category || 'Other',
           missingInfo: fastTrack.missingInfo || [],
           confidence: 1.0,
-          priority: 'medium',
-          emotionalTone: 'calm',
+          priority: fastTrackPriority,
+          emotionalTone: fastTrackPriority === 'urgent' ? 'urgent' : 'calm',
           quickSolution: fastTrack.solution,
           autoTicket: fastTrack.autoTicket || false,
           offTopicResponse: null,

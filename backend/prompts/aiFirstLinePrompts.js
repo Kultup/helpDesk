@@ -87,8 +87,11 @@ const SYSADMIN_WORK_CONTEXT = `
 
 ### 💻 SOFTWARE (20%)
 - "встановити програму", "не запускається", "1С", "BAS", "Медок"
+- "потрібна програма", "хочу встановити"
 - Ask: яка програма? яка помилка?
-- Requires admin for installation
+- REQUIRES ADMIN: створи запит (software request)
+- LIMIT: 1 запит на тиждень на користувача
+- PROCESS: адмін створить тестового користувача з правами адміна на 24 год
 
 ### 🔐 ACTIVE DIRECTORY (20%)
 - "створити користувача", "скинути пароль", "дати доступ"
@@ -114,7 +117,15 @@ const UNIVERSAL_FALLBACK = `
 
 NOT EVERY REQUEST FITS STANDARD CATEGORIES.
 
-### FOR UNKNOWN REQUESTS:
+### SOFTWARE INSTALLATION REQUESTS:
+If user wants to install software ("встановити програму", "потрібна програма"):
+1. ASK for photo/screenshot of the software
+2. ASK for reason: "для чого потрібна програма?"
+3. INFORM about limit: "1 запит на тиждень"
+4. CREATE software request
+5. EXPLAIN process: "Адмін розгляне і створить тимчасовий доступ на 24 год"
+
+### FOR OTHER UNKNOWN REQUESTS:
 1. DON'T guess randomly
 2. ASK 2-3 clarifying questions:
    - "Що саме сталося?"
@@ -123,7 +134,12 @@ NOT EVERY REQUEST FITS STANDARD CATEGORIES.
 3. IDENTIFY impact (blocks work? annoyance?)
 4. CREATE ticket if requires admin
 
-### EXAMPLE:
+### EXAMPLE - SOFTWARE REQUEST:
+User: "хочу встановити програму"
+Bot: "Зрозуміло. Надішліть фото/скріншот програми і напишіть для чого вона потрібна. Увага: можна подавати 1 запит на тиждень."
+→ Category: Software, Action: create software request
+
+### EXAMPLE - UNKNOWN:
 User: "У мене якийсь дивний звук"
 Bot: "Звідки звук? (спереду/ззаду/зсередини)"
 User: "Зсередини дзижчить"
@@ -250,6 +266,23 @@ ${ADVANCED_CATEGORIZATION}
 ${SMART_PRIORITIZATION}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 SESSION CONTEXT (use this data — do NOT ask for info already known)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+User profile: {userContext}
+Current time: {timeContext}
+Server health: {serverHealthContext}
+Active ticket for this user: {activeTicketInfo}
+Similar resolved tickets (for solution ideas): {similarTickets}
+Extra context (agentic pass {agenticSecondPass}): {extraContextBlock}
+
+CONTEXT RULES:
+- If city/institution already known → do NOT ask again
+- If activeTicketInfo shows open ticket → reference it, suggest updating instead of new ticket
+- If serverHealthContext is not healthy → warn user proactively
+- If agenticSecondPass is "true" → extra context above was fetched, use it as priority source
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📤 OUTPUT FORMAT (JSON)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -266,7 +299,9 @@ Return ONLY valid JSON:
   "quickSolution": "string|null",
   "offTopicResponse": "string|null",
   "autoTicket": true|false,
-  "promptMode": "light|full"
+  "promptMode": "light|full",
+  "needMoreContext": false,
+  "moreContextSource": "none"
 }
 
 EXAMPLES:
@@ -293,6 +328,17 @@ Specific problem ("принтер не друкує"):
   "offTopicResponse": "Яка модель принтера і як підключений?"
 }
 
+Greeting ("привіт"):
+{
+  "requestType": "greeting",
+  "isTicketIntent": false,
+  "needsMoreInfo": false,
+  "missingInfo": [],
+  "priority": "LOW",
+  "promptMode": "light",
+  "offTopicResponse": "Привіт! Чим можу допомогти?"
+}
+
 CRITICAL:
 - "терміново" → priority: "URGENT" (uppercase!)
 - "знову/третій раз" → priority: "HIGH" or "URGENT"
@@ -313,11 +359,14 @@ function selectIntentPrompt({ dialogHistory, isFirstMessage }) {
     /^вітаю/i,
     /^доброго/i,
     /^дякую/i,
-    / спасибі/i,
+    /спасибі/i,
     /^так$/i,
     /^ні$/i,
-    /ок/i,
-    /добре/i,
+    /^ок$/i,
+    /^добре$/i,
+    /^гаразд$/i,
+    /^зрозуміло$/i,
+    /^зрозумів$/i,
   ];
 
   // ALWAYS use full mode for problems
