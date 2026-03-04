@@ -720,6 +720,40 @@ CRITICAL:
 `;
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+// ——— 🔧 Fill Prompt Variables ———
+function fillPrompt(template, vars) {
+  if (!template || typeof template !== 'string') {
+    return '';
+  }
+
+  let out = template;
+  const replacements = {
+    userContext: vars.userContext ?? '',
+    timeContext: vars.timeContext ?? '',
+    dialogHistory: vars.dialogHistory ?? '',
+    missingInfo: vars.missingInfo ?? '',
+    similarTickets: vars.similarTickets ?? '',
+    kbArticle: vars.kbArticle ?? '',
+    userQuery: vars.userQuery ?? '',
+    articleTitle: vars.articleTitle ?? '',
+    articleSnippet: vars.articleSnippet ?? '',
+    serverHealthContext: vars.serverHealthContext ?? '',
+    queueContext: vars.queueContext ?? '',
+    userMessage: vars.userMessage ?? '',
+    // Add more as needed
+  };
+
+  for (const [key, value] of Object.entries(replacements)) {
+    out = out.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
+  }
+
+  return out;
+}
+
+// ============================================================================
 // Main export
 // ============================================================================
 
@@ -758,6 +792,7 @@ module.exports = {
 
   // Helper functions
   selectIntentPrompt,
+  fillPrompt,
 
   // Configuration
   MAX_TOKENS: {
