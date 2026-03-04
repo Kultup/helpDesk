@@ -85,6 +85,9 @@
     "xss-clean": "^0.1.4",
     "yamljs": "^0.3.0"
   },
+  "optionalDependencies": {
+    "ngrok": "^5.0.0-beta.2"
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
