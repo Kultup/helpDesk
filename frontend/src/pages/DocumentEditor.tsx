@@ -55,7 +55,8 @@ const DocumentEditor: React.FC = () => {
   const fetchDocument = async (slug: string) => {
     setLoading(true);
     try {
-      const data = await api.get(`/documents/${slug}`);
+      const response = await api.get(`/documents/${slug}`);
+      const data = response as { success: boolean; data: { title: string; content: string } };
 
       if (data.success) {
         setTitle(data.data.title);

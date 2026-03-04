@@ -5,6 +5,7 @@ import Card, { CardContent } from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { apiService } from '../services/api';
 
 interface Document {
   _id: string;
@@ -28,11 +29,9 @@ const DocumentShare: React.FC = () => {
 
   const fetchDocument = async () => {
     try {
-      const response = await fetch(`/api/documents/${slug}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setDocument(data.data);
+      const response = await apiService.getDocument(slug!);
+      if (response.success) {
+        setDocument(response.data as unknown as Document);
       } else {
         toast.error('Документ не знайдено');
         navigate('/documents');
@@ -49,15 +48,11 @@ const DocumentShare: React.FC = () => {
   const handleGenerateLink = async () => {
     setGenerating(true);
     try {
-      const response = await fetch(`/api/documents/${slug}/share`, {
-        method: 'POST',
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        const fullUrl = `${window.location.origin}/docs/secure/${data.token}`;
+      const response = await apiService.generateShareToken(slug!);
+      if (response.success) {
+        const fullUrl = `${window.location.origin}/docs/secure/${response.data.token}`;
         setShareToken(fullUrl);
-        setExpiresAt(new Date(data.expiresAt));
+        setExpiresAt(new Date(response.data.expiresAt));
         toast.success('Посилання створено!');
       } else {
         toast.error('Не вдалося створити посилання');
