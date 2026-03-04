@@ -423,6 +423,7 @@ async function fetchExtraContextForAgentic(source, query) {
  * @param {string} similarTicketsText - текст блоку similarTickets
  * @returns {Promise<{ relevant: boolean, reason?: string }>}
  */
+// eslint-disable-next-line no-unused-vars
 async function checkSimilarTicketsRelevance(settings, userMessage, similarTicketsText) {
   if (
     !similarTicketsText ||
@@ -472,6 +473,7 @@ async function checkSimilarTicketsRelevance(settings, userMessage, similarTicket
  * @param {string} [articleContentSnippet] - початок контенту статті
  * @returns {Promise<boolean>} true = релевантно, false = ні
  */
+// eslint-disable-next-line no-unused-vars
 async function checkKbArticleRelevanceWithAI(
   settings,
   userQuery,
@@ -716,180 +718,10 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
     .map(s => `- ${s.problemType}: ${s.keywords.join(', ')}`)
     .join('\n');
 
-  // --- KNOWLEDGE BASE SEARCH (Частина C: семантичний пошук + пороги high/medium, fallback на $text) ---
-  if (dialogHistory.length > 0) {
-    const lastMsg = dialogHistory[dialogHistory.length - 1];
-    if (
-      lastMsg &&
-      lastMsg.role === 'user' &&
-      lastMsg.content &&
-      String(lastMsg.content).trim().length > 0
-    ) {
-      const query = String(lastMsg.content).trim();
-      const kbSearchService = require('./kbSearchService');
-      const kbEmbeddingService = require('./kbEmbeddingService');
-      const baseReturn = {
-        requestType: 'question',
-        requestTypeConfidence: 1.0,
-        isTicketIntent: false,
-        needsMoreInfo: false,
-        category: null,
-        missingInfo: [],
-        confidence: 1.0,
-        priority: 'low',
-        emotionalTone: 'calm',
-        quickSolution: null,
-        autoTicket: false,
-        offTopicResponse: null,
-      };
-
-      try {
-        const kbSettings = await getAISettings();
-        const thresholds = kbEmbeddingService.getScoreThresholds();
-        const semanticResults = await kbEmbeddingService.findSimilarArticles(query, { topK: 5 });
-        if (semanticResults.length > 0) {
-          const best = semanticResults[0];
-          if (best.score >= thresholds.high) {
-            const plain = best.article;
-            const relevant = await checkKbArticleRelevanceWithAI(
-              kbSettings,
-              query,
-              plain.title,
-              plain.content
-            );
-            if (relevant) {
-              logger.info(
-                `📚 KB semantic (high): "${plain.title}" for query: ${query.substring(0, 80)} (score: ${best.score.toFixed(3)})`
-              );
-              return {
-                ...baseReturn,
-                kbArticle: {
-                  id: plain._id?.toString(),
-                  title: plain.title,
-                  content: plain.content || '',
-                  attachments: Array.isArray(plain.attachments)
-                    ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                    : [],
-                },
-              };
-            }
-            // Тема не збігається — шукаємо наступний релевантний результат у топі
-            for (let i = 1; i < semanticResults.length; i++) {
-              const next = semanticResults[i];
-              if (next.score < thresholds.medium) {
-                break;
-              }
-              const nextPlain = next.article;
-              if (
-                await checkKbArticleRelevanceWithAI(
-                  kbSettings,
-                  query,
-                  nextPlain.title,
-                  nextPlain.content
-                )
-              ) {
-                logger.info(
-                  `📚 KB semantic (high, fallback): "${nextPlain.title}" for query: ${query.substring(0, 80)} (score: ${next.score.toFixed(3)})`
-                );
-                return {
-                  ...baseReturn,
-                  kbArticle: {
-                    id: nextPlain._id?.toString(),
-                    title: nextPlain.title,
-                    content: nextPlain.content || '',
-                    attachments: Array.isArray(nextPlain.attachments)
-                      ? nextPlain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                      : [],
-                  },
-                };
-              }
-            }
-          }
-          if (best.score >= thresholds.medium) {
-            const relevantCandidates = [];
-            for (const r of semanticResults.slice(0, 5)) {
-              const isRelevant = await checkKbArticleRelevanceWithAI(
-                kbSettings,
-                query,
-                r.article.title,
-                r.article.content
-              );
-              if (isRelevant) {
-                relevantCandidates.push({
-                  id: r.article._id?.toString(),
-                  title: r.article.title || 'Стаття',
-                });
-                if (relevantCandidates.length >= 3) {
-                  break;
-                }
-              }
-            }
-            if (relevantCandidates.length > 0) {
-              logger.info(
-                `📚 KB semantic (medium): ${relevantCandidates.length} релевантних кандидатів for query: ${query.substring(0, 60)} (best score: ${best.score.toFixed(3)})`
-              );
-              return {
-                ...baseReturn,
-                kbArticleCandidates: relevantCandidates,
-              };
-            }
-          }
-        }
-        const article = await kbSearchService.findBestMatchForBotTextOnly(query);
-        if (article) {
-          const plain = article.toObject ? article.toObject() : article;
-          if (await checkKbArticleRelevanceWithAI(kbSettings, query, plain.title, plain.content)) {
-            logger.info(
-              `📚 KB fallback (text): "${plain.title}" for query: ${query.substring(0, 80)}`
-            );
-            return {
-              ...baseReturn,
-              kbArticle: {
-                id: plain._id?.toString(),
-                title: plain.title,
-                content: plain.content || '',
-                attachments: Array.isArray(plain.attachments)
-                  ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                  : [],
-              },
-            };
-          }
-        }
-      } catch (err) {
-        logger.warn('KB search in analyzeIntent failed', err);
-        try {
-          const kbSettingsCatch = await getAISettings();
-          const article = await kbSearchService.findBestMatchForBot(query);
-          if (article) {
-            const plain = article.toObject ? article.toObject() : article;
-            if (
-              await checkKbArticleRelevanceWithAI(
-                kbSettingsCatch,
-                query,
-                plain.title,
-                plain.content
-              )
-            ) {
-              return {
-                ...baseReturn,
-                kbArticle: {
-                  id: plain._id?.toString(),
-                  title: plain.title,
-                  content: plain.content || '',
-                  attachments: Array.isArray(plain.attachments)
-                    ? plain.attachments.map(a => ({ type: a.type, filePath: a.filePath }))
-                    : [],
-                },
-              };
-            }
-          }
-        } catch (_) {
-          // fallback findBestMatchForBot failed, continue to Fast-Track/LLM
-        }
-      }
-    }
-  }
-  // --- END KNOWLEDGE BASE SEARCH ---
+  // --- KNOWLEDGE BASE SEARCH (DISABLED) ---
+  // KB search temporarily disabled to fix raw prompt output issue
+  // will be re-enabled after fixing response format
+  // ----------------------------------------
 
   // --- FAST-TRACK CHECK ---
   // Якщо це чіткий запит з quickSolutions, повертаємо результат одразу без LLM (лише якщо немає статті в KB)
