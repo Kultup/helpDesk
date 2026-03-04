@@ -42,17 +42,23 @@ const Conversations: React.FC = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Conversation & { messages: ConversationMessage[] } | null>(null);
+  const [detail, setDetail] = useState<(Conversation & { messages: ConversationMessage[] }) | null>(
+    null
+  );
   const [detailLoading, setDetailLoading] = useState(false);
 
   const loadList = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await apiService.get<{ success: boolean; data: Conversation[]; pagination: { page: number; limit: number; total: number; pages: number } }>(
-        '/conversations',
-        { params: { page, limit: 20 } }
-      );
-      const data = res as unknown as { data: Conversation[]; pagination: { page: number; limit: number; total: number; pages: number } };
+      const res = await apiService.get<{
+        success: boolean;
+        data: Conversation[];
+        pagination: { page: number; limit: number; total: number; pages: number };
+      }>('/conversations', { params: { page, limit: 20 } });
+      const data = res as unknown as {
+        data: Conversation[];
+        pagination: { page: number; limit: number; total: number; pages: number };
+      };
       setList(data.data || []);
       setPagination(data.pagination || { page: 1, limit: 20, total: 0, pages: 0 });
     } catch (e) {
@@ -71,7 +77,10 @@ const Conversations: React.FC = () => {
     setDetailLoading(true);
     setDetail(null);
     try {
-      const res = await apiService.get<{ success: boolean; data: Conversation & { messages: ConversationMessage[] } }>(`/conversations/${id}`);
+      const res = await apiService.get<{
+        success: boolean;
+        data: Conversation & { messages: ConversationMessage[] };
+      }>(`/conversations/${id}`);
       const data = res as unknown as { data: Conversation & { messages: ConversationMessage[] } };
       setDetail(data.data || null);
     } catch (e) {
@@ -86,7 +95,10 @@ const Conversations: React.FC = () => {
     return d.toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' });
   };
 
-  const userName = (u: ConversationUser) => [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || '—';
+  const userName = (u: ConversationUser | null) => {
+    if (!u) return '—';
+    return [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || '—';
+  };
 
   return (
     <div className="space-y-4">
@@ -112,7 +124,7 @@ const Conversations: React.FC = () => {
                 <p className="text-muted-foreground text-sm">Поки немає розмов</p>
               ) : (
                 <ul className="space-y-1">
-                  {list.map((c) => (
+                  {list.map(c => (
                     <li key={c._id}>
                       <button
                         type="button"
@@ -120,11 +132,15 @@ const Conversations: React.FC = () => {
                         className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2 ${selectedId === c._id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
                       >
                         <User className="h-4 w-4 shrink-0" />
-                        <span className="truncate flex-1">{userName(c.user)}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">{c.messageCount}</span>
+                        <span className="truncate flex-1">{userName(c.user || null)}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {c.messageCount}
+                        </span>
                         <ChevronRight className="h-4 w-4 shrink-0" />
                       </button>
-                      <p className="text-xs text-muted-foreground truncate pl-6 pr-2">{c.subject || '(без теми)'}</p>
+                      <p className="text-xs text-muted-foreground truncate pl-6 pr-2">
+                        {c.subject || '(без теми)'}
+                      </p>
                     </li>
                   ))}
                 </ul>
@@ -135,7 +151,7 @@ const Conversations: React.FC = () => {
                     variant="outline"
                     size="sm"
                     disabled={pagination.page <= 1}
-                    onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+                    onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
                   >
                     Назад
                   </Button>
@@ -146,7 +162,7 @@ const Conversations: React.FC = () => {
                     variant="outline"
                     size="sm"
                     disabled={pagination.page >= pagination.pages}
-                    onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+                    onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
                   >
                     Далі
                   </Button>
