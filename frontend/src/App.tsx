@@ -41,6 +41,7 @@ import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ProjectDocs from './pages/ProjectDocs';
+import SecureDocumentView from './pages/SecureDocumentView';
 
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
@@ -103,6 +104,7 @@ const App: React.FC = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/telegram-test" element={<TelegramTest />} />
               <Route path="/photo/:filename" element={<PhotoViewer />} />
+              <Route path="/docs/secure/:token" element={<SecureDocumentView />} />
 
               {/* Кореневий маршрут */}
               <Route path="/" element={<SmartRedirect />} />

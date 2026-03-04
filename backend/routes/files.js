@@ -4,6 +4,91 @@ const path = require('path');
 const fs = require('fs').promises;
 const logger = require('../utils/logger');
 const { fileSearchPaths } = require('../config/paths');
+const crypto = require('crypto');
+
+// Generate secure token for document access
+const generateSecureToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+// Store tokens in memory (can be moved to DB later)
+const secureTokens = new Map();
+
+// POST - Generate secure view link
+router.post('/project-docs/secure-link', async (req, res) => {
+  try {
+    const token = generateSecureToken();
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+    secureTokens.set(token, {
+      filename: 'TS.md',
+      expiresAt,
+      createdAt: Date.now(),
+    });
+
+    logger.info(`Secure link created: ${token}`);
+    res.json({
+      success: true,
+      token,
+      url: `/docs/secure/${token}`,
+      expiresAt,
+    });
+  } catch (error) {
+    logger.error('Error creating secure link:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create secure link',
+    });
+  }
+});
+
+// GET - Access document via secure token
+router.get('/project-docs/secure/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const tokenData = secureTokens.get(token);
+
+    if (!tokenData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid or expired link',
+      });
+    }
+
+    if (Date.now() > tokenData.expiresAt) {
+      secureTokens.delete(token);
+      return res.status(403).json({
+        success: false,
+        message: 'Link has expired',
+      });
+    }
+
+    const docsPath = path.join(__dirname, '../../frontend/public/docs', tokenData.filename);
+
+    try {
+      await fs.access(docsPath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found',
+      });
+    }
+
+    const content = await fs.readFile(docsPath, 'utf8');
+
+    res.json({
+      success: true,
+      content,
+      title: 'Проєктне ТЗ',
+    });
+  } catch (error) {
+    logger.error('Error accessing secure document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to access document',
+    });
+  }
+});
 
 // POST - Save project docs (TS.md)
 router.post('/project-docs', async (req, res) => {

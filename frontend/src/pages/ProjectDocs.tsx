@@ -18,6 +18,9 @@ import {
   ListOrdered,
   Link,
   Image,
+  Share2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn } from '../utils';
 import toast from 'react-hot-toast';
@@ -51,6 +54,10 @@ const ProjectDocs: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeId, setActiveId] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [secureLink, setSecureLink] = useState<string>('');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Load documentation
@@ -148,6 +155,39 @@ const ProjectDocs: React.FC = () => {
   const handleLink = () => insertText('[', '](url)');
   const handleImage = () => insertText('![', '](url)');
 
+  // Generate secure link
+  const handleGenerateLink = async () => {
+    setGeneratingLink(true);
+    try {
+      const response = await fetch('/api/files/project-docs/secure-link', {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const fullUrl = `${window.location.origin}/docs/secure/${data.token}`;
+        setSecureLink(fullUrl);
+        setShowShareModal(true);
+        toast.success('Посилання створено!');
+      } else {
+        toast.error('Не вдалося створити посилання');
+      }
+    } catch (error) {
+      console.error('Error generating link:', error);
+      toast.error('Помилка при створенні посилання');
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  // Copy link to clipboard
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(secureLink);
+    setLinkCopied(true);
+    toast.success('Посилання скопійовано!');
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -201,14 +241,25 @@ const ProjectDocs: React.FC = () => {
 
           <div className="flex gap-2">
             {!isEditing ? (
-              <Button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2"
-                variant="primary"
-              >
-                <Edit2 className="h-4 w-4" />
-                Редагувати
-              </Button>
+              <>
+                <Button
+                  onClick={handleGenerateLink}
+                  className="flex items-center gap-2"
+                  variant="secondary"
+                  disabled={generatingLink}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Поділитися
+                </Button>
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2"
+                  variant="primary"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  Редагувати
+                </Button>
+              </>
             ) : (
               <>
                 <Button
@@ -347,6 +398,78 @@ const ProjectDocs: React.FC = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                  <Share2 className="h-5 w-5 text-primary-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Поділитися ТЗ</h3>
+              </div>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-3">
+                Посилання дійсне протягом 7 днів. Будь-хто з цим посиланням зможе переглянути ТЗ без
+                авторизації.
+              </p>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={secureLink}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 font-mono"
+                />
+                <Button
+                  onClick={handleCopyLink}
+                  variant="primary"
+                  className="flex items-center gap-2"
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Скопійовано
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Копія
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Eye className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-semibold mb-1">Безпечний перегляд</p>
+                <p>
+                  Посилання містить унікальний токен і автоматично deaktivується через 7 днів або
+                  після видалення.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setShowShareModal(false)} variant="secondary">
+                Закрити
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
