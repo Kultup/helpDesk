@@ -1852,6 +1852,73 @@ class ApiService {
   async getZabbixHostGroups(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/zabbix/host-groups');
   }
+
+  // Методи для документів
+  async getDocuments(): Promise<
+    ApiResponse<
+      Array<{
+        _id: string;
+        title: string;
+        slug: string;
+        isPublic: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>
+    >
+  > {
+    return this.get('/documents');
+  }
+
+  async getDocument(slug: string): Promise<
+    ApiResponse<{
+      _id: string;
+      title: string;
+      content: string;
+      slug: string;
+      isPublic: boolean;
+      createdBy: User;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  > {
+    return this.get(`/documents/${slug}`);
+  }
+
+  async createDocument(data: { title: string; content: string }): Promise<
+    ApiResponse<{
+      _id: string;
+      title: string;
+      content: string;
+      slug: string;
+      isPublic: boolean;
+      createdBy: User;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  > {
+    return this.post('/documents', data);
+  }
+
+  async updateDocument(
+    slug: string,
+    data: { title?: string; content?: string; isPublic?: boolean }
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.put(`/documents/${slug}`, data);
+  }
+
+  async deleteDocument(slug: string): Promise<ApiResponse<null>> {
+    return this.delete(`/documents/${slug}`);
+  }
+
+  async generateShareToken(slug: string): Promise<
+    ApiResponse<{
+      token: string;
+      url: string;
+      expiresAt: string;
+    }>
+  > {
+    return this.post(`/documents/${slug}/share`);
+  }
 }
 
 // Експорт єдиного екземпляру

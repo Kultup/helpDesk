@@ -16,6 +16,7 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { cn } from '../utils';
+import { apiService } from '../services/api';
 
 interface Document {
   _id: string;
@@ -40,11 +41,9 @@ const Documents: React.FC = () => {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/api/documents');
-      const data = await response.json();
-
-      if (data.success) {
-        setDocuments(data.data);
+      const response = await apiService.getDocuments();
+      if (response.success) {
+        setDocuments(response.data);
       } else {
         toast.error('Не вдалося завантажити документи');
       }
@@ -60,17 +59,9 @@ const Documents: React.FC = () => {
     if (!docToDelete) return;
 
     try {
-      const response = await fetch(`/api/documents/${docToDelete}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Документ видалено');
-        fetchDocuments();
-      } else {
-        toast.error('Не вдалося видалити документ');
-      }
+      await apiService.deleteDocument(docToDelete);
+      toast.success('Документ видалено');
+      fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error('Помилка при видаленні');
