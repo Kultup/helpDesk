@@ -17,6 +17,7 @@ import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { cn } from '../utils';
+import api from '../services/api';
 
 interface ToolbarButtonProps {
   icon: React.ReactNode;
@@ -54,8 +55,7 @@ const DocumentEditor: React.FC = () => {
   const fetchDocument = async (slug: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/documents/${slug}`);
-      const data = await response.json();
+      const data = await api.get(`/documents/${slug}`);
 
       if (data.success) {
         setTitle(data.data.title);
@@ -81,18 +81,10 @@ const DocumentEditor: React.FC = () => {
 
     setSaving(true);
     try {
-      const url = slug ? `/api/documents/${slug}` : '/api/documents';
-      const method = slug ? 'PUT' : 'POST';
+      const url = slug ? `/documents/${slug}` : '/documents';
+      const method = slug ? 'put' : 'post';
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, content }),
-      });
-
-      const data = await response.json();
+      const data = await api[method](url, { title, content });
 
       if (data.success) {
         toast.success(slug ? 'Документ оновлено' : 'Документ створено');
