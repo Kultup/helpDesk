@@ -4,6 +4,8 @@
 // Key improvements: Better urgent detection, self-healing, no unnecessary hardware questions
 // ============================================================================
 
+const ANALYZE_TEXT_RULES = "AI logic for analyzing text. 1. Read carefully. 2. Don't invent facts.";
+
 // ——— 🎨 Communication Style ———
 const COMMUNICATION_STYLE = `Communication style — like a real human:
 
@@ -670,8 +672,6 @@ CRITICAL:
 // ============================================================================
 // Main export
 // ============================================================================
-
-const ANALYZE_TEXT_RULES = "AI logic for analyzing text. 1. Read carefully. 2. Don't invent facts.";
 
 module.exports = {
   // Core components
