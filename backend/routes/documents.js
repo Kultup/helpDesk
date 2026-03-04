@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const documentController = require('../controllers/documentController');
-const { protect } = require('../middlewares/authMiddleware');
-const { requireRole } = require('../middlewares/roleMiddleware');
-const { UserRole } = require('../models/User');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // All routes require admin access
-router.use(protect);
-router.use(requireRole(UserRole.ADMIN));
+router.use(authenticateToken);
+router.use(requireAdmin);
 
 // Get all documents
 router.get('/', documentController.getDocuments);

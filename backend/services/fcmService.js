@@ -23,7 +23,7 @@ class FCMService {
           path.resolve(__dirname, '../../.firebase/heldeskm-service-account.json'),
           path.resolve(process.cwd(), '.firebase/heldeskm-service-account.json'),
           './.firebase/heldeskm-service-account.json',
-        ].filter(p => p !== null);
+        ].filter(p => p !== null && p !== undefined);
 
         let serviceAccountFullPath = null;
         for (const serviceAccountPath of possiblePaths) {
