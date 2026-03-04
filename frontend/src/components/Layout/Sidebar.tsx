@@ -11,7 +11,6 @@ import {
   Users,
   X,
   Server,
-  FileText,
   AlertTriangle,
   FileSearch,
   Settings,
@@ -133,14 +132,6 @@ const navGroups: NavGroup[] = [
         icon: AlertTriangle,
         adminOnly: true,
       },
-    ],
-  },
-  {
-    titleKey: 'sidebar.groups.documentation',
-    adminOnly: true,
-    items: [
-      { nameKey: 'sidebar.documents', href: '/documents', icon: FileText, adminOnly: true },
-      { nameKey: 'sidebar.projectDocs', href: '/project-docs', icon: FileText, adminOnly: true },
     ],
   },
 ];

@@ -40,11 +40,6 @@ import Equipment from './pages/Equipment';
 import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
 import KnowledgeBase from './pages/KnowledgeBase';
-import ProjectDocs from './pages/ProjectDocs';
-import SecureDocumentView from './pages/SecureDocumentView';
-import Documents from './pages/Documents';
-import DocumentEditor from './pages/DocumentEditor';
-import DocumentShare from './pages/DocumentShare';
 
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
@@ -107,14 +102,6 @@ const App: React.FC = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/telegram-test" element={<TelegramTest />} />
               <Route path="/photo/:filename" element={<PhotoViewer />} />
-              <Route path="/docs/secure/:token" element={<SecureDocumentView />} />
-
-              {/* Документи - публічний доступ для перегляду */}
-              <Route path="/documents" element={<Documents />} />
-              <Route path="/documents/new" element={<DocumentEditor />} />
-              <Route path="/documents/:slug/edit" element={<DocumentEditor />} />
-              <Route path="/documents/:slug/share" element={<DocumentShare />} />
-              <Route path="/documents/:slug" element={<ProjectDocs />} />
 
               {/* Кореневий маршрут */}
               <Route path="/" element={<SmartRedirect />} />
@@ -317,22 +304,6 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute requiredRole={UserRole.ADMIN}>
                       <ZabbixSettings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="admin/documents"
-                  element={
-                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                      <Documents />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="admin/project-docs"
-                  element={
-                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
-                      <ProjectDocs />
                     </ProtectedRoute>
                   }
                 />
