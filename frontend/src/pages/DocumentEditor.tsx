@@ -84,15 +84,16 @@ const DocumentEditor: React.FC = () => {
       const url = slug ? `/documents/${slug}` : '/documents';
       const method = slug ? 'put' : 'post';
 
-      const data = await api[method](url, { title, content });
+      const response = await api[method](url, { title, content });
+      const data = response as { success: boolean; data?: { slug?: string }; message?: string };
 
       if (data.success) {
         toast.success(slug ? 'Документ оновлено' : 'Документ створено');
-        if (!slug) {
+        if (!slug && data.data?.slug) {
           navigate(`/documents/${data.data.slug}/edit`);
         }
       } else {
-        toast.error(data.message || 'Не вдалося зберегти документ');
+        toast.error((data as { message?: string }).message || 'Не вдалося зберегти документ');
       }
     } catch (error) {
       console.error('Error saving document:', error);
