@@ -47,16 +47,16 @@ const ProjectDocs: React.FC = () => {
       return { title, id };
     });
 
-  // Save to backend
+  // Save to backend - save to file on server
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/project-docs', {
+      const response = await fetch('/api/files/project-docs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, filename: 'TS.md' }),
       });
 
       if (!response.ok) {

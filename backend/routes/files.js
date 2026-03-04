@@ -5,6 +5,42 @@ const fs = require('fs').promises;
 const logger = require('../utils/logger');
 const { fileSearchPaths } = require('../config/paths');
 
+// POST - Save project docs (TS.md)
+router.post('/project-docs', async (req, res) => {
+  try {
+    const { content, filename } = req.body;
+
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Content is required',
+      });
+    }
+
+    const safeFilename = filename || 'TS.md';
+    const docsPath = path.join(__dirname, '../../frontend/public/docs', safeFilename);
+
+    // Ensure directory exists
+    const docsDir = path.dirname(docsPath);
+    await fs.mkdir(docsDir, { recursive: true });
+
+    // Write the content to file
+    await fs.writeFile(docsPath, content, 'utf8');
+
+    logger.info(`Project docs saved: ${safeFilename}`);
+    res.json({
+      success: true,
+      message: 'Documentation saved successfully',
+    });
+  } catch (error) {
+    logger.error('Error saving project docs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save documentation',
+    });
+  }
+});
+
 // Маршрут для доступу до файлів
 router.get('/:filename', async (req, res) => {
   try {
