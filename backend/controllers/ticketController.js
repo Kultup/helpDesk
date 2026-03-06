@@ -323,11 +323,11 @@ exports.getTicketById = async (req, res) => {
             ? commentObj.author.toObject()
             : typeof commentObj.author === 'object'
               ? {
-                  _id: commentObj.author._id?.toString() || commentObj.author._id,
-                  email: commentObj.author.email || '',
-                  firstName: commentObj.author.firstName || '',
-                  lastName: commentObj.author.lastName || '',
-                }
+                _id: commentObj.author._id?.toString() || commentObj.author._id,
+                email: commentObj.author.email || '',
+                firstName: commentObj.author.firstName || '',
+                lastName: commentObj.author.lastName || '',
+              }
               : commentObj.author
           : null,
         createdAt: commentObj.createdAt || commentObj.created_at || new Date(),
@@ -400,13 +400,20 @@ exports.createTicket = async (req, res) => {
       }
     }
 
+    // Визначаємо автора тікету: якщо адмін вказав іншого автора, використовуємо його
+    let creatorId = req.user._id;
+    if (isAdminRole(req.user.role) && req.body.createdBy) {
+      creatorId = req.body.createdBy;
+      logger.info(`👤 Адмін створює тікет від імені користувача ID: ${creatorId}`);
+    }
+
     const ticket = new Ticket({
       title,
       description,
       priority,
       subcategory,
       city,
-      createdBy: req.user._id,
+      createdBy: creatorId,
       dueDate: dueDate ? new Date(dueDate) : null,
       estimatedHours,
       tags: tags || [],
@@ -597,7 +604,7 @@ exports.updateTicket = async (req, res) => {
       (ticket.resolutionSummary || (ticket.aiDialogHistory && ticket.aiDialogHistory.length > 0))
     ) {
       const ticketEmbeddingService = require('../services/ticketEmbeddingService');
-      ticketEmbeddingService.indexTicket(ticket._id).catch(() => {});
+      ticketEmbeddingService.indexTicket(ticket._id).catch(() => { });
     }
 
     // Якщо це перша відповідь, встановлюємо firstResponseAt
@@ -1189,8 +1196,7 @@ exports.exportTickets = async (req, res) => {
         baseData['Коментарі'] = ticket.comments
           .map(
             comment =>
-              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${
-                comment.content
+              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${comment.content
               }`
           )
           .join(' | ');

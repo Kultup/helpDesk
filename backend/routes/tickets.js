@@ -65,6 +65,7 @@ const createTicketSchema = Joi.object({
   }),
   priority: Joi.string().valid('low', 'medium', 'high').default('medium'),
   city: Joi.string().optional().allow(null),
+  createdBy: Joi.string().optional().allow(null),
   tags: Joi.array().items(Joi.string()).optional(),
   estimatedTime: Joi.number().min(0).optional(),
   dueDate: Joi.date().optional(),
@@ -275,14 +276,14 @@ router.post(
       // Обробка вкладених файлів
       const attachments = req.files
         ? req.files.map(file => ({
-            filename: file.filename,
-            originalName: file.originalname,
-            path: file.path,
-            size: file.size,
-            mimetype: file.mimetype,
-            uploadedBy: req.user._id, // Додаємо uploadedBy для кожного вкладення
-            uploadedAt: new Date(),
-          }))
+          filename: file.filename,
+          originalName: file.originalname,
+          path: file.path,
+          size: file.size,
+          mimetype: file.mimetype,
+          uploadedBy: req.user._id, // Додаємо uploadedBy для кожного вкладення
+          uploadedAt: new Date(),
+        }))
         : [];
 
       // Визначаємо місто: якщо не вказано в формі, використовуємо місто з профілю користувача (як в боті)
@@ -907,12 +908,12 @@ router.post(
       // Обробка вкладених файлів
       const attachments = req.files
         ? req.files.map(file => ({
-            filename: file.filename,
-            originalName: file.originalname,
-            path: file.path,
-            size: file.size,
-            mimetype: file.mimetype,
-          }))
+          filename: file.filename,
+          originalName: file.originalname,
+          path: file.path,
+          size: file.size,
+          mimetype: file.mimetype,
+        }))
         : [];
 
       // Підтримка шаблонів відповідей (Canned Responses)
@@ -1130,12 +1131,12 @@ router.post(
               userId: userId,
               recipientUser: recipientUser
                 ? {
-                    email: recipientUser.email,
-                    telegramId: recipientUser.telegramId,
-                    telegramChatId: recipientUser.telegramChatId,
-                    hasTelegramId: !!recipientUser.telegramId,
-                    hasTelegramChatId: !!recipientUser.telegramChatId,
-                  }
+                  email: recipientUser.email,
+                  telegramId: recipientUser.telegramId,
+                  telegramChatId: recipientUser.telegramChatId,
+                  hasTelegramId: !!recipientUser.telegramId,
+                  hasTelegramChatId: !!recipientUser.telegramChatId,
+                }
                 : null,
             });
 
