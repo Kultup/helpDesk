@@ -1801,8 +1801,8 @@ class TelegramAIService {
         .replace(/\s*\[Дія:\s*підказка\]\s*/gi, '')
         .replace(/\s*\[Дія:\s*уточнення\]\s*/gi, '')
         .trim();
-      session.dialog_history.push({ role: 'assistant', content: rawText });
-      botConversationService.appendMessage(chatId, user, 'assistant', rawText).catch(() => {});
+      session.dialog_history.push({ role: 'assistant', content: displayText });
+      botConversationService.appendMessage(chatId, user, 'assistant', displayText).catch(() => {});
 
       const isClarification =
         photoMetadata?.actionRequired === 'clarify' || /\[Дія:\s*уточнення\]/i.test(rawText);

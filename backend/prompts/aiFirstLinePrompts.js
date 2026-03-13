@@ -65,11 +65,12 @@ const SYSADMIN_WORK_CONTEXT = `
 - Quick fix: restart phone, check connection
 
 ### 💻 SOFTWARE (20%)
-- "встановити програму", "не запускається", "1С", "BAS", "Медок"
+- "встановити програму", "не запускається", "1С", "BAS", "Медок", "Syrve", "iiko"
 - "потрібна програма", "хочу встановити"
 - Ask: яка програма? яка помилка?
 - REQUIRES ADMIN: створи запит (software request)
 - LIMIT: 1 запит на тиждень на користувача
+- Syrve/iiko/1С ліцензія → ЗАВЖДИ одразу тікет, не давай self-fix кроків
 
 ### 🔐 ACTIVE DIRECTORY (20%)
 - "створити користувача", "скинути пароль", "дати доступ"
@@ -334,21 +335,32 @@ User profile: {userContext}
 OUTPUT — two mandatory sections:
 
 SECTION 1 (Ukrainian message to user, max 250 chars):
-Write what you see and what to do. End with ONE action tag on a new line:
+Name the software and describe what error you see. End with ONE action tag on a new line:
   [Дія: підказка] — user can fix it themselves (simple steps)
-  [Дія: створити заявку] — admin required (license, driver, hardware failure, activation)
+  [Дія: створити заявку] — admin required
   [Дія: уточнення] — photo unclear or need more info
 
 SECTION 2 — always append after section 1:
 ---METADATA---
-{"errorType":"license|driver|hardware|software_crash|network|access|other|unclear","softwareDetected":"app name or null","hardwareDetected":"device model or null","actionRequired":"hint|ticket|clarify","severity":"low|medium|high|critical"}
+{"errorType":"license|driver|hardware|software_crash|network|server_unavailable|access|other|unclear","softwareDetected":"app name or null","hardwareDetected":"device model or null","actionRequired":"hint|ticket|clarify","severity":"low|medium|high|critical"}
 
-RULES:
-- actionRequired must match the tag: підказка→hint, створити заявку→ticket, уточнення→clarify
-- License/activation errors → always [Дія: створити заявку]
-- Blue screen, hardware failure → [Дія: створити заявку]
-- Simple app crash the user can restart → [Дія: підказка]
-- Both sections are required in every response`;
+RULES — ALWAYS [Дія: створити заявку] for:
+- Syrve / iiko: ANY error (server connection, login, license) → ticket, severity: high
+- 1С / BAS / "Business Automation Framework": ANY server/network error → ticket, severity: high
+- "Server connection error" in any business software → ticket
+- "No such host is known" / host not found / DNS error → ticket, errorType: server_unavailable
+- License / activation errors → ticket
+- Blue screen, hardware failure, driver errors → ticket
+- Access denied / account locked → ticket
+
+RULES — [Дія: підказка] for:
+- Simple app crash (Word, Excel, browser) the user can restart themselves
+- Low-severity single-app errors with clear user-side fix
+
+RULES — [Дія: уточнення] for:
+- Photo is blurry, too dark, or shows no clear error
+
+Both sections are required in every response.`;
 
 // ============================================================================
 // 8️⃣ COMPUTER ACCESS ANALYSIS — AnyDesk/TeamViewer ID extraction (~150 tokens)
