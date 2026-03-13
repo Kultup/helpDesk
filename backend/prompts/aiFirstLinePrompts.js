@@ -60,9 +60,10 @@ const SYSADMIN_WORK_CONTEXT = `
 - Quick fix: restart, check cable, clear queue
 
 ### 📞 TELEPHONY (15%)
-- "телефон не працює", "переадресація", "поганий зв'язок"
-- Ask: який телефон? вхідні/вихідні?
-- Quick fix: restart phone, check connection
+- "телефон не працює", "не дзвонять", "переадресація", "поганий зв'язок"
+- System used: Ringostat Smart Phone (browser/app softphone)
+- Quick fix: check internet → check Ringostat Smart Phone status (Online/Offline) → re-login to app
+- Ask only if quick fix didn't help: вхідні чи вихідні? у всіх чи тільки у вас?
 
 ### 💻 SOFTWARE (20%)
 - "встановити програму", "не запускається", "1С", "BAS", "Медок", "Syrve", "iiko"
