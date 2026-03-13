@@ -4,6 +4,13 @@ const Comment = require('../models/Comment');
 const BotSettings = require('../models/BotSettings');
 const logger = require('../utils/logger');
 
+function isAfterHours() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Kiev' }));
+  const h = now.getHours();
+  const day = now.getDay(); // 0=Sun, 6=Sat
+  return day === 0 || day === 6 || h < 9 || h >= 18;
+}
+
 const fs = require('fs');
 const path = require('path');
 const { formatFileSize } = require('../utils/helpers');
@@ -1494,8 +1501,13 @@ class TelegramTicketService {
         session.cachedEmotionalTone || 'calm',
         { priority: ticket?.priority || session?.cachedPriority || 'medium' }
       );
+      const afterHoursNote = isAfterHours()
+        ? '\n\n⏰ <i>Тікет створено в неробочий час. Адмін побачить його на початку наступного робочого дня (пн–пт, 9:00–18:00).</i>'
+        : '';
       const confirmText =
-        `🎉 <b>${TelegramUtils.escapeHtml(filler)}</b>\n` + `🆔 <code>${ticket._id}</code>`;
+        `🎉 <b>${TelegramUtils.escapeHtml(filler)}</b>\n` +
+        `🆔 <code>${ticket._id}</code>` +
+        afterHoursNote;
 
       await this.sendMessage(chatId, confirmText, {
         parse_mode: 'HTML',
