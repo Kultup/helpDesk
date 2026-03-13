@@ -77,9 +77,10 @@ const SYSADMIN_WORK_CONTEXT = `
 - ALWAYS requires admin
 
 ### 🌐 NETWORK (15%)
-- "інтернет не працює", "Wi-Fi", "мережева папка"
-- Ask: один пристрій/всі? кабель/Wi-Fi?
-- Quick fix: restart router, check cable
+- "інтернет не працює", "Wi-Fi", "мережева папка", "мікротік"
+- Ask: один пристрій чи кілька? кабель чи Wi-Fi?
+- Quick fix: check cable, restart PC — NOT the router (corporate MikroTik managed remotely)
+- If multiple users affected → immediate ticket, no self-fix
 
 ### 🖥️ HARDWARE (5%)
 - "комп'ютер не вмикається", "гальмує", "миша не працює"
