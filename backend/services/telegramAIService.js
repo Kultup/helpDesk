@@ -1785,11 +1785,32 @@ class TelegramAIService {
         session.userContext.userEquipmentSummary = photoMetadata.hardwareDetected;
       }
 
+      // Заповнюємо priority і category з metadata щоб getTicketSummary отримав правильні хінти
+      const severityToPriority = { critical: 'urgent', high: 'high', medium: 'medium', low: 'low' };
+      if (photoMetadata.severity && !session.cachedPriority) {
+        session.cachedPriority = severityToPriority[photoMetadata.severity] || 'medium';
+      }
+      if (!session.cachedCategory) {
+        const errorType = photoMetadata.errorType || '';
+        const sw = (photoMetadata.softwareDetected || '').toLowerCase();
+        if (/syrve|iiko|1с|bas|бас|медок|бухгалт/i.test(sw)) {
+          session.cachedCategory = 'Software';
+        } else if (/server_unavailable|network/.test(errorType)) {
+          session.cachedCategory = 'Network';
+        } else if (/license|driver|software_crash|access/.test(errorType)) {
+          session.cachedCategory = 'Software';
+        } else if (/hardware/.test(errorType)) {
+          session.cachedCategory = 'Hardware';
+        }
+      }
+
       logger.info('AI: Photo metadata saved to session', {
         errorType: photoMetadata.errorType,
         softwareDetected: photoMetadata.softwareDetected,
         hardwareDetected: photoMetadata.hardwareDetected,
         actionRequired: photoMetadata.actionRequired,
+        cachedPriority: session.cachedPriority,
+        cachedCategory: session.cachedCategory,
       });
     }
     if (analysisText && analysisText.trim()) {
@@ -1845,12 +1866,14 @@ class TelegramAIService {
 
       if (isClarification) {
         session.step = 'gathering_information';
+        session.awaitingErrorPhoto = true;
         const normalizedClarify = TelegramUtils.normalizeQuickSolutionSteps(displayText || rawText);
         await this.telegramService.sendMessage(chatId, normalizedClarify, {
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: 'Заповнити по-старому', callback_data: 'ai_switch_to_classic' },
+              { text: '📸 Надіслати інше фото', callback_data: 'skip_error_photo' },
+              { text: '✏️ Описати текстом', callback_data: 'ai_switch_to_classic' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]),
           },
@@ -1880,31 +1903,23 @@ class TelegramAIService {
         },
       });
     } else {
-      session.step = 'awaiting_tip_feedback';
-      const filler = await aiFirstLineService.generateConversationalResponse(
-        session.dialog_history,
-        'ask_for_details_fallback',
-        session.userContext,
-        session.cachedEmotionalTone
-      );
-      const requiresAdminOnlyFiller = quickSolutionRequiresAdminOnly(filler);
-      const fillerKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
-        requiresAdminOnlyFiller
-          ? [
-              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
+      // analyzePhoto повернув null — фото не вдалось обробити (Gemini, помилка завантаження тощо)
+      session.step = 'gathering_information';
+      session.awaitingErrorPhoto = true;
+      await this.telegramService.sendMessage(
+        chatId,
+        '📸 Не вдалося обробити фото. Спробуйте надіслати <b>чіткий скріншот</b> (не фото екрану здалеку), або опишіть проблему текстом.',
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '✏️ Описати текстом', callback_data: 'ai_switch_to_classic' },
+              { text: '📝 Створити тікет', callback_data: 'create_ticket' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
-            ]
-          : [
-              { text: '✅ Допомогло', callback_data: 'tip_helped' },
-              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
-              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
-            ]
+            ]),
+          },
+        }
       );
-      await this.telegramService.sendMessage(chatId, filler, {
-        reply_markup: {
-          inline_keyboard: fillerKeyboard,
-        },
-      });
     }
   }
 

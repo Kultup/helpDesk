@@ -294,10 +294,21 @@ Return ONLY valid JSON:
 }
 
 Rules:
-- title: specific, problem-focused, no personal data
+- title: specific, problem-focused, name the software/device (e.g. "Syrve: помилка підключення до сервера")
 - description: all technical details from conversation, structured
 - Use suggested priority/category unless dialog clearly indicates otherwise
 - Ukrainian language for all text
+
+Priority overrides (ignore suggestion if these apply):
+- "Server connection error", "No such host is known", server unavailable → priority: high
+- Syrve / iiko / 1С / BAS server error → priority: high, category: Software
+- License/activation error → priority: high, category: Software
+- Multiple users affected → priority: urgent
+
+Category overrides:
+- Syrve, iiko, 1С, BAS, Медок, Office → Software
+- "No such host", DNS, network unreachable → Network
+- Printer, scanner, monitor → Hardware
 `;
 
 // ============================================================================
@@ -359,6 +370,7 @@ RULES — [Дія: підказка] for:
 
 RULES — [Дія: уточнення] for:
 - Photo is blurry, too dark, or shows no clear error
+- In this case write: "Фото нечітке — надішліть, будь ласка, чіткий скріншот (Print Screen або Shift+Win+S)"
 
 Both sections are required in every response.`;
 
