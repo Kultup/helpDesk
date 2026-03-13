@@ -1799,6 +1799,7 @@ class TelegramAIService {
       const displayText = rawText
         .replace(/\s*\[Дія:\s*створити заявку\]\s*/gi, '')
         .replace(/\s*\[Дія:\s*підказка\]\s*/gi, '')
+        .replace(/\s*\[Дія:\s*уточнення\]\s*/gi, '')
         .trim();
       session.dialog_history.push({ role: 'assistant', content: rawText });
       botConversationService.appendMessage(chatId, user, 'assistant', rawText).catch(() => {});

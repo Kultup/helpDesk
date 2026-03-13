@@ -326,16 +326,29 @@ Respond: YES or NO`;
 // ============================================================================
 // 7️⃣ PHOTO ANALYSIS — analyze error screenshot (~400 tokens)
 // ============================================================================
-const PHOTO_ANALYSIS = `You are a helpdesk technical expert. Analyze this screenshot/photo of a technical problem.
+const PHOTO_ANALYSIS = `You are a helpdesk technical expert. Analyze this error screenshot.
 
 Problem context: {problemDescription}
 User profile: {userContext}
 
-Describe in Ukrainian (max 350 chars):
-1. What you see / what the error is
-2. 2-3 recommended steps to fix it
+OUTPUT — two mandatory sections:
 
-Be specific and practical. Ukrainian language.`;
+SECTION 1 (Ukrainian message to user, max 250 chars):
+Write what you see and what to do. End with ONE action tag on a new line:
+  [Дія: підказка] — user can fix it themselves (simple steps)
+  [Дія: створити заявку] — admin required (license, driver, hardware failure, activation)
+  [Дія: уточнення] — photo unclear or need more info
+
+SECTION 2 — always append after section 1:
+---METADATA---
+{"errorType":"license|driver|hardware|software_crash|network|access|other|unclear","softwareDetected":"app name or null","hardwareDetected":"device model or null","actionRequired":"hint|ticket|clarify","severity":"low|medium|high|critical"}
+
+RULES:
+- actionRequired must match the tag: підказка→hint, створити заявку→ticket, уточнення→clarify
+- License/activation errors → always [Дія: створити заявку]
+- Blue screen, hardware failure → [Дія: створити заявку]
+- Simple app crash the user can restart → [Дія: підказка]
+- Both sections are required in every response`;
 
 // ============================================================================
 // 8️⃣ COMPUTER ACCESS ANALYSIS — AnyDesk/TeamViewer ID extraction (~150 tokens)

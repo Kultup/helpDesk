@@ -1400,7 +1400,14 @@ async function transcribeVoiceToText(filePath) {
  */
 async function analyzePhoto(imagePath, problemDescription, userContext) {
   const settings = await getAISettings();
-  if (!settings || !settings.enabled || settings.provider !== 'openai') {
+  if (!settings || !settings.enabled) {
+    return null;
+  }
+  if (settings.provider !== 'openai') {
+    logger.warn(
+      'AI: аналіз фото підтримується лише для OpenAI (Vision). Поточний провайдер:',
+      settings.provider
+    );
     return null;
   }
   if (!settings.openaiApiKey || !String(settings.openaiApiKey).trim()) {
