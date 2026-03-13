@@ -680,13 +680,14 @@ class TelegramAIService {
 
       if (helped) {
         session.step = null;
-        this.telegramService.userSessions.delete(chatId);
         const filler = await aiFirstLineService.generateConversationalResponse(
           session.dialog_history,
           'accept_thanks',
           session.userContext,
           session.cachedEmotionalTone
         );
+        botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
+        this.telegramService.userSessions.delete(chatId);
         await this.telegramService.sendMessage(chatId, filler, {
           reply_markup: {
             inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
@@ -1021,6 +1022,9 @@ class TelegramAIService {
     }
     if (result.requestType === 'question' || result.requestType === 'appeal') {
       session.cachedRequestType = result.requestType;
+    }
+    if (result.duplicateTicketId) {
+      session.duplicateTicketId = result.duplicateTicketId;
     }
 
     if (!result.isTicketIntent) {

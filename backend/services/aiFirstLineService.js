@@ -743,7 +743,13 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
   const aiEnhancedService = require('./aiEnhancedService');
   const quickSolutions = aiEnhancedService.getAllQuickSolutions();
   const quickSolutionsText = quickSolutions
-    .map(s => `- ${s.problemType}: ${s.keywords.join(', ')}`)
+    .map(s => {
+      const preview = String(s.solution || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100);
+      return `• [${s.problemType}] (${s.keywords.slice(0, 3).join(', ')}): ${preview}`;
+    })
     .join('\n');
 
   // --- KNOWLEDGE BASE SEARCH (DISABLED) ---

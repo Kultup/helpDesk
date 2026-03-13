@@ -541,6 +541,7 @@ class TelegramService {
       const sessionForTouch = this.userSessions.get(chatId);
       if (sessionForTouch) {
         sessionForTouch.lastActivityAt = Date.now();
+        delete sessionForTouch.idleWarningSentAt;
         this.userSessions.set(chatId, sessionForTouch);
       }
 
@@ -1546,6 +1547,7 @@ class TelegramService {
               'accept_thanks',
               session.userContext || {}
             );
+            botConversationService.appendMessage(chatId, user, 'assistant', filler).catch(() => {});
             this.userSessions.delete(chatId);
             await this.sendMessage(chatId, filler, {
               reply_markup: {
@@ -1623,35 +1625,54 @@ class TelegramService {
           // ✅ Користувач підтвердив створення тікета
           const session = this.userSessions.get(chatId);
           if (session && session.step === 'confirm_ticket' && session.ticketDraft) {
-            // Переводимо draft в реальний тікет
-            session.step = 'photo';
-            session.ticketData = {
-              createdBy: session.ticketDraft.createdBy,
-              title: session.ticketDraft.title,
-              description: session.ticketDraft.description,
-              priority: session.ticketDraft.priority,
-              subcategory: session.ticketDraft.subcategory,
-              type: session.ticketDraft.type,
-              photos: [],
-              documents: [],
-            };
+            // Перевірка на дублікат (перший клік — попередження, другий — дозволяємо)
+            if (session.duplicateTicketId && !session.duplicateConfirmed) {
+              session.duplicateConfirmed = true;
+              this.userSessions.set(chatId, session);
+              await this.sendMessage(
+                chatId,
+                `⚠️ <b>Увага!</b> В цьому закладі вже є схоже звернення за останні 10 хвилин.\n\nВсе одно створити нову заявку?`,
+                {
+                  parse_mode: 'HTML',
+                  reply_markup: {
+                    inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                      { text: '✅ Так, створити', callback_data: 'confirm_create_ticket' },
+                      { text: '❌ Скасувати', callback_data: 'cancel_ticket' },
+                    ]),
+                  },
+                }
+              );
+            } else {
+              // Переводимо draft в реальний тікет
+              session.step = 'photo';
+              session.ticketData = {
+                createdBy: session.ticketDraft.createdBy,
+                title: session.ticketDraft.title,
+                description: session.ticketDraft.description,
+                priority: session.ticketDraft.priority,
+                subcategory: session.ticketDraft.subcategory,
+                type: session.ticketDraft.type,
+                photos: [],
+                documents: [],
+              };
 
-            this.userSessions.set(chatId, session);
+              this.userSessions.set(chatId, session);
 
-            const filler = 'Інформацію збережено';
-            await this.sendMessage(
-              chatId,
-              `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
-              {
-                reply_markup: {
-                  inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-                    { text: '📷 Додати фото', callback_data: 'attach_photo' },
-                    { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
-                    { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
-                  ]),
-                },
-              }
-            );
+              const filler = 'Інформацію збережено';
+              await this.sendMessage(
+                chatId,
+                `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
+                {
+                  reply_markup: {
+                    inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                      { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                      { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                      { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                    ]),
+                  },
+                }
+              );
+            }
           }
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'force_create_ticket') {
@@ -1940,12 +1961,12 @@ class TelegramService {
       const aiEnabled = aiSettings && aiSettings.enabled === true;
       const hasApiKey =
         aiSettings &&
-        ((aiSettings.provider === 'groq' &&
-          aiSettings.groqApiKey &&
-          String(aiSettings.groqApiKey).trim()) ||
-          (aiSettings.provider === 'openai' &&
-            aiSettings.openaiApiKey &&
-            String(aiSettings.openaiApiKey).trim()));
+        ((aiSettings.provider === 'openai' &&
+          aiSettings.openaiApiKey &&
+          String(aiSettings.openaiApiKey).trim()) ||
+          (aiSettings.provider === 'gemini' &&
+            aiSettings.geminiApiKey &&
+            String(aiSettings.geminiApiKey).trim()));
       if (aiEnabled && hasApiKey && text && String(text).trim().length > 0) {
         const fullUser = await User.findById(existingUser._id)
           .populate('position', 'title name')

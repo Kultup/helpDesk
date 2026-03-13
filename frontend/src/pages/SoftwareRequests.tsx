@@ -16,62 +16,13 @@ import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { apiService } from '../services/api';
-
-interface SoftwareRequest {
-  _id: string;
-  user: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    telegramId?: string;
-  };
-  telegramId: string;
-  softwareName: string;
-  softwarePhoto?: string;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'installed' | 'expired';
-  testUserCreated: boolean;
-  testUserCredentials?: {
-    username: string;
-    password: string;
-    expiresAt: string;
-  };
-  aiAnalysis?: {
-    isSafe: boolean;
-    category: string;
-    requiresLicense: boolean;
-    notes: string;
-  };
-  adminNote?: string;
-  requestedAt: string;
-  expiresAt: string;
-  resolvedAt?: string;
-}
-
-interface Stats {
-  bySoftware: Array<{
-    _id: string;
-    count: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-    installed: number;
-  }>;
-  summary: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-    installed: number;
-  };
-}
+import { apiService, ApiResponse } from '../services/api';
+import { SoftwareRequest, SoftwareRequestsApiResponse, SoftwareRequestStats } from '../types';
 
 const SoftwareRequests: React.FC = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<SoftwareRequest[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<SoftwareRequestStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -106,7 +57,7 @@ const SoftwareRequests: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await apiService.getSoftwareRequestStats();
-      if (res.success) {
+      if (res.success && res.data) {
         setStats(res.data);
       }
     } catch (error) {

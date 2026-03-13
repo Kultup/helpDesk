@@ -767,6 +767,69 @@ export interface InstitutionsResponse {
   };
 }
 
+export interface SoftwareRequest {
+  _id: string;
+  user: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    telegramId?: string;
+  };
+  telegramId: string;
+  softwareName: string;
+  softwarePhoto?: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected' | 'installed' | 'expired';
+  testUserCreated: boolean;
+  testUserCredentials?: {
+    username: string;
+    password: string;
+    expiresAt: string;
+  };
+  aiAnalysis?: {
+    isSafe: boolean;
+    category: string;
+    requiresLicense: boolean;
+    notes: string;
+  };
+  adminNote?: string;
+  requestedAt: string;
+  expiresAt: string;
+  resolvedAt?: string;
+}
+
+export interface SoftwareRequestsApiResponse {
+  success: boolean;
+  data: SoftwareRequest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  message?: string;
+  error?: string;
+}
+
+export interface SoftwareRequestStats {
+  bySoftware: Array<{
+    _id: string;
+    count: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    installed: number;
+  }>;
+  summary: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    installed: number;
+  };
+}
+
 export interface Equipment {
   _id: string;
   name: string;

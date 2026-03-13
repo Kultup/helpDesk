@@ -555,6 +555,7 @@ class AIEnhancedService {
       keywords: solution.keywords,
       category: solution.category,
       estimatedTime: solution.estimatedTime,
+      solution: solution.solution,
     }));
   }
 

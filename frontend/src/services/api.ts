@@ -36,6 +36,9 @@ import {
   CreateInstitutionData,
   InstitutionsResponse,
   InstitutionType,
+  SoftwareRequest,
+  SoftwareRequestsApiResponse,
+  SoftwareRequestStats,
 } from '../types';
 
 // Реекспорт для зручності
@@ -1858,7 +1861,7 @@ class ApiService {
     page?: number;
     limit?: number;
     status?: string;
-  }): Promise<ApiResponse<any>> {
+  }): Promise<SoftwareRequestsApiResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -1882,7 +1885,7 @@ class ApiService {
     return this.put(`/software-requests/${id}/install`);
   }
 
-  async getSoftwareRequestStats(): Promise<ApiResponse<any>> {
+  async getSoftwareRequestStats(): Promise<ApiResponse<SoftwareRequestStats>> {
     return this.get('/software-requests/stats');
   }
 }
