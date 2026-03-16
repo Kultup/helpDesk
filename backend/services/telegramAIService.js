@@ -1714,14 +1714,18 @@ class TelegramAIService {
         }
       } catch (err) {
         logger.error('AI: помилка analyzePhoto після tip_not_helped', err);
-      } finally {
-        try {
-          if (localPathErr && fs.existsSync(localPathErr)) {
-            fs.unlinkSync(localPathErr);
-          }
-        } catch (_) {
-          /* ignore cleanup error */
+      }
+      // Зберігаємо фото як вкладення до тікету
+      if (localPathErr) {
+        if (!session.pendingAttachments) {
+          session.pendingAttachments = [];
         }
+        session.pendingAttachments.push({
+          type: 'photo',
+          fileId,
+          path: localPathErr,
+          caption: caption || '',
+        });
       }
       await this._showTicketConfirmationFromDialog(chatId, session, user);
       return;
@@ -1798,14 +1802,18 @@ class TelegramAIService {
       );
     } catch (err) {
       logger.error('AI: помилка analyzePhoto', err);
-    } finally {
-      try {
-        if (localPath && fs.existsSync(localPath)) {
-          fs.unlinkSync(localPath);
-        }
-      } catch (_) {
-        // Ignore cleanup error
+    }
+    // Зберігаємо фото як вкладення до тікету (не видаляємо temp-файл)
+    if (localPath) {
+      if (!session.pendingAttachments) {
+        session.pendingAttachments = [];
       }
+      session.pendingAttachments.push({
+        type: 'photo',
+        fileId,
+        path: localPath,
+        caption: caption || '',
+      });
     }
     const analysisText =
       analysisResult?.text || (typeof analysisResult === 'string' ? analysisResult : null);

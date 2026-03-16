@@ -605,6 +605,8 @@ class TelegramService {
           }
           if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
             if (msg.media_group_id && !this._isFirstInMediaGroup(msg.chat.id, msg.media_group_id)) {
+              // Додаткове фото з альбому — зберігаємо як вкладення без повторного аналізу
+              this._savePendingPhotoToSession(msg.chat.id, msg, session).catch(() => {});
               return;
             }
             await this.aiService.handlePhotoInAiMode(
@@ -1664,6 +1666,12 @@ class TelegramService {
             } else {
               // Переводимо draft в реальний тікет
               session.step = 'photo';
+              const pendingPhotos = (session.pendingAttachments || []).filter(
+                a => a.type === 'photo'
+              );
+              const pendingDocs = (session.pendingAttachments || []).filter(
+                a => a.type === 'document'
+              );
               session.ticketData = {
                 createdBy: session.ticketDraft.createdBy,
                 title: session.ticketDraft.title,
@@ -1671,26 +1679,33 @@ class TelegramService {
                 priority: session.ticketDraft.priority,
                 subcategory: session.ticketDraft.subcategory,
                 type: session.ticketDraft.type,
-                photos: [],
-                documents: [],
+                photos: pendingPhotos,
+                documents: pendingDocs,
               };
 
               this.userSessions.set(chatId, session);
 
-              const filler = 'Інформацію збережено';
-              await this.sendMessage(
-                chatId,
-                `✅ *${filler}*\n\n` + `📸 *Останній крок:* Бажаєте додати фото до заявки?`,
-                {
-                  reply_markup: {
-                    inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-                      { text: '📷 Додати фото', callback_data: 'attach_photo' },
-                      { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
-                      { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
-                    ]),
-                  },
-                }
-              );
+              const totalAttached = pendingPhotos.length + pendingDocs.length;
+              let attachMsg, attachKeyboard;
+              if (totalAttached > 0) {
+                attachMsg = `✅ <b>Інформацію збережено</b>\n\n📎 Прикріплено файлів: <b>${totalAttached}</b>\n\nХочете додати ще файли чи завершити?`;
+                attachKeyboard = TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '📷 Додати ще', callback_data: 'attach_photo' },
+                  { text: '✅ Завершити', callback_data: 'skip_photo' },
+                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                ]);
+              } else {
+                attachMsg = `✅ <b>Інформацію збережено</b>\n\n📸 <b>Останній крок:</b> Бажаєте додати фото до заявки?`;
+                attachKeyboard = TelegramUtils.inlineKeyboardTwoPerRow([
+                  { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                  { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                ]);
+              }
+              await this.sendMessage(chatId, attachMsg, {
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: attachKeyboard },
+              });
             }
           }
           await this.answerCallbackQuery(callbackQuery.id);
@@ -2208,6 +2223,33 @@ class TelegramService {
     return true;
   }
 
+  /** Завантажує додаткове фото з Telegram-альбому і зберігає в session.pendingAttachments без аналізу. */
+  async _savePendingPhotoToSession(chatId, msg, session) {
+    try {
+      const photo = msg.photo[msg.photo.length - 1];
+      const fileId = photo.file_id;
+      const file = await this.bot.getFile(fileId);
+      const ext = path.extname(file.file_path).toLowerCase() || '.jpg';
+      const localPath = await this.downloadTelegramFileByFileId(fileId, ext);
+      if (!session.pendingAttachments) {
+        session.pendingAttachments = [];
+      }
+      session.pendingAttachments.push({
+        type: 'photo',
+        fileId,
+        path: localPath,
+        caption: msg.caption || '',
+      });
+      this.userSessions.set(chatId, session);
+      logger.info('AI: додаткове фото з альбому збережено', {
+        chatId,
+        total: session.pendingAttachments.length,
+      });
+    } catch (err) {
+      logger.error('Помилка збереження додаткового фото з альбому', { chatId, err: err.message });
+    }
+  }
+
   // Обробка фото
   async handlePhoto(msg) {
     const chatId = msg.chat.id;
@@ -2468,8 +2510,55 @@ class TelegramService {
 
     if (session && session.step === 'photo') {
       await this.ticketService.handleTicketDocument(chatId, msg.document, msg.caption);
+    } else if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
+      await this._savePendingDocumentInAiMode(chatId, msg, session);
     } else {
       await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
+    }
+  }
+
+  /** Зберігає PDF/документ у AI-сесію як вкладення до майбутнього тікету. */
+  async _savePendingDocumentInAiMode(chatId, msg, session) {
+    const fileName = msg.document.file_name || 'document';
+    try {
+      const fileInfo = await this.bot.getFile(msg.document.file_id);
+      const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
+      const safeName = `${Date.now()}_${fileName.replace(/[^\w._-]/g, '_')}`;
+      const savedPath = path.join(uploadsPath, 'telegram-files', safeName);
+      fs.renameSync(tempPath, savedPath);
+
+      if (!session.pendingAttachments) {
+        session.pendingAttachments = [];
+      }
+      session.pendingAttachments.push({
+        type: 'document',
+        fileId: msg.document.file_id,
+        path: savedPath,
+        fileName,
+        caption: msg.caption || '',
+        size: msg.document.file_size || 0,
+      });
+      this.userSessions.set(chatId, session);
+
+      const count = session.pendingAttachments.length;
+      await this.sendMessage(
+        chatId,
+        `📎 Файл прикріплено (${count}): <b>${TelegramUtils.escapeHtml(fileName)}</b>\n\nОпишіть проблему або натисніть «Сформувати заявку».`,
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
+            ],
+          },
+        }
+      );
+    } catch (err) {
+      logger.error('Помилка збереження документу в AI-сесію', { chatId, err: err.message });
+      await this.sendMessage(
+        chatId,
+        `❌ Не вдалося прикріпити файл: ${TelegramUtils.escapeHtml(fileName)}`
+      );
     }
   }
 
