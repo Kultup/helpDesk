@@ -1379,8 +1379,12 @@ class TelegramTicketService {
               '.mov': 'video/quicktime',
             };
 
-            const mimeType =
-              mimeTypes[doc.extension.toLowerCase()] || doc.mimeType || 'application/octet-stream';
+            const docExt = (
+              doc.extension ||
+              path.extname(doc.path || '') ||
+              path.extname(doc.fileName || '')
+            ).toLowerCase();
+            const mimeType = mimeTypes[docExt] || doc.mimeType || 'application/octet-stream';
 
             return {
               filename: path.basename(doc.path),
