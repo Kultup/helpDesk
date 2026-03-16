@@ -44,7 +44,8 @@ class TelegramService {
     this.internetRequestCounts = sessionManager.createInternetRequestCountsMap();
     this.token = null; // Токен бота
     this._mediaGroupSeen = new Map(); // Дедуплікація Telegram-альбомів: key=`${chatId}:${mediaGroupId}`
-    this._documentBuffers = new Map(); // Буфер документів для debounce: key=chatId
+    this._documentBuffers = new Map(); // Буфер документів для debounce (AI-режим): key=chatId
+    this._classicDocBuffers = new Map(); // Буфер документів для debounce (класичний режим): key=chatId
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -2558,8 +2559,8 @@ class TelegramService {
     }
 
     if (session && session.step === 'photo') {
-      // Класичний режим створення тікету — одразу прикріплюємо
-      await this.ticketService.handleTicketDocument(chatId, msg.document, msg.caption);
+      // Класичний режим — буферизуємо щоб кілька файлів = одне повідомлення
+      this._queueClassicDocument(chatId, msg);
     } else if (!session || session.mode === 'ai' || session.mode === 'choosing') {
       // AI-режим або немає сесії — буферизуємо (debounce 1.5с) щоб кілька файлів = одне повідомлення
       this._queueDocumentForAi(chatId, msg);
@@ -2707,6 +2708,122 @@ class TelegramService {
         },
       }
     );
+  }
+
+  /** Додає документ у буфер класичного режиму. Через 1.5с обробляє всі разом. */
+  _queueClassicDocument(chatId, msg) {
+    const key = String(chatId);
+    const existing = this._classicDocBuffers.get(key);
+    if (existing) {
+      clearTimeout(existing.timer);
+      existing.msgs.push(msg);
+    } else {
+      this._classicDocBuffers.set(key, { msgs: [msg] });
+    }
+    const buffer = this._classicDocBuffers.get(key);
+    buffer.timer = setTimeout(() => {
+      this._classicDocBuffers.delete(key);
+      this._processClassicDocumentQueue(chatId, buffer.msgs).catch(err => {
+        logger.error('Помилка обробки черги документів (класичний режим)', {
+          chatId,
+          err: err.message,
+        });
+      });
+    }, 1500);
+  }
+
+  /** Обробляє накопичені документи класичного режиму: зберігає всі, надсилає одне повідомлення. */
+  async _processClassicDocumentQueue(chatId, msgs) {
+    const session = this.userSessions.get(chatId);
+    if (!session || session.step !== 'photo') {
+      return;
+    }
+
+    if (!session.ticketData.documents) {
+      session.ticketData.documents = [];
+    }
+
+    const maxFiles = 10;
+    const maxSizeBytes = 50 * 1024 * 1024;
+    const savedNames = [];
+    const errors = [];
+
+    for (const msg of msgs) {
+      const document = msg.document;
+      const fileId = document.file_id;
+      const fileSizeBytes = document.file_size || 0;
+      const fileName = document.file_name || 'document';
+      const fileExtension = path.extname(fileName).toLowerCase() || '.bin';
+
+      const totalFiles =
+        (session.ticketData.photos?.length || 0) + (session.ticketData.documents?.length || 0);
+      if (totalFiles >= maxFiles) {
+        errors.push(`${fileName}: досягнуто ліміт ${maxFiles} файлів`);
+        continue;
+      }
+
+      if (fileSizeBytes > maxSizeBytes) {
+        errors.push(`${fileName}: файл занадто великий`);
+        continue;
+      }
+
+      try {
+        const savedPath = await TelegramUtils.downloadTelegramFileByFileId(
+          this.bot,
+          fileId,
+          fileExtension
+        );
+        session.ticketData.documents.push({
+          fileId,
+          path: savedPath,
+          fileName,
+          caption: msg.caption || '',
+          size: fileSizeBytes,
+          extension: fileExtension,
+          mimeType: document.mime_type || 'application/octet-stream',
+        });
+        savedNames.push(fileName);
+      } catch (err) {
+        logger.error('Помилка завантаження файлу (класичний режим)', {
+          chatId,
+          fileName,
+          err: err.message,
+        });
+        errors.push(`${fileName}: помилка завантаження`);
+      }
+    }
+
+    this.userSessions.set(chatId, session);
+
+    if (savedNames.length === 0) {
+      await this.sendMessage(chatId, '❌ Не вдалося зберегти файли. Спробуйте ще раз.');
+      return;
+    }
+
+    const totalNow =
+      (session.ticketData.photos?.length || 0) + (session.ticketData.documents?.length || 0);
+
+    const header =
+      savedNames.length === 1
+        ? `✅ <b>Файл додано!</b> (${totalNow}/${maxFiles})\n\n📄 ${TelegramUtils.escapeHtml(savedNames[0])}`
+        : `✅ <b>Додано файлів: ${savedNames.length}</b> (всього: ${totalNow}/${maxFiles})\n\n` +
+          savedNames.map(n => `📄 ${TelegramUtils.escapeHtml(n)}`).join('\n');
+
+    const errText =
+      errors.length > 0
+        ? `\n\n⚠️ Не вдалося додати:\n${errors.map(e => `• ${TelegramUtils.escapeHtml(e)}`).join('\n')}`
+        : '';
+
+    await this.sendMessage(chatId, `${header}${errText}\n\nХочете додати ще файли?`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+          { text: '📎 Додати ще файл', callback_data: 'add_more_photos' },
+          { text: '✅ Завершити', callback_data: 'finish_ticket' },
+          { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+        ]),
+      },
+    });
   }
 
   async handleContact(msg) {
