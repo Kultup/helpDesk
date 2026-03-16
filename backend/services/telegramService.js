@@ -2186,6 +2186,57 @@ class TelegramService {
   async handlePhoto(msg) {
     const chatId = msg.chat.id;
     const session = this.userSessions.get(chatId);
+    const caption = (msg.caption || '').trim();
+
+    // Фото для сайту: caption починається з WEB_ (без активної сесії тікету/AI)
+    if (caption.toUpperCase().startsWith('WEB_') && !(session && session.step === 'photo')) {
+      try {
+        const user = await User.findOne({
+          $or: [{ telegramId: String(msg.from.id) }, { telegramId: msg.from.id }],
+        });
+        if (!user) {
+          await this.sendMessage(chatId, '❌ Помилка: Користувач не знайдений в системі.');
+          return;
+        }
+        const escapedCaption = TelegramUtils.escapeHtml(caption);
+        await this.sendMessage(
+          chatId,
+          `📥 Виявлено фото для сайту: <b>${escapedCaption}</b>\nЗберігаю...`,
+          { parse_mode: 'HTML' }
+        );
+        const largestPhoto = msg.photo[msg.photo.length - 1];
+        const fileInfo = await this.bot.getFile(largestPhoto.file_id);
+        const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
+
+        const { uploadsPath } = require('../config/paths');
+        const fs = require('fs');
+        const destDir = path.join(uploadsPath, 'website-content');
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        const ext = path.extname(fileInfo.file_path) || '.jpg';
+        const safeName = caption.replace(/[^\wа-яёіїєґА-ЯЁІЇЄҐ.\-_]/gi, '_');
+        const savedName = `${Date.now()}_${safeName}${ext.includes('.') ? '' : ext}`;
+        const savedPath = path.join(destDir, savedName);
+        fs.renameSync(tempPath, savedPath);
+
+        await this.sendMessage(chatId, '✅ Фото збережено і адміністратора сповіщено!');
+        await this.notificationService.notifyAdminsAboutWebsiteContent(
+          caption,
+          user,
+          savedPath,
+          true
+        );
+        return;
+      } catch (error) {
+        logger.error('Помилка збереження фото для сайту:', error);
+        await this.sendMessage(
+          chatId,
+          `❌ Помилка збереження фото: ${TelegramUtils.escapeHtml(error.message)}`
+        );
+        return;
+      }
+    }
 
     if (session) {
       if (session.step === 'photo') {
@@ -2279,6 +2330,53 @@ class TelegramService {
     const chatId = msg.chat.id;
     const session = this.userSessions.get(chatId);
     const fileName = msg.document.file_name;
+
+    // Файли для оновлення сайту (WEB_ префікс)
+    if (fileName && fileName.toUpperCase().startsWith('WEB_')) {
+      try {
+        const user = await User.findOne({
+          $or: [{ telegramId: String(msg.from.id) }, { telegramId: msg.from.id }],
+        });
+        if (!user) {
+          await this.sendMessage(chatId, '❌ Помилка: Користувач не знайдений в системі.');
+          return;
+        }
+        const escapedFileName = TelegramUtils.escapeHtml(fileName);
+        await this.sendMessage(
+          chatId,
+          `📥 Виявлено файл для сайту: <b>${escapedFileName}</b>\nЗберігаю...`,
+          { parse_mode: 'HTML' }
+        );
+        const fileInfo = await this.bot.getFile(msg.document.file_id);
+        const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
+
+        const { uploadsPath } = require('../config/paths');
+        const fs = require('fs');
+        const destDir = path.join(uploadsPath, 'website-content');
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        const savedName = `${Date.now()}_${fileName}`;
+        const savedPath = path.join(destDir, savedName);
+        fs.renameSync(tempPath, savedPath);
+
+        await this.sendMessage(chatId, '✅ Файл збережено і адміністратора сповіщено!');
+        await this.notificationService.notifyAdminsAboutWebsiteContent(
+          fileName,
+          user,
+          savedPath,
+          false
+        );
+        return;
+      } catch (error) {
+        logger.error('Помилка збереження файлу для сайту:', error);
+        await this.sendMessage(
+          chatId,
+          `❌ Помилка збереження файлу: ${TelegramUtils.escapeHtml(error.message)}`
+        );
+        return;
+      }
+    }
 
     // Автоматичний імпорт інвентарних файлів
     if (fileName && fileName.toUpperCase().startsWith('INV_')) {

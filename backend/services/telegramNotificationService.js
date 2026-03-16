@@ -811,6 +811,70 @@ class TelegramNotificationService {
       logger.error('Помилка сповіщення адмінів про імпорт обладнання:', error);
     }
   }
+
+  /**
+   * Сповіщення адмінів про новий файл для сайту (WEB_ префікс)
+   * @param {string} filename - Оригінальна назва файлу
+   * @param {Object} user - Користувач, який надіслав файл
+   * @param {string} savedPath - Локальний шлях до збереженого файлу
+   * @param {boolean} isPhoto - true якщо це фото
+   */
+  async notifyAdminsAboutWebsiteContent(filename, user, savedPath, isPhoto = false) {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        return;
+      }
+
+      const admins = await User.find({
+        role: 'admin',
+        isActive: true,
+        telegramId: { $exists: true, $ne: null },
+      }).select('telegramId');
+
+      if (admins.length === 0) {
+        return;
+      }
+
+      const userName = TelegramUtils.escapeHtml(
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email
+      );
+      const escapedFilename = TelegramUtils.escapeHtml(filename);
+      const savedName = TelegramUtils.escapeHtml(require('path').basename(savedPath));
+
+      const message =
+        `🌐 <b>Новий файл для сайту</b>\n\n` +
+        `👤 <b>Від:</b> ${userName}\n` +
+        `📄 <b>Файл:</b> <code>${escapedFilename}</code>\n` +
+        `💾 <b>Збережено як:</b> <code>${savedName}</code>`;
+
+      const fs = require('fs');
+      for (const admin of admins) {
+        try {
+          await this.sendMessage(admin.telegramId, message, { parse_mode: 'HTML' });
+          // Пересилаємо сам файл адміну
+          if (fs.existsSync(savedPath)) {
+            if (isPhoto) {
+              await this.bot.sendPhoto(admin.telegramId, savedPath, {
+                caption: `📎 ${escapedFilename}`,
+                contentType: 'image/jpeg',
+              });
+            } else {
+              await this.bot.sendDocument(
+                admin.telegramId,
+                savedPath,
+                { caption: `📎 ${escapedFilename}` },
+                { filename }
+              );
+            }
+          }
+        } catch (err) {
+          logger.error(`Не вдалося надіслати сповіщення адміну ${admin.telegramId}:`, err.message);
+        }
+      }
+    } catch (error) {
+      logger.error('Помилка сповіщення адмінів про файл для сайту:', error);
+    }
+  }
 }
 
 module.exports = TelegramNotificationService;

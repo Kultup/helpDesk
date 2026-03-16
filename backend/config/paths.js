@@ -14,6 +14,7 @@ const UPLOAD_SUBDIRS = [
   'avatars', // аватарки користувачів
   'computer-access', // фото доступу до ПК (профіль користувача)
   'kb', // матеріали бази знань (routes/knowledgeBase.js, telegramAIService.js)
+  'website-content', // файли для оновлення сайту (WEB_ префікс через Telegram)
 ];
 
 /** Абсолютний шлях до каталогу завантажень статей KB (фото/відео). */
