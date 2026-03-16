@@ -339,17 +339,19 @@ const PHOTO_ANALYSIS = `You are a helpdesk technical expert. Analyze this error 
 Problem context: {problemDescription}
 User profile: {userContext}
 
-OUTPUT — two mandatory sections:
+OUTPUT format — IMPORTANT: do NOT write "SECTION 1", "SECTION 2" or any headers. Output directly:
 
-SECTION 1 (Ukrainian message to user, max 250 chars):
-Name the software and describe what error you see. End with ONE action tag on a new line:
-  [Дія: підказка] — user can fix it themselves (simple steps)
-  [Дія: створити заявку] — admin required
-  [Дія: уточнення] — photo unclear or need more info
-
-SECTION 2 — always append after section 1:
+[Ukrainian message to user, max 250 chars — describe the error or situation]
+[Дія: підказка|створити заявку|уточнення]
 ---METADATA---
 {"errorType":"license|driver|hardware|software_crash|network|server_unavailable|access|other|unclear","softwareDetected":"app name or null","hardwareDetected":"device model or null","actionRequired":"hint|ticket|clarify","severity":"low|medium|high|critical"}
+
+Action tag rules:
+  [Дія: підказка] — user can fix it themselves (simple steps)
+  [Дія: створити заявку] — admin required OR image is NOT an IT error (promotional, banner, document)
+  [Дія: уточнення] — photo is blurry/unreadable, need clearer screenshot
+
+NON-IT IMAGE RULE: If the image is NOT a computer error screenshot (promotional poster, banner, document, photo of people, etc.) → always use [Дія: створити заявку], errorType: "other", severity: "low"
 
 RULES — ALWAYS [Дія: створити заявку] for:
 - Syrve / iiko: ANY error (server connection, login, license) → ticket, severity: high
