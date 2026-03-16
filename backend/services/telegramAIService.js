@@ -2003,6 +2003,7 @@ class TelegramAIService {
       subcategory: summary.category,
       type: 'problem',
     };
+    this.telegramService.userSessions.set(chatId, session);
     const msg = `✅ <b>Перевірте, чи все правильно</b>\n\n📌 <b>Заголовок:</b>\n${TelegramUtils.escapeHtml(summary.title)}\n\n📝 <b>Опис:</b>\n${TelegramUtils.escapeHtml(summary.description)}\n\n📊 <b>Категорія:</b> ${TelegramUtils.escapeHtml(summary.category)}\n⚡ <b>Пріоритет:</b> ${TelegramUtils.escapeHtml(summary.priority)}\n\nВсе правильно?`;
     await this.telegramService.sendMessage(chatId, msg, {
       reply_markup: {

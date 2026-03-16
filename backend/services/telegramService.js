@@ -635,6 +635,21 @@ class TelegramService {
                 .populate('city', 'name region')
                 .populate('institution', 'name')
                 .lean();
+
+              // Після await — перевіряємо чи сесію ще не створив паралельний обробник
+              // (наприклад, перше фото альбому вже створило сесію поки ми чекали DB)
+              const sessionAfterAwait = this.userSessions.get(msg.chat.id);
+              if (
+                msg.media_group_id &&
+                sessionAfterAwait &&
+                (sessionAfterAwait.mode === 'ai' || sessionAfterAwait.mode === 'choosing')
+              ) {
+                this._savePendingPhotoToSession(msg.chat.id, msg, sessionAfterAwait).catch(
+                  () => {}
+                );
+                return;
+              }
+
               const profile = fullUser || existingUser;
               const newSession = {
                 mode: 'ai',
@@ -663,13 +678,6 @@ class TelegramService {
                 lastActivityAt: Date.now(),
               };
               this.userSessions.set(msg.chat.id, newSession);
-              if (
-                msg.media_group_id &&
-                !this._isFirstInMediaGroup(msg.chat.id, msg.media_group_id)
-              ) {
-                this.userSessions.delete(msg.chat.id); // не засмічуємо сесію для дублікатів
-                return;
-              }
               await this.aiService.handlePhotoInAiMode(
                 msg.chat.id,
                 msg.photo,
