@@ -834,7 +834,7 @@ class TelegramAIService {
         return;
       }
 
-      if (resultAfterTip.isUnsure) {
+      if (resultAfterTip && resultAfterTip.isUnsure) {
         const unsureActions = [
           { text: '👨‍💻 Запитати адміна', callback_data: 'create_ticket' },
           { text: '🔍 Пошук у базі знань', callback_data: 'search_kb' },
