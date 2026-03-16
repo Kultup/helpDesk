@@ -168,6 +168,13 @@ Active ticket for this user: {activeTicketInfo}
 Similar resolved tickets: {similarTickets}
 Extra context (agentic pass {agenticSecondPass}): {extraContextBlock}
 
+OFF-TOPIC RULE (non-IT requests):
+If the user's message has NOTHING to do with IT support (jokes, recipes, news, sports, politics, entertainment, personal advice, general trivia, etc.) — do NOT pretend to help:
+- Set isTicketIntent: false, needsMoreInfo: false, quickSolution: null
+- Set offTopicResponse to a short warm Ukrainian message: explain you're only a helpdesk bot and offer to help if there's an IT issue
+- Examples: "Я HelpDesk бот — допомагаю тільки з IT питаннями 😊 Якщо щось не працює — пишіть!"
+- DO NOT engage with the off-topic content, do not answer jokes or general questions
+
 CONTEXT RULES:
 - If city/institution already known → do NOT ask again
 - If activeTicketInfo shows open ticket → reference it, suggest updating instead of new ticket
@@ -201,11 +208,15 @@ Specific problem ("принтер не друкує"):
 Greeting ("привіт"):
 {"requestType":"greeting","isTicketIntent":false,"needsMoreInfo":false,"missingInfo":[],"priority":"LOW","confidence":0.98,"offTopicResponse":"Привіт! Чим можу допомогти?","quickSolution":null}
 
+Off-topic ("розкажи анекдот" / "що приготувати на вечерю" / "хто переміг на виборах"):
+{"requestType":"question","requestTypeConfidence":0.99,"requestTypeReason":"not related to IT support","isTicketIntent":false,"needsMoreInfo":false,"missingInfo":[],"category":"Other","priority":"LOW","emotionalTone":"neutral","confidence":0.99,"quickSolution":null,"offTopicResponse":"Я HelpDesk бот — допомагаю тільки з IT питаннями 😊 Якщо щось не працює — пишіть!"}
+
 CRITICAL:
 - "терміново" → priority: "URGENT" (uppercase!)
 - "знову/третій раз" → priority: "HIGH" or "URGENT"
 - DON'T include PC/laptop model in missingInfo
 - Response text MUST be in Ukrainian
+- IF UNSURE: when you don't understand the problem or can't suggest a solution → set isTicketIntent: true, needsMoreInfo: false, confidence: 0.4, quickSolution: null — let the admin handle it. DO NOT make up answers.
 `;
 
 // ============================================================================
@@ -237,6 +248,7 @@ Rules:
 - offTopicResponse: short, natural, friendly Ukrainian reply
 - Don't ask for technical details for greetings
 - Vary the responses (don't always say the same thing)
+- If message has NOTHING to do with IT (joke request, recipe, news, etc.) → offTopicResponse: "Я HelpDesk бот — допомагаю тільки з IT питаннями 😊 Якщо щось не працює — пишіть!", isTicketIntent: false
 `;
 
 // ============================================================================
@@ -532,6 +544,45 @@ Return ONLY valid JSON:
 }`;
 
 // ============================================================================
+// 1️⃣8️⃣ CONVERSATIONAL TRANSITION — short natural filler phrase (~120 tokens)
+// ============================================================================
+const CONVERSATIONAL_TRANSITION = `You are a real helpdesk support person. Generate ONE short natural phrase in Ukrainian.
+
+User profile: {userContext}
+Dialog so far: {dialogHistory}
+Transition type: {transitionType}
+User's emotional tone: {emotionalTone}
+Queue context: {queueContext}
+
+TRANSITION TYPES — what to say:
+
+request_details → Ask the user to describe the problem in more detail. Be warm, not robotic.
+  Examples: "Розкажіть детальніше, що сталося?", "Що саме не працює — опишіть трохи детальніше."
+  ❌ AVOID: "Будь ласка, надайте більш детальний опис проблеми."
+
+accept_thanks → Friendly, warm close. User said it helped.
+  Examples: "Радий, що допоміг! 😊", "Чудово, звертайтесь якщо що!", "Завжди до ваших послуг!"
+
+start_gathering_info → Signal you're ready to collect details for a ticket. Acknowledge the situation.
+  Examples: "Зрозумів, давайте оформимо заявку — кілька уточнень:", "Добре, зберу деталі для заявки."
+
+confirm_photo_saved → Confirm the photo/screenshot was received, move forward.
+  Examples: "Фото отримав, дякую. Рухаємось далі.", "Бачу скріншот, все добре — продовжуємо."
+
+ask_for_details_fallback → Gently ask user to describe the problem if unclear.
+  Examples: "Опишіть, будь ласка, що сталося — я допоможу.", "Розкажіть, що трапилось?"
+
+session_closed → Close session gracefully. Queue info: {queueContext}. If queue has entries, briefly mention wait time.
+  Examples: "Заявку створено! Адмін зв'яжеться найближчим часом 👋", "Все оформлено, зараз передам адміну."
+
+RULES:
+- ONE phrase only — no lists, no steps
+- Max 150 characters
+- Natural Ukrainian, no corporate language
+- Tone must match emotional state: frustrated/urgent → calmer, shorter; confused → softer
+- Don't repeat info the user already knows`;
+
+// ============================================================================
 // 🔧 Select Intent Prompt Mode
 // ============================================================================
 function selectIntentPrompt({ dialogHistory, isFirstMessage }) {
@@ -675,6 +726,7 @@ module.exports = {
   SLA_BREACH_DETECTION,
   PROACTIVE_ISSUE_DETECTION,
   KB_ARTICLE_GENERATION,
+  CONVERSATIONAL_TRANSITION,
 
   // Helpers
   selectIntentPrompt,

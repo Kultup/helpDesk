@@ -622,6 +622,40 @@ class TelegramAIService {
 
     // Phase 1: Forced Detail Gathering for short initial messages — але спочатку перевіряємо KB
     const textLen = (text || '').trim().length;
+    const IT_INDICATORS = [
+      'не працює',
+      'не можу',
+      'проблема',
+      'помилка',
+      'завис',
+      'терміново',
+      'зламав',
+      'не запускається',
+      'не підключається',
+      'не вмикається',
+      'не друкує',
+      'принтер',
+      'інтернет',
+      'мережа',
+      'комп',
+      'ноутбук',
+      'пароль',
+      'доступ',
+      'програма',
+      'встановити',
+      'оновити',
+      'wifi',
+      'wi-fi',
+      'телефон',
+      'сервер',
+      '1с',
+      'bas',
+      'syrve',
+      'медок',
+      'anydesk',
+    ];
+    const lowerText = (text || '').trim().toLowerCase();
+    const looksLikeIT = IT_INDICATORS.some(kw => lowerText.includes(kw));
     if (session.dialog_history.length === 0 && textLen < 40 && !session.detailsRequested) {
       let kbMatch = false;
       try {
@@ -630,7 +664,10 @@ class TelegramAIService {
       } catch (_) {
         // ігноруємо помилку пошуку
       }
-      if (!kbMatch) {
+      if (!kbMatch && !looksLikeIT) {
+        // Коротке повідомлення не схоже на IT-запит — пропускаємо Phase 1,
+        // analyzeIntent нижче обробить його як off-topic або greeting
+      } else if (!kbMatch) {
         session.dialog_history.push({ role: 'user', content: text });
         botConversationService
           .appendMessage(chatId, user, 'user', text, null, text.slice(0, 200))
@@ -1521,22 +1558,11 @@ class TelegramAIService {
       ((session.ai_attempts || 0) >= MAX_AI_ATTEMPTS ||
         (session.ai_questions_count || 0) >= MAX_AI_QUESTIONS)
     ) {
-      session.mode = 'choosing';
-      const count = session.ai_questions_count || 0;
       await this.telegramService.sendMessage(
         chatId,
-        `Я вже ${count} раз(и) уточнював і все ще не до кінця зрозумів. Давай так:\n\n` +
-          `Оберіть дію:`,
-        {
-          reply_markup: {
-            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: 'Продовжити зі мною', callback_data: 'ai_continue' },
-              { text: 'Заповнити покроково (класика)', callback_data: 'ai_switch_to_classic' },
-              { text: 'Скасувати заявку', callback_data: 'cancel_ticket' },
-            ]),
-          },
-        }
+        'Зрозумів, передаю заявку адміністратору — він розбереться на місці.'
       );
+      await this._showTicketConfirmationFromDialog(chatId, session, user);
       return;
     }
 
@@ -1574,6 +1600,16 @@ class TelegramAIService {
           return;
         }
       }
+    }
+
+    // Якщо бот не впевнений (confidence низька) і немає чіткого рішення — одразу тікет, без вигадок
+    if (!result.needsMoreInfo && (result.confidence || 0) < CONFIDENCE_THRESHOLD) {
+      await this.telegramService.sendMessage(
+        chatId,
+        'Не впевнений, що правильно зрозумів — передаю адміністратору, він розбереться.'
+      );
+      await this._showTicketConfirmationFromDialog(chatId, session, user);
+      return;
     }
 
     session.ai_questions_count = (session.ai_questions_count || 0) + 1;

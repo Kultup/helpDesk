@@ -22,6 +22,7 @@ const {
   SLA_BREACH_DETECTION,
   PROACTIVE_ISSUE_DETECTION,
   KB_ARTICLE_GENERATION,
+  CONVERSATIONAL_TRANSITION,
   fillPrompt,
   MAX_TOKENS,
   TEMPERATURES,
@@ -1642,7 +1643,6 @@ async function generateConversationalResponse(
     };
   }
 
-  const { CONVERSATIONAL_TRANSITION, TEMPERATURES } = require('../prompts/aiFirstLinePrompts');
   const systemPrompt = fillPrompt(CONVERSATIONAL_TRANSITION, {
     userContext: formatUserContext(userContext),
     dialogHistory: formatDialogHistory(dialogHistory),
