@@ -1501,7 +1501,10 @@ async function analyzePhoto(imagePath, problemDescription, userContext) {
     const metadataIndex = fullText.indexOf(metadataSeparator);
 
     if (metadataIndex !== -1) {
-      const userMessage = fullText.substring(0, metadataIndex).trim();
+      const userMessage = fullText
+        .substring(0, metadataIndex)
+        .replace(/^SECTION\s*\d+\s*:?\s*/gim, '')
+        .trim();
       const metadataStr = fullText.substring(metadataIndex + metadataSeparator.length).trim();
 
       let metadata = null;

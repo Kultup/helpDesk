@@ -1869,18 +1869,20 @@ class TelegramAIService {
       if (createTicketDirectly) {
         const shown = await this._showTicketConfirmationFromDialog(chatId, session, user);
         if (!shown) {
-          const fallback = TelegramUtils.normalizeQuickSolutionSteps(displayText);
-          await this.telegramService.sendMessage(chatId, fallback, {
-            parse_mode: 'HTML',
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: '📝 Створити тікет', callback_data: 'create_ticket' },
-                  { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+          await this.telegramService.sendMessage(
+            chatId,
+            'Передаю заявку адміністратору — він розбереться на місці.',
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                    { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+                  ],
                 ],
-              ],
-            },
-          });
+              },
+            }
+          );
         }
         return;
       }
@@ -1918,27 +1920,24 @@ class TelegramAIService {
         return;
       }
 
-      session.step = 'awaiting_tip_feedback';
-      const normalizedPhotoText = TelegramUtils.normalizeQuickSolutionSteps(displayText || rawText);
-      const requiresAdminOnly = quickSolutionRequiresAdminOnly(displayText || rawText);
-      const photoKeyboard = TelegramUtils.inlineKeyboardTwoPerRow(
-        requiresAdminOnly
-          ? [
-              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
-              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
-            ]
-          : [
-              { text: '✅ Допомогло', callback_data: 'tip_helped' },
-              { text: '📝 Ні, створити тікет', callback_data: 'tip_not_helped' },
-              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
-            ]
-      );
-      await this.telegramService.sendMessage(chatId, normalizedPhotoText, {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: photoKeyboard,
-        },
-      });
+      // Фото не підпадає під жоден тег — одразу створюємо тікет
+      const shown = await this._showTicketConfirmationFromDialog(chatId, session, user);
+      if (!shown) {
+        await this.telegramService.sendMessage(
+          chatId,
+          'Передаю заявку адміністратору — він розбереться на місці.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📝 Створити тікет', callback_data: 'create_ticket' },
+                  { text: '🏠 Головне меню', callback_data: 'back_to_menu' },
+                ],
+              ],
+            },
+          }
+        );
+      }
     } else {
       // analyzePhoto повернув null — фото не вдалось обробити (Gemini, помилка завантаження тощо)
       session.step = 'gathering_information';
