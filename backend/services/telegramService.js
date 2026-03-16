@@ -2560,7 +2560,75 @@ class TelegramService {
       await this.ticketService.handleTicketDocument(chatId, msg.document, msg.caption);
     } else if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
       await this._savePendingDocumentInAiMode(chatId, msg, session);
+    } else if (!session) {
+      // Немає активної сесії — запускаємо AI-сесію автоматично (як для фото)
+      await this._startAiSessionWithDocument(chatId, msg);
     } else {
+      await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
+    }
+  }
+
+  /** Запускає AI-сесію автоматично при надсиланні документу без активної сесії. */
+  async _startAiSessionWithDocument(chatId, msg) {
+    try {
+      const aiSettings = await aiFirstLineService.getAISettings();
+      const aiEnabled = aiSettings && aiSettings.enabled === true;
+      const hasApiKey =
+        aiSettings &&
+        ((aiSettings.provider === 'openai' &&
+          aiSettings.openaiApiKey &&
+          String(aiSettings.openaiApiKey).trim()) ||
+          (aiSettings.provider === 'gemini' &&
+            aiSettings.geminiApiKey &&
+            String(aiSettings.geminiApiKey).trim()));
+
+      if (!aiEnabled || !hasApiKey) {
+        await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
+        return;
+      }
+
+      const user = await User.findOne({
+        $or: [{ telegramId: String(msg.from.id) }, { telegramId: msg.from.id }],
+      });
+      if (!user) {
+        await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
+        return;
+      }
+
+      const fullUser = await User.findById(user._id)
+        .populate('position', 'title name')
+        .populate('city', 'name region')
+        .populate('institution', 'name')
+        .lean();
+      const profile = fullUser || user;
+
+      const newSession = {
+        mode: 'ai',
+        step: 'gathering_information',
+        ai_attempts: 0,
+        ai_questions_count: 0,
+        dialog_history: [],
+        userContext: {
+          userCity: profile.city?.name || 'Не вказано',
+          userPosition: profile.position?.title || profile.position?.name || 'Не вказано',
+          userInstitution: profile.institution?.name || '',
+          userName:
+            [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.email,
+          userEmail: profile.email,
+          hasComputerAccessPhoto: !!(
+            profile.computerAccessPhoto && String(profile.computerAccessPhoto).trim()
+          ),
+          computerAccessAnalysis:
+            (profile.computerAccessAnalysis && String(profile.computerAccessAnalysis).trim()) || '',
+        },
+        ticketData: { createdBy: user._id, photos: [], documents: [] },
+        ticketDraft: null,
+        lastActivityAt: Date.now(),
+      };
+      this.userSessions.set(chatId, newSession);
+      await this._savePendingDocumentInAiMode(chatId, msg, newSession);
+    } catch (err) {
+      logger.error('Помилка запуску AI-сесії для документу', { chatId, err: err.message });
       await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
     }
   }
