@@ -44,6 +44,7 @@ class TelegramService {
     this.internetRequestCounts = sessionManager.createInternetRequestCountsMap();
     this.token = null; // Токен бота
     this._mediaGroupSeen = new Map(); // Дедуплікація Telegram-альбомів: key=`${chatId}:${mediaGroupId}`
+    this._documentBuffers = new Map(); // Буфер документів для debounce: key=chatId
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -2557,20 +2558,40 @@ class TelegramService {
     }
 
     if (session && session.step === 'photo') {
+      // Класичний режим створення тікету — одразу прикріплюємо
       await this.ticketService.handleTicketDocument(chatId, msg.document, msg.caption);
-    } else if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
-      await this._savePendingDocumentInAiMode(chatId, msg, session);
-    } else if (!session) {
-      // Немає активної сесії — запускаємо AI-сесію автоматично (як для фото)
-      await this._startAiSessionWithDocument(chatId, msg);
+    } else if (!session || session.mode === 'ai' || session.mode === 'choosing') {
+      // AI-режим або немає сесії — буферизуємо (debounce 1.5с) щоб кілька файлів = одне повідомлення
+      this._queueDocumentForAi(chatId, msg);
     } else {
       await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
     }
   }
 
-  /** Запускає AI-сесію автоматично при надсиланні документу без активної сесії. */
-  async _startAiSessionWithDocument(chatId, msg) {
-    try {
+  /** Додає документ у буфер. Через 1.5с обробляє всі накопичені документи разом. */
+  _queueDocumentForAi(chatId, msg) {
+    const key = String(chatId);
+    const existing = this._documentBuffers.get(key);
+    if (existing) {
+      clearTimeout(existing.timer);
+      existing.msgs.push(msg);
+    } else {
+      this._documentBuffers.set(key, { msgs: [msg] });
+    }
+    const buffer = this._documentBuffers.get(key);
+    buffer.timer = setTimeout(() => {
+      this._documentBuffers.delete(key);
+      this._processDocumentQueue(chatId, buffer.msgs).catch(err => {
+        logger.error('Помилка обробки черги документів', { chatId, err: err.message });
+      });
+    }, 1500);
+  }
+
+  /** Обробляє накопичені документи: створює/використовує AI-сесію, зберігає всі файли, надсилає одне підсумкове повідомлення. */
+  async _processDocumentQueue(chatId, msgs) {
+    let session = this.userSessions.get(chatId);
+
+    if (!session) {
       const aiSettings = await aiFirstLineService.getAISettings();
       const aiEnabled = aiSettings && aiSettings.enabled === true;
       const hasApiKey =
@@ -2588,7 +2609,7 @@ class TelegramService {
       }
 
       const user = await User.findOne({
-        $or: [{ telegramId: String(msg.from.id) }, { telegramId: msg.from.id }],
+        $or: [{ telegramId: String(msgs[0].from.id) }, { telegramId: msgs[0].from.id }],
       });
       if (!user) {
         await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
@@ -2602,7 +2623,7 @@ class TelegramService {
         .lean();
       const profile = fullUser || user;
 
-      const newSession = {
+      session = {
         mode: 'ai',
         step: 'gathering_information',
         ai_attempts: 0,
@@ -2625,57 +2646,66 @@ class TelegramService {
         ticketDraft: null,
         lastActivityAt: Date.now(),
       };
-      this.userSessions.set(chatId, newSession);
-      await this._savePendingDocumentInAiMode(chatId, msg, newSession);
-    } catch (err) {
-      logger.error('Помилка запуску AI-сесії для документу', { chatId, err: err.message });
-      await this.sendMessage(chatId, 'Файли можна прикріпляти тільки під час створення тікету.');
-    }
-  }
-
-  /** Зберігає PDF/документ у AI-сесію як вкладення до майбутнього тікету. */
-  async _savePendingDocumentInAiMode(chatId, msg, session) {
-    const fileName = msg.document.file_name || 'document';
-    try {
-      const fileInfo = await this.bot.getFile(msg.document.file_id);
-      const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
-      const safeName = `${Date.now()}_${fileName.replace(/[^\w._-]/g, '_')}`;
-      const savedPath = path.join(uploadsPath, 'telegram-files', safeName);
-      fs.renameSync(tempPath, savedPath);
-
-      if (!session.pendingAttachments) {
-        session.pendingAttachments = [];
-      }
-      session.pendingAttachments.push({
-        type: 'document',
-        fileId: msg.document.file_id,
-        path: savedPath,
-        fileName,
-        caption: msg.caption || '',
-        size: msg.document.file_size || 0,
-      });
       this.userSessions.set(chatId, session);
-
-      const count = session.pendingAttachments.length;
-      await this.sendMessage(
-        chatId,
-        `📎 Файл прикріплено (${count}): <b>${TelegramUtils.escapeHtml(fileName)}</b>\n\nОпишіть проблему або натисніть «Сформувати заявку».`,
-        {
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
-            ],
-          },
-        }
-      );
-    } catch (err) {
-      logger.error('Помилка збереження документу в AI-сесію', { chatId, err: err.message });
-      await this.sendMessage(
-        chatId,
-        `❌ Не вдалося прикріпити файл: ${TelegramUtils.escapeHtml(fileName)}`
-      );
     }
+
+    if (!session.pendingAttachments) {
+      session.pendingAttachments = [];
+    }
+
+    const savedNames = [];
+    for (const msg of msgs) {
+      const fileName = msg.document.file_name || 'document';
+      try {
+        const fileInfo = await this.bot.getFile(msg.document.file_id);
+        const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
+        const safeName = `${Date.now()}_${fileName.replace(/[^\w._-]/g, '_')}`;
+        const savedPath = path.join(uploadsPath, 'telegram-files', safeName);
+        fs.renameSync(tempPath, savedPath);
+        session.pendingAttachments.push({
+          type: 'document',
+          fileId: msg.document.file_id,
+          path: savedPath,
+          fileName,
+          caption: msg.caption || '',
+          size: msg.document.file_size || 0,
+        });
+        savedNames.push(fileName);
+      } catch (err) {
+        logger.error('Помилка збереження документу в чергу', {
+          chatId,
+          fileName,
+          err: err.message,
+        });
+      }
+    }
+
+    this.userSessions.set(chatId, session);
+
+    if (savedNames.length === 0) {
+      await this.sendMessage(chatId, '❌ Не вдалося зберегти файли. Спробуйте ще раз.');
+      return;
+    }
+
+    const total = session.pendingAttachments.length;
+    const namesText = savedNames.map(n => `• ${TelegramUtils.escapeHtml(n)}`).join('\n');
+    const header =
+      savedNames.length === 1
+        ? `📎 <b>Файл прикріплено:</b>`
+        : `📎 <b>Прикріплено файлів: ${savedNames.length}</b>`;
+
+    await this.sendMessage(
+      chatId,
+      `${header}\n${namesText}\n\n<i>Всього у заявці: ${total} файл(ів)</i>\n\nОпишіть проблему або натисніть «Сформувати заявку».`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
+          ],
+        },
+      }
+    );
   }
 
   async handleContact(msg) {
