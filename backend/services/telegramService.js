@@ -2659,7 +2659,7 @@ class TelegramService {
       try {
         const fileInfo = await this.bot.getFile(msg.document.file_id);
         const tempPath = await this.downloadTelegramFile(fileInfo.file_path);
-        const safeName = `${Date.now()}_${fileName.replace(/[^\w._-]/g, '_')}`;
+        const safeName = `${Date.now()}_${fileName.replace(/[^\wа-яёіїєґА-ЯЁІЇЄҐ._-]/gi, '_')}`;
         const savedPath = path.join(uploadsPath, 'telegram-files', safeName);
         fs.renameSync(tempPath, savedPath);
         session.pendingAttachments.push({
@@ -2667,6 +2667,7 @@ class TelegramService {
           fileId: msg.document.file_id,
           path: savedPath,
           fileName,
+          extension: path.extname(fileName).toLowerCase(),
           caption: msg.caption || '',
           size: msg.document.file_size || 0,
         });
