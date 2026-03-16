@@ -1686,26 +1686,26 @@ class TelegramService {
               this.userSessions.set(chatId, session);
 
               const totalAttached = pendingPhotos.length + pendingDocs.length;
-              let attachMsg, attachKeyboard;
               if (totalAttached > 0) {
-                attachMsg = `✅ <b>Інформацію збережено</b>\n\n📎 Прикріплено файлів: <b>${totalAttached}</b>\n\nХочете додати ще файли чи завершити?`;
-                attachKeyboard = TelegramUtils.inlineKeyboardTwoPerRow([
-                  { text: '📷 Додати ще', callback_data: 'attach_photo' },
-                  { text: '✅ Завершити', callback_data: 'skip_photo' },
-                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
-                ]);
+                // Є вкладення — одразу створюємо тікет без зайвого кроку
+                await this.ticketService.handleFinishTicketCallback(chatId, user);
               } else {
-                attachMsg = `✅ <b>Інформацію збережено</b>\n\n📸 <b>Останній крок:</b> Бажаєте додати фото до заявки?`;
-                attachKeyboard = TelegramUtils.inlineKeyboardTwoPerRow([
-                  { text: '📷 Додати фото', callback_data: 'attach_photo' },
-                  { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
-                  { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
-                ]);
+                // Немає вкладень — питаємо чи додати фото
+                await this.sendMessage(
+                  chatId,
+                  `✅ <b>Інформацію збережено</b>\n\n📸 <b>Останній крок:</b> Бажаєте додати фото до заявки?`,
+                  {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                      inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                        { text: '📷 Додати фото', callback_data: 'attach_photo' },
+                        { text: '⏭️ Пропустити', callback_data: 'skip_photo' },
+                        { text: this.getCancelButtonText(), callback_data: 'cancel_ticket' },
+                      ]),
+                    },
+                  }
+                );
               }
-              await this.sendMessage(chatId, attachMsg, {
-                parse_mode: 'HTML',
-                reply_markup: { inline_keyboard: attachKeyboard },
-              });
             }
           }
           await this.answerCallbackQuery(callbackQuery.id);
