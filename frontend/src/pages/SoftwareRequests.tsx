@@ -359,6 +359,8 @@ const SoftwareRequests: React.FC = () => {
                             size="sm"
                             onClick={() => {
                               setSelectedRequest(request);
+                              setActionType(null);
+                              setAdminNote('');
                               setShowModal(true);
                             }}
                           >

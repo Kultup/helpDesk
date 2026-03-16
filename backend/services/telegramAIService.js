@@ -754,7 +754,8 @@ class TelegramAIService {
           question = await aiFirstLineService.generateNextQuestion(
             session.dialog_history,
             resultAfterTip.missingInfo || [],
-            session.userContext
+            session.userContext,
+            session.cachedEmotionalTone || 'neutral'
           );
         } catch (_) {
           // Ignore error and use default question
@@ -1582,7 +1583,8 @@ class TelegramAIService {
       question = await aiFirstLineService.generateNextQuestion(
         session.dialog_history,
         result.missingInfo || [],
-        session.userContext
+        session.userContext,
+        session.cachedEmotionalTone || 'neutral'
       );
     } catch (err) {
       logger.error('AI: помилка generateNextQuestion', err);
@@ -1872,7 +1874,6 @@ class TelegramAIService {
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
-              { text: '📸 Надіслати інше фото', callback_data: 'skip_error_photo' },
               { text: '✏️ Описати текстом', callback_data: 'ai_switch_to_classic' },
               { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
             ]),
@@ -1936,6 +1937,18 @@ class TelegramAIService {
       session.cachedCategory
     );
     if (!summary) {
+      await this.telegramService.sendMessage(
+        chatId,
+        'Не вдалося сформувати тікет автоматично. Спробуйте описати проблему ще раз або заповніть вручну.',
+        {
+          reply_markup: {
+            inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+              { text: '✏️ Заповнити вручну', callback_data: 'ai_switch_to_classic' },
+              { text: this.telegramService.getCancelButtonText(), callback_data: 'cancel_ticket' },
+            ]),
+          },
+        }
+      );
       return false;
     }
     session.step = 'confirm_ticket';

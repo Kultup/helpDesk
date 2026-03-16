@@ -4,6 +4,7 @@ const City = require('../models/City');
 const Comment = require('../models/Comment');
 const Attachment = require('../models/Attachment');
 const { validationResult } = require('express-validator');
+const { isAdminRole } = require('../middleware/auth');
 const mongoose = require('mongoose');
 const { Parser } = require('json2csv');
 const ExcelJS = require('exceljs');
@@ -323,11 +324,11 @@ exports.getTicketById = async (req, res) => {
             ? commentObj.author.toObject()
             : typeof commentObj.author === 'object'
               ? {
-                _id: commentObj.author._id?.toString() || commentObj.author._id,
-                email: commentObj.author.email || '',
-                firstName: commentObj.author.firstName || '',
-                lastName: commentObj.author.lastName || '',
-              }
+                  _id: commentObj.author._id?.toString() || commentObj.author._id,
+                  email: commentObj.author.email || '',
+                  firstName: commentObj.author.firstName || '',
+                  lastName: commentObj.author.lastName || '',
+                }
               : commentObj.author
           : null,
         createdAt: commentObj.createdAt || commentObj.created_at || new Date(),
@@ -456,20 +457,10 @@ exports.createTicket = async (req, res) => {
     }
 
     // Відправка сповіщення в Telegram групу про новий тікет
-    logger.info('🎯 Викликаю функцію відправки сповіщення для тікету:', ticket._id);
-    logger.info('📱 telegramService тип:', typeof telegramService);
-    logger.info(
-      '📱 telegramService методи:',
-      Object.getOwnPropertyNames(Object.getPrototypeOf(telegramService))
-    );
-
     try {
-      logger.info('🚀 Починаю відправку сповіщення...');
-      await telegramService.sendNewTicketNotificationToGroup(ticket, req.user);
-      logger.info('✅ Сповіщення відправлено успішно');
+      await telegramService.notificationService.sendNewTicketNotificationToGroup(ticket, req.user);
     } catch (error) {
-      logger.error('❌ Помилка відправки Telegram сповіщення про новий тікет:', error);
-      // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
+      logger.error('Помилка відправки Telegram сповіщення про новий тікет:', error);
     }
 
     // Відправка WebSocket сповіщення про новий тікет
@@ -604,7 +595,7 @@ exports.updateTicket = async (req, res) => {
       (ticket.resolutionSummary || (ticket.aiDialogHistory && ticket.aiDialogHistory.length > 0))
     ) {
       const ticketEmbeddingService = require('../services/ticketEmbeddingService');
-      ticketEmbeddingService.indexTicket(ticket._id).catch(() => { });
+      ticketEmbeddingService.indexTicket(ticket._id).catch(() => {});
     }
 
     // Якщо це перша відповідь, встановлюємо firstResponseAt
@@ -641,7 +632,7 @@ exports.updateTicket = async (req, res) => {
               deadline: ticket.sla.deadline,
             });
 
-            await telegramService.sendSLANotification(populatedTicket);
+            await telegramService.notificationService.sendSLANotification(populatedTicket);
 
             ticket.sla.notified = true;
             await ticket.save();
@@ -698,7 +689,7 @@ exports.updateTicket = async (req, res) => {
     if (status && status !== previousState.status) {
       logger.info(`✅ Статус змінився! Відправляю сповіщення...`);
       try {
-        await telegramService.sendTicketStatusNotificationToGroup(
+        await telegramService.notificationService.sendTicketStatusNotificationToGroup(
           ticket,
           previousState.status,
           status,
@@ -706,7 +697,7 @@ exports.updateTicket = async (req, res) => {
         );
 
         // Відправка сповіщення користувачеві про зміну статусу
-        await telegramService.sendTicketNotification(ticket, 'updated');
+        await telegramService.notificationService.sendTicketNotification(ticket, 'updated');
       } catch (error) {
         logger.error('Помилка відправки Telegram сповіщення:', error);
         // Не зупиняємо виконання, якщо сповіщення не вдалося відправити
@@ -1196,7 +1187,8 @@ exports.exportTickets = async (req, res) => {
         baseData['Коментарі'] = ticket.comments
           .map(
             comment =>
-              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${comment.content
+              `[${formatDateTime(comment.createdAt)}] ${comment.author?.firstName || 'Невідомо'}: ${
+                comment.content
               }`
           )
           .join(' | ');

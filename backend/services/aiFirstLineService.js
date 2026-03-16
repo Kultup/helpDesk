@@ -96,11 +96,18 @@ async function getAISettings() {
   return settings;
 }
 
+/** Макс. кількість повідомлень діалогу, що передається AI (не змінює оригінальний масив сесії). */
+const MAX_DIALOG_FOR_AI = 30;
+
 function formatDialogHistory(dialogHistory) {
   if (!Array.isArray(dialogHistory) || dialogHistory.length === 0) {
     return '(порожньо)';
   }
-  return dialogHistory
+  const trimmed =
+    dialogHistory.length > MAX_DIALOG_FOR_AI
+      ? dialogHistory.slice(-MAX_DIALOG_FOR_AI)
+      : dialogHistory;
+  return trimmed
     .map(m => (m.role === 'user' ? `Користувач: ${m.content}` : `Бот: ${m.content}`))
     .join('\n');
 }
@@ -1028,7 +1035,12 @@ async function analyzeIntent(dialogHistory, userContext, webSearchContext = '', 
  * Виклик 2: генерація одного уточнюючого питання.
  * @returns {Promise<string>}
  */
-async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
+async function generateNextQuestion(
+  dialogHistory,
+  missingInfo,
+  userContext,
+  emotionalTone = 'neutral'
+) {
   const settings = await getAISettings();
   if (!settings || !settings.enabled) {
     return 'Опишіть, будь ласка, проблему детальніше.';
@@ -1043,10 +1055,12 @@ async function generateNextQuestion(dialogHistory, missingInfo, userContext) {
     Array.isArray(missingInfo) && missingInfo.length ? missingInfo.join(', ') : 'деталі проблеми';
   const systemPrompt = fillPrompt(NEXT_QUESTION, {
     userContext: formatUserContext(userContext),
+    dialogHistory: formatDialogHistory(dialogHistory),
     missingInfo: missingStr,
+    emotionalTone: emotionalTone || 'neutral',
   });
 
-  const userMessage = `Історія діалогу:\n${formatDialogHistory(dialogHistory)}\n\nЧого бракує: ${missingStr}. Згенеруй одне коротке питання українською.`;
+  const userMessage = `Чого бракує: ${missingStr}. Згенеруй одне коротке питання українською.`;
 
   // Виклик AI з retry механізмом
   const response = await retryHelper.retryAIRequest(

@@ -486,6 +486,11 @@ class TelegramTicketService {
         return;
       }
 
+      if (ticket.qualityRating?.hasRating) {
+        await this.sendMessage(chatId, `ℹ️ Ви вже оцінили цю заявку.`, { parse_mode: 'HTML' });
+        return;
+      }
+
       const ratingNum = Math.max(1, Math.min(5, parseInt(rating, 10) || 0));
       ticket.qualityRating.hasRating = true;
       ticket.qualityRating.rating = ratingNum;
@@ -1213,6 +1218,10 @@ class TelegramTicketService {
   }
 
   async handleAttachPhotoCallback(chatId, _user) {
+    const session = this.userSessions.get(chatId);
+    if (!session || session.step !== 'photo') {
+      return;
+    }
     await this.sendMessage(
       chatId,
       '📷 Надішліть фото для прикріплення до тікету.\n\n' +
@@ -1237,7 +1246,7 @@ class TelegramTicketService {
 
   async handlePriorityCallback(chatId, user, priority) {
     const session = this.userSessions.get(chatId);
-    if (!session || session.step !== 'priority') {
+    if (!session || session.step !== 'priority' || !session.ticketData) {
       return;
     }
 
@@ -1260,11 +1269,7 @@ class TelegramTicketService {
 
   async handleSkipPhotoCallback(chatId, user) {
     const session = this.userSessions.get(chatId);
-    if (!session || !session.ticketData) {
-      await this.sendMessage(
-        chatId,
-        'Немає активного чернетки заявки. Почніть створення тікету з кнопки «Створити тікет».'
-      );
+    if (!session || session.step !== 'photo' || !session.ticketData) {
       return;
     }
     session.ticketData.priority = session.ticketData.priority || 'medium';
@@ -1272,6 +1277,10 @@ class TelegramTicketService {
   }
 
   async handleAddMorePhotosCallback(chatId, _user) {
+    const session = this.userSessions.get(chatId);
+    if (!session || session.step !== 'photo') {
+      return;
+    }
     await this.sendMessage(
       chatId,
       '📷 Надішліть ще одне фото або натисніть "Завершити" для продовження.'

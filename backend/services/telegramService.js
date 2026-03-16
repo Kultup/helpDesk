@@ -1502,16 +1502,20 @@ class TelegramService {
         }
 
         if (data === 'my_tickets') {
+          await this.answerCallbackQuery(callbackQuery.id);
           this.pushNavigationHistory(chatId, 'my_tickets');
           await this.ticketService.handleMyTicketsCallback(chatId, user);
         } else if (data === 'ticket_history') {
+          await this.answerCallbackQuery(callbackQuery.id);
           this.pushNavigationHistory(chatId, 'ticket_history');
           await this.ticketService.handleTicketHistoryCallback(chatId, user);
         } else if (data.startsWith('view_ticket_')) {
+          await this.answerCallbackQuery(callbackQuery.id);
           const ticketId = data.replace('view_ticket_', '');
           this.pushNavigationHistory(chatId, `view_ticket_${ticketId}`);
           await this.ticketService.handleViewTicketCallback(chatId, user, ticketId);
         } else if (data.startsWith('recreate_ticket_')) {
+          await this.answerCallbackQuery(callbackQuery.id);
           const ticketId = data.replace('recreate_ticket_', '');
           await this.ticketService.handleRecreateTicketCallback(chatId, user, ticketId);
         } else if (data === 'use_previous_title') {
@@ -1524,6 +1528,7 @@ class TelegramService {
           await this.ticketService.handleCreateTicketCallback(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'statistics') {
+          await this.answerCallbackQuery(callbackQuery.id);
           this.pushNavigationHistory(chatId, 'statistics');
           await this.handleStatisticsCallback(chatId, user);
         } else if (data === 'check_tokens') {
@@ -1593,11 +1598,14 @@ class TelegramService {
           //   await this.aiService.handleKbArticleCallback(chatId, articleId, user);
           //   await this.answerCallbackQuery(callbackQuery.id);
         } else if (data === 'back') {
+          await this.answerCallbackQuery(callbackQuery.id);
           await this.handleBackNavigation(chatId, user);
         } else if (data === 'back_to_menu') {
+          await this.answerCallbackQuery(callbackQuery.id);
           this.clearNavigationHistory(chatId);
           await this.showUserDashboard(chatId, user);
         } else if (data === 'back_to_tickets') {
+          await this.answerCallbackQuery(callbackQuery.id);
           this.popNavigationHistory(chatId);
           await this.ticketService.handleMyTicketsCallback(chatId, user);
         } else if (data.startsWith('rate_ticket_')) {
@@ -1763,9 +1771,9 @@ class TelegramService {
             await this.aiService.completeAIDialog(session.aiDialogId, 'cancelled');
           }
           const filler = await aiFirstLineService.generateConversationalResponse(
-            session.dialog_history || [],
+            session?.dialog_history || [],
             'session_closed',
-            session.userContext || {}
+            session?.userContext || {}
           );
           this.userSessions.delete(chatId);
           await this.sendMessage(chatId, `❌ ${filler}`);
@@ -1799,6 +1807,17 @@ class TelegramService {
             session.dialog_history = [];
             session.ticketDraft = null;
             session.ticketData = { createdBy: user._id, photos: [], documents: [] };
+            // Очищаємо всі AI-специфічні флаги щоб не конфліктували з classic mode
+            delete session.awaitingComputerAccessPhoto;
+            delete session.awaitingErrorPhoto;
+            delete session.lastMissingInfo;
+            delete session.cachedPriority;
+            delete session.cachedCategory;
+            delete session.cachedEmotionalTone;
+            delete session.cachedRequestType;
+            delete session.duplicateTicketId;
+            delete session.duplicateConfirmed;
+            delete session.photoMetadata;
             await this.sendMessage(
               chatId,
               `📝 *Створення тікета (покроково)*\n` +
