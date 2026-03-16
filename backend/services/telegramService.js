@@ -1209,6 +1209,42 @@ class TelegramService {
     }
   }
 
+  async handleBotHelpCallback(chatId) {
+    const text =
+      `❓ <b>Що вміє цей бот</b>\n\n` +
+      `<b>🤖 Розумний помічник (AI)</b>\n` +
+      `• Просто напишіть проблему — бот зрозуміє і сам заповнить заявку\n` +
+      `• Надішліть <b>скріншот або фото помилки</b> — бот проаналізує і створить заявку\n` +
+      `• Надішліть <b>голосове повідомлення</b> — бот розпізнає мову і обробить\n` +
+      `• Надішліть кілька фото одразу — всі будуть прикріплені до заявки\n` +
+      `• Якщо AI не знає відповіді — одразу передає заявку адміністратору\n\n` +
+      `<b>📝 Заявки (тікети)</b>\n` +
+      `• Створити нову заявку (текст, фото, PDF)\n` +
+      `• Переглянути активні заявки та їх статус\n` +
+      `• Переглянути історію всіх звернень\n` +
+      `• Отримувати сповіщення про зміни статусу\n\n` +
+      `<b>📁 Прикріплення файлів</b>\n` +
+      `• Фото та скріншоти (до 5 фото на заявку)\n` +
+      `• PDF, Word, Excel та інші документи\n` +
+      `• Альбом фото — всі знімки потраплять в одну заявку\n\n` +
+      `<b>📊 Статистика та звіти</b>\n` +
+      `• Переглянути кількість відкритих/закритих заявок\n` +
+      `• Середній час вирішення\n\n` +
+      `<b>👤 Профіль</b>\n` +
+      `• Оновити фото доступу до ПК (AnyDesk, TeamViewer тощо)\n\n` +
+      `<b>💡 Підказки</b>\n` +
+      `• Напишіть довільний текст — бот почне збирати інформацію\n` +
+      `• Надішліть фото без підпису — бот сам зрозуміє контекст\n` +
+      `• Команда /start — повернутися в головне меню`;
+
+    await this.sendMessage(chatId, text, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+      },
+    });
+  }
+
   async showUserDashboard(chatId, user) {
     // Очищаємо історію навігації при показі головного меню
     this.clearNavigationHistory(chatId);
@@ -1294,6 +1330,7 @@ class TelegramService {
           { text: '📊 Статистика', callback_data: 'statistics' },
         ],
         [{ text: '📷 Оновити доступ до ПК', callback_data: 'update_computer_access' }],
+        [{ text: '❓ Що вміє бот', callback_data: 'bot_help' }],
       ],
     };
 
@@ -1552,6 +1589,9 @@ class TelegramService {
           await this.answerCallbackQuery(callbackQuery.id);
           this.pushNavigationHistory(chatId, 'statistics');
           await this.handleStatisticsCallback(chatId, user);
+        } else if (data === 'bot_help') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          await this.handleBotHelpCallback(chatId);
         } else if (data === 'check_tokens') {
           await this.aiService.handleCheckTokensCallback(chatId, user);
           await this.answerCallbackQuery(callbackQuery.id);
