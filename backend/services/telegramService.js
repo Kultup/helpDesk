@@ -43,6 +43,7 @@ class TelegramService {
     this._initializing = false; // Флаг для перевірки процесу ініціалізації
     this.internetRequestCounts = sessionManager.createInternetRequestCountsMap();
     this.token = null; // Токен бота
+    this._mediaGroupSeen = new Map(); // Дедуплікація Telegram-альбомів: key=`${chatId}:${mediaGroupId}`
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -603,6 +604,9 @@ class TelegramService {
             return;
           }
           if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
+            if (msg.media_group_id && !this._isFirstInMediaGroup(msg.chat.id, msg.media_group_id)) {
+              return;
+            }
             await this.aiService.handlePhotoInAiMode(
               msg.chat.id,
               msg.photo,
@@ -657,6 +661,13 @@ class TelegramService {
                 lastActivityAt: Date.now(),
               };
               this.userSessions.set(msg.chat.id, newSession);
+              if (
+                msg.media_group_id &&
+                !this._isFirstInMediaGroup(msg.chat.id, msg.media_group_id)
+              ) {
+                this.userSessions.delete(msg.chat.id); // не засмічуємо сесію для дублікатів
+                return;
+              }
               await this.aiService.handlePhotoInAiMode(
                 msg.chat.id,
                 msg.photo,
@@ -2182,6 +2193,21 @@ class TelegramService {
     return TelegramUtils.validateDepartment(department);
   }
 
+  /**
+   * Повертає true тільки для першого фото з Telegram-альбому (media_group).
+   * Повторні фото з того ж альбому повертають false, щоб не показувати кілька підтверджень.
+   * Запис живе 10 секунд — достатньо для доставки всіх фото альбому.
+   */
+  _isFirstInMediaGroup(chatId, mediaGroupId) {
+    const key = `${chatId}:${mediaGroupId}`;
+    if (this._mediaGroupSeen.has(key)) {
+      return false;
+    }
+    this._mediaGroupSeen.set(key, true);
+    setTimeout(() => this._mediaGroupSeen.delete(key), 10000);
+    return true;
+  }
+
   // Обробка фото
   async handlePhoto(msg) {
     const chatId = msg.chat.id;
@@ -2244,6 +2270,9 @@ class TelegramService {
         return;
       }
       if (session.mode === 'ai' || session.mode === 'choosing') {
+        if (msg.media_group_id && !this._isFirstInMediaGroup(chatId, msg.media_group_id)) {
+          return;
+        }
         const user = await User.findOne({ telegramChatId: chatId });
         await this.aiService.handlePhotoInAiMode(chatId, msg.photo, msg.caption, session, user);
         return;
