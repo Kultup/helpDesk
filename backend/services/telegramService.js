@@ -226,8 +226,16 @@ class TelegramService {
           usePolling ? { polling: { interval: 1000, params: { timeout: 10 } } } : { polling: false }
         );
         if (usePolling) {
-          this.bot.on('message', msg => this.handleMessage(msg));
-          this.bot.on('callback_query', cq => this.handleCallbackQuery(cq));
+          this.bot.on('message', msg =>
+            this.handleMessage(msg).catch(err =>
+              logger.error('Unhandled error in handleMessage', { err: err.message })
+            )
+          );
+          this.bot.on('callback_query', cq =>
+            this.handleCallbackQuery(cq).catch(err =>
+              logger.error('Unhandled error in handleCallbackQuery', { err: err.message })
+            )
+          );
           this.bot.on('polling_error', err => {
             // Якщо помилка 404 - токен невалідний, вимикаємо бота
             if (err.code === 'ETELEGRAM' && err.response?.statusCode === 404) {
@@ -1365,13 +1373,21 @@ class TelegramService {
         data,
         chatType,
       });
-      await this.answerCallbackQuery(callbackQuery.id, 'Бот працює тільки в приватних чатах');
+      try {
+        await this.answerCallbackQuery(callbackQuery.id, 'Бот працює тільки в приватних чатах');
+      } catch {
+        // ignore send errors for group callbacks
+      }
       return; // Ігноруємо callback-запити з груп, супергруп та каналів
     }
 
     // Обробка callback для підтвердження/відхилення посади (з груп)
     if (isPositionRequestCallback) {
-      await this.registrationService.handlePositionRequestCallback(callbackQuery);
+      try {
+        await this.registrationService.handlePositionRequestCallback(callbackQuery);
+      } catch (err) {
+        logger.error('Помилка handlePositionRequestCallback:', { err: err.message });
+      }
       return;
     }
 
@@ -2739,6 +2755,9 @@ class TelegramService {
       return;
     }
 
+    if (!session.ticketData) {
+      session.ticketData = { photos: [], documents: [] };
+    }
     if (!session.ticketData.documents) {
       session.ticketData.documents = [];
     }
@@ -2796,7 +2815,26 @@ class TelegramService {
     this.userSessions.set(chatId, session);
 
     if (savedNames.length === 0) {
-      await this.sendMessage(chatId, '❌ Не вдалося зберегти файли. Спробуйте ще раз.');
+      const allLimited = errors.length > 0 && errors.every(e => e.includes('ліміт'));
+      const totalNowOnLimit =
+        (session.ticketData.photos?.length || 0) + (session.ticketData.documents?.length || 0);
+      if (allLimited) {
+        await this.sendMessage(
+          chatId,
+          `❌ <b>Досягнуто ліміт файлів!</b>\n\nВже прикріплено: ${totalNowOnLimit}/10 файлів.\n\nНатисніть «Завершити» щоб створити заявку.`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: TelegramUtils.inlineKeyboardTwoPerRow([
+                { text: '✅ Завершити', callback_data: 'finish_ticket' },
+                { text: TelegramUtils.getCancelButtonText(), callback_data: 'cancel_ticket' },
+              ]),
+            },
+          }
+        );
+      } else {
+        await this.sendMessage(chatId, '❌ Не вдалося зберегти файли. Спробуйте ще раз.');
+      }
       return;
     }
 
