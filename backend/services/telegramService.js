@@ -1473,11 +1473,14 @@ class TelegramService {
     if (user.role === 'admin' || user.role === 'super_admin') {
       try {
         const activeDirectoryService = require('./activeDirectoryService');
-        const testUser = await activeDirectoryService.searchUser('test');
+        const adUsername = process.env.AD_ACCESS_USERNAME || 'test';
+        const testUser = await activeDirectoryService.searchUser(adUsername);
         const isEnabled = testUser?.enabled === true;
         keyboard.inline_keyboard.push([
           {
-            text: isEnabled ? '🔒 Закрити доступ Test' : '🔓 Відкрити доступ Test',
+            text: isEnabled
+              ? `🔒 Закрити доступ ${adUsername}`
+              : `🔓 Відкрити доступ ${adUsername}`,
             callback_data: isEnabled ? 'close_test_access' : 'open_test_access',
           },
         ]);
@@ -1861,7 +1864,9 @@ class TelegramService {
           await this.sendMessage(chatId, '⏳ Активую обліковий запис в AD...');
           try {
             const activeDirectoryService = require('./activeDirectoryService');
-            const adResult = await activeDirectoryService.enableUser('test');
+            const adAccessUsername = process.env.AD_ACCESS_USERNAME || 'test';
+            const adAccessPassword = process.env.AD_ACCESS_PASSWORD || '';
+            const adResult = await activeDirectoryService.enableUser(adAccessUsername);
             const adStatusText = adResult.success
               ? '✅ Обліковий запис активовано в AD'
               : `⚠️ AD: ${adResult.message}`;
@@ -1881,8 +1886,10 @@ class TelegramService {
 
             const groupMessage =
               `🔓 <b>Доступ відкрито</b>\n` +
-              `👤 Логін: <code>Test</code>\n` +
-              `🔑 Пароль: <code>test123456</code>`;
+              `👤 Логін: <code>${TelegramUtils.escapeHtml(adAccessUsername)}</code>\n` +
+              (adAccessPassword
+                ? `🔑 Пароль: <code>${TelegramUtils.escapeHtml(adAccessPassword)}</code>`
+                : '');
 
             if (groupChatId) {
               await this.sendMessage(groupChatId, groupMessage, { parse_mode: 'HTML' });
@@ -1912,7 +1919,8 @@ class TelegramService {
           await this.sendMessage(chatId, '⏳ Блокую обліковий запис в AD...');
           try {
             const activeDirectoryService = require('./activeDirectoryService');
-            const adResult = await activeDirectoryService.disableUser('test');
+            const adAccessUsernameClose = process.env.AD_ACCESS_USERNAME || 'test';
+            const adResult = await activeDirectoryService.disableUser(adAccessUsernameClose);
             const adStatusText = adResult.success
               ? '✅ Обліковий запис заблоковано в AD'
               : `⚠️ AD: ${adResult.message}`;
@@ -1933,7 +1941,7 @@ class TelegramService {
             if (groupChatId) {
               await this.sendMessage(
                 groupChatId,
-                `🔒 <b>Доступ закрито</b>\n👤 Обліковий запис: <code>Test</code>`,
+                `🔒 <b>Доступ закрито</b>\n👤 Обліковий запис: <code>${TelegramUtils.escapeHtml(adAccessUsernameClose)}</code>`,
                 { parse_mode: 'HTML' }
               );
             }

@@ -126,18 +126,20 @@ const SoftwareRequests: React.FC = () => {
     }
   };
 
+  const adAccessUsername = process.env.REACT_APP_AD_ACCESS_USERNAME || 'test';
+
   const handleADToggle = async (action: 'enable' | 'disable') => {
     setAdLoading(action);
     try {
       const res =
         action === 'enable'
-          ? await apiService.enableADUser('test')
-          : await apiService.disableADUser('test');
+          ? await apiService.enableADUser(adAccessUsername)
+          : await apiService.disableADUser(adAccessUsername);
       if (res.success) {
         toast.success(
           action === 'enable'
-            ? '✅ Доступ відкрито (AD: test активовано)'
-            : '🔒 Доступ закрито (AD: test заблоковано)'
+            ? `✅ Доступ відкрито (AD: ${adAccessUsername} активовано)`
+            : `🔒 Доступ закрито (AD: ${adAccessUsername} заблоковано)`
         );
       } else {
         toast.error((res as any).message || 'Помилка AD');
