@@ -1668,6 +1668,27 @@ class TelegramAIService {
     if (!session.dialog_history) {
       session.dialog_history = [];
     }
+
+    // Скидаємо застарілу сесію (> 30 хв без активності), щоб старий контекст не забруднював новий
+    const SESSION_STALE_MS = 30 * 60 * 1000;
+    const isAgeStale =
+      !session.lastActivityAt || Date.now() - session.lastActivityAt > SESSION_STALE_MS;
+    if (isAgeStale && (session.dialog_history.length > 0 || session.ticketDraft)) {
+      session.dialog_history = [];
+      session.ticketDraft = null;
+      session.pendingAttachments = [];
+      session.awaitingErrorPhoto = false;
+      session.awaitingComputerAccessPhoto = false;
+      session.step = 'gathering_information';
+      if (session.ticketData) {
+        session.ticketData = {
+          createdBy: session.ticketData?.createdBy,
+          photos: [],
+          documents: [],
+        };
+      }
+    }
+
     const lastUserMsg = session.dialog_history.filter(m => m.role === 'user').pop();
     const problemDescription =
       (caption && String(caption).trim()) ||

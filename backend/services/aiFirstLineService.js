@@ -467,6 +467,10 @@ async function checkSimilarTicketsRelevance(settings, userMessage, similarTicket
   ) {
     return { relevant: true };
   }
+  // Якщо запит порожній — не можна порівнювати, схожі тікети некорисні
+  if (!userMessage || !String(userMessage).trim()) {
+    return { relevant: false };
+  }
   const maxTokens = MAX_TOKENS.SIMILAR_TICKETS_RELEVANCE_CHECK || 80;
   const systemPrompt = fillPrompt(SIMILAR_TICKETS_RELEVANCE_CHECK, {
     userMessage: userMessage || '(порожньо)',

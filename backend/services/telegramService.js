@@ -2670,20 +2670,18 @@ class TelegramService {
       this.userSessions.set(chatId, session);
     }
 
-    // Якщо сесія містить старий контекст без нових файлів — скидаємо як нову (аналогічно фото)
-    const isStaleSession =
-      session.step !== 'gathering_information' ||
-      session.ticketDraft !== null ||
-      ((!session.pendingAttachments || session.pendingAttachments.length === 0) &&
-        session.dialog_history &&
-        session.dialog_history.length > 0);
-    if (isStaleSession) {
+    // Скидаємо сесію якщо вона "застрягла" в неправильному стані або неактивна > 30 хв
+    const SESSION_STALE_MS = 30 * 60 * 1000;
+    const isAgeStale =
+      !session.lastActivityAt || Date.now() - session.lastActivityAt > SESSION_STALE_MS;
+    const isStepBroken = session.step !== 'gathering_information';
+    if (isAgeStale || isStepBroken) {
       session.step = 'gathering_information';
       session.dialog_history = [];
       session.ticketDraft = null;
       session.pendingAttachments = [];
       session.ticketData = {
-        createdBy: session.ticketData?.createdBy || session.userContext?.userId,
+        createdBy: session.ticketData?.createdBy,
         photos: [],
         documents: [],
       };
@@ -2719,6 +2717,21 @@ class TelegramService {
           err: err.message,
         });
       }
+    }
+
+    // Додаємо запис у dialog_history щоб getTicketSummary мав контекст, а не використовував
+    // нещодавно вирішені тікети як "reference" (що може дати неправильну категорію/опис)
+    if (savedNames.length > 0) {
+      if (!session.dialog_history) {
+        session.dialog_history = [];
+      }
+      const captionParts = msgs
+        .filter(m => m.caption && m.caption.trim())
+        .map(m => m.caption.trim());
+      const fileListText =
+        `Прикріплено документи до заявки: ${savedNames.join(', ')}` +
+        (captionParts.length ? `. Підписи: ${captionParts.join('; ')}` : '');
+      session.dialog_history.push({ role: 'user', content: fileListText });
     }
 
     this.userSessions.set(chatId, session);
