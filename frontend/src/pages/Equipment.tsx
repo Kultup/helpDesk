@@ -1,907 +1,948 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Container,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  Chip,
-  IconButton,
-  Tooltip,
-  Box,
-  Grid,
-} from '@mui/material';
+  Monitor,
+  Printer,
+  Phone,
+  Wifi,
+  Battery,
+  Package,
+  Server,
+  Tv,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  RefreshCw,
+  Download,
+  Upload,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle,
+  Info,
+  Tag,
+  MapPin,
+  StickyNote,
+} from 'lucide-react';
 import { Equipment as EquipmentType } from '../types';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Search as SearchIcon,
-  Refresh as RefreshIcon,
-  InfoOutlined as InfoIcon,
-  PlaceOutlined as PlaceIcon,
-  TagOutlined as TagIcon,
-  NotesOutlined as NotesIcon,
-  Download as DownloadIcon,
-  UploadFile as UploadFileIcon,
-} from '@mui/icons-material';
-import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import LoadingSpinner from '../components/UI/LoadingSpinner';
 
-// Використовуємо глобальний тип Equipment з types/index.ts
-// interface Equipment { ... } - видалено, оскільки використовується імпортований тип
+// ─── Lookups ──────────────────────────────────────────────────────────────────
 
 const equipmentTypes = [
-  { value: 'computer', label: "Комп'ютер" },
-  { value: 'printer', label: 'Принтер' },
-  { value: 'phone', label: 'Телефон' },
-  { value: 'monitor', label: 'Монітор' },
-  { value: 'router', label: 'Роутер' },
-  { value: 'switch', label: 'Свіч' },
-  { value: 'ups', label: 'ДБЖ' },
-  { value: 'other', label: 'Інше' },
+  { value: 'computer', label: "Комп'ютер", Icon: Monitor },
+  { value: 'printer', label: 'Принтер', Icon: Printer },
+  { value: 'phone', label: 'Телефон', Icon: Phone },
+  { value: 'monitor', label: 'Монітор', Icon: Tv },
+  { value: 'router', label: 'Роутер', Icon: Wifi },
+  { value: 'switch', label: 'Свіч', Icon: Server },
+  { value: 'ups', label: 'ДБЖ', Icon: Battery },
+  { value: 'other', label: 'Інше', Icon: Package },
 ];
 
 const statusTypes = [
-  { value: 'working', label: 'В роботі', color: 'success' as const },
-  { value: 'not_working', label: 'Не працює', color: 'error' as const },
-  { value: 'new', label: 'Новий', color: 'info' as const },
-  { value: 'used', label: 'Б/У', color: 'default' as const },
+  { value: 'working', label: 'В роботі', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { value: 'not_working', label: 'Не працює', cls: 'bg-red-50 text-red-600 border-red-200' },
+  { value: 'new', label: 'Новий', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { value: 'used', label: 'Б/У', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
 ];
 
+function getTypeInfo(value: string) {
+  return equipmentTypes.find(t => t.value === value) ?? equipmentTypes[equipmentTypes.length - 1];
+}
+function getStatusInfo(value: string) {
+  return statusTypes.find(s => s.value === value) ?? statusTypes[0];
+}
+
+const emptyForm = {
+  name: '',
+  type: 'computer',
+  brand: '',
+  model: '',
+  serialNumber: '',
+  inventoryNumber: '',
+  city: '',
+  institution: '',
+  status: 'working',
+  assignedTo: '',
+  purchaseDate: '',
+  warrantyExpiry: '',
+  location: '',
+  notes: '',
+};
+
+// ─── Small components ─────────────────────────────────────────────────────────
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const s = getStatusInfo(status);
+  return (
+    <span
+      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border ${s.cls}`}
+    >
+      {s.label}
+    </span>
+  );
+};
+
+// ─── Select & Input helpers (native, Tailwind-styled) ────────────────────────
+
+const inputCls =
+  'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400';
+const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 const Equipment: React.FC = () => {
-  const { t } = useTranslation();
   const [equipment, setEquipment] = useState<EquipmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [limit, setLimit] = useState(50);
   const [total, setTotal] = useState(0);
 
-  // Фільтри
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filters
+  const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
-  const [institutionFilter, setInstitutionFilter] = useState('');
+  const [instFilter, setInstFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
-  // Діалог створення/редагування
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingEquipment, setEditingEquipment] = useState<EquipmentType | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'computer',
-    brand: '',
-    model: '',
-    serialNumber: '',
-    inventoryNumber: '',
-    city: '',
-    institution: '',
-    status: 'working',
-    assignedTo: '',
-    purchaseDate: '',
-    warrantyExpiry: '',
-    location: '',
-    notes: '',
-  });
-
-  // Список міст та закладів для форми та фільтрів
+  // Reference data
   const [cities, setCities] = useState<Array<{ _id: string; name: string }>>([]);
-  const [institutions, setInstitutions] = useState<
-    Array<{ _id: string; name: string; address?: { city?: string } }>
-  >([]);
+  const [allInstitutions, setAllInstitutions] = useState<Array<{ _id: string; name: string }>>([]);
+  const [formInstitutions, setFormInstitutions] = useState<Array<{ _id: string; name: string }>>(
+    []
+  );
   const [users, setUsers] = useState<Array<{ _id: string; firstName: string; lastName: string }>>(
     []
   );
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const blob = (await api.get('/equipment/template', { responseType: 'blob' })) as any;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'equipment_import_template.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Помилка завантаження шаблону:', error);
-      alert('Помилка завантаження шаблону');
-    }
+  // Modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<EquipmentType | null>(null);
+  const [formData, setFormData] = useState({ ...emptyForm });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  // Toast
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // Import
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Data loaders ────────────────────────────────────────────────────────────
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
+  const loadEquipment = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response: any = await api.post('/equipment/import', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      console.log('Import response:', response);
-      alert(response.data?.message || 'Імпорт завершено');
-      loadEquipment();
-    } catch (error: any) {
-      console.error('Помилка імпорту:', error);
-      alert(error.response?.data?.message || 'Помилка імпорту');
-    } finally {
-      setLoading(false);
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  useEffect(() => {
-    loadEquipment();
-    loadCities();
-    loadInstitutions();
-    loadUsers();
-  }, [page, rowsPerPage, searchQuery, typeFilter, statusFilter, cityFilter, institutionFilter]);
-
-  // Завантаження закладів при зміні міста у формі
-  useEffect(() => {
-    console.log('🔄 useEffect - formData.city змінилось:', formData.city);
-    if (formData.city) {
-      console.log('✅ Місто вибране, завантажуємо заклади...');
-      loadInstitutionsByCity(formData.city);
-    } else {
-      console.log('⚠️ Місто не вибране, скидаємо заклади');
-      setInstitutions([]);
-    }
-  }, [formData.city]);
-
-  const loadEquipment = async () => {
-    try {
-      setLoading(true);
-      const params: any = {
-        page: page + 1,
-        limit: rowsPerPage,
-      };
-
-      if (searchQuery) params.search = searchQuery;
+      const params: Record<string, unknown> = { page: page + 1, limit };
+      if (search) params.search = search;
       if (typeFilter) params.type = typeFilter;
       if (statusFilter) params.status = statusFilter;
       if (cityFilter) params.city = cityFilter;
-      if (institutionFilter) params.institution = institutionFilter;
-
-      const response = (await api.get('/equipment', { params })) as any;
-      setEquipment(response.data.equipment);
-      setTotal(response.data.pagination.total);
-    } catch (error) {
-      console.error('Помилка завантаження обладнання:', error);
+      if (instFilter) params.institution = instFilter;
+      const res = (await api.get('/equipment', { params })) as any;
+      setEquipment(res.data.equipment);
+      setTotal(res.data.pagination.total);
+    } catch {
+      showToast('Помилка завантаження обладнання', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, search, typeFilter, statusFilter, cityFilter, instFilter]);
 
   const loadCities = async () => {
     try {
-      const response = (await api.get('/cities')) as any;
-      console.log('🌍 Cities API response:', response.data);
-      const citiesList = response.data || [];
-      console.log(
-        `📍 Завантажено ${citiesList.length} міст:`,
-        citiesList.map((c: any) => ({ id: c._id, name: c.name }))
-      );
-      setCities(citiesList);
-    } catch (error) {
-      console.error('❌ Помилка завантаження міст:', error);
+      const res = (await api.get('/cities')) as any;
+      setCities(res.data || []);
+    } catch {
+      /* ignore */
     }
   };
 
-  const loadInstitutions = async () => {
+  const loadAllInstitutions = async () => {
     try {
-      // Використовуємо публічний endpoint який не вимагає автентифікації
-      const response = (await api.get('/institutions/public', { params: { limit: 500 } })) as any;
-      console.log('🏢 All Institutions API response:', response);
-      console.log('🏢 response.data:', response.data);
-
-      // Перевіряємо різні можливі структури відповіді
-      let list = [];
-      if (Array.isArray(response.data)) {
-        list = response.data;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        list = response.data.data;
-      } else if (response.data?.success && Array.isArray(response.data?.institutions)) {
-        list = response.data.institutions;
-      }
-
-      console.log('🏢 All Institutions list:', list);
-      setInstitutions(list);
-    } catch (error) {
-      console.error('❌ Помилка завантаження закладів:', error);
+      const res = (await api.get('/institutions/public', { params: { limit: 500 } })) as any;
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data?.institutions)
+            ? res.data.institutions
+            : [];
+      setAllInstitutions(list);
+    } catch {
+      /* ignore */
     }
   };
 
   const loadInstitutionsByCity = async (cityId: string) => {
+    if (!cityId) {
+      setFormInstitutions([]);
+      return;
+    }
     try {
-      console.log('🔍 Завантаження закладів для міста ID:', cityId);
-      // Завантажуємо заклади для конкретного міста
-      const response = (await api.get('/institutions/public', {
-        params: {
-          city: cityId,
-          limit: 500,
-        },
+      const res = (await api.get('/institutions/public', {
+        params: { city: cityId, limit: 500 },
       })) as any;
-      console.log('📦 Institutions API response (full):', response);
-      console.log(
-        '📦 response.data type:',
-        typeof response.data,
-        Array.isArray(response.data) ? 'Array' : 'Object'
-      );
-      console.log('📦 response.data:', response.data);
-      console.log('📦 response.data.data:', response.data?.data);
-      console.log('📦 response.data.success:', response.data?.success);
-
-      // Визначаємо структуру відповіді
-      let list = [];
-
-      // Варіант 1: response.data.data є масивом (стандартна структура API)
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        list = response.data.data;
-        console.log('✅ Використовуємо response.data.data');
-      }
-      // Варіант 2: response.data вже є масивом
-      else if (Array.isArray(response.data)) {
-        list = response.data;
-        console.log('✅ Використовуємо response.data (масив)');
-      }
-      // Варіант 3: response.data.institutions
-      else if (response.data?.institutions && Array.isArray(response.data.institutions)) {
-        list = response.data.institutions;
-        console.log('✅ Використовуємо response.data.institutions');
-      } else {
-        console.warn('⚠️ Невідома структура відповіді:', response.data);
-      }
-
-      console.log('✅ Filtered institutions list:', list);
-      console.log(`📊 Знайдено ${list.length} закладів для міста`);
-
-      if (list.length === 0) {
-        console.warn('⚠️ Заклади не знайдені для міста:', cityId);
-      }
-
-      setInstitutions(list);
-    } catch (error) {
-      console.error('❌ Помилка завантаження закладів для міста:', error);
-      setInstitutions([]);
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.institutions)
+            ? res.data.institutions
+            : [];
+      setFormInstitutions(list);
+    } catch {
+      setFormInstitutions([]);
     }
   };
 
   const loadUsers = async () => {
     try {
-      const response = (await api.get('/users')) as any;
-      setUsers(response.data.users || response.data);
-    } catch (error) {
-      console.error('Помилка завантаження користувачів:', error);
+      const res = (await api.get('/users')) as any;
+      setUsers(res.data.users || res.data || []);
+    } catch {
+      /* ignore */
     }
   };
 
-  const handleOpenDialog = (equipment: EquipmentType | null = null) => {
-    if (equipment) {
-      setEditingEquipment(equipment);
-      setFormData({
-        name: equipment.name || '',
-        type: equipment.type || 'computer',
-        brand: equipment.brand || '',
-        model: equipment.model || '',
-        serialNumber: equipment.serialNumber || '',
-        inventoryNumber: equipment.inventoryNumber || '',
-        city: equipment.city?._id || '',
-        institution: equipment.institution?._id || '',
-        status: equipment.status || 'working',
-        assignedTo: equipment.assignedTo?._id || '',
-        purchaseDate: equipment.purchaseDate ? equipment.purchaseDate.split('T')[0] : '',
-        warrantyExpiry: equipment.warrantyExpiry ? equipment.warrantyExpiry.split('T')[0] : '',
-        location: equipment.location || '',
-        notes: equipment.notes || '',
-      });
-    } else {
-      setEditingEquipment(null);
-      setFormData({
-        name: '',
-        type: 'computer',
-        brand: '',
-        model: '',
-        serialNumber: '',
-        inventoryNumber: '',
-        city: '',
-        institution: '',
-        status: 'working',
-        assignedTo: '',
-        purchaseDate: '',
-        warrantyExpiry: '',
-        location: '',
-        notes: '',
-      });
-    }
-    setDialogOpen(true);
+  useEffect(() => {
+    loadEquipment();
+  }, [loadEquipment]);
+  useEffect(() => {
+    loadCities();
+    loadAllInstitutions();
+    loadUsers();
+  }, []);
+  useEffect(() => {
+    loadInstitutionsByCity(formData.city);
+  }, [formData.city]);
+
+  // ── Modal helpers ────────────────────────────────────────────────────────────
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormData({ ...emptyForm });
+    setFormError('');
+    setModalOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingEquipment(null);
+  const openEdit = (item: EquipmentType) => {
+    setEditing(item);
+    setFormData({
+      name: item.name || '',
+      type: item.type || 'computer',
+      brand: item.brand || '',
+      model: item.model || '',
+      serialNumber: item.serialNumber || '',
+      inventoryNumber: item.inventoryNumber || '',
+      city: item.city?._id || '',
+      institution: item.institution?._id || '',
+      status: item.status || 'working',
+      assignedTo: item.assignedTo?._id || '',
+      purchaseDate: item.purchaseDate ? item.purchaseDate.split('T')[0] : '',
+      warrantyExpiry: item.warrantyExpiry ? item.warrantyExpiry.split('T')[0] : '',
+      location: item.location || '',
+      notes: item.notes || '',
+    });
+    setFormError('');
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditing(null);
   };
 
   const handleSave = async () => {
-    try {
-      console.log('Saving equipment with data:', formData);
-      console.log('Institutions available:', institutions);
-
-      if (editingEquipment) {
-        await api.put(`/equipment/${editingEquipment._id}`, formData);
-      } else {
-        await api.post('/equipment', formData);
-      }
-      handleCloseDialog();
-      loadEquipment();
-    } catch (error) {
-      console.error('Помилка збереження обладнання:', error);
-      alert('Помилка збереження обладнання');
-    }
-  };
-
-  const handleChangePage = (_event: unknown, newPage: number): void => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Ви впевнені, що хочете видалити це обладнання?')) {
+    if (!formData.name.trim()) {
+      setFormError("Назва обладнання є обов'язковою");
       return;
     }
-
+    setSaving(true);
+    setFormError('');
     try {
-      await api.delete(`/equipment/${id}`);
+      if (editing) {
+        await api.put(`/equipment/${editing._id}`, formData);
+        showToast('Обладнання оновлено');
+      } else {
+        await api.post('/equipment', formData);
+        showToast('Обладнання додано');
+      }
+      closeModal();
       loadEquipment();
-    } catch (error) {
-      console.error('Помилка видалення обладнання:', error);
-      alert('Помилка видалення обладнання');
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message || 'Помилка збереження');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getStatusChip = (status: string) => {
-    const statusType = statusTypes.find(s => s.value === status);
-    return (
-      <Chip
-        label={statusType?.label || status}
-        color={statusType?.color || 'default'}
-        size="small"
-      />
-    );
+  const handleDelete = async (item: EquipmentType) => {
+    if (!window.confirm(`Видалити «${item.name}»?`)) return;
+    try {
+      await api.delete(`/equipment/${item._id}`);
+      showToast('Обладнання видалено');
+      loadEquipment();
+    } catch {
+      showToast('Помилка видалення', 'error');
+    }
   };
 
-  const getTypeLabel = (type: string) => {
-    const typeObj = equipmentTypes.find(t => t.value === type);
-    return typeObj?.label || type;
+  // ── Import / export ──────────────────────────────────────────────────────────
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = (await api.get('/equipment/template', { responseType: 'blob' })) as any;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'equipment_import_template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      showToast('Помилка завантаження шаблону', 'error');
+    }
   };
 
-  const formatDate = (date?: string) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('uk-UA');
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    setLoading(true);
+    try {
+      const res: any = await api.post('/equipment/import', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      showToast(res.data?.message || 'Імпорт завершено');
+      loadEquipment();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Помилка імпорту', 'error');
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
+
+  // ── Pagination ───────────────────────────────────────────────────────────────
+
+  const totalPages = Math.ceil(total / limit);
+  const from = page * limit + 1;
+  const to = Math.min(page * limit + limit, total);
+
+  // ── Status summary ──────────────────────────────────────────────────────────
+
+  const statusCounts = statusTypes.map(s => ({
+    ...s,
+    count: equipment.filter(e => e.status === s.value).length,
+  }));
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h5" component="h1">
-            Інвентарне обладнання
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
+    <div className="p-4 sm:p-6 min-h-screen bg-gray-50">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-5">
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Інвентарне обладнання</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Всього: {total.toLocaleString()} одиниць</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
               onClick={handleDownloadTemplate}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 bg-white transition-colors"
             >
-              Шаблон
-            </Button>
-            <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={handleImportClick}>
-              Імпорт
-            </Button>
+              <Download className="h-4 w-4" /> Шаблон
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 bg-white transition-colors"
+            >
+              <Upload className="h-4 w-4" /> Імпорт
+            </button>
             <input
               type="file"
               ref={fileInputRef}
-              style={{ display: 'none' }}
+              className="hidden"
               accept=".xlsx,.xls,.csv"
               onChange={handleFileChange}
             />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
-              Додати обладнання
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Фільтри */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              label="Пошук"
-              variant="outlined"
-              size="small"
-              value={searchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              placeholder="Назва, модель, серійний номер..."
-              InputProps={{
-                endAdornment: <SearchIcon />,
-              }}
-            />
-          </Grid>
-          <Grid item xs={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Тип"
-              value={typeFilter}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTypeFilter(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              SelectProps={{
-                displayEmpty: true,
-              }}
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors"
             >
-              <MenuItem value="">Всі типи</MenuItem>
-              {equipmentTypes.map(type => (
-                <MenuItem key={type.value} value={type.value}>
-                  {type.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Статус"
-              value={statusFilter}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStatusFilter(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              SelectProps={{
-                displayEmpty: true,
+              <Plus className="h-4 w-4" /> Додати
+            </button>
+          </div>
+        </div>
+
+        {/* ── Status summary pills ────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2">
+          {statusCounts.map(s => (
+            <button
+              key={s.value}
+              onClick={() => {
+                setStatusFilter(statusFilter === s.value ? '' : s.value);
+                setPage(0);
               }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                statusFilter === s.value
+                  ? s.cls + ' shadow-sm'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
             >
-              <MenuItem value="">Всі статуси</MenuItem>
-              {statusTypes.map(status => (
-                <MenuItem key={status.value} value={status.value}>
-                  {status.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Місто"
-              value={cityFilter}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCityFilter(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              SelectProps={{
-                displayEmpty: true,
+              {s.label}
+              <span
+                className={`inline-flex items-center justify-center h-4 w-4 rounded-full text-[10px] font-bold ${
+                  statusFilter === s.value ? 'bg-white/40' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {s.count}
+              </span>
+            </button>
+          ))}
+          {(statusFilter || typeFilter || cityFilter || instFilter || search) && (
+            <button
+              onClick={() => {
+                setStatusFilter('');
+                setTypeFilter('');
+                setCityFilter('');
+                setInstFilter('');
+                setSearch('');
+                setSearchInput('');
+                setPage(0);
               }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors"
             >
-              <MenuItem value="">Всі міста</MenuItem>
-              {cities.map(city => (
-                <MenuItem key={city._id} value={city._id}>
-                  {city.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Заклад"
-              value={institutionFilter}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setInstitutionFilter(e.target.value)
-              }
-              InputLabelProps={{ shrink: true }}
-              SelectProps={{
-                displayEmpty: true,
-              }}
-            >
-              <MenuItem value="">Всі заклади</MenuItem>
-              {institutions.map(inst => (
-                <MenuItem key={inst._id} value={inst._id}>
-                  {inst.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={6} md={2}>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={loadEquipment}
-              startIcon={<RefreshIcon />}
-            >
-              Оновити
-            </Button>
-          </Grid>
-        </Grid>
+              <X className="h-3 w-3" /> Скинути фільтри
+            </button>
+          )}
+        </div>
 
-        {/* Таблиця */}
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Назва</TableCell>
-                <TableCell>Тип</TableCell>
-                <TableCell>Модель</TableCell>
-                <TableCell>Інв. №</TableCell>
-                <TableCell>Місто</TableCell>
-                <TableCell>Заклад</TableCell>
-                <TableCell>Статус</TableCell>
-                <TableCell>Призначено</TableCell>
-                <TableCell>Дії</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {equipment.map(item => (
-                <TableRow key={item._id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{getTypeLabel(item.type)}</TableCell>
-                  <TableCell>
-                    {item.brand && item.model
-                      ? `${item.brand} ${item.model}`
-                      : item.brand || item.model || '-'}
-                  </TableCell>
-                  <TableCell>{item.inventoryNumber || '-'}</TableCell>
-                  <TableCell>{item.city?.name || '-'}</TableCell>
-                  <TableCell>{item.institution?.name || '-'}</TableCell>
-                  <TableCell>{getStatusChip(item.status)}</TableCell>
-                  <TableCell>
-                    {item.assignedTo
-                      ? `${item.assignedTo.firstName} ${item.assignedTo.lastName}`
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton size="small" onClick={() => handleOpenDialog(item)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(item._id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {equipment.length === 0 && !loading && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    Немає даних
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <TablePagination
-          rowsPerPageOptions={[25, 50, 100]}
-          component="div"
-          count={total}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Рядків на сторінці:"
-          labelDisplayedRows={({ from, to, count }: { from: number; to: number; count: number }) =>
-            `${from}-${to} з ${count}`
-          }
-        />
-      </Paper>
-
-      {/* Діалог створення/редагування */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-          },
-        }}
-      >
-        <DialogTitle sx={{ pb: 1, fontSize: '1.25rem', fontWeight: 600 }}>
-          {editingEquipment ? 'Редагувати обладнання' : 'Додати обладнання'}
-        </DialogTitle>
-        <DialogContent sx={{ pt: 0 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* ОСНОВНА ІНФОРМАЦІЯ */}
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <InfoIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                  Основна інформація
-                </Typography>
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    required
-                    label="Назва обладнання"
-                    value={formData.name}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder="Dell Latitude E7450"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    select
-                    fullWidth
-                    required
-                    label="Тип обладнання"
-                    value={formData.type}
-                    onChange={(e: any) => setFormData({ ...formData, type: e.target.value })}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                  >
-                    {equipmentTypes.map(type => (
-                      <MenuItem key={type.value} value={type.value}>
-                        {type.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Виробник (Бренд)"
-                    value={formData.brand}
-                    onChange={(e: any) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder="HP, Dell, Lenovo"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Модель"
-                    value={formData.model}
-                    onChange={(e: any) => setFormData({ ...formData, model: e.target.value })}
-                    placeholder="LaserJet Pro M404dn"
-                    size="small"
-                  />
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* МІСЦЕЗНАХОДЖЕННЯ */}
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <PlaceIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                  Місцезнаходження
-                </Typography>
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      component="label"
-                      sx={{ display: 'block', mb: 0.5 }}
-                    >
-                      Місто
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      value={formData.city}
-                      onChange={e => {
-                        const selectedCityId = e.target.value;
-
-                        // При зміні міста скидаємо заклад
-                        setFormData({
-                          ...formData,
-                          city: selectedCityId,
-                          institution: '',
-                        });
-                      }}
-                      size="small"
-                      variant="outlined"
-                      SelectProps={{ displayEmpty: true }}
-                    >
-                      <MenuItem value="">Оберіть місто</MenuItem>
-                      {cities.map(city => (
-                        <MenuItem key={city._id} value={city._id}>
-                          {city.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Box>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      component="label"
-                      sx={{ display: 'block', mb: 0.5 }}
-                    >
-                      Заклад
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      value={formData.institution}
-                      onChange={(e: any) =>
-                        setFormData({ ...formData, institution: e.target.value })
-                      }
-                      size="small"
-                      variant="outlined"
-                      disabled={!formData.city}
-                      SelectProps={{ displayEmpty: true }}
-                      helperText={!formData.city ? 'Спочатку оберіть місто' : ''}
-                    >
-                      <MenuItem value="">
-                        {!formData.city ? 'Спочатку оберіть місто' : 'Оберіть заклад'}
-                      </MenuItem>
-                      {institutions.map(inst => (
-                        <MenuItem key={inst._id} value={inst._id}>
-                          {inst.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Box>
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Локація (кабінет, відділ)"
-                    value={formData.location}
-                    onChange={(e: any) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="Кабінет 201, IT відділ"
-                    size="small"
-                  />
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* ОБЛІК ТА ІДЕНТИФІКАЦІЯ */}
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <TagIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                  Облік та ідентифікація
-                </Typography>
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    label="Серійний номер"
-                    value={formData.serialNumber}
-                    onChange={(e: any) =>
-                      setFormData({ ...formData, serialNumber: e.target.value })
-                    }
-                    placeholder="S/N з корпусу"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    fullWidth
-                    disabled
-                    label="Інвентарний номер"
-                    value={formData.inventoryNumber || '—'}
-                    helperText="Генерується автоматично"
-                    size="small"
-                    sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      component="label"
-                      sx={{ display: 'block', mb: 0.5 }}
-                    >
-                      Статус обладнання
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      value={formData.status}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      size="small"
-                      variant="outlined"
-                      SelectProps={{ displayEmpty: true }}
-                    >
-                      <MenuItem value="">Оберіть статус</MenuItem>
-                      {statusTypes.map(status => (
-                        <MenuItem key={status.value} value={status.value}>
-                          {status.label}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* ДОДАТКОВА ІНФОРМАЦІЯ */}
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'grey.50' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <NotesIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                  Додаткова інформація
-                </Typography>
-              </Box>
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                label="Примітки та опис"
-                value={formData.notes}
-                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
-                placeholder="Технічні характеристики, історія ремонтів тощо..."
-                size="small"
+        {/* ── Filters ────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="flex flex-wrap gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    setSearch(searchInput.trim());
+                    setPage(0);
+                  }
+                }}
+                placeholder="Назва, модель, серійний номер... (Enter)"
+                className="pl-9 pr-3 py-2 w-full border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-            </Paper>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-          <Button onClick={handleCloseDialog} variant="outlined">
-            Скасувати
-          </Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={!formData.name}
-            startIcon={editingEquipment ? <EditIcon /> : <AddIcon />}
-          >
-            {editingEquipment ? 'Зберегти' : 'Додати'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            </div>
+            {/* Type */}
+            <select
+              value={typeFilter}
+              onChange={e => {
+                setTypeFilter(e.target.value);
+                setPage(0);
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-32"
+            >
+              <option value="">Всі типи</option>
+              {equipmentTypes.map(t => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            {/* City */}
+            <select
+              value={cityFilter}
+              onChange={e => {
+                setCityFilter(e.target.value);
+                setInstFilter('');
+                setPage(0);
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-32"
+            >
+              <option value="">Всі міста</option>
+              {cities.map(c => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {/* Institution */}
+            <select
+              value={instFilter}
+              onChange={e => {
+                setInstFilter(e.target.value);
+                setPage(0);
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-40"
+            >
+              <option value="">Всі заклади</option>
+              {allInstitutions.map(i => (
+                <option key={i._id} value={i._id}>
+                  {i.name}
+                </option>
+              ))}
+            </select>
+            {/* Refresh */}
+            <button
+              onClick={() => loadEquipment()}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 bg-white transition-colors"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Table ──────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/70">
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Обладнання
+                      </th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Бренд / Модель
+                      </th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Інв. №
+                      </th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Місто / Заклад
+                      </th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Статус
+                      </th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">
+                        Призначено
+                      </th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {equipment.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-16 text-gray-400">
+                          <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                          <p>Обладнання не знайдено</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      equipment.map(item => {
+                        const tInfo = getTypeInfo(item.type);
+                        return (
+                          <tr key={item._id} className="hover:bg-gray-50/60 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 bg-blue-50 rounded-lg flex-shrink-0">
+                                  <tInfo.Icon className="h-3.5 w-3.5 text-blue-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-800">{item.name}</p>
+                                  <p className="text-xs text-gray-400">{tInfo.label}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {item.brand || item.model ? (
+                                <>
+                                  {item.brand && <span className="font-medium">{item.brand}</span>}
+                                  {item.brand && item.model && ' '}
+                                  {item.model}
+                                </>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {item.inventoryNumber ? (
+                                <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                  {item.inventoryNumber}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-gray-700">{item.city?.name || '—'}</p>
+                              <p className="text-xs text-gray-400 truncate max-w-40">
+                                {item.institution?.name || ''}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <StatusBadge status={item.status} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {item.assignedTo ? (
+                                `${item.assignedTo.firstName} ${item.assignedTo.lastName}`
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => openEdit(item)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(item)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {total > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>Рядків:</span>
+                    <select
+                      value={limit}
+                      onChange={e => {
+                        setLimit(+e.target.value);
+                        setPage(0);
+                      }}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm bg-white"
+                    >
+                      {[25, 50, 100].map(n => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-gray-400">
+                      {from}–{to} з {total}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      disabled={page === 0}
+                      onClick={() => setPage(p => p - 1)}
+                      className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4 text-gray-600" />
+                    </button>
+                    <span className="px-3 text-sm text-gray-600">
+                      {page + 1} / {totalPages}
+                    </span>
+                    <button
+                      disabled={page >= totalPages - 1}
+                      onClick={() => setPage(p => p + 1)}
+                      className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                    >
+                      <ChevronRight className="h-4 w-4 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Modal ──────────────────────────────────────────────────────── */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={e => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editing ? 'Редагувати обладнання' : 'Додати обладнання'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="overflow-y-auto flex-1 p-6 space-y-5">
+              {formError && (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {formError}
+                </div>
+              )}
+
+              {/* Основна інформація */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  <h3 className="text-sm font-semibold text-gray-700">Основна інформація</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div className="sm:col-span-3">
+                    <label className={labelCls}>Назва обладнання *</label>
+                    <input
+                      className={inputCls}
+                      placeholder="Dell Latitude E7450"
+                      value={formData.name}
+                      onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Тип</label>
+                    <select
+                      className={inputCls}
+                      value={formData.type}
+                      onChange={e => setFormData(f => ({ ...f, type: e.target.value }))}
+                    >
+                      {equipmentTypes.map(t => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Виробник</label>
+                    <input
+                      className={inputCls}
+                      placeholder="HP, Dell, Lenovo"
+                      value={formData.brand}
+                      onChange={e => setFormData(f => ({ ...f, brand: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Модель</label>
+                    <input
+                      className={inputCls}
+                      placeholder="LaserJet Pro M404dn"
+                      value={formData.model}
+                      onChange={e => setFormData(f => ({ ...f, model: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Місцезнаходження */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="h-4 w-4 text-blue-500" />
+                  <h3 className="text-sm font-semibold text-gray-700">Місцезнаходження</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div>
+                    <label className={labelCls}>Місто</label>
+                    <select
+                      className={inputCls}
+                      value={formData.city}
+                      onChange={e =>
+                        setFormData(f => ({ ...f, city: e.target.value, institution: '' }))
+                      }
+                    >
+                      <option value="">Оберіть місто</option>
+                      {cities.map(c => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Заклад</label>
+                    <select
+                      className={inputCls}
+                      value={formData.institution}
+                      disabled={!formData.city}
+                      onChange={e => setFormData(f => ({ ...f, institution: e.target.value }))}
+                    >
+                      <option value="">
+                        {!formData.city ? 'Спочатку оберіть місто' : 'Оберіть заклад'}
+                      </option>
+                      {formInstitutions.map(i => (
+                        <option key={i._id} value={i._id}>
+                          {i.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Кабінет / Локація</label>
+                    <input
+                      className={inputCls}
+                      placeholder="Кабінет 201, IT відділ"
+                      value={formData.location}
+                      onChange={e => setFormData(f => ({ ...f, location: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Облік та ідентифікація */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="h-4 w-4 text-blue-500" />
+                  <h3 className="text-sm font-semibold text-gray-700">Облік та ідентифікація</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-xl">
+                  <div>
+                    <label className={labelCls}>Серійний номер</label>
+                    <input
+                      className={inputCls}
+                      placeholder="S/N з корпусу"
+                      value={formData.serialNumber}
+                      onChange={e => setFormData(f => ({ ...f, serialNumber: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Інвентарний номер</label>
+                    <input
+                      className={inputCls + ' bg-gray-100 cursor-not-allowed'}
+                      disabled
+                      value={formData.inventoryNumber || '(авто)'}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Статус</label>
+                    <select
+                      className={inputCls}
+                      value={formData.status}
+                      onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}
+                    >
+                      {statusTypes.map(s => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Призначено</label>
+                    <select
+                      className={inputCls}
+                      value={formData.assignedTo}
+                      onChange={e => setFormData(f => ({ ...f, assignedTo: e.target.value }))}
+                    >
+                      <option value="">Не призначено</option>
+                      {users.map(u => (
+                        <option key={u._id} value={u._id}>
+                          {u.firstName} {u.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Дата придбання</label>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={formData.purchaseDate}
+                      onChange={e => setFormData(f => ({ ...f, purchaseDate: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Гарантія до</label>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={formData.warrantyExpiry}
+                      onChange={e => setFormData(f => ({ ...f, warrantyExpiry: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Примітки */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <StickyNote className="h-4 w-4 text-blue-500" />
+                  <h3 className="text-sm font-semibold text-gray-700">Примітки</h3>
+                </div>
+                <textarea
+                  className={inputCls + ' resize-none'}
+                  rows={3}
+                  placeholder="Технічні характеристики, історія ремонтів тощо..."
+                  value={formData.notes}
+                  onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
+                />
+              </section>
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Скасувати
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !formData.name.trim()}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors"
+              >
+                {saving ? (
+                  <LoadingSpinner size="sm" />
+                ) : editing ? (
+                  <Pencil className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {editing ? 'Зберегти' : 'Додати'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
