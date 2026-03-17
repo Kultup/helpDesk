@@ -508,8 +508,11 @@ router.post('/generate-link-code', authenticateToken, (req, res) => {
  * @desc    Список користувачів із прив'язаним Telegram (для прямих повідомлень)
  * @access  Admin
  */
-router.get('/users', authenticateToken, isAdminRole, async (req, res) => {
+router.get('/users', authenticateToken, async (req, res) => {
   try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Доступ заборонено' });
+    }
     const users = await User.find({
       telegramId: { $exists: true, $ne: null },
       isActive: true,
@@ -527,8 +530,11 @@ router.get('/users', authenticateToken, isAdminRole, async (req, res) => {
  * @desc    Історія прямих повідомлень з користувачем
  * @access  Admin
  */
-router.get('/messages/:userId', authenticateToken, isAdminRole, async (req, res) => {
+router.get('/messages/:userId', authenticateToken, async (req, res) => {
   try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Доступ заборонено' });
+    }
     const { userId } = req.params;
     const msgs = await TelegramMessage.find({
       ticketId: null,
@@ -551,8 +557,11 @@ router.get('/messages/:userId', authenticateToken, isAdminRole, async (req, res)
  * @desc    Відправка прямого повідомлення користувачу (не пов'язане з тікетом)
  * @access  Admin
  */
-router.post('/send-to-user/:userId', authenticateToken, isAdminRole, async (req, res) => {
+router.post('/send-to-user/:userId', authenticateToken, async (req, res) => {
   try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Доступ заборонено' });
+    }
     const { userId } = req.params;
     const { message } = req.body;
 
