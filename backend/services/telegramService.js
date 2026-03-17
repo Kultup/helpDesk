@@ -1431,6 +1431,13 @@ class TelegramService {
       ]);
     }
 
+    // Кнопка адміністратора
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      keyboard.inline_keyboard.push([
+        { text: '🔓 Відкрити доступ', callback_data: 'open_test_access' },
+      ]);
+    }
+
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
   }
 
@@ -1784,6 +1791,55 @@ class TelegramService {
             this.userSessions.set(chatId, cancelSession);
           }
           await this.showUserDashboard(chatId, user);
+        } else if (data === 'open_test_access') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          // Тільки для адміністраторів
+          if (user.role !== 'admin' && user.role !== 'super_admin') {
+            await this.sendMessage(chatId, '❌ Доступ заборонено');
+            return;
+          }
+          await this.sendMessage(chatId, '⏳ Активую обліковий запис в AD...');
+          try {
+            const activeDirectoryService = require('./activeDirectoryService');
+            const adResult = await activeDirectoryService.enableUser('test');
+            const adStatusText = adResult.success
+              ? '✅ Обліковий запис активовано в AD'
+              : `⚠️ AD: ${adResult.message}`;
+
+            // Отримуємо chatId групи
+            let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+            if (!groupChatId) {
+              try {
+                const telegramCfg = await TelegramConfig.findOne({ key: 'default' });
+                if (telegramCfg && telegramCfg.chatId && telegramCfg.chatId.trim()) {
+                  groupChatId = telegramCfg.chatId.trim();
+                }
+              } catch (_) {
+                /* ignore */
+              }
+            }
+
+            const groupMessage =
+              `🔓 <b>Доступ відкрито</b>\n` +
+              `👤 Логін: <code>Test</code>\n` +
+              `🔑 Пароль: <code>test123456</code>`;
+
+            if (groupChatId) {
+              await this.sendMessage(groupChatId, groupMessage, { parse_mode: 'HTML' });
+              await this.sendMessage(
+                chatId,
+                `${adStatusText}\n✅ Дані відправлено в загальну групу`
+              );
+            } else {
+              await this.sendMessage(
+                chatId,
+                `${adStatusText}\n⚠️ Не вдалося відправити в групу: chatId не налаштовано`
+              );
+            }
+          } catch (err) {
+            logger.error('open_test_access error:', err.message);
+            await this.sendMessage(chatId, `❌ Помилка: ${err.message}`);
+          }
         } else if (data === 'back_to_menu') {
           await this.answerCallbackQuery(callbackQuery.id);
           this.clearNavigationHistory(chatId);

@@ -46,8 +46,7 @@ const SoftwareRequests: React.FC = () => {
         setRequests(res.data || []);
         setTotalPages(res.pagination?.pages || 0);
       }
-    } catch (error) {
-      console.error('Error loading requests:', error);
+    } catch {
       toast.error('Не вдалося завантажити запити');
     } finally {
       setLoading(false);
@@ -60,8 +59,8 @@ const SoftwareRequests: React.FC = () => {
       if (res.success && res.data) {
         setStats(res.data);
       }
-    } catch (error) {
-      console.error('Error loading stats:', error);
+    } catch {
+      // ignore stats errors silently
     }
   };
 
@@ -93,7 +92,6 @@ const SoftwareRequests: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error('Error approving:', error);
       toast.error(error.response?.data?.message || 'Не вдалося схвалити запит');
     }
   };
@@ -111,7 +109,6 @@ const SoftwareRequests: React.FC = () => {
         loadStats();
       }
     } catch (error: any) {
-      console.error('Error rejecting:', error);
       toast.error(error.response?.data?.message || 'Не вдалося відхилити запит');
     }
   };
@@ -124,8 +121,7 @@ const SoftwareRequests: React.FC = () => {
         loadRequests(page);
         loadStats();
       }
-    } catch (error: any) {
-      console.error('Error marking installed:', error);
+    } catch {
       toast.error('Не вдалося позначити як встановлено');
     }
   };
