@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Download,
   CheckCircle,
   XCircle,
   Clock,
   User,
-  Calendar,
   AlertCircle,
   Eye,
   Check,
+  LockOpen,
+  Lock,
 } from 'lucide-react';
 import Card, { CardContent, CardHeader } from '../components/UI/Card';
 import Button from '../components/UI/Button';
@@ -20,7 +20,6 @@ import { apiService, ApiResponse } from '../services/api';
 import { SoftwareRequest, SoftwareRequestsApiResponse, SoftwareRequestStats } from '../types';
 
 const SoftwareRequests: React.FC = () => {
-  const navigate = useNavigate();
   const [requests, setRequests] = useState<SoftwareRequest[]>([]);
   const [stats, setStats] = useState<SoftwareRequestStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +30,7 @@ const SoftwareRequests: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [adminNote, setAdminNote] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [adLoading, setAdLoading] = useState<string | null>(null); // 'enable' | 'disable'
 
   const loadRequests = async (pageNum = 1) => {
     setLoading(true);
@@ -126,6 +126,29 @@ const SoftwareRequests: React.FC = () => {
     }
   };
 
+  const handleADToggle = async (action: 'enable' | 'disable') => {
+    setAdLoading(action);
+    try {
+      const res =
+        action === 'enable'
+          ? await apiService.enableADUser('test')
+          : await apiService.disableADUser('test');
+      if (res.success) {
+        toast.success(
+          action === 'enable'
+            ? '✅ Доступ відкрито (AD: test активовано)'
+            : '🔒 Доступ закрито (AD: test заблоковано)'
+        );
+      } else {
+        toast.error((res as any).message || 'Помилка AD');
+      }
+    } catch {
+      toast.error('Помилка підключення до AD');
+    } finally {
+      setAdLoading(null);
+    }
+  };
+
   const openModal = (request: SoftwareRequest, type: 'approve' | 'reject') => {
     setSelectedRequest(request);
     setActionType(type);
@@ -172,6 +195,34 @@ const SoftwareRequests: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900">Запити на встановлення ПЗ</h1>
             <p className="text-sm text-gray-500">Моніторинг запитів на встановлення програм</p>
           </div>
+        </div>
+        {/* AD Access controls */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 mr-1">AD (test):</span>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleADToggle('enable')}
+            disabled={adLoading !== null}
+            title="Відкрити доступ (увімкнути AD-акаунт test)"
+          >
+            {adLoading === 'enable' ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <LockOpen className="h-4 w-4" />
+            )}
+            <span className="ml-1.5">Відкрити</span>
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleADToggle('disable')}
+            disabled={adLoading !== null}
+            title="Закрити доступ (вимкнути AD-акаунт test)"
+          >
+            {adLoading === 'disable' ? <LoadingSpinner size="sm" /> : <Lock className="h-4 w-4" />}
+            <span className="ml-1.5">Закрити</span>
+          </Button>
         </div>
       </div>
 
@@ -504,20 +555,53 @@ const SoftwareRequests: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex gap-3 justify-end mt-6">
-                <Button variant="secondary" onClick={() => setShowModal(false)}>
-                  Закрити
-                </Button>
-                {actionType === 'approve' && (
-                  <Button variant="primary" onClick={handleApprove} disabled={!adminNote.trim()}>
-                    Схвалити і створити користувача
+              <div className="flex gap-3 justify-between mt-6">
+                {/* AD buttons inside modal */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleADToggle('enable')}
+                    disabled={adLoading !== null}
+                    title="Увімкнути AD-акаунт test"
+                  >
+                    {adLoading === 'enable' ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <LockOpen className="h-4 w-4" />
+                    )}
+                    <span className="ml-1">Відкрити AD</span>
                   </Button>
-                )}
-                {actionType === 'reject' && (
-                  <Button variant="danger" onClick={handleReject} disabled={!adminNote.trim()}>
-                    Відхилити
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleADToggle('disable')}
+                    disabled={adLoading !== null}
+                    title="Вимкнути AD-акаунт test"
+                  >
+                    {adLoading === 'disable' ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    <span className="ml-1">Закрити AD</span>
                   </Button>
-                )}
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={() => setShowModal(false)}>
+                    Закрити
+                  </Button>
+                  {actionType === 'approve' && (
+                    <Button variant="primary" onClick={handleApprove} disabled={!adminNote.trim()}>
+                      Схвалити і створити користувача
+                    </Button>
+                  )}
+                  {actionType === 'reject' && (
+                    <Button variant="danger" onClick={handleReject} disabled={!adminNote.trim()}>
+                      Відхилити
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

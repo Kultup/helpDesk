@@ -23,4 +23,10 @@ router.get('/test', activeDirectoryController.testConnection);
 // GET /api/ad/statistics - статистика AD
 router.get('/statistics', activeDirectoryController.getStatistics);
 
+// POST /api/ad/users/:username/enable - активувати обліковий запис
+router.post('/users/:username/enable', activeDirectoryController.enableUser);
+
+// POST /api/ad/users/:username/disable - деактивувати обліковий запис
+router.post('/users/:username/disable', activeDirectoryController.disableUser);
+
 module.exports = router;

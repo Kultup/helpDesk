@@ -688,6 +688,44 @@ class TelegramService {
             }
             return;
           }
+          // UAC dialog detection — якщо немає активної сесії, перевіряємо чи фото є вікном UAC
+          if (!session) {
+            try {
+              const uacFileId = msg.photo[msg.photo.length - 1].file_id;
+              const uacFile = await this.bot.getFile(uacFileId);
+              if (uacFile && uacFile.file_path) {
+                const uacExt = path.extname(uacFile.file_path).toLowerCase() || '.jpg';
+                const uacLocalPath = await this.downloadTelegramFileByFileId(uacFileId, uacExt);
+                const uacResult = await aiFirstLineService.analyzeUACDialog(uacLocalPath);
+                if (uacResult && uacResult.isUAC && uacResult.softwareName) {
+                  this.userSessions.set(msg.chat.id, {
+                    step: 'awaiting_uac_reason',
+                    uacSoftware: uacResult.softwareName,
+                    uacPhotoPath: uacLocalPath,
+                  });
+                  await this.sendMessage(
+                    msg.chat.id,
+                    `🖥️ <b>Визначено запит на встановлення програми</b>\n\n` +
+                      `📦 Програма: <code>${TelegramUtils.escapeHtml(uacResult.softwareName)}</code>\n\n` +
+                      `Вкажіть причину, чому вам потрібна ця програма (буде відправлено адміністратору):`,
+                    {
+                      parse_mode: 'HTML',
+                      reply_markup: {
+                        inline_keyboard: [
+                          [{ text: '❌ Скасувати', callback_data: 'cancel_uac_request' }],
+                        ],
+                      },
+                    }
+                  );
+                  return;
+                }
+              }
+            } catch (uacErr) {
+              logger.error('UAC detection error:', uacErr.message);
+              // не перериваємо — продовжуємо з нормальним потоком
+            }
+          }
+
           if (session && (session.mode === 'ai' || session.mode === 'choosing')) {
             if (msg.media_group_id && !this._isFirstInMediaGroup(msg.chat.id, msg.media_group_id)) {
               // Додаткове фото з альбому — зберігаємо як вкладення без повторного аналізу
@@ -1431,11 +1469,25 @@ class TelegramService {
       ]);
     }
 
-    // Кнопка адміністратора
+    // Динамічна кнопка адміністратора (стан AD)
     if (user.role === 'admin' || user.role === 'super_admin') {
-      keyboard.inline_keyboard.push([
-        { text: '🔓 Відкрити доступ', callback_data: 'open_test_access' },
-      ]);
+      try {
+        const activeDirectoryService = require('./activeDirectoryService');
+        const testUser = await activeDirectoryService.searchUser('test');
+        const isEnabled = testUser?.enabled === true;
+        keyboard.inline_keyboard.push([
+          {
+            text: isEnabled ? '🔒 Закрити доступ Test' : '🔓 Відкрити доступ Test',
+            callback_data: isEnabled ? 'close_test_access' : 'open_test_access',
+          },
+        ]);
+      } catch (_) {
+        // AD недоступний — показуємо обидві кнопки
+        keyboard.inline_keyboard.push([
+          { text: '🔓 Відкрити доступ Test', callback_data: 'open_test_access' },
+          { text: '🔒 Закрити доступ Test', callback_data: 'close_test_access' },
+        ]);
+      }
     }
 
     await this.sendMessage(chatId, welcomeText, { reply_markup: keyboard });
@@ -1783,6 +1835,14 @@ class TelegramService {
               },
             }
           );
+        } else if (data === 'cancel_uac_request') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const uacCancelSession = this.userSessions.get(chatId) || {};
+          delete uacCancelSession.step;
+          delete uacCancelSession.uacSoftware;
+          delete uacCancelSession.uacPhotoPath;
+          this.userSessions.set(chatId, uacCancelSession);
+          await this.showUserDashboard(chatId, user);
         } else if (data === 'cancel_write_to_admin') {
           await this.answerCallbackQuery(callbackQuery.id);
           const cancelSession = this.userSessions.get(chatId);
@@ -1841,6 +1901,50 @@ class TelegramService {
             logger.error('open_test_access error:', errMsg);
             await this.sendMessage(chatId, `❌ Помилка: ${errMsg}`);
           }
+          // Оновлюємо меню — кнопка зміниться на "Закрити доступ"
+          await this.showUserDashboard(chatId, user);
+        } else if (data === 'close_test_access') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          if (user.role !== 'admin' && user.role !== 'super_admin') {
+            await this.sendMessage(chatId, '❌ Доступ заборонено');
+            return;
+          }
+          await this.sendMessage(chatId, '⏳ Блокую обліковий запис в AD...');
+          try {
+            const activeDirectoryService = require('./activeDirectoryService');
+            const adResult = await activeDirectoryService.disableUser('test');
+            const adStatusText = adResult.success
+              ? '✅ Обліковий запис заблоковано в AD'
+              : `⚠️ AD: ${adResult.message}`;
+
+            // Отримуємо chatId групи
+            let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+            if (!groupChatId) {
+              try {
+                const telegramCfg = await TelegramConfig.findOne({ key: 'default' });
+                if (telegramCfg && telegramCfg.chatId && telegramCfg.chatId.trim()) {
+                  groupChatId = telegramCfg.chatId.trim();
+                }
+              } catch (_) {
+                /* ignore */
+              }
+            }
+
+            if (groupChatId) {
+              await this.sendMessage(
+                groupChatId,
+                `🔒 <b>Доступ закрито</b>\n👤 Обліковий запис: <code>Test</code>`,
+                { parse_mode: 'HTML' }
+              );
+            }
+            await this.sendMessage(chatId, adStatusText);
+          } catch (err) {
+            const errMsg = err?.message || err?.name || String(err);
+            logger.error('close_test_access error:', errMsg);
+            await this.sendMessage(chatId, `❌ Помилка: ${errMsg}`);
+          }
+          // Оновлюємо меню — кнопка зміниться на "Відкрити доступ"
+          await this.showUserDashboard(chatId, user);
         } else if (data === 'back_to_menu') {
           await this.answerCallbackQuery(callbackQuery.id);
           this.clearNavigationHistory(chatId);
@@ -2187,6 +2291,104 @@ class TelegramService {
         (this.hasActiveDM(chatIdStr) && this.getActiveTicketForUser(chatIdStr) === null);
       if (hasStandaloneDM && msg.text && !msg.text.startsWith('/')) {
         await this.sendMessage(chatId, '✅ Повідомлення надіслано адміністратору');
+        return;
+      }
+
+      // UAC reason handler — створює запит на встановлення ПЗ
+      if (
+        session &&
+        session.step === 'awaiting_uac_reason' &&
+        msg.text &&
+        !msg.text.startsWith('/')
+      ) {
+        const uacSoftware = session.uacSoftware || 'Невідома програма';
+        const uacPhotoPath = session.uacPhotoPath;
+        delete session.step;
+        delete session.uacSoftware;
+        delete session.uacPhotoPath;
+        this.userSessions.set(chatId, session);
+
+        try {
+          const SoftwareRequest = require('../models/SoftwareRequest');
+          const canRequest = await SoftwareRequest.canUserMakeRequest(
+            existingUser._id,
+            String(existingUser.telegramId || chatId)
+          );
+          if (!canRequest) {
+            await this.sendMessage(
+              chatId,
+              '⚠️ Ви вже подавали запит на встановлення ПЗ цього тижня. Новий запит можна подати через 7 днів.',
+              {
+                reply_markup: {
+                  inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+                },
+              }
+            );
+            return;
+          }
+
+          const newRequest = await SoftwareRequest.create({
+            user: existingUser._id,
+            telegramId: String(existingUser.telegramId || chatId),
+            softwareName: uacSoftware,
+            softwarePhoto: uacPhotoPath || undefined,
+            reason: msg.text.trim(),
+            status: 'pending',
+            requestedAt: new Date(),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          });
+
+          // Сповіщення в групу
+          let groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+          if (!groupChatId) {
+            try {
+              const telegramCfg = await TelegramConfig.findOne({ key: 'default' });
+              if (telegramCfg?.chatId?.trim()) {
+                groupChatId = telegramCfg.chatId.trim();
+              }
+            } catch (_) {
+              /* ignore */
+            }
+          }
+          if (groupChatId) {
+            const userName =
+              [existingUser.firstName, existingUser.lastName].filter(Boolean).join(' ') ||
+              existingUser.email;
+            await this.sendMessage(
+              groupChatId,
+              `📦 <b>Новий запит на встановлення ПЗ</b>\n` +
+                `👤 ${TelegramUtils.escapeHtml(userName)}\n` +
+                `💻 Програма: <code>${TelegramUtils.escapeHtml(uacSoftware)}</code>\n` +
+                `📝 Причина: ${TelegramUtils.escapeHtml(msg.text.trim())}\n` +
+                `🔗 <a href="https://helpdesk.krainamriy.fun/admin/software-requests">Переглянути у панелі</a>`,
+              { parse_mode: 'HTML' }
+            );
+          }
+
+          await this.sendMessage(
+            chatId,
+            `✅ <b>Запит відправлено адміністратору!</b>\n\n` +
+              `📦 Програма: <code>${TelegramUtils.escapeHtml(uacSoftware)}</code>\n\n` +
+              `Адміністратор розгляне запит та відкриє доступ найближчим часом.`,
+            {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+              },
+            }
+          );
+          logger.info('UAC software request created', {
+            requestId: newRequest._id,
+            software: uacSoftware,
+            userId: existingUser._id,
+          });
+        } catch (err) {
+          logger.error('UAC software request creation error:', err.message);
+          await this.sendMessage(
+            chatId,
+            '❌ Помилка створення запиту. Зверніться до адміністратора напряму.'
+          );
+        }
         return;
       }
 

@@ -1912,6 +1912,14 @@ class ApiService {
   async getSoftwareRequestStats(): Promise<ApiResponse<SoftwareRequestStats>> {
     return this.get('/software-requests/stats');
   }
+
+  async enableADUser(username: string): Promise<ApiResponse<{ message: string }>> {
+    return this.post(`/ad/users/${username}/enable`, {});
+  }
+
+  async disableADUser(username: string): Promise<ApiResponse<{ message: string }>> {
+    return this.post(`/ad/users/${username}/disable`, {});
+  }
 }
 
 // Експорт єдиного екземпляру

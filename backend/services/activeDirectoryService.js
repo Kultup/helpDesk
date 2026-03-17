@@ -240,6 +240,38 @@ class ActiveDirectoryService {
     }
   }
 
+  /**
+   * Аутентифікація для write-операцій.
+   * Спочатку пробує .env-кредентали (зазвичай мають більші права),
+   * якщо їх немає — використовує поточний конфіг.
+   */
+  async _authenticateForWrite() {
+    const adminDn = process.env.AD_ADMIN_DN || this.config.adminDn;
+    const adminPassword = process.env.AD_ADMIN_PASSWORD || this.config.adminPassword;
+    const ldapUrl = process.env.AD_LDAP_URL || this.config.ldapOpts.url;
+
+    return new Promise((resolve, reject) => {
+      const client = ldap.createClient({
+        url: ldapUrl,
+        timeout: this.config.ldapOpts.timeout,
+        connectTimeout: this.config.ldapOpts.connectTimeout,
+        reconnect: false,
+      });
+      client.on('error', reject);
+      client.on('connect', () => {
+        client.bind(adminDn, adminPassword, err => {
+          if (err) {
+            client.unbind();
+            reject(err);
+          } else {
+            logger.info('AD write-auth successful');
+            resolve(client);
+          }
+        });
+      });
+    });
+  }
+
   // Отримання всіх користувачів з AD
   async getUsers() {
     // Перевіряємо кеш спочатку
@@ -623,29 +655,27 @@ class ActiveDirectoryService {
     }
   }
 
-  // Активація (розблокування) облікового запису AD
-  async enableUser(username) {
+  // Внутрішній хелпер: встановлює userAccountControl для увімк./вимк. акаунту
+  async _setUserAccountControl(username, uacValue) {
     let client;
     try {
-      // Спочатку знаходимо DN користувача
       const userRecord = await this.searchUser(username);
       if (!userRecord || !userRecord.dn) {
-        logger.warn(`AD enableUser: користувача "${username}" не знайдено`);
         return { success: false, message: `Користувача "${username}" не знайдено в AD` };
       }
 
-      logger.info(`AD enableUser: знайдено DN="${userRecord.dn}", enabled=${userRecord.enabled}`);
-      client = await this.authenticate();
-
-      // userAccountControl: встановлюємо 512 (NORMAL_ACCOUNT, enabled)
-      const newUac = '512';
+      logger.info(
+        `AD _setUAC: DN="${userRecord.dn}", enabled=${userRecord.enabled} → uac=${uacValue}`
+      );
+      // Використовуємо .env-кредентали (вищі права) для write-операцій
+      client = await this._authenticateForWrite();
 
       return await new Promise((resolve, reject) => {
         const change = new ldap.Change({
           operation: 'replace',
           modification: new ldap.Attribute({
             type: 'userAccountControl',
-            values: [newUac],
+            values: [String(uacValue)],
           }),
         });
 
@@ -659,15 +689,14 @@ class ActiveDirectoryService {
           }
           if (err) {
             const errMsg = err.message || err.name || String(err.code) || JSON.stringify(err);
-            logger.error(`AD enableUser: помилка активації "${username}": ${errMsg}`, {
+            logger.error(`AD _setUAC: помилка для "${username}": ${errMsg}`, {
               code: err.code,
               name: err.name,
               dn: userRecord.dn,
             });
             reject(new Error(errMsg));
           } else {
-            logger.info(`AD enableUser: обліковий запис "${username}" активовано`);
-            resolve({ success: true, message: `Обліковий запис "${username}" активовано` });
+            resolve({ success: true });
           }
         });
       });
@@ -680,9 +709,31 @@ class ActiveDirectoryService {
         }
       }
       const errMsg = error.message || error.name || String(error.code) || String(error);
-      logger.error(`AD enableUser: помилка:`, errMsg);
+      logger.error(`AD _setUAC: помилка:`, errMsg);
       return { success: false, message: errMsg };
     }
+  }
+
+  // Активація (розблокування) облікового запису AD
+  async enableUser(username) {
+    // 512 = NORMAL_ACCOUNT (enabled)
+    const result = await this._setUserAccountControl(username, 512);
+    if (result.success) {
+      logger.info(`AD enableUser: обліковий запис "${username}" активовано`);
+      return { success: true, message: `Обліковий запис "${username}" активовано` };
+    }
+    return result;
+  }
+
+  // Деактивація (блокування) облікового запису AD
+  async disableUser(username) {
+    // 514 = NORMAL_ACCOUNT | ACCOUNTDISABLE (disabled)
+    const result = await this._setUserAccountControl(username, 514);
+    if (result.success) {
+      logger.info(`AD disableUser: обліковий запис "${username}" заблоковано`);
+      return { success: true, message: `Обліковий запис "${username}" заблоковано` };
+    }
+    return result;
   }
 
   // Тестування підключення до AD

@@ -2301,6 +2301,98 @@ async function generateKbArticleFromTicket(ticket, dialogHistory = []) {
   }
 }
 
+/**
+ * Аналізує фото Windows UAC (Служба захисту користувачів) за допомогою OpenAI vision.
+ * Визначає чи це вікно UAC і витягує назву програми.
+ * @param {string} imagePath - шлях до файлу зображення на диску
+ * @returns {Promise<{isUAC: boolean, softwareName: string|null, publisher: string|null}|null>}
+ */
+async function analyzeUACDialog(imagePath) {
+  const settings = await getAISettings();
+  if (!settings || !settings.enabled || settings.provider !== 'openai') {
+    return null;
+  }
+  if (!settings.openaiApiKey || !String(settings.openaiApiKey).trim()) {
+    return null;
+  }
+  if (!imagePath || !fs.existsSync(imagePath)) {
+    return null;
+  }
+
+  let base64;
+  let mimeType = 'image/jpeg';
+  try {
+    const ext = path.extname(imagePath).toLowerCase();
+    if (ext === '.png') {
+      mimeType = 'image/png';
+    } else if (ext === '.gif') {
+      mimeType = 'image/gif';
+    } else if (ext === '.webp') {
+      mimeType = 'image/webp';
+    }
+    base64 = fs.readFileSync(imagePath, { encoding: 'base64' });
+  } catch (err) {
+    logger.error('AI: не вдалося прочитати UAC фото', { imagePath, message: err.message });
+    return null;
+  }
+
+  const imageUrl = `data:${mimeType};base64,${base64}`;
+  try {
+    const OpenAI = require('openai').default;
+    const openai = new OpenAI({ apiKey: settings.openaiApiKey.trim() });
+    const response = await openai.chat.completions.create({
+      model:
+        settings.openaiModel && settings.openaiModel.includes('gpt-4')
+          ? settings.openaiModel
+          : 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Ти аналізуєш скріншот вікна Windows UAC (User Account Control / "Служба захисту користувачів"). Визнач чи це вікно UAC яке запитує логін/пароль адміністратора або підтвердження для встановлення/запуску програми.
+Якщо так — витягни точну назву програми (зазвичай це ім'я файлу .exe або назва програми у вікні).
+Відповідай ТІЛЬКИ у JSON форматі без додаткового тексту:
+{"isUAC": true, "softwareName": "назва програми", "publisher": "видавець або null"}
+Якщо це НЕ вікно UAC: {"isUAC": false, "softwareName": null, "publisher": null}`,
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Проаналізуй це зображення. Чи це вікно UAC для встановлення або запуску програми?',
+            },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        },
+      ],
+      max_tokens: 100,
+      temperature: 0.1,
+    });
+
+    const u = response?.usage;
+    if (u && typeof u.prompt_tokens === 'number') {
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens || 0;
+      tokenUsage.totalTokens += u.total_tokens || u.prompt_tokens + (u.completion_tokens || 0);
+      tokenUsage.requestCount += 1;
+      addMonthlyUsage(u.prompt_tokens, u.completion_tokens || 0);
+    }
+
+    const content = response?.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      return null;
+    }
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return null;
+    }
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    logger.error('AI: помилка аналізу UAC фото', { message: err.message });
+    return null;
+  }
+}
+
 module.exports = {
   getAISettings,
   analyzeIntent,
@@ -2310,6 +2402,7 @@ module.exports = {
   generateRatingEmotionResponse,
   analyzePhoto,
   analyzeComputerAccessPhoto,
+  analyzeUACDialog,
   getSimilarResolvedTickets,
   formatUserContext,
   invalidateCache,
