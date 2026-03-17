@@ -1051,6 +1051,10 @@ class TelegramService {
           return;
         }
 
+        // /start завжди скидає активну сесію — запобігає появі старих драфтів
+        if (this.userSessions.has(chatId)) {
+          this.userSessions.delete(chatId);
+        }
         await this.showUserDashboard(chatId, user);
       } else {
         // Логуємо, що користувач не знайдений
