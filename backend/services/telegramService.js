@@ -2712,6 +2712,22 @@ class TelegramService {
         ? `📎 <b>Файл прикріплено:</b>`
         : `📎 <b>Прикріплено файлів: ${savedNames.length}</b>`;
 
+    // Якщо вже є готовий драфт — одразу показуємо підтвердження з новими файлами
+    if (session.step === 'confirm_ticket' && session.ticketDraft) {
+      await this.sendMessage(
+        chatId,
+        `${header}\n${namesText}\n\n<i>Всього у заявці: ${total} файл(ів)</i>`,
+        { parse_mode: 'HTML' }
+      );
+      const user = await User.findOne({
+        $or: [{ telegramId: String(msgs[0].from.id) }, { telegramId: msgs[0].from.id }],
+      });
+      if (user) {
+        await this.aiService._showTicketConfirmationFromDialog(chatId, session, user);
+      }
+      return;
+    }
+
     await this.sendMessage(
       chatId,
       `${header}\n${namesText}\n\n<i>Всього у заявці: ${total} файл(ів)</i>\n\nОпишіть проблему або натисніть «Сформувати заявку».`,
