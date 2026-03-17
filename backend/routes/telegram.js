@@ -634,4 +634,55 @@ router.post('/send-to-user/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /api/telegram/end-dialog/:userId
+ * @desc    Завершення прямого діалогу адміна з користувачем (очищає активну сесію DM)
+ * @access  Admin
+ */
+router.post('/end-dialog/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (!isAdminRole(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Доступ заборонено' });
+    }
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select('firstName lastName telegramId telegramChatId');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Користувача не знайдено' });
+    }
+
+    const chatId = user.telegramChatId || user.telegramId;
+
+    // Очищаємо активну DM сесію
+    if (chatId) {
+      telegramService.clearActiveTicketForUser(String(chatId));
+    }
+    if (user.telegramId && String(user.telegramId) !== String(chatId)) {
+      telegramService.clearActiveTicketForUser(String(user.telegramId));
+    }
+
+    // Повідомляємо користувача в боті
+    if (chatId && telegramService.isInitialized && telegramService.bot) {
+      try {
+        await telegramService.bot.sendMessage(
+          String(chatId),
+          '🔚 Діалог з адміністратором завершено. Якщо у вас виникнуть питання — звертайтесь знову.',
+          {
+            reply_markup: {
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+            },
+          }
+        );
+      } catch (err) {
+        logger.warn('Не вдалось надіслати повідомлення про завершення діалогу:', err.message);
+      }
+    }
+
+    res.json({ success: true, message: 'Діалог завершено' });
+  } catch (error) {
+    logger.error('Помилка завершення діалогу:', error);
+    res.status(500).json({ success: false, message: 'Внутрішня помилка сервера' });
+  }
+});
+
 module.exports = router;

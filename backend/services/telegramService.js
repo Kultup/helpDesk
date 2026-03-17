@@ -1419,6 +1419,7 @@ class TelegramService {
           { text: '📊 Статистика', callback_data: 'statistics' },
         ],
         [{ text: '📷 Оновити доступ до ПК', callback_data: 'update_computer_access' }],
+        [{ text: '✉️ Написати адміністратору', callback_data: 'write_to_admin' }],
         [{ text: '❓ Що вміє бот', callback_data: 'bot_help' }],
       ],
     };
@@ -1758,6 +1759,31 @@ class TelegramService {
         } else if (data === 'back') {
           await this.answerCallbackQuery(callbackQuery.id);
           await this.handleBackNavigation(chatId, user);
+        } else if (data === 'write_to_admin') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const writeSession = this.userSessions.get(chatId) || {};
+          writeSession.step = 'writing_to_admin';
+          this.userSessions.set(chatId, writeSession);
+          await this.sendMessage(
+            chatId,
+            '✉️ *Написати адміністратору*\n\nВведіть ваше повідомлення. Адміністратор отримає його та відповість вам тут.',
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '❌ Скасувати', callback_data: 'cancel_write_to_admin' }],
+                ],
+              },
+            }
+          );
+        } else if (data === 'cancel_write_to_admin') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const cancelSession = this.userSessions.get(chatId);
+          if (cancelSession) {
+            delete cancelSession.step;
+            this.userSessions.set(chatId, cancelSession);
+          }
+          await this.showUserDashboard(chatId, user);
         } else if (data === 'back_to_menu') {
           await this.answerCallbackQuery(callbackQuery.id);
           this.clearNavigationHistory(chatId);
@@ -2095,6 +2121,57 @@ class TelegramService {
     if (existingUser) {
       // Захоплення відповіді користувача на повідомлення адміна (якщо є активний тікет)
       await this._captureUserReply(msg, existingUser);
+
+      // Якщо це standalone DM (без тікету) — підтверджуємо отримання і не запускаємо AI
+      const fromId = String(msg.from.id);
+      const chatIdStr = String(chatId);
+      const hasStandaloneDM =
+        (this.hasActiveDM(fromId) && this.getActiveTicketForUser(fromId) === null) ||
+        (this.hasActiveDM(chatIdStr) && this.getActiveTicketForUser(chatIdStr) === null);
+      if (hasStandaloneDM && msg.text && !msg.text.startsWith('/')) {
+        await this.sendMessage(chatId, '✅ Повідомлення надіслано адміністратору');
+        return;
+      }
+
+      // Якщо сесія в режимі "writing_to_admin" — зберегти повідомлення і повернути підтвердження
+      if (session && session.step === 'writing_to_admin' && msg.text && !msg.text.startsWith('/')) {
+        delete session.step;
+        this.userSessions.set(chatId, session);
+
+        try {
+          // Знаходимо першого доступного адміна як отримувача
+          const adminUser = await User.findOne({
+            role: { $in: ['admin', 'super_admin'] },
+            isActive: true,
+          });
+          const tmsg = await TelegramMessage.create({
+            ticketId: null,
+            senderId: existingUser._id,
+            recipientId: adminUser?._id || existingUser._id,
+            content: msg.text.trim(),
+            direction: 'user_to_admin',
+            telegramChatId: String(chatId),
+            telegramMessageId: String(msg.message_id),
+            sentAt: new Date(),
+            deliveredAt: new Date(),
+          });
+          await tmsg.populate('senderId', 'firstName lastName email');
+          ticketWebSocketService.notifyNewDirectMessage(String(existingUser._id), tmsg);
+        } catch (err) {
+          logger.error('Помилка збереження повідомлення до адміна:', err);
+        }
+
+        await this.sendMessage(
+          chatId,
+          '✅ Ваше повідомлення надіслано адміністратору. Він відповість вам найближчим часом.',
+          {
+            reply_markup: {
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+            },
+          }
+        );
+        return;
+      }
 
       // Перевіряємо, чи є активна сесія для створення тікету
       if (session) {

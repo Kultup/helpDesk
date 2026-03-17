@@ -1712,6 +1712,10 @@ class ApiService {
     return this.post(`/telegram/send-to-user/${userId}`, { message });
   }
 
+  async endAdminDialog(userId: string): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post(`/telegram/end-dialog/${userId}`, {});
+  }
+
   // Налаштування Telegram
   async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/telegram');

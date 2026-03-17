@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { MessageSquare, Send, User as UserIcon, Search, Ticket as TicketIcon } from 'lucide-react';
+import {
+  MessageSquare,
+  Send,
+  User as UserIcon,
+  Search,
+  Ticket as TicketIcon,
+  PhoneOff,
+} from 'lucide-react';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
@@ -22,6 +29,7 @@ const DirectMessages: React.FC = () => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [endingDialog, setEndingDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load users with Telegram
@@ -98,6 +106,18 @@ const DirectMessages: React.FC = () => {
       socket.disconnect();
     };
   }, []);
+
+  const handleEndDialog = async () => {
+    if (!selectedUser) return;
+    setEndingDialog(true);
+    try {
+      await apiService.endAdminDialog(selectedUser._id);
+    } catch {
+      // ignore
+    } finally {
+      setEndingDialog(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!selectedUser || !messageText.trim()) return;
@@ -241,6 +261,17 @@ const DirectMessages: React.FC = () => {
                     className="pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs w-52 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+                {/* End dialog button */}
+                <Button
+                  onClick={handleEndDialog}
+                  disabled={endingDialog}
+                  variant="ghost"
+                  size="sm"
+                  title="Завершити діалог"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0"
+                >
+                  {endingDialog ? <LoadingSpinner size="sm" /> : <PhoneOff className="h-4 w-4" />}
+                </Button>
               </div>
 
               {msgSearch && (
