@@ -22,7 +22,7 @@ class TicketWebSocketService {
       this.io.to('admin-room').emit('ticket-notification', {
         type: 'new_ticket',
         data: ticketData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       logger.info(`📢 Відправлено WebSocket сповіщення про новий тікет: ${ticketData._id}`);
@@ -43,10 +43,12 @@ class TicketWebSocketService {
       this.io.to('admin-room').emit('ticket-notification', {
         type: 'ticket_status_change',
         data: ticketData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      logger.info(`📢 Відправлено WebSocket сповіщення про зміну статусу тікету: ${ticketData._id}`);
+      logger.info(
+        `📢 Відправлено WebSocket сповіщення про зміну статусу тікету: ${ticketData._id}`
+      );
     } catch (error) {
       logger.error('❌ Помилка відправки WebSocket сповіщення про зміну статусу тікету:', error);
     }
@@ -64,7 +66,7 @@ class TicketWebSocketService {
       this.io.to('admin-room').emit('ticket-notification', {
         type: 'ticket_assignment',
         data: ticketData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       logger.info(`📢 Відправлено WebSocket сповіщення про призначення тікету: ${ticketData._id}`);
@@ -84,7 +86,7 @@ class TicketWebSocketService {
       // Відправляємо оновлення кількості всім адміністраторам в admin-room
       this.io.to('admin-room').emit('ticket-count-update', {
         count: count,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       logger.info(`📊 Відправлено WebSocket оновлення кількості тікетів: ${count}`);
@@ -107,12 +109,14 @@ class TicketWebSocketService {
         data: {
           ticketId: ticketData._id?.toString() || ticketData._id,
           ticketTitle: ticketData.title,
-          ticketStatus: ticketData.status
+          ticketStatus: ticketData.status,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      logger.info(`📊 Відправлено WebSocket запит на оцінку для користувача ${userId}, тікет: ${ticketData._id}`);
+      logger.info(
+        `📊 Відправлено WebSocket запит на оцінку для користувача ${userId}, тікет: ${ticketData._id}`
+      );
     } catch (error) {
       logger.error('❌ Помилка відправки WebSocket запиту на оцінку:', error);
     }
@@ -131,7 +135,7 @@ class TicketWebSocketService {
         type: 'new_comment',
         ticketId: ticketId,
         data: comment,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       logger.info(`📢 Відправлено WebSocket сповіщення про новий коментар до тікету: ${ticketId}`);
@@ -153,12 +157,34 @@ class TicketWebSocketService {
         type: 'new_telegram_message',
         ticketId: ticketId,
         data: message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
-      logger.info(`📱 Відправлено WebSocket сповіщення про нове Telegram повідомлення до тікету: ${ticketId}`);
+      logger.info(
+        `📱 Відправлено WebSocket сповіщення про нове Telegram повідомлення до тікету: ${ticketId}`
+      );
     } catch (error) {
-      logger.error('❌ Помилка відправки WebSocket сповіщення про нове Telegram повідомлення:', error);
+      logger.error(
+        '❌ Помилка відправки WebSocket сповіщення про нове Telegram повідомлення:',
+        error
+      );
+    }
+  }
+
+  // Сповіщення про нове пряме повідомлення (не прив'язане до тікету)
+  notifyNewDirectMessage(userId, message) {
+    if (!this.io) {
+      return;
+    }
+    try {
+      this.io.to('admin-room').emit('telegram-dm', {
+        type: 'new_direct_message',
+        userId,
+        data: message,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про пряме повідомлення:', error);
     }
   }
 }

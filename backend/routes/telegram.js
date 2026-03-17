@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const telegramService = require('../services/telegramServiceInstance');
 const User = require('../models/User');
+const TelegramMessage = require('../models/TelegramMessage');
+const ticketWebSocketService = require('../services/ticketWebSocketService');
+const TelegramUtils = require('../services/telegramUtils');
 const { authenticateToken, isAdminRole } = require('../middleware/auth');
 const logger = require('../utils/logger');
 const multer = require('multer');
@@ -497,6 +500,125 @@ router.post('/generate-link-code', authenticateToken, (req, res) => {
       success: false,
       message: 'Внутрішня помилка сервера',
     });
+  }
+});
+
+/**
+ * @route   GET /api/telegram/users
+ * @desc    Список користувачів із прив'язаним Telegram (для прямих повідомлень)
+ * @access  Admin
+ */
+router.get('/users', authenticateToken, isAdminRole, async (req, res) => {
+  try {
+    const users = await User.find({
+      telegramId: { $exists: true, $ne: null },
+      isActive: true,
+    }).select('firstName lastName email telegramId telegramChatId department position institution');
+
+    res.json({ success: true, data: users });
+  } catch (error) {
+    logger.error('Помилка отримання списку користувачів Telegram:', error);
+    res.status(500).json({ success: false, message: 'Внутрішня помилка сервера' });
+  }
+});
+
+/**
+ * @route   GET /api/telegram/messages/:userId
+ * @desc    Історія прямих повідомлень з користувачем
+ * @access  Admin
+ */
+router.get('/messages/:userId', authenticateToken, isAdminRole, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const msgs = await TelegramMessage.find({
+      ticketId: null,
+      $or: [{ senderId: userId }, { recipientId: userId }],
+    })
+      .sort({ sentAt: 1 })
+      .limit(200)
+      .populate('senderId', 'firstName lastName email')
+      .populate('recipientId', 'firstName lastName email');
+
+    res.json({ success: true, data: msgs });
+  } catch (error) {
+    logger.error('Помилка отримання прямих повідомлень:', error);
+    res.status(500).json({ success: false, message: 'Внутрішня помилка сервера' });
+  }
+});
+
+/**
+ * @route   POST /api/telegram/send-to-user/:userId
+ * @desc    Відправка прямого повідомлення користувачу (не пов'язане з тікетом)
+ * @access  Admin
+ */
+router.post('/send-to-user/:userId', authenticateToken, isAdminRole, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { message } = req.body;
+
+    if (!message || !String(message).trim()) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Повідомлення не може бути порожнім' });
+    }
+
+    const user = await User.findById(userId).select(
+      'firstName lastName email telegramId telegramChatId'
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Користувача не знайдено' });
+    }
+
+    const chatId = user.telegramChatId || user.telegramId;
+    if (!chatId) {
+      return res.status(400).json({ success: false, message: 'Користувач не підключив Telegram' });
+    }
+
+    if (!telegramService.isInitialized) {
+      return res.status(503).json({ success: false, message: 'Telegram бот не ініціалізовано' });
+    }
+
+    const adminName =
+      [req.user.firstName, req.user.lastName].filter(Boolean).join(' ') || req.user.email;
+    const formattedText =
+      `💬 <b>Повідомлення від ${TelegramUtils.escapeHtml(adminName)}</b>\n\n` +
+      TelegramUtils.escapeHtml(String(message).trim());
+
+    const sentMsg = await telegramService.bot.sendMessage(String(chatId), formattedText, {
+      parse_mode: 'HTML',
+    });
+
+    // Mark this user's chatId as having an active DM from this admin
+    telegramService.setActiveTicketForUser(String(chatId), null);
+    if (user.telegramId && String(user.telegramId) !== String(chatId)) {
+      telegramService.setActiveTicketForUser(String(user.telegramId), null);
+    }
+
+    const tmsg = await TelegramMessage.create({
+      ticketId: null,
+      senderId: req.user._id,
+      recipientId: user._id,
+      content: String(message).trim(),
+      direction: 'admin_to_user',
+      telegramChatId: String(chatId),
+      telegramMessageId: sentMsg?.message_id ? String(sentMsg.message_id) : null,
+      sentAt: new Date(),
+      deliveredAt: new Date(),
+    });
+
+    await tmsg.populate('senderId', 'firstName lastName email');
+
+    // Emit real-time update
+    ticketWebSocketService.notifyNewDirectMessage(String(userId), tmsg);
+
+    res.json({
+      success: true,
+      message: 'Повідомлення відправлено',
+      data: { sentAt: new Date() },
+    });
+  } catch (error) {
+    logger.error('Помилка відправки прямого повідомлення:', error);
+    res.status(500).json({ success: false, message: 'Внутрішня помилка сервера' });
   }
 });
 

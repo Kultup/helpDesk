@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const { uploadsPath } = require('../config/paths');
 
+const TelegramMessage = require('../models/TelegramMessage');
+const ticketWebSocketService = require('./ticketWebSocketService');
 const BotSettings = require('../models/BotSettings');
 const TelegramConfig = require('../models/TelegramConfig');
 const sessionManager = require('./sessionManager');
@@ -46,6 +48,7 @@ class TelegramService {
     this._mediaGroupSeen = new Map(); // Дедуплікація Telegram-альбомів: key=`${chatId}:${mediaGroupId}`
     this._documentBuffers = new Map(); // Буфер документів для debounce (AI-режим): key=chatId
     this._classicDocBuffers = new Map(); // Буфер документів для debounce (класичний режим): key=chatId
+    this._activeTickets = new Map(); // telegramId/chatId → ticketId для захоплення відповідей
     this.loadBotSettings(); // Завантажуємо налаштування бота
   }
 
@@ -70,6 +73,78 @@ class TelegramService {
   static get SESSION_IDLE_CHECK_INTERVAL_MS() {
     return 60 * 1000; // 1 хвилина
   }
+
+  // ─── Active-ticket tracking (for capturing user replies to admin DMs) ───────
+
+  setActiveTicketForUser(telegramId, ticketId) {
+    this._activeTickets.set(String(telegramId), ticketId ? String(ticketId) : null);
+  }
+
+  /** Returns the stored value: ticketId string, null (active DM, no ticket), or undefined (no active DM). */
+  getActiveTicketForUser(telegramId) {
+    return this._activeTickets.get(String(telegramId));
+  }
+
+  /** Returns true if the user has an active admin DM (with or without ticket). */
+  hasActiveDM(telegramId) {
+    return this._activeTickets.has(String(telegramId));
+  }
+
+  clearActiveTicketForUser(telegramId) {
+    this._activeTickets.delete(String(telegramId));
+  }
+
+  /** Captures a user text reply and saves it as a TelegramMessage (direction: user_to_admin). */
+  async _captureUserReply(msg, existingUser) {
+    if (!msg.text) {
+      return;
+    }
+
+    const fromId = String(msg.from.id);
+    const chatId = String(msg.chat.id);
+
+    const hasFromDM = this.hasActiveDM(fromId);
+    const hasChatDM = this.hasActiveDM(chatId);
+    if (!hasFromDM && !hasChatDM) {
+      return;
+    }
+
+    const ticketId = hasFromDM
+      ? this.getActiveTicketForUser(fromId)
+      : this.getActiveTicketForUser(chatId);
+
+    try {
+      // Find the admin who last messaged this user to set recipientId
+      const lastAdminMsg = await TelegramMessage.findOne({
+        ...(ticketId ? { ticketId } : { ticketId: null, recipientId: existingUser._id }),
+        direction: 'admin_to_user',
+      }).sort({ sentAt: -1 });
+      const recipientId = lastAdminMsg?.senderId || existingUser._id;
+
+      const tmsg = await TelegramMessage.create({
+        ticketId: ticketId || null,
+        senderId: existingUser._id,
+        recipientId,
+        content: msg.text,
+        direction: 'user_to_admin',
+        telegramChatId: chatId,
+        telegramMessageId: String(msg.message_id),
+        sentAt: new Date(),
+        deliveredAt: new Date(),
+      });
+      await tmsg.populate('senderId', 'firstName lastName email');
+
+      if (ticketId) {
+        ticketWebSocketService.notifyNewTelegramMessage(ticketId, tmsg);
+      } else {
+        ticketWebSocketService.notifyNewDirectMessage(String(existingUser._id), tmsg);
+      }
+    } catch (err) {
+      logger.error('Помилка збереження відповіді користувача в TelegramMessage:', err);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   /**
    * Перевіряє сесії на неактивність:
@@ -2018,6 +2093,9 @@ class TelegramService {
 
     // Якщо користувач зареєстрований, не проводимо реєстрацію
     if (existingUser) {
+      // Захоплення відповіді користувача на повідомлення адміна (якщо є активний тікет)
+      await this._captureUserReply(msg, existingUser);
+
       // Перевіряємо, чи є активна сесія для створення тікету
       if (session) {
         // Додано: docs/AI_BOT_LOGIC.md — обробка AI-режиму (виклики 1–3)

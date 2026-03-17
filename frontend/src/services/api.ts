@@ -1692,6 +1692,22 @@ class ApiService {
     return this.post(`/tickets/${ticketId}/send-telegram-message`, { content });
   }
 
+  // Прямі повідомлення (Direct Messages)
+  async getTelegramUsers(): Promise<ApiResponse<User[]>> {
+    return this.get('/telegram/users');
+  }
+
+  async getDirectMessages(userId: string): Promise<ApiResponse<TelegramMessage[]>> {
+    return this.get(`/telegram/messages/${userId}`);
+  }
+
+  async sendDirectMessage(
+    userId: string,
+    message: string
+  ): Promise<ApiResponse<Record<string, unknown>>> {
+    return this.post(`/telegram/send-to-user/${userId}`, { message });
+  }
+
   // Налаштування Telegram
   async getTelegramSettings(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.get('/settings/telegram');

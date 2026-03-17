@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { io } from 'socket.io-client';
 import { apiService } from '../services/api';
+import { TelegramMessage } from '../types';
 import Card from './UI/Card';
 import Button from './UI/Button';
 import { Send, Paperclip, Pin, X, MessageCircle, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -24,10 +26,65 @@ const TelegramUserMessage: React.FC<TelegramUserMessageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [messages, setMessages] = useState<TelegramMessage[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history
+  useEffect(() => {
+    if (!ticketId) return;
+    setLoadingHistory(true);
+    apiService
+      .getTelegramMessages(ticketId)
+      .then(res => {
+        if (res.success && Array.isArray(res.data)) {
+          setMessages(res.data);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setLoadingHistory(false));
+  }, [ticketId]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Real-time Socket.IO updates
+  useEffect(() => {
+    const rawUrl = (process.env.REACT_APP_SOCKET_URL ||
+      process.env.REACT_APP_API_URL ||
+      window.location.origin) as string;
+    const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+    const token = localStorage.getItem('token');
+    const socket = io(socketUrl, {
+      auth: token ? { token } : undefined,
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join-admin-room');
+    });
+
+    socket.on('telegram-message', (payload: any) => {
+      if (String(payload?.ticketId) === String(ticketId)) {
+        const msg = payload?.data as TelegramMessage;
+        if (msg) {
+          setMessages(prev => {
+            if (prev.find(m => m._id === msg._id)) return prev;
+            return [...prev, msg];
+          });
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [ticketId]);
 
   const handleSend = async () => {
     if (!message.trim() && !attachment) return;
-
     try {
       setIsLoading(true);
       setResult(null);
@@ -37,18 +94,17 @@ const TelegramUserMessage: React.FC<TelegramUserMessageProps> = ({
         attachment || undefined,
         pin
       );
-
       if (response.success) {
         setResult({ success: true, message: 'Повідомлення надіслано в Telegram' });
         setMessage('');
         setAttachment(null);
         setPin(false);
         if (onMessageSent) onMessageSent();
-        // Hide form after some time if successful
-        setTimeout(() => {
-          setResult(null);
-          setShowForm(false);
-        }, 3000);
+        // Refresh history to show sent message
+        apiService.getTelegramMessages(ticketId).then(res => {
+          if (res.success && Array.isArray(res.data)) setMessages(res.data);
+        });
+        setTimeout(() => setResult(null), 3000);
       } else {
         setResult({ success: false, message: response.message || 'Помилка надсилання' });
       }
@@ -57,6 +113,14 @@ const TelegramUserMessage: React.FC<TelegramUserMessageProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getSenderName = (msg: TelegramMessage) => {
+    if (typeof msg.senderId === 'object' && msg.senderId !== null) {
+      const u = msg.senderId as any;
+      return [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || '?';
+    }
+    return '?';
   };
 
   if (!userTelegramId) {
@@ -73,7 +137,43 @@ const TelegramUserMessage: React.FC<TelegramUserMessageProps> = ({
 
   return (
     <Card className={showForm ? 'border-blue-200' : 'border-gray-200'}>
-      <div className="p-4">
+      <div className="p-4 space-y-3">
+        {/* Chat history */}
+        {messages.length > 0 && (
+          <div className="max-h-64 overflow-y-auto space-y-2 bg-gray-50 rounded-lg p-3">
+            {loadingHistory && (
+              <div className="flex justify-center py-2">
+                <LoadingSpinner size="sm" />
+              </div>
+            )}
+            {messages.map(msg => (
+              <div
+                key={msg._id}
+                className={`flex flex-col ${msg.direction === 'admin_to_user' ? 'items-end' : 'items-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
+                    msg.direction === 'admin_to_user'
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                <span className="text-xs text-gray-400 mt-0.5 px-1">
+                  {getSenderName(msg)} ·{' '}
+                  {new Date(msg.sentAt).toLocaleTimeString('uk-UA', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Toggle / form */}
         {!showForm ? (
           <button
             onClick={() => setShowForm(true)}

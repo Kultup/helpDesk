@@ -41,6 +41,7 @@ import Conversations from './pages/Conversations';
 import AIKnowledge from './pages/AIKnowledge';
 import KnowledgeBase from './pages/KnowledgeBase';
 import SoftwareRequests from './pages/SoftwareRequests';
+import DirectMessages from './pages/DirectMessages';
 
 // Компонент для розумного перенаправлення
 const SmartRedirect: React.FC = () => {
@@ -313,6 +314,14 @@ const App: React.FC = () => {
                   element={
                     <ProtectedRoute requiredRole={UserRole.ADMIN}>
                       <SoftwareRequests />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin/direct-messages"
+                  element={
+                    <ProtectedRoute requiredRole={UserRole.ADMIN}>
+                      <DirectMessages />
                     </ProtectedRoute>
                   }
                 />

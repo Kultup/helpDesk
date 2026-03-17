@@ -23,6 +23,7 @@ import {
   Brain,
   Image,
   Download,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isAdminRole } from '../../types';
@@ -138,6 +139,12 @@ const navGroups: NavGroup[] = [
         nameKey: 'Software Requests',
         href: '/software-requests',
         icon: Download,
+        adminOnly: true,
+      },
+      {
+        nameKey: 'sidebar.directMessages',
+        href: '/direct-messages',
+        icon: MessageSquare,
         adminOnly: true,
       },
     ],

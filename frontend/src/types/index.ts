@@ -269,7 +269,7 @@ export interface Comment {
 // Типи Telegram повідомлень
 export interface TelegramMessage {
   _id: string;
-  ticketId: string;
+  ticketId: string | null;
   senderId: string | User;
   recipientId: string | User;
   content: string;
