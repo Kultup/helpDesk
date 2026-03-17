@@ -245,6 +245,7 @@ class ActiveDirectoryService {
    * Спочатку пробує .env-кредентали (зазвичай мають більші права),
    * якщо їх немає — використовує поточний конфіг.
    */
+  // eslint-disable-next-line require-await
   async _authenticateForWrite() {
     const adminDn = process.env.AD_ADMIN_DN || this.config.adminDn;
     const adminPassword = process.env.AD_ADMIN_PASSWORD || this.config.adminPassword;
@@ -649,6 +650,75 @@ class ActiveDirectoryService {
           client.unbind();
         } catch (unbindError) {
           logger.error('Error unbinding client:', unbindError);
+        }
+      }
+      throw error;
+    }
+  }
+
+  // Пошук користувача по email (mail) + повертає givenName/sn для порівняння
+  async searchUserByEmail(email) {
+    let client;
+    try {
+      client = await this.authenticate();
+      const searchOptions = {
+        filter: `(&(objectClass=user)(objectCategory=person)(mail=${email}))`,
+        scope: 'sub',
+        sizeLimit: 5,
+        attributes: [
+          'sAMAccountName',
+          'givenName',
+          'sn',
+          'displayName',
+          'mail',
+          'department',
+          'telephoneNumber',
+          'userAccountControl',
+          'distinguishedName',
+        ],
+      };
+
+      return new Promise((resolve, reject) => {
+        client.on('error', reject);
+        client.search(this.config.userSearchBase, searchOptions, (err, res) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          let user = null;
+          res.on('searchEntry', entry => {
+            const getVal = name => {
+              const attr = entry.attributes.find(a => a.type === name);
+              const vals = attr ? attr.values || attr.vals || [] : [];
+              return vals.length > 0 ? vals[0] : null;
+            };
+            user = {
+              username: getVal('sAMAccountName'),
+              firstName: getVal('givenName'),
+              lastName: getVal('sn'),
+              displayName: getVal('displayName'),
+              email: getVal('mail'),
+              department: getVal('department'),
+              phone: getVal('telephoneNumber'),
+              enabled: !(parseInt(getVal('userAccountControl') || '0') & 2),
+              dn: getVal('distinguishedName') || entry.objectName,
+            };
+          });
+          res.on('error', reject);
+          res.on('end', () => {
+            if (client) {
+              client.unbind(() => {});
+            }
+            resolve(user);
+          });
+        });
+      });
+    } catch (error) {
+      if (client) {
+        try {
+          client.unbind();
+        } catch (_e) {
+          /* ignore unbind error */
         }
       }
       throw error;

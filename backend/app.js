@@ -286,6 +286,10 @@ mongoose
     ); // 15 хвилин
     logger.info('✅ SLA status update job налаштовано (кожні 15 хвилин)');
 
+    // Щомісячна перевірка профілів користувачів
+    const { setupAdSyncCheck } = require('./jobs/adSyncCheck');
+    setupAdSyncCheck();
+
     // Ініціалізуємо WebSocket сервіс для реєстрації
     const registrationWebSocketService = require('./services/registrationWebSocketService');
     registrationWebSocketService.initialize(io);

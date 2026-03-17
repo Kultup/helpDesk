@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Download,
   CheckCircle,
@@ -16,6 +16,7 @@ import Button from '../components/UI/Button';
 import Input from '../components/UI/Input';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 import { apiService, ApiResponse } from '../services/api';
 import { SoftwareRequest, SoftwareRequestsApiResponse, SoftwareRequestStats } from '../types';
 
@@ -68,6 +69,33 @@ const SoftwareRequests: React.FC = () => {
     loadRequests(page);
     loadStats();
   }, [page, statusFilter]);
+
+  // Socket.IO: автооновлення при нових запитах від бота
+  useEffect(() => {
+    const rawUrl = (process.env.REACT_APP_SOCKET_URL ||
+      process.env.REACT_APP_API_URL ||
+      window.location.origin) as string;
+    const socketUrl = rawUrl.replace(/\/api\/?$/, '');
+    const token = localStorage.getItem('token');
+    const socket = io(socketUrl, {
+      auth: token ? { token } : undefined,
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      socket.emit('join-admin-room');
+    });
+
+    socket.on('software-request-notification', () => {
+      loadRequests(1);
+      loadStats();
+      toast('Новий запит на встановлення ПЗ', { icon: '📦' });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleApprove = async () => {
     if (!selectedRequest) return;

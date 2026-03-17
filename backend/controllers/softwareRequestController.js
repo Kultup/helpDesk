@@ -1,6 +1,8 @@
 const SoftwareRequest = require('../models/SoftwareRequest');
 const logger = require('../utils/logger');
-const crypto = require('crypto');
+const ticketWebSocketService = require('../services/ticketWebSocketService');
+const activeDirectoryService = require('../services/activeDirectoryService');
+const telegramServiceInstance = require('../services/telegramServiceInstance');
 
 /**
  * Створити запит на встановлення ПЗ
@@ -17,17 +19,6 @@ const createRequest = async (req, res) => {
       });
     }
 
-    // Перевірка чи може користувач подати запит (1 на тиждень)
-    const canRequest = await SoftwareRequest.canUserMakeRequest(req.user._id, req.user.telegramId);
-
-    if (!canRequest) {
-      return res.status(429).json({
-        success: false,
-        message:
-          'Ви вже подавали запит протягом останнього тижня. Наступний запит можна подати через 7 днів.',
-      });
-    }
-
     // Створення запиту
     const request = await SoftwareRequest.create({
       user: req.user._id,
@@ -40,6 +31,9 @@ const createRequest = async (req, res) => {
     });
 
     logger.info(`Software Request: створено запит ${request._id} від ${req.user.email}`);
+
+    // Сповістити адмінів у реальному часі
+    ticketWebSocketService.notifyNewSoftwareRequest(request);
 
     res.status(201).json({
       success: true,
@@ -120,7 +114,7 @@ const getAllRequests = async (req, res) => {
 };
 
 /**
- * Схвалити запит і створити тестового користувача
+ * Схвалити запит — відкрити доступ в AD і повідомити користувача через Telegram
  * PUT /api/software-requests/:id/approve
  */
 const approveRequest = async (req, res) => {
@@ -128,7 +122,7 @@ const approveRequest = async (req, res) => {
     const { id } = req.params;
     const { adminNote } = req.body;
 
-    const request = await SoftwareRequest.findById(id);
+    const request = await SoftwareRequest.findById(id).populate('user', 'firstName lastName');
     if (!request) {
       return res.status(404).json({
         success: false,
@@ -136,46 +130,69 @@ const approveRequest = async (req, res) => {
       });
     }
 
-    // Генерація тестових облікових даних
-    const testUsername = `test_${crypto.randomBytes(4).toString('hex')}`;
-    const testPassword = crypto.randomBytes(8).toString('hex');
+    const adUsername = process.env.AD_ACCESS_USERNAME;
+    const adPassword = process.env.AD_ACCESS_PASSWORD;
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 години
 
-    // TODO: Тут виклик сервісу для створення користувача в AD
-    // const adUser = await activeDirectoryService.createTestUser({
-    //   username: testUsername,
-    //   password: testPassword,
-    //   expiresAt,
-    //   permissions: ['local_admin'],
-    // });
+    // Активувати обліковий запис в AD
+    let adResult = null;
+    if (adUsername) {
+      try {
+        adResult = await activeDirectoryService.enableUser(adUsername);
+        logger.info(`Software Request: AD enableUser result for ${adUsername}:`, adResult);
+      } catch (adErr) {
+        logger.warn(
+          `Software Request: не вдалося активувати AD акаунт ${adUsername}:`,
+          adErr.message
+        );
+      }
+    }
 
     request.status = 'approved';
     request.testUserCreated = true;
     request.testUserCredentials = {
-      username: testUsername,
-      password: testPassword,
+      username: adUsername || 'test',
+      password: adPassword || '',
       expiresAt,
     };
     request.adminNote = adminNote || '';
     request.resolvedAt = new Date();
     await request.save();
 
-    logger.info(
-      `Software Request: схвалено запит ${id}, створено тест користувача ${testUsername}`
-    );
+    logger.info(`Software Request: схвалено запит ${id}, відкрито доступ для ${adUsername}`);
 
-    // TODO: Відправити credentials користувачу в Telegram
-    // await telegramService.sendMessage(request.telegramId, ...)
+    // Відправити credentials користувачу в Telegram
+    const telegramId = request.telegramId;
+    if (telegramId && adUsername && adPassword) {
+      try {
+        const softwareName = request.softwareName || 'програма';
+        const msg =
+          `✅ <b>Доступ надано!</b>\n\n` +
+          `📦 Програма: <code>${softwareName}</code>\n\n` +
+          `🔑 <b>Дані для входу:</b>\n` +
+          `👤 Логін: <code>${adUsername}</code>\n` +
+          `🔒 Пароль: <code>${adPassword}</code>\n\n` +
+          `⏳ Доступ дійсний 24 години.\n` +
+          `Після завершення роботи зверніться до адміністратора.`;
+        await telegramServiceInstance.sendMessage(telegramId, msg, { parse_mode: 'HTML' });
+      } catch (tgErr) {
+        logger.warn(
+          `Software Request: не вдалося відправити Telegram повідомлення:`,
+          tgErr.message
+        );
+      }
+    }
 
     res.json({
       success: true,
       data: {
         request,
         credentials: {
-          username: testUsername,
-          password: testPassword,
+          username: adUsername || 'test',
+          password: adPassword || '',
           expiresAt,
         },
+        adResult,
       },
     });
   } catch (error) {

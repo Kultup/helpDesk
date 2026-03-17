@@ -171,6 +171,22 @@ class TicketWebSocketService {
     }
   }
 
+  // Сповіщення про новий запит на ПЗ
+  notifyNewSoftwareRequest(requestData) {
+    if (!this.io) {
+      return;
+    }
+    try {
+      this.io.to('admin-room').emit('software-request-notification', {
+        type: 'new_software_request',
+        data: requestData,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('❌ Помилка відправки WebSocket сповіщення про запит на ПЗ:', error);
+    }
+  }
+
   // Сповіщення про нове пряме повідомлення (не прив'язане до тікету)
   notifyNewDirectMessage(userId, message) {
     if (!this.io) {

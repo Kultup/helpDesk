@@ -71,15 +71,8 @@ softwareRequestSchema.index({ status: 1 });
 softwareRequestSchema.index({ requestedAt: 1 });
 
 // Метод для перевірки чи може користувач подати новий запит
-softwareRequestSchema.statics.canUserMakeRequest = async function (userId, telegramId) {
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-  const recentRequests = await this.countDocuments({
-    $or: [{ user: userId }, { telegramId }],
-    requestedAt: { $gte: oneWeekAgo },
-  });
-
-  return recentRequests < 1; // 1 запит на тиждень
+softwareRequestSchema.statics.canUserMakeRequest = function () {
+  return Promise.resolve(true); // без обмежень
 };
 
 // Метод для отримання статистики

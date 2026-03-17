@@ -47,6 +47,7 @@ class TelegramService {
     this.token = null; // Токен бота
     this._mediaGroupSeen = new Map(); // Дедуплікація Telegram-альбомів: key=`${chatId}:${mediaGroupId}`
     this._documentBuffers = new Map(); // Буфер документів для debounce (AI-режим): key=chatId
+    this._pendingAdUpdates = new Map(); // AD sync: telegramId → { userId, updates }
     this._classicDocBuffers = new Map(); // Буфер документів для debounce (класичний режим): key=chatId
     this._activeTickets = new Map(); // telegramId/chatId → ticketId для захоплення відповідей
     this.loadBotSettings(); // Завантажуємо налаштування бота
@@ -1838,6 +1839,90 @@ class TelegramService {
               },
             }
           );
+        } else if (data === 'profile_check_ok') {
+          await this.answerCallbackQuery(callbackQuery.id, 'Дані підтверджено ✅');
+          await this.sendMessage(chatId, '✅ Дякуємо! Ваші дані актуальні.');
+        } else if (data === 'profile_update_menu') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          await this.sendMessage(chatId, '✏️ <b>Що хочете оновити?</b>', {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📞 Телефон', callback_data: 'profile_edit_phone' }],
+                [{ text: '📍 Місто', callback_data: 'profile_edit_city' }],
+                [{ text: '🏢 Відділ', callback_data: 'profile_edit_department' }],
+                [{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }],
+              ],
+            },
+          });
+        } else if (data === 'profile_edit_phone') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const s = this.userSessions.get(chatId) || {};
+          s.step = 'profile_update_phone';
+          this.userSessions.set(chatId, s);
+          await this.sendMessage(chatId, '📞 Введіть новий номер телефону:', {
+            reply_markup: {
+              inline_keyboard: [[{ text: '❌ Скасувати', callback_data: 'profile_cancel_update' }]],
+            },
+          });
+        } else if (data === 'profile_edit_department') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const s = this.userSessions.get(chatId) || {};
+          s.step = 'profile_update_department';
+          this.userSessions.set(chatId, s);
+          await this.sendMessage(chatId, '🏢 Введіть назву відділу:', {
+            reply_markup: {
+              inline_keyboard: [[{ text: '❌ Скасувати', callback_data: 'profile_cancel_update' }]],
+            },
+          });
+        } else if (data === 'profile_edit_city') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          try {
+            const City = require('../models/City');
+            const cities = await City.find({ isActive: { $ne: false } })
+              .select('_id name')
+              .sort('name')
+              .limit(30);
+            const keyboard = cities.map(c => [
+              { text: c.name, callback_data: `profile_city_${c._id}` },
+            ]);
+            keyboard.push([{ text: '❌ Скасувати', callback_data: 'profile_cancel_update' }]);
+            await this.sendMessage(chatId, '📍 Оберіть місто:', {
+              reply_markup: { inline_keyboard: keyboard },
+            });
+          } catch (e) {
+            await this.sendMessage(chatId, '❌ Не вдалося завантажити список міст.');
+          }
+        } else if (data.startsWith('profile_city_')) {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const cityId = data.replace('profile_city_', '');
+          try {
+            const City = require('../models/City');
+            const city = await City.findById(cityId);
+            if (!city) {
+              await this.sendMessage(chatId, '❌ Місто не знайдено.');
+              return;
+            }
+            await user.updateOne({ city: cityId });
+            await this.sendMessage(chatId, `✅ Місто оновлено: <b>${city.name}</b>`, {
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+              },
+            });
+          } catch (e) {
+            await this.sendMessage(chatId, '❌ Помилка оновлення міста.');
+          }
+        } else if (data === 'profile_cancel_update') {
+          await this.answerCallbackQuery(callbackQuery.id);
+          const s = this.userSessions.get(chatId) || {};
+          delete s.step;
+          this.userSessions.set(chatId, s);
+          await this.sendMessage(chatId, '❌ Оновлення скасовано.', {
+            reply_markup: {
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+            },
+          });
         } else if (data === 'cancel_uac_request') {
           await this.answerCallbackQuery(callbackQuery.id);
           const uacCancelSession = this.userSessions.get(chatId) || {};
@@ -1884,24 +1969,25 @@ class TelegramService {
               }
             }
 
-            const groupMessage =
-              `🔓 <b>Доступ відкрито</b>\n` +
-              `👤 Логін: <code>${TelegramUtils.escapeHtml(adAccessUsername)}</code>\n` +
-              (adAccessPassword
-                ? `🔑 Пароль: <code>${TelegramUtils.escapeHtml(adAccessPassword)}</code>`
-                : '');
+            if (adResult.success) {
+              const groupMessage =
+                `🔓 <b>Доступ відкрито</b>\n` +
+                `👤 Логін: <code>${TelegramUtils.escapeHtml(adAccessUsername)}</code>\n` +
+                (adAccessPassword
+                  ? `🔑 Пароль: <code>${TelegramUtils.escapeHtml(adAccessPassword)}</code>`
+                  : '');
 
-            if (groupChatId) {
-              await this.sendMessage(groupChatId, groupMessage, { parse_mode: 'HTML' });
-              await this.sendMessage(
-                chatId,
-                `${adStatusText}\n✅ Дані відправлено в загальну групу`
-              );
+              if (groupChatId) {
+                await this.sendMessage(groupChatId, groupMessage, { parse_mode: 'HTML' });
+                await this.sendMessage(
+                  chatId,
+                  `${adStatusText}\n✅ Дані відправлено в загальну групу`
+                );
+              } else {
+                await this.sendMessage(chatId, `${adStatusText}\n⚠️ Групу не налаштовано`);
+              }
             } else {
-              await this.sendMessage(
-                chatId,
-                `${adStatusText}\n⚠️ Не вдалося відправити в групу: chatId не налаштовано`
-              );
+              await this.sendMessage(chatId, adStatusText);
             }
           } catch (err) {
             const errMsg = err?.message || err?.name || String(err);
@@ -1938,7 +2024,7 @@ class TelegramService {
               }
             }
 
-            if (groupChatId) {
+            if (adResult.success && groupChatId) {
               await this.sendMessage(
                 groupChatId,
                 `🔒 <b>Доступ закрито</b>\n👤 Обліковий запис: <code>${TelegramUtils.escapeHtml(adAccessUsernameClose)}</code>`,
@@ -2305,6 +2391,52 @@ class TelegramService {
       // UAC reason handler — створює запит на встановлення ПЗ
       if (
         session &&
+        session.step === 'profile_update_phone' &&
+        msg.text &&
+        !msg.text.startsWith('/')
+      ) {
+        const newPhone = msg.text.trim();
+        delete session.step;
+        this.userSessions.set(chatId, session);
+        try {
+          await existingUser.updateOne({ phone: newPhone });
+          await this.sendMessage(chatId, `✅ Телефон оновлено: <b>${newPhone}</b>`, {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+            },
+          });
+        } catch (e) {
+          await this.sendMessage(chatId, '❌ Помилка оновлення телефону.');
+        }
+        return;
+      }
+
+      if (
+        session &&
+        session.step === 'profile_update_department' &&
+        msg.text &&
+        !msg.text.startsWith('/')
+      ) {
+        const newDept = msg.text.trim();
+        delete session.step;
+        this.userSessions.set(chatId, session);
+        try {
+          await existingUser.updateOne({ department: newDept });
+          await this.sendMessage(chatId, `✅ Відділ оновлено: <b>${newDept}</b>`, {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[{ text: '🏠 Головне меню', callback_data: 'back_to_menu' }]],
+            },
+          });
+        } catch (e) {
+          await this.sendMessage(chatId, '❌ Помилка оновлення відділу.');
+        }
+        return;
+      }
+
+      if (
+        session &&
         session.step === 'awaiting_uac_reason' &&
         msg.text &&
         !msg.text.startsWith('/')
@@ -2385,6 +2517,14 @@ class TelegramService {
               },
             }
           );
+          // Сповістити адмін панель у реальному часі
+          try {
+            const ticketWebSocketService = require('./ticketWebSocketService');
+            ticketWebSocketService.notifyNewSoftwareRequest(newRequest);
+          } catch (_) {
+            /* ignore */
+          }
+
           logger.info('UAC software request created', {
             requestId: newRequest._id,
             software: uacSoftware,
