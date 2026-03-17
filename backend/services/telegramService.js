@@ -2691,6 +2691,18 @@ class TelegramService {
       session.pendingAttachments = [];
     }
 
+    // Видаляємо "мертві" записи — файли яких вже немає на диску (після краша сервера)
+    session.pendingAttachments = session.pendingAttachments.filter(a => {
+      if (!a.path) {
+        return false;
+      }
+      try {
+        return fs.existsSync(a.path);
+      } catch {
+        return false;
+      }
+    });
+
     const savedNames = [];
     for (const msg of msgs) {
       const fileName = msg.document.file_name || 'document';

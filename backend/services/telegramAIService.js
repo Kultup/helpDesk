@@ -1689,6 +1689,20 @@ class TelegramAIService {
       }
     }
 
+    // Видаляємо "мертві" записи — файли яких вже немає на диску (після краша сервера)
+    if (session.pendingAttachments && session.pendingAttachments.length > 0) {
+      session.pendingAttachments = session.pendingAttachments.filter(a => {
+        if (!a.path) {
+          return false;
+        }
+        try {
+          return fs.existsSync(a.path);
+        } catch {
+          return false;
+        }
+      });
+    }
+
     const lastUserMsg = session.dialog_history.filter(m => m.role === 'user').pop();
     const problemDescription =
       (caption && String(caption).trim()) ||
