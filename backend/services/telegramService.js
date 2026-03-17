@@ -2670,6 +2670,14 @@ class TelegramService {
       this.userSessions.set(chatId, session);
     }
 
+    // Якщо сесія "застрягла" у confirm_ticket (старий драфт з Redis) — скидаємо діалог і починаємо з нуля
+    if (session.step === 'confirm_ticket' || session.step === 'photo') {
+      session.step = 'gathering_information';
+      session.dialog_history = [];
+      session.ticketDraft = null;
+      session.pendingAttachments = [];
+    }
+
     if (!session.pendingAttachments) {
       session.pendingAttachments = [];
     }
@@ -2716,29 +2724,7 @@ class TelegramService {
         ? `📎 <b>Файл прикріплено:</b>`
         : `📎 <b>Прикріплено файлів: ${savedNames.length}</b>`;
 
-    // Якщо вже є готовий драфт — одразу показуємо підтвердження з новими файлами
-    if (session.step === 'confirm_ticket' && session.ticketDraft) {
-      await this.sendMessage(
-        chatId,
-        `${header}\n${namesText}\n\n<i>Всього у заявці: ${total} файл(ів)</i>`,
-        { parse_mode: 'HTML' }
-      );
-      const user = await User.findOne({
-        $or: [{ telegramId: String(msgs[0].from.id) }, { telegramId: msgs[0].from.id }],
-      });
-      if (user) {
-        await this.aiService._showTicketConfirmationFromDialog(chatId, session, user);
-      }
-      return;
-    }
-
-    const hasOldDialog = session.dialog_history && session.dialog_history.length > 0;
-    const fileButtons = hasOldDialog
-      ? [
-          [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
-          [{ text: '🔄 Нова заявка (очистити діалог)', callback_data: 'cancel_ticket' }],
-        ]
-      : [[{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }]];
+    const fileButtons = [[{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }]];
 
     await this.sendMessage(
       chatId,
