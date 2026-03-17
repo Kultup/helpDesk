@@ -1837,8 +1837,9 @@ class TelegramService {
               );
             }
           } catch (err) {
-            logger.error('open_test_access error:', err.message);
-            await this.sendMessage(chatId, `❌ Помилка: ${err.message}`);
+            const errMsg = err?.message || err?.name || String(err);
+            logger.error('open_test_access error:', errMsg);
+            await this.sendMessage(chatId, `❌ Помилка: ${errMsg}`);
           }
         } else if (data === 'back_to_menu') {
           await this.answerCallbackQuery(callbackQuery.id);

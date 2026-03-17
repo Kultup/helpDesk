@@ -634,14 +634,13 @@ class ActiveDirectoryService {
         return { success: false, message: `Користувача "${username}" не знайдено в AD` };
       }
 
+      logger.info(`AD enableUser: знайдено DN="${userRecord.dn}", enabled=${userRecord.enabled}`);
       client = await this.authenticate();
 
-      // userAccountControl: знімаємо біт 0x2 (ACCOUNTDISABLE)
-      // Якщо поточне значення невідоме, встановлюємо 512 (NORMAL_ACCOUNT enabled)
-      const currentUac = userRecord.enabled === false ? 514 : 512;
-      const newUac = String(currentUac & ~2); // знімаємо біт ACCOUNTDISABLE
+      // userAccountControl: встановлюємо 512 (NORMAL_ACCOUNT, enabled)
+      const newUac = '512';
 
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         const change = new ldap.Change({
           operation: 'replace',
           modification: new ldap.Attribute({
@@ -659,8 +658,13 @@ class ActiveDirectoryService {
             }
           }
           if (err) {
-            logger.error(`AD enableUser: помилка активації "${username}":`, err.message);
-            reject(err);
+            const errMsg = err.message || err.name || String(err.code) || JSON.stringify(err);
+            logger.error(`AD enableUser: помилка активації "${username}": ${errMsg}`, {
+              code: err.code,
+              name: err.name,
+              dn: userRecord.dn,
+            });
+            reject(new Error(errMsg));
           } else {
             logger.info(`AD enableUser: обліковий запис "${username}" активовано`);
             resolve({ success: true, message: `Обліковий запис "${username}" активовано` });
@@ -675,8 +679,9 @@ class ActiveDirectoryService {
           /* ignore */
         }
       }
-      logger.error(`AD enableUser: помилка:`, error.message);
-      return { success: false, message: error.message };
+      const errMsg = error.message || error.name || String(error.code) || String(error);
+      logger.error(`AD enableUser: помилка:`, errMsg);
+      return { success: false, message: errMsg };
     }
   }
 
