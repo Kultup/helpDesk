@@ -2670,12 +2670,23 @@ class TelegramService {
       this.userSessions.set(chatId, session);
     }
 
-    // Якщо сесія "застрягла" у confirm_ticket (старий драфт з Redis) — скидаємо діалог і починаємо з нуля
-    if (session.step === 'confirm_ticket' || session.step === 'photo') {
+    // Якщо сесія містить старий контекст без нових файлів — скидаємо як нову (аналогічно фото)
+    const isStaleSession =
+      session.step !== 'gathering_information' ||
+      session.ticketDraft !== null ||
+      ((!session.pendingAttachments || session.pendingAttachments.length === 0) &&
+        session.dialog_history &&
+        session.dialog_history.length > 0);
+    if (isStaleSession) {
       session.step = 'gathering_information';
       session.dialog_history = [];
       session.ticketDraft = null;
       session.pendingAttachments = [];
+      session.ticketData = {
+        createdBy: session.ticketData?.createdBy || session.userContext?.userId,
+        photos: [],
+        documents: [],
+      };
     }
 
     if (!session.pendingAttachments) {
