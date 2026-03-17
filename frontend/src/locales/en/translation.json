@@ -135,6 +135,8 @@
     "pendingRegistrations": "Pending Registrations",
     "quickNotifications": "Quick Notifications",
     "directMessages": "Direct Messages",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
     "aiReports": "AI Reports",
     "aiFAQ": "FAQ Generator",
     "groups": {

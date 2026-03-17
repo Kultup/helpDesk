@@ -10,11 +10,22 @@ import apiService from '../../services/api';
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const { width } = useWindowSize();
   const { user } = useAuth();
   const isMobile = width < 768;
   const isAdmin = user ? isAdminRole(user.role as UserRole) : false;
+
+  const handleToggleCollapse = (): void => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebar-collapsed', String(next));
+      return next;
+    });
+  };
 
   // Автоматично зберігаємо поточний маршрут
   useRouteHistory();
@@ -32,8 +43,8 @@ const Layout: React.FC = () => {
         const response = await apiService.get<{ data: unknown[] }>('/events', {
           params: {
             startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
-          }
+            endDate: endDate.toISOString(),
+          },
         });
 
         setEvents((response as unknown as { data?: CalendarEvent[] }).data || []);
@@ -51,20 +62,19 @@ const Layout: React.FC = () => {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen} 
+      <Sidebar
+        isOpen={sidebarOpen}
         onClose={(): void => setSidebarOpen(false)}
         isMobile={isMobile}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       />
-      
+
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <Header 
-          onMenuClick={(): void => setSidebarOpen(true)}
-          isMobile={isMobile}
-        />
-        
+        <Header onMenuClick={(): void => setSidebarOpen(true)} isMobile={isMobile} />
+
         {/* Page content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background p-2 sm:p-4 md:p-6">
           <div className="max-w-7xl mx-auto w-full">
@@ -72,10 +82,10 @@ const Layout: React.FC = () => {
           </div>
         </main>
       </div>
-      
+
       {/* Mobile sidebar overlay */}
       {isMobile && sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50"
           onClick={(): void => setSidebarOpen(false)}
           onKeyDown={(e): void => {
@@ -88,7 +98,7 @@ const Layout: React.FC = () => {
           aria-label="Закрити меню"
         />
       )}
-      
+
       {/* Система сповіщень */}
       <NotificationSystem events={events} />
     </div>

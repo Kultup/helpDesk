@@ -1697,8 +1697,12 @@ class ApiService {
     return this.get('/telegram/users');
   }
 
-  async getDirectMessages(userId: string): Promise<ApiResponse<TelegramMessage[]>> {
-    return this.get(`/telegram/messages/${userId}`);
+  async getDirectMessages(
+    userId: string,
+    search?: string
+  ): Promise<ApiResponse<TelegramMessage[]>> {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+    return this.get(`/telegram/messages/${userId}${qs}`);
   }
 
   async sendDirectMessage(

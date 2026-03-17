@@ -43,67 +43,37 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
   const calendarMenuRef = useClickOutside(() => setCalendarMenuOpen(false));
   const positionRequestsMenuRef = useClickOutside(() => setPositionRequestsMenuOpen(false));
   const { notifications } = useNotifications();
-  const { registrations, newRegistrationCount, resetNewRegistrationCount } = useRegistrationNotifications();
+  const { registrations, newRegistrationCount, resetNewRegistrationCount } =
+    useRegistrationNotifications();
   const { count: contextRegistrationCount } = usePendingRegistrationsContext();
   const previousNotificationCountRef = useRef<number>(0);
   const previousRegistrationCountRef = useRef<number>(0);
 
   // Відстеження нових сповіщень для анімації іконки
   useEffect(() => {
-    console.log('🔔 Header: notifications changed:', notifications);
     if (Array.isArray(notifications)) {
       const currentCount = notifications.length;
       const previousCount = previousNotificationCountRef.current;
-      
-      console.log('🔔 Header: currentCount:', currentCount, 'previousCount:', previousCount);
-      
-      // Якщо з'явилось нове сповіщення (збільшилась кількість)
       if (currentCount > previousCount) {
-        console.log('🔔 Header: Starting bell animation');
         setBellAnimation(true);
-        
-        // Зупиняємо анімацію через 2 секунди
-        setTimeout(() => {
-          setBellAnimation(false);
-        }, 2000);
+        setTimeout(() => setBellAnimation(false), 2000);
       }
-      
-      // Оновлюємо попередню кількість
       previousNotificationCountRef.current = currentCount;
-      
-      // Встановлюємо кількість непрочитаних (всі сповіщення - це активні тікети)
       setUnreadCount(currentCount);
-      console.log('🔔 Header: unreadCount set to:', currentCount);
     } else {
-      // Якщо notifications undefined або не масив, встановлюємо 0
-      console.log('🔔 Header: notifications is not array, setting unreadCount to 0');
       setUnreadCount(0);
     }
   }, [notifications]);
 
   // Відстеження нових запитів на реєстрацію для анімації іконки
   useEffect(() => {
-    // Використовуємо кількість з контексту як основну, оскільки вона оновлюється через WebSocket в реальному часі
     const currentRegistrationCount = contextRegistrationCount;
     const previousRegistrationCount = previousRegistrationCountRef.current;
-    
-    console.log('👤 Header: Registration counts - context:', contextRegistrationCount, 'new:', newRegistrationCount, 'total:', currentRegistrationCount, 'previous:', previousRegistrationCount);
-    
-    // Оновлюємо кількість реєстрацій
     setRegistrationCount(currentRegistrationCount);
-    
-    // Якщо з'явилась нова реєстрація (збільшилась кількість)
     if (currentRegistrationCount > previousRegistrationCount && previousRegistrationCount >= 0) {
-      console.log('👤 Header: Starting registration animation');
       setRegistrationAnimation(true);
-      
-      // Зупиняємо анімацію через 2 секунди
-      setTimeout(() => {
-        setRegistrationAnimation(false);
-      }, 2000);
+      setTimeout(() => setRegistrationAnimation(false), 2000);
     }
-    
-    // Оновлюємо попередню кількість
     previousRegistrationCountRef.current = currentRegistrationCount;
   }, [contextRegistrationCount, newRegistrationCount]);
 
@@ -118,20 +88,26 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           if (response.success && Array.isArray(response.data)) {
             setPositionRequests(response.data);
             const apiResponse = response as any;
-            if (apiResponse.pagination && (apiResponse.pagination.total !== undefined || apiResponse.pagination.totalItems !== undefined)) {
-              setPositionRequestsCount(apiResponse.pagination.total || apiResponse.pagination.totalItems);
+            if (
+              apiResponse.pagination &&
+              (apiResponse.pagination.total !== undefined ||
+                apiResponse.pagination.totalItems !== undefined)
+            ) {
+              setPositionRequestsCount(
+                apiResponse.pagination.total || apiResponse.pagination.totalItems
+              );
             } else {
               setPositionRequestsCount(response.data.length);
             }
           }
-        } catch (error) {
-          console.error('Failed to fetch position requests', error);
+        } catch {
+          // ignore
         } finally {
           setPositionRequestsLoading(false);
         }
       }
     };
-    
+
     fetchPositionRequests();
     // Poll every minute
     const intervalId = setInterval(fetchPositionRequests, 60000);
@@ -248,9 +224,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           )}
-          
+
           <div className="flex items-center">
-            <Link to="/dashboard" className="text-lg sm:text-xl font-bold text-primary-500 hover:text-primary-600 transition-colors duration-200">
+            <Link
+              to="/dashboard"
+              className="text-lg sm:text-xl font-bold text-primary-500 hover:text-primary-600 transition-colors duration-200"
+            >
               {t('sidebar.appName')}
             </Link>
           </div>
@@ -260,26 +239,30 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
         <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4">
           {/* Language Selector */}
           <LanguageSelector />
-          
+
           {/* Notifications */}
           <div className="relative" ref={notificationMenuRef}>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleNotificationClick}
               className={`relative p-2 rounded-full transition-all duration-200 ${
-                notificationMenuOpen ? 'bg-primary-100 text-primary-600' : 'text-gray-500 hover:bg-gray-100'
+                notificationMenuOpen
+                  ? 'bg-primary-100 text-primary-600'
+                  : 'text-gray-500 hover:bg-gray-100'
               }`}
               title={t('header.notifications')}
             >
-              <Bell className={`h-5 w-5 sm:h-6 sm:w-6 ${bellAnimation ? 'animate-bell-ring text-primary-500' : ''}`} />
+              <Bell
+                className={`h-5 w-5 sm:h-6 sm:w-6 ${bellAnimation ? 'animate-bell-ring text-primary-500' : ''}`}
+              />
               {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full min-w-[18px] h-[18px]">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Button>
-            
+
             {/* Notification Dropdown */}
             <NotificationDropdown
               tickets={notifications || []}
@@ -291,12 +274,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           {/* Position Requests - Admin Only */}
           {user && isAdminRole(user.role) && (
             <div className="relative" ref={positionRequestsMenuRef}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handlePositionRequestsClick}
                 className={`relative p-2 rounded-full transition-all duration-200 ${
-                  positionRequestsMenuOpen ? 'bg-primary-100 text-primary-600' : 'text-gray-500 hover:bg-gray-100'
+                  positionRequestsMenuOpen
+                    ? 'bg-primary-100 text-primary-600'
+                    : 'text-gray-500 hover:bg-gray-100'
                 }`}
                 title={t('positionRequests.title', 'Запити на посади')}
               >
@@ -307,12 +292,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
                   </span>
                 )}
               </Button>
-              
+
               {positionRequestsMenuOpen && (
-                <PositionRequestsDropdown 
-                  requests={positionRequests} 
+                <PositionRequestsDropdown
+                  requests={positionRequests}
                   isLoading={positionRequestsLoading}
-                  onClose={() => setPositionRequestsMenuOpen(false)} 
+                  onClose={() => setPositionRequestsMenuOpen(false)}
                 />
               )}
             </div>
@@ -321,21 +306,23 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           {/* Registration Requests - Admin Only */}
           {user && isAdminRole(user.role) && (
             <div className="relative" ref={registrationMenuRef}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
                 onClick={handleRegistrationClick}
               >
-                <UserPlus 
+                <UserPlus
                   className={`h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 ${
                     registrationAnimation ? 'animate-bounce text-blue-500' : ''
-                  }`} 
+                  }`}
                 />
                 {registrationCount > 0 && (
-                  <span className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white font-medium ${
-                    registrationAnimation ? 'animate-pulse' : ''
-                  }`}>
+                  <span
+                    className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 bg-blue-500 rounded-full flex items-center justify-center text-[10px] sm:text-xs text-white font-medium ${
+                      registrationAnimation ? 'animate-pulse' : ''
+                    }`}
+                  >
                     {registrationCount > 99 ? '99+' : registrationCount}
                   </span>
                 )}
@@ -355,9 +342,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
           {/* Calendar - Only for admins */}
           {user && isAdminRole(user.role) && (
             <div className="relative" ref={calendarMenuRef}>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="relative h-8 w-8 sm:h-10 sm:w-10 p-0"
                 onClick={handleCalendarClick}
               >
@@ -367,7 +354,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               {/* Calendar Dropdown */}
               {calendarMenuOpen && (
                 <div className="absolute right-0 mt-2 z-50">
-                  <HeaderCalendar 
+                  <HeaderCalendar
                     isOpen={calendarMenuOpen}
                     onClose={() => setCalendarMenuOpen(false)}
                   />
@@ -389,8 +376,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
               </div>
               {!isMobile && (
                 <div className="text-left hidden sm:block">
-                  <p className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-none">
-                    {user?.email}
+                  <p className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-[160px]">
+                    {user
+                      ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+                      : ''}
                   </p>
                   <p className="text-xs text-text-secondary">
                     {user && isAdminRole(user.role) ? t('header.administrator') : t('header.user')}
@@ -410,9 +399,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isMobile }) => {
                   <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2 sm:mr-3" />
                   {t('header.settings')}
                 </Link>
-                
+
                 <hr className="my-1" />
-                
+
                 <button
                   onClick={handleLogout}
                   className="flex items-center w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50"

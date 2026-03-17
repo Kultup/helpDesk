@@ -536,14 +536,17 @@ router.get('/messages/:userId', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Доступ заборонено' });
     }
     const { userId } = req.params;
+    const { search } = req.query;
+
     const msgs = await TelegramMessage.find({
-      ticketId: null,
       $or: [{ senderId: userId }, { recipientId: userId }],
+      ...(search ? { content: { $regex: String(search).trim(), $options: 'i' } } : {}),
     })
       .sort({ sentAt: 1 })
-      .limit(200)
+      .limit(300)
       .populate('senderId', 'firstName lastName email')
-      .populate('recipientId', 'firstName lastName email');
+      .populate('recipientId', 'firstName lastName email')
+      .populate('ticketId', 'title ticketNumber');
 
     res.json({ success: true, data: msgs });
   } catch (error) {
