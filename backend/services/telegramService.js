@@ -2732,15 +2732,21 @@ class TelegramService {
       return;
     }
 
+    const hasOldDialog = session.dialog_history && session.dialog_history.length > 0;
+    const fileButtons = hasOldDialog
+      ? [
+          [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
+          [{ text: '🔄 Нова заявка (очистити діалог)', callback_data: 'cancel_ticket' }],
+        ]
+      : [[{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }]];
+
     await this.sendMessage(
       chatId,
       `${header}\n${namesText}\n\n<i>Всього у заявці: ${total} файл(ів)</i>\n\nОпишіть проблему або натисніть «Сформувати заявку».`,
       {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '📝 Сформувати заявку', callback_data: 'ai_generate_summary' }],
-          ],
+          inline_keyboard: fileButtons,
         },
       }
     );
